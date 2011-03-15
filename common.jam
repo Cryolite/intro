@@ -1,0 +1,13 @@
+import common ;
+import errors ;
+
+
+local rule get-command-abs-path ( command )
+{
+  local path = [ common.get-absolute-tool-path "$(command)" ] ;
+  if ! $(path)
+  {
+    errors.error "`$(command)' not found" ;
+  }
+  return "$(path)/$(command)" ;
+}

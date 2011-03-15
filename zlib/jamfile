@@ -1,0 +1,131 @@
+import common ;
+import errors ;
+import make ;
+import regex ;
+
+import "$(ROOT_PATH)/version" : get-command-abs-path ;
+
+
+local THIS_DIR = "$(ROOT_PATH)/zlib" ;
+
+rule get-current-ver ( )
+{
+  local wget-path = [ get-command-abs-path wget ] ;
+  local grep-path = [ get-command-abs-path grep ] ;
+  local sort-path = [ get-command-abs-path sort ] ;
+  local uniq-path = [ get-command-abs-path uniq ] ;
+
+  local zlib-vers
+    = [ SHELL "\"$(wget-path)\" --quiet --output-document=- -- 'http://zlib.net' \\
+                 | \"$(grep-path)\" -E --only-matching \"zlib-[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+\" \\
+                 | \"$(sort-path)\" | \"$(uniq-path)\"" ] ;
+  zlib-vers = [ regex.replace "$(zlib-vers)" "[\n]" / ] ;
+  zlib-vers = [ regex.replace "$(zlib-vers)" "/$" "" ] ;
+  zlib-vers = [ regex.split "$(zlib-vers)" / ] ;
+  zlib-vers = [ regex.replace-list $(zlib-vers) : "^zlib-" : "" ] ;
+  local tmp = [ "$(ROOT_PATH)/version.get-highest-ver" $(zlib-vers) ] ;
+  return "$(tmp)" ;
+}
+
+rule get-installed-ver ( )
+{
+  local echo-path = [ get-command-abs-path echo ] ;
+  local gcc-path = [ get-command-abs-path gcc ] ;
+  local grep-path = [ get-command-abs-path grep ] ;
+
+  local tmp = [ SHELL "\"$(echo-path)\" \"#include <zlib.h>\" | \"$(gcc-path)\" -x c -M - 2>&1" ] ;
+  local result = ;
+  if ! [ regex.match "(/zlib.h)" : "$(tmp)" : 1 ]
+  {
+    # Do nothing.
+  }
+  else
+  {
+    tmp = [ SHELL "\"$(echo-path)\" -e \"#include <zlib.h>\nINUMIMI_DAISUKI=ZLIB_VERSION\" \\
+                     | \"$(gcc-path)\" -x c -E - | \"$(grep-path)\" -F \"INUMIMI_DAISUKI\"" ] ;
+    tmp = [ regex.match "INUMIMI_DAISUKI=\"([^\n]+)\"\n" : "$(tmp)" : 1 ] ;
+    result = [ regex.match "^([1234567890]+\.[1234567890]+\.[1234567890]+)\.[1234567890]+$" : "$(tmp)" : 1 ] ;
+    if ! $(result)
+    {
+      result = [ regex.match "^([1234567890]+\.[1234567890]+\.[1234567890]+)$" : "$(tmp)" : 1 ] ;
+      if ! $(result)
+      {
+        result = [ regex.match "^([1234567890]+\.[1234567890]+)$" : "$(tmp)" : 1 ] ;
+        if ! $(result)
+        {
+          result = [ regex.match "^([1234567890]+)$" : "$(tmp)" : 1 ] ;
+          if ! $(result)
+          {
+            errors.user-error "`ZLIB_VERSION' not found" ;
+          }
+        }
+      }
+    }
+    result = [ "$(ROOT_PATH)/version.normalize" "$(result)" ] ;
+  }
+  return "$(result)" ;
+}
+
+rule install ( required-ver )
+{
+  required-ver = [ "$(ROOT_PATH)/version.normalize" "$(required-ver)" ] ;
+  if [ "$(ROOT_PATH)/version.less" [ get-installed-ver ] "$(required-ver)" ]
+  {
+    make $(THIS_DIR)/zlib.downloaded : : @download ;
+    make $(THIS_DIR)/zlib.expanded : $(THIS_DIR)/zlib.downloaded : @expand ;
+    make $(THIS_DIR)/zlib.configured : $(THIS_DIR)/zlib.expanded : @configure ;
+    make $(THIS_DIR)/zlib.made : $(THIS_DIR)/zlib.configured : @my-make ;
+    make $(THIS_DIR)/zlib.checked : $(THIS_DIR)/zlib.made : @check ;
+    make $(THIS_DIR)/zlib.installed : $(THIS_DIR)/zlib.checked : @install-act ;
+  }
+  else
+  {
+    make $(THIS_DIR)/zlib.installed : : @dummy-install ;
+  }
+}
+
+touch-command = [ common.file-touch-command ] ;
+copy-command = [ common.copy-command ] ;
+
+actions download
+{
+  echo downloading $(<:D)/zlib1.2.5.tar.bz2...
+  "$(touch-command)" "$(<)"
+}
+
+actions expand
+{
+  echo expanding $(THIS_DIR)/zlib-1.2.5.tar.bz2...
+  "$(copy-command)" "$(>)" "$(<)"
+}
+
+actions configure
+{
+  echo configuring $(THIS_DIR)/zlib-1.2.5/configure...
+  "$(copy-command)" "$(>)" "$(<)"
+}
+
+actions my-make
+{
+  echo making $(THIS_DIR)/zlib-1.2.5...
+  "$(copy-command)" "$(>)" "$(<)"
+}
+
+actions check
+{
+  echo checking $(THIS_DIR)/zlib-1.2.5...
+  "$(copy-command)" "$(>)" "$(<)"
+}
+
+actions install-act
+{
+  echo installing $(THIS_DIR)/zlib-1.2.5...
+  "$(copy-command)" "$(>)" "$(<)"
+}
+
+actions dummy-install
+{
+  "$(touch-command)" "$(<)"
+}
+
+my-install 1.2.4 ;

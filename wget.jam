@@ -1,0 +1,88 @@
+import "class" : new ;
+import errors : error ;
+import feature : feature ;
+import path ;
+import project ;
+#import property ;
+import property-set ;
+import regex ;
+import targets ;
+import toolset : flags ;
+
+import ./common : get-command-abs-path ;
+
+
+feature url : : free ;
+flags wget.run URL <url> ;
+
+feature wget-options : : free ;
+flags wget.run OPTIONS <wget-options> ;
+
+class wget-target : basic-target
+{
+    import type virtual-target ;
+    import "class" : new ;
+
+    rule __init__ ( name : project : sources * : requirements *
+        : default-build * : usage-requirements * )
+    {
+        basic-target.__init__ $(name) : $(project) : $(sources) :
+            $(requirements) : $(default-build) : $(usage-requirements) ;
+    }
+
+    rule construct ( name : source-targets * : property-set )
+    {
+        local a = [ new action : wget.run : $(property-set) ] ;
+        local t = [ new file-target $(self.name) exact : [ type.type
+            $(self.name) ] : $(self.project) : $(a) ] ;
+        return [ property-set.empty ] [ virtual-target.register $(t) ] ;
+    }
+}
+
+wget-command = [ get-command-abs-path wget ] ;
+
+actions run
+{
+  "$(wget-command)" $(OPTIONS) --output-document="$(<)" -- "$(URL)"
+  result=$?
+  if [ $result -ne 0 ]; then
+    exit $result
+  fi
+  if [ ! -e "$(<)" ]; then
+    exit 1
+  fi
+}
+
+rule wget ( url : options * : target-name ? )
+{
+    local project = [ project.current ] ;
+
+    target-name ?= [ path.basename "$(url)" ] ;
+    if ! $(target-name)
+    {
+      errors.error ;
+    }
+    target-name = [ regex.match "^([^\\?]+)(\\?)?" : "$(target-name)" : 1 ] ;
+    if ! $(target-name)
+    {
+      errors.error ;
+    }
+
+    local requirements = <url>"$(url)" ;
+
+    if ! $(options)
+    {
+      requirements += <wget-options>"--quiet" ;
+    }
+    else
+    {
+      requirements += <wget-options>"--quiet $(options)" ;
+    }
+
+    targets.main-target-alternative
+        [ new wget-target $(target-name) : $(project)
+            : [ targets.main-target-sources : $(target-name) ]
+            : [ targets.main-target-requirements $(requirements) : $(project) ]
+            : [ targets.main-target-default-build : $(project) ]
+            : [ targets.main-target-usage-requirements : $(project) ] ] ;
+}

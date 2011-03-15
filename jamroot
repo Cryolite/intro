@@ -1,0 +1,25 @@
+path-constant ROOT_PATH : . ;
+
+import make ;
+
+import ./common : get-command-abs-path ;
+import wget : wget ;
+
+
+wget "http://zlib.net/zlib-1.2.5.tar.gz" ;
+
+make zlib-1.2.5/configure : zlib-1.2.5.tar.gz : @extract ;
+
+tar-command = [ get-command-abs-path tar ] ;
+
+actions extract
+{
+  "$(tar-command)" -xzf "$(>)" --directory "$(>:D)"
+  result=$?
+  if [ $result -ne 0 ]; then
+    exit $result
+  fi
+  if [ ! -e $(<) ]; then
+    exit 1
+  fi
+}
