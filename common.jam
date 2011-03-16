@@ -1,8 +1,9 @@
 import common ;
 import errors ;
+import make ;
 
 
-local rule get-command-abs-path ( command )
+rule get-command-abs-path ( command )
 {
   local path = [ common.get-absolute-tool-path "$(command)" ] ;
   if ! $(path)
@@ -10,4 +11,16 @@ local rule get-command-abs-path ( command )
     errors.error "`$(command)' not found" ;
   }
   return "$(path)/$(command)" ;
+}
+
+rule existing-file ( target : sources * : requirements * : usage-requirements * )
+{
+  make $(target) : $(sources) : ./common/existing-file : $(requirements) : $(usage-requirements) ;
+}
+
+actions existing-file
+{
+  if [ ! -e "$(<)" ]; then
+    exit 1
+  fi
 }
