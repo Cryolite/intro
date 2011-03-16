@@ -1,0 +1,166 @@
+tarball-url = "ftp://ftp.gmplib.org/pub/gmp-5.0.1/gmp-5.0.1.tar.bz2" ;
+
+
+THIS_DIR = "$(ROOT_PATH)/gmp" ;
+
+import errors ;
+import feature : feature ;
+import make ;
+import path ;
+import regex ;
+import toolset : flags ;
+
+
+feature url : : free ;
+flags download-tarball-actions URL <url> ;
+
+rule download-tarball ( url )
+{
+  local file-name = [ path.basename "$(url)" ] ;
+  if ! $(file-name)
+  {
+    errors.error ;
+  }
+  file-name = [ regex.match "^([^\\?]+)(\\?)?" : "$(file-name)" : 1 ] ;
+  if ! $(file-name)
+  {
+    errors.error ;
+  }
+  file-name = "$(THIS_DIR)/$(file-name)" ;
+
+  make "$(file-name)" : : @download-tarball-actions : <url>$(url) ;
+
+  return "$(file-name)" ;
+}
+
+actions download-tarball-actions
+{
+  if [ -e "$(<)" ]; then
+    rm "$(<)"
+  fi
+  wget --quiet --output-document="$(<)" -- "$(URL)"
+  result=$?
+  if [ $result -ne 0 ]; then
+    exit $result
+  fi
+  if [ ! -e "$(<)" ]; then
+    exit 1
+  fi
+}
+
+
+feature options : : free ;
+flags extract-tarball-actions OPTIONS <options> ;
+
+rule extract-tarball ( )
+{
+  local tarball = [ download-tarball "$(tarball-url)" ] ;
+  explicit $(tarball) ;
+
+  local tarball-basename = "$(tarball:B)" ;
+  if "$(tarball-basename:S)" != .tar
+  {
+    errors.error ;
+  }
+
+  local configure-file = "$(THIS_DIR)/$(tarball-basename:B)/configure" ;
+
+  local suffix = $(tarball:S) ;
+  if $(suffux) = .gz
+  {
+    make $(configure-file) : $(tarball) : @extract-tarball-actions : <options>xzf ;
+  }
+  else if "$(tarball:S)" = .bz2
+  {
+    make $(configure-file) : $(tarball) : @extract-tarball-actions : <options>xjf ;
+  }
+  else
+  {
+    errors.error ;
+  }
+
+  return "$(configure-file)" ;
+}
+
+actions extract-tarball-actions
+{
+  if [ -e "$(<:D)" ]; then
+    rm -rf "$(<:D)"
+  fi
+  tar $(OPTIONS) "$(>)"
+  result=$?
+  if [ $result -ne 0 ]; then
+    exit $result
+  fi
+  if [ ! -e "$(<)" ]; then
+    exit 1
+  fi
+}
+
+
+flags configure-actions LINK <link> ;
+
+flags configure-actions OPTIONS <options> ;
+
+rule configure ( options * )
+{
+  local configure-file = [ extract-tarball ] ;
+  explicit $(configure-file) ;
+
+  make makefile : $(configure-file)/<link>shared : @configure-actions : <options>"$(options)" ;
+}
+
+actions configure-actions
+{
+  if [ -e "$(<)" ]; then
+    rm "$(<)"
+  fi
+
+  if [ $(LINK) = shared ]; then
+    link_switch="--enable-shared=yes --enable-static=no"
+  else
+    link_switch="--enable-shared=no --enable-static=yes"
+  fi
+  old_pwd=`pwd`
+  cd "$(<:D)"
+  "$(>)" $link_switch $(OPTIONS)
+  result=$?
+  cd "$old_pwd"
+  if [ $result -ne 0 ]; then
+    exit $result
+  fi
+  if [ ! -e "$(<)" ]; then
+    exit 1
+  fi
+}
+
+
+rule make-install ( configure-options )
+{
+  configure $(configure-options) ;
+  explicit makefile ;
+
+  make make-installed : makefile : @make-install-actions ;
+}
+
+actions make-install-actions
+{
+  if [ -e "$(<)" ]; then
+    rm "$(<)"
+  fi
+
+  make && make check && make install
+  result=$?
+  if [ $result -ne 0 ]; then
+    exit $result
+  fi
+  touch "$(<)"
+}
+
+
+make-install --prefix="/home/cryolite/local" ;
+explicit make-installed ;
+
+alias install : make-installed/<link>static make-installed/<link>shared ;
+
+alias install : install-raw/<variant>release/<runtime-link>shared/<threading>multi/
