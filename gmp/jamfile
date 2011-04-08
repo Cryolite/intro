@@ -218,7 +218,7 @@ rule make-gmp ( targets * : sources * : properties * )
 }
 actions make-gmp
 {
-  rm -f "$(<)"  || exit $?
+  rm -f "$(<)" || exit $?
   [ ! -f "$(>)" ] && exit 1
   ( cd "$(<:D)" && make 1>"$(STDOUT_)" 2>"$(STDERR_)" ) \
     || { echo "ERROR: failed to 'make' for the GMP build." 2>"$(STDERR_)" 1>&2; exit 1; }
@@ -228,7 +228,7 @@ actions make-gmp
   fi
   ( cd "$(<:D)" && make install 1>"$(STDOUT_)" 2>"$(STDERR_)" ) \
     || { echo "ERROR: failed to 'make install' for the GMP build." 2>"$(STDERR_)" 1>&2; exit 1; }
-  [ -e "$(<)" ] exit 1
+  [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
 
@@ -255,13 +255,15 @@ rule test-gmp ( targets * : sources * : properties * )
 }
 actions test-gmp
 {
+  rm -f "$(<)" || exit $?
   x=`"$(COMMAND)" $(VERSION) $(BUILD) $(HOST) $(ABI) "$(PREFIX)" $(LINK) $(CHECK)`
   if [ $? -ne 0 ]; then
     /bin/echo 'ERROR: post-installation test failed for the GMP build.' 2>"$(STDERR_)" 1>&2
     exit 1
   fi
   [ "$x" != 'yes' ] && exit 1
-  exit 0
+  [ -e "$(<)" ] && exit 1
+  touch "$(<)"
 }
 
 

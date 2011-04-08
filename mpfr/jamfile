@@ -269,7 +269,7 @@ rule make-mpfr ( targets * : sources * : properties * )
 }
 actions make-mpfr
 {
-  rm -f "$(<)"  || exit $?
+  rm -f "$(<)" || exit $?
   [ ! -e "$(>)" ] && exit 1
   ( cd "$(<:D)" && make 1>"$(STDOUT_)" 2>"$(STDERR_)" ) \
     || { echo "ERROR: failed to 'make' for the MPFR build." 2>"$(STDERR_)" 1>&2; exit 1; }
@@ -304,13 +304,15 @@ rule test-mpfr ( targets * : sources * : properties * )
 }
 actions test-mpfr
 {
+  rm -f "$(<)" || exit 1
   x=`"$(COMMAND)" $(VERSION) $(BUILD) $(HOST) $(ABI) "$(PREFIX)" $(LINK) $(CHECK)`
   if [ $? -ne 0 ]; then
     /bin/echo 'ERROR: post-installation test failed for the MPFR build.' 2>"$(STDERR_)" 1>&2
     exit 1
   fi
   [ "$x" != 'yes' ] && exit 1
-  exit 0
+  [ -e "$(<)" ] && exit 1
+  touch "$(<)"
 }
 
 
