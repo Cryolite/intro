@@ -1,11 +1,98 @@
-path-constant ROOT_PATH : . ;
+project intro
+  : build-dir bin
+  ;
 
-import ./tar : extract-gzip ;
-import ./wget : wget ;
+import errors ;
+import feature : feature ;
+import modules ;
+import regex ;
+
+path-constant THIS_DIR : . ;
 
 
-wget "http://zlib.net/zlib-1.2.5.tar.gz" ;
-explicit zlib-1.2.5.tar.gz ;
+hosts = ;
+prefix = ;
+stdout = ;
+stderr = ;
 
-extract-gzip zlib-1.2.5/configure : zlib-1.2.5.tar.gz ;
-explicit zlib-1.2.5/configure ;
+for local i in [ modules.peek : ARGV ]
+{
+  local tmp = ;
+
+  tmp = [ regex.match "^--hosts=(.*)" : $(i) : 1 ] ;
+  if $(tmp)
+  {
+    for local host in [ regex.split $(tmp) "," ]
+    {
+      hosts += $(host) ;
+    }
+  }
+
+  tmp = [ regex.match "^--prefix=(.*)" : $(i) : 1 ] ;
+  if $(tmp) && $(prefix)
+  {
+    errors.user-error "ERROR: duplicate '--prefix' option" ;
+  }
+  else if $(tmp)
+  {
+    prefix = $(tmp) ;
+  }
+
+  tmp = [ regex.match "^--stdout=(.*)" : $(i) : 1 ] ;
+  if $(tmp) && $(stdout)
+  {
+    errros.user-error "ERROR: duplicate '--stdout' option" ;
+  }
+  else if $(tmp)
+  {
+    stdout = $(tmp) ;
+  }
+
+  tmp = [ regex.match "^--stderr=(.*)" : $(i) : 1 ] ;
+  if $(tmp) && $(stderr)
+  {
+    errros.user-error "ERROR: duplicate '--stderr' option" ;
+  }
+  else if $(tmp)
+  {
+    stderr = $(tmp) ;
+  }
+}
+
+
+feature gmp-version : current : propagated ;
+for local i in [ regex.split [ SHELL "\"$(THIS_DIR)/gmp-versions.sh\"" ] " +" ]
+{
+  if $(i) {
+    feature.extend gmp-version : $(i) ;
+  }
+}
+feature gmp-build : [ SHELL "\"$(THIS_DIR)/gmp/config.guess\" | tr --delete '\n'" ] : propagated incidental optional ;
+feature gmp-host : unspecified [ SHELL "\"$(THIS_DIR)/gmp/config.guess\" | tr --delete '\n'" ] $(hosts) : propagated ;
+feature gmp-abi : unspecified 32 64 o32 n32 aix64 mode64 mode32 : propagated ;
+feature gmp-prefix : /usr/local : propagated incidental ;
+if $(prefix)
+{
+  feature.extend gmp-prefix : $(prefix) ;
+}
+feature gmp-link : unspecified both shared static : propagated ;
+feature gmp-check : unspecified yes no : propagated incidental ;
+feature gmp-stdout : $(stdout) : path propagated incidental optional ;
+feature gmp-stderr : $(stderr) : path propagated incidental optional ;
+
+local gmp-target = gmp//install ;
+if $(prefix)
+{
+  gmp-target = $(gmp-target)/<gmp-prefix>$(prefix) ;
+}
+if $(stdout)
+{
+  gmp-target = $(gmp-target)/<gmp-stdout>$(stdout) ;
+}
+if $(stderr)
+{
+  gmp-target = $(gmp-target)/<gmp-stderr>$(stderr) ;
+}
+alias gmp-install
+  : $(gmp-target)/<gmp-version>current/<gmp-link>both
+  ;

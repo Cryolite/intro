@@ -1,0 +1,5 @@
+/bin/
+*~
+/downloaded
+/gmp-*.tar.bz2
+/gmp-*

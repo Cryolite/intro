@@ -1,0 +1,411 @@
+project gmp ;
+
+import alias ;
+import errors ;
+import feature : feature ;
+import make ;
+import regex ;
+import string ;
+import testing ;
+
+path-constant THIS_DIR : . ;
+
+
+make gmp.download
+  : # No sources.
+  : @download-gmp
+  ;
+explicit gmp.download ;
+
+rule download-gmp ( targets * : sources * : properties * )
+{
+  local ver = [ feature.get-values <gmp-version> : $(properties) ] ;
+  URL on $(targets) = http://core.ring.gr.jp/pub/GNU/gmp/gmp-$(ver).tar.bz2 ;
+  TARBALL on $(targets) = $(THIS_DIR)/gmp-$(ver).tar.bz2 ;
+  STDOUT_ on $(targets) = [ feature.get-values <gmp-stdout> : $(properties) ] ;
+  STDERR_ on $(targets) = [ feature.get-values <gmp-stderr> : $(properties) ] ;
+}
+actions download-gmp
+{
+  rm -f "$(<)" || exit $?
+  rm -f "$(TARBALL)" || exit $?
+  (cd "$(TARBALL:D)" && wget --quiet --timestamping -- '$(URL)' ) \
+    || (echo "ERROR: failed to download the GMP tarball." 2>"$(STDOUT_)" 1>&2; exit 1)
+  if [ ! -f "$(TARBALL)" ]; then
+    exit 1
+  fi
+  if [ -e "$(<)" ]; then
+    exit 1
+  fi
+  touch "$(<)"
+}
+
+
+rule gmp-expand-req ( properties * )
+{
+  local result = ;
+  local ver = [ feature.get-values <gmp-version> : $(properties) ] ;
+  if [ path.exists $(THIS_DIR)/gmp-$(ver).tar.gz ]
+  {
+    result = <source>$(THIS_DIR)/gmp-$(ver).tar.gz ;
+  }
+  else if [ path.exists $(THIS_DIR)/gmp-$(ver).tar.bz2 ]
+  {
+    result = <source>$(THIS_DIR)/gmp-$(ver).tar.bz2 ;
+  }
+  else
+  {
+    result = <source>gmp.download ;
+  }
+  # errors.error
+  #   [ feature.get-values <gmp-version> : $(properties) ]
+  #   [ feature.get-values <gmp-build> : $(properties) ]
+  #   [ feature.get-values <gmp-host> : $(properties) ]
+  #   [ feature.get-values <gmp-abi> : $(properties) ]
+  #   [ feature.get-values <gmp-prefix> : $(properties) ]
+  #   [ feature.get-values <gmp-link> : $(properties) ]
+  #   [ feature.get-values <gmp-check> : $(properties) ]
+  #   [ feature.get-values <gmp-stdout> : $(properties) ]
+  #   [ feature.get-values <gmp-stderr> : $(properties) ] ;
+  return $(result) ;
+}
+
+make gmp.expand
+  : # Sources are introduced by the indirect conditional requirements.
+  : @expand-gmp
+  : <conditional>@gmp-expand-req
+  ;
+explicit gmp.expand ;
+
+rule expand-gmp ( targets * : sources * : properties * )
+{
+  if $(sources[2])
+  {
+    errors.error "ERROR: wrong number of sources." ;
+  }
+  local source = $(sources[1]) ;
+  if ! $(source)
+  {
+    errors.error "ERROR: no source." ;
+  }
+
+  local ver = [ feature.get-values <gmp-version> : $(properties) ] ;
+  if [ regex.match (gmp-$(ver)\\.tar\\.gz)$ : $(source) : 1 ]
+  {
+    TARBALL on $(targets) = $(THIS_DIR)/gmp-$(ver).tar.gz ;
+    OPTIONS on $(targets) = xzf ;
+  }
+  else if [ regex.match (gmp-$(ver)\\.tar\\.bz2)$ : $(source) : 1 ]
+  {
+    TARBALL on $(targets) = $(THIS_DIR)/gmp-$(ver).tar.bz2 ;
+    OPTIONS on $(targets) = xjf ;
+  }
+  else if [ regex.match (gmp.download)$ : $(source) : 1 ]
+  {
+    TARBALL on $(targets) = $(THIS_DIR)/gmp-$(ver).tar.bz2 ;
+    OPTIONS on $(targets) = xjf ;
+  }
+  else
+  {
+    errors.error "ERROR: an invalid source." ;
+  }
+
+  DEST_DIR on $(targets) = $(THIS_DIR)/gmp-$(ver) ;
+  STDOUT_ on $(targets) = [ feature.get-values <gmp-stdout> : $(properties) ] ;
+  STDERR_ on $(targets) = [ feature.get-values <gmp-stderr> : $(properties) ] ;
+}
+actions expand-gmp
+{
+  rm -f "$(<)" || exit $?
+  rm -rf "$(DEST_DIR)" || exit $?
+  if [ ! -f "$(>)" ]; then
+    exit 1
+  fi
+  if [ ! -f "$(TARBALL)" ]; then
+    exit 1
+  fi
+  tar $(OPTIONS) "$(TARBALL)" -C "$(TARBALL:D)" \
+    || (echo "ERROR: failed to expand the tarball for GMP build." 2>"$(STDERR_)" 1>&2; exit 1)
+  if [ ! -f "$(DEST_DIR)/configure" ]; then
+    exit 1
+  fi
+  if [ -e "$(<)" ]; then
+    exit 1
+  fi
+  touch "$(<)"
+}
+
+
+rule makefile-req ( properties * )
+{
+  local result = ;
+  local ver = [ feature.get-values <gmp-version> : $(properties) ] ;
+  if [ path.exists "$(THIS_DIR)"/gmp-$(ver)/configure ]
+  {
+    result = <source>"$(THIS_DIR)"/gmp-$(ver)/configure ;
+  }
+  else
+  {
+    result = <source>gmp.expand/<gmp-host>unspecified/<gmp-abi>unspecified/<gmp-link>unspecified ;
+  }
+  # errors.error
+  #   [ feature.get-values <gmp-version> : $(properties) ]
+  #   [ feature.get-values <gmp-build> : $(properties) ]
+  #   [ feature.get-values <gmp-host> : $(properties) ]
+  #   [ feature.get-values <gmp-abi> : $(properties) ]
+  #   [ feature.get-values <gmp-prefix> : $(properties) ]
+  #   [ feature.get-values <gmp-link> : $(properties) ]
+  #   [ feature.get-values <gmp-check> : $(properties) ]
+  #   [ feature.get-values <gmp-stdout> : $(properties) ]
+  #   [ feature.get-values <gmp-stderr> : $(properties) ] ;
+  return $(result) ;
+}
+
+make Makefile
+  : # Sources are introduced by the indirect conditional requirements.
+  : @configure
+  : <conditional>@makefile-req
+  ;
+explicit Makefile ;
+
+rule configure ( targets * : sources * : properties * )
+{
+  OPTIONS on $(targets) = ;
+
+  local ver = [ feature.get-values <gmp-version> : $(properties) ] ;
+
+  # Set the path to the 'configure' file.
+  local configure = "$(THIS_DIR)/gmp-$(ver)/configure" ;
+  CONFIGURE on $(targets) = $(configure) ;
+
+  # Set the 'build' option for the 'configure' script.
+  local build = [ feature.get-values <gmp-build> : $(properties) ] ;
+  OPTIONS on $(targets) += --build="$(build)" ;
+
+  # Set the 'host' option for the 'configure' script.
+  local host = [ feature.get-values <gmp-host> : $(properties) ] ;
+  OPTIONS on $(targets) += --host="$(host)" ;
+
+  # Set the 'ABI' option for the 'configure' script.
+  local abi = [ feature.get-values <gmp-abi> : $(properties) ] ;
+  ABI on $(targets) = ;
+  if $(abi) != unspecified
+  {
+    ABI on $(targets) = "ABI=$(abi)" ;
+  }
+
+  # Set the 'prefix' option for the 'configure' script.
+  local prefix = [ feature.get-values <gmp-prefix> : $(properties) ] ;
+  OPTIONS on $(targets) += --prefix="$(prefix)" ;
+
+  # Set the link variants for the 'configure' script.
+  local link = [ feature.get-values <gmp-link> : $(properties) ] ;
+  if $(link) = both || $(link) = shared
+  {
+    OPTIONS on $(targets) += --enable-shared ;
+  }
+  else
+  {
+    OPTIONS on $(targets) += --disable-shared ;
+  }
+  if $(link) = both || $(link) = static
+  {
+    OPTIONS on $(targets) += --enable-static ;
+  }
+  else
+  {
+    OPTIONS on $(targets) += --disable-static ;
+  }
+
+  STDOUT_ on $(targets) = [ feature.get-values <gmp-stdout> : $(properties) ] ;
+  STDERR_ on $(targets) = [ feature.get-values <gmp-stderr> : $(properties) ] ;
+}
+actions configure
+{
+  (cd "$(<:D)" && rm -f *) || exit $?
+  if [ ! -f "$(>)" ]; then
+    exit 1
+  fi
+  if [ ! -f "$(CONFIGURE)" ]; then
+    exit 1 
+  fi
+  (cd "$(<:D)" && $(ABI) "$(CONFIGURE)" $(OPTIONS) 1>"$(STDOUT_)" 2>"$(STDERR_)" ) \
+    || (echo "ERROR: failed to 'configure' for GMP build." 2>"$(STDERR_)" 1>&2; exit 1)
+  if [ ! -f "$(<)" ]; then
+    exit 1
+  fi
+}
+
+
+make gmp.make
+  : Makefile
+  : @make-gmp
+  ;
+explicit gmp.make ;
+
+rule make-gmp ( targets * : sources * : properties * )
+{
+  CHECK on $(targets) = [ feature.get-values <gmp-check> : $(properties) ] ;
+  STDOUT_ on $(targets) = [ feature.get-values <gmp-stdout> : $(properties) ] ;
+  STDERR_ on $(targets) = [ feature.get-values <gmp-stderr> : $(properties) ] ;
+}
+actions make-gmp
+{
+  rm -f "$(<)"  || exit $?
+  if [ ! -e "$(>)" ]; then
+    exit 1
+  fi
+  (cd "$(<:D)" && make 1>"$(STDOUT_)" 2>"$(STDERR_)" ) \
+    || (echo "ERROR: failed to 'make' for GMP build." 2>"$(STDERR_)" 1>&2; exit 1)
+  if [ $(CHECK) = yes ]; then
+    (cd "$(<:D)" && make check 1>"$(STDOUT_)" 2>"$(STDERR_)" ) \
+      || (echo "ERROR: failed to 'make check' for GMP build." 2>"$(STDERR_)" 1>&2; exit 1)
+  fi
+  (cd "$(<:D)" && make install 1>"$(STDOUT_)" 2>"$(STDERR_)" ) \
+    || (echo "ERROR: failed to 'make install' for GMP build." 2>"$(STDERR_)" 1>&2; exit 1)
+  if [ -e "$(<)" ]; then
+    exit 1
+  fi
+  touch "$(<)"
+}
+
+
+make gmp.test
+  : gmp.make
+  : @test-gmp
+  : # Sources are introduced by the following indirect requirements.
+  : <conditional>@test-gmp
+  ;
+explicit gmp.test ;
+
+rule test-gmp ( targets * : sources * : properties * )
+{
+  COMMAND on $(targets) = $(THIS_DIR)/test.sh ;
+  VERSION on $(targets) = [ feature.get-values <gmp-version> : $(properties) ] ;
+  HOST on $(targets) = [ feature.get-values <gmp-host> : $(properties) ] ;
+  PREFIX on $(targets) = [ feature.get-values <gmp-prefix> : $(properties) ] ;
+  LINK on $(targets) = [ feature.get-values <gmp-link> : $(properties) ] ;
+  CHECK on $(targets) = [ feature.get-values <gmp-check> : $(properties) ] ;
+  STDERR_ on $(targets) = [ feature.get-values <gmp-stderr> : $(properties) ] ;
+}
+actions test-gmp
+{
+  x=`"$(COMMAND)" $(VERSION) $(HOST) "$(PREFIX)" $(LINK) $(CHECK)` || exit 1
+  if [ "$x" != passed ]; then
+    /bin/echo 'ERROR: post-installation test failed for the GMP build.' 2>"$(STDERR_)" 1>&2
+    exit 1
+  fi
+}
+
+
+rule install-normalized-req ( properties * )
+{
+  local results = ;
+
+  local version = [ feature.get-values <gmp-version> : $(properties) ] ;
+  local host = [ feature.get-values <gmp-host> : $(properties) ] ;
+  local prefix = [ feature.get-values <gmp-prefix> : $(properties) ] ;
+  local link = [ feature.get-values <gmp-link> : $(properties) ] ;
+  local check = [ feature.get-values <gmp-check> : $(properties) ] ;
+
+  local tmp = ;
+
+  if [ SHELL "\"$(THIS_DIR)/test.sh\" $(version) $(host) $(prefix) $(link) $(check)" ] = passed
+  {
+    results += <build>no ;
+  }
+
+  # errors.error
+  #   [ feature.get-values <gmp-version> : $(properties) ]
+  #   [ feature.get-values <gmp-build> : $(properties) ]
+  #   [ feature.get-values <gmp-host> : $(properties) ]
+  #   [ feature.get-values <gmp-abi> : $(properties) ]
+  #   [ feature.get-values <gmp-prefix> : $(properties) ]
+  #   [ feature.get-values <gmp-link> : $(properties) ]
+  #   [ feature.get-values <gmp-check> : $(properties) ]
+  #   [ feature.get-values <gmp-stdout> : $(properties) ]
+  #   [ feature.get-values <gmp-stderr> : $(properties) ] ;
+
+  return $(results) ;
+}
+
+alias install-normalized
+  : gmp.test
+  : <conditional>@install-normalized-req
+  ;
+explicit install-normalized ;
+
+
+rule install-req ( properties * )
+{
+  local tmp = ;
+
+  local version = [ feature.get-values <gmp-version> : $(properties) ] ;
+  if $(version) = current
+  {
+    tmp = [ string.join [ feature.values <gmp-version> ] : "\\n" ] ;
+    version = [ SHELL "/bin/echo -e -n '$(tmp)' | sort --version-sort | tail --lines=2 | head --lines=1 | tr --delete '\n'" ] ;
+  }
+
+  local build = [ feature.get-values <gmp-build> : $(properties) ] ;
+  tmp = [ SHELL "\"$(THIS_DIR)/config.guess\" | tr --delete '\n'" ] ;
+  build ?= $(tmp) ;
+  if $(build) != $(tmp)
+  {
+    errors.error "ERROR: an invalid '<gmp-build>' value, '$(build)'." ;
+  }
+  tmp = [ SHELL "\"$(THIS_DIR)/config.sub\" $(build) | tr --delete '\n'" ] ;
+  if $(build) != $(tmp)
+  {
+    errors.error "ERROR: an invalid '<gmp-build>' value, '$(build)'." ;
+  }
+
+  local host = [ feature.get-values <gmp-host> : $(properties) ] ;
+  if $(host) = unspecified
+  {
+    host = $(build) ;
+  }
+  tmp = [ SHELL "\"$(THIS_DIR)/config.sub\" $(host) | tr --delete '\n'" ] ;
+  tmp = [ regex.replace $(tmp) "[\n]" "" ] ;
+  if $(host) != $(tmp)
+  {
+    errors.error "ERROR: an invalid '<gmp-host>' value, '$(host)'." ;
+  }
+
+  local link = [ feature.get-values <gmp-link> : $(properties) ] ;
+  if $(link) = unspecified
+  {
+    errors.error "ERROR: <gmp-link> unspecified." ;
+  }
+
+  local check = [ feature.get-values <gmp-check> : $(properties) ] ;
+  if $(check) = unspecified
+  {
+    if $(build) = $(host)
+    {
+      check = yes ;
+    }
+    else {
+      check = no ;
+    }
+  }
+
+  # errors.error
+  #   [ feature.get-values <gmp-version> : $(properties) ]
+  #   [ feature.get-values <gmp-build> : $(properties) ]
+  #   [ feature.get-values <gmp-host> : $(properties) ]
+  #   [ feature.get-values <gmp-abi> : $(properties) ]
+  #   [ feature.get-values <gmp-prefix> : $(properties) ]
+  #   [ feature.get-values <gmp-link> : $(properties) ]
+  #   [ feature.get-values <gmp-check> : $(properties) ]
+  #   [ feature.get-values <gmp-stdout> : $(properties) ]
+  #   [ feature.get-values <gmp-stderr> : $(properties) ] ;
+
+  return <source>install-normalized/<gmp-version>$(version)/<gmp-build>$(build)/<gmp-host>$(host)/<gmp-link>$(link)/<gmp-check>$(check) ;
+}
+
+alias install
+  : # The source 'install-normalized' is introduced by the following indirect requirements.
+  : <conditional>@install-req
+  ;
+explicit install ;
