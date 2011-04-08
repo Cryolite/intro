@@ -5,6 +5,7 @@ project intro
 import errors ;
 import feature : feature ;
 import modules ;
+import path ;
 import regex ;
 
 path-constant THIS_DIR : . ;
@@ -60,39 +61,113 @@ for local i in [ modules.peek : ARGV ]
 }
 
 
-feature gmp-version : current : propagated ;
-for local i in [ regex.split [ SHELL "\"$(THIS_DIR)/gmp-versions.sh\"" ] " +" ]
+feature intro-build : unspecified : propagated incidental ;
+for local i in [ path.glob . : */config.guess ]
 {
-  if $(i) {
-    feature.extend gmp-version : $(i) ;
+  local b = [ SHELL "\"$(THIS_DIR)/$(i)\" | tr --delete '\n'" ] ;
+  if ! $(b) in [ feature.values <intro-build> ]
+  {
+    feature.extend intro-build : $(b) ;
   }
 }
-feature gmp-build : [ SHELL "\"$(THIS_DIR)/gmp/config.guess\" | tr --delete '\n'" ] : propagated incidental optional ;
-feature gmp-host : unspecified [ SHELL "\"$(THIS_DIR)/gmp/config.guess\" | tr --delete '\n'" ] $(hosts) : propagated ;
-feature gmp-abi : unspecified 32 64 o32 n32 aix64 mode64 mode32 : propagated ;
-feature gmp-prefix : /usr/local : propagated incidental ;
-if $(prefix)
-{
-  feature.extend gmp-prefix : $(prefix) ;
-}
-feature gmp-link : unspecified both shared static : propagated ;
-feature gmp-check : unspecified yes no : propagated incidental ;
-feature gmp-stdout : $(stdout) : path propagated incidental optional ;
-feature gmp-stderr : $(stderr) : path propagated incidental optional ;
 
-local gmp-target = gmp//install ;
+feature intro-host : unspecified : propagated ;
+for local i in [ feature.values <intro-build> ]
+{
+  if ! $(i) in [ feature.values <intro-host> ]
+  {
+    feature.extend intro-host : $(i) ;
+  }
+}
+for local i in $(hosts)
+{
+  if ! $(i) in [ feature.values <intro-host> ]
+  {
+    feature.extend intro-host : $(i) ;
+  }
+}
+
+feature intro-target : unspecified : propagated ;
+for local i in [ feature.values <intro-host> ]
+{
+  if ! $(i) in [ feature.values <intro-target> ]
+  {
+    feature.extend intro-target : $(i) ;
+  }
+}
+
+feature intro-abi : unspecified 32 64 o32 n32 aix64 mode64 mode32 : propagated ;
+
+feature intro-prefix : /usr/local : propagated incidental ;
+if $(prefix) && ! $(prefix) in [ feature.values <intro-prefix> ]
+{
+  feature.extend intro-prefix : $(prefix) ;
+}
+for local i in [ feature.values <intro-prefix> ]
+{
+  for local j in [ feature.values <intro-host> ]
+  {
+    if $(j) != unspecified && ! $(i)/$(j) in [ feature.values <intro-prefix> ]
+    {
+      feature.extend intro-prefix : $(i)/$(j) ;
+    }
+  }
+}
+
+feature intro-link : unspecified both shared static : propagated ;
+
+feature intro-check : unspecified yes no : propagated incidental ;
+
+feature intro-stdout : $(stdout) : path propagated incidental optional ;
+
+feature intro-stderr : $(stderr) : path propagated incidental optional ;
+
+
+feature gmp-version : current : propagated ;
+ECHO patience... ;
+local gmp-versions = [ regex.split [ SHELL "\"$(THIS_DIR)/gmp-versions.sh\" || /bin/echo -n 'error'" ] " +" ] ;
+for local i in $(gmp-versions)
+{
+  if [ regex.match "^([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : $(i) : 1 ]
+  {
+    feature.extend gmp-version : $(i) ;
+  }
+  else
+  {
+    errors.error "ERROR: failed to extract GMP versions." ;
+  }
+}
+
+
+feature mpfr-version : current : propagated ;
+ECHO patience... ;
+local mpfr-versions = [ regex.split [ SHELL "\"$(THIS_DIR)/mpfr-versions.sh\" || /bin/echo -n 'error'" ] " +" ] ;
+for local i in $(mpfr-versions)
+{
+  if [ regex.match "^([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : $(i) : 1 ]
+  {
+    feature.extend mpfr-version : $(i) ;
+  }
+  else
+  {
+    errors.error "ERROR: failed to extract MPFR versions." ;
+  }
+}
+
+
+local target = mpfr//install/<gmp-version>current/<mpfr-version>current/<intro-link>both ;
 if $(prefix)
 {
-  gmp-target = $(gmp-target)/<gmp-prefix>$(prefix) ;
+  target = $(target)/<intro-prefix>$(prefix) ;
 }
 if $(stdout)
 {
-  gmp-target = $(gmp-target)/<gmp-stdout>$(stdout) ;
+  target = $(target)/<intro-stdout>$(stdout) ;
 }
 if $(stderr)
 {
-  gmp-target = $(gmp-target)/<gmp-stderr>$(stderr) ;
+  target = $(target)/<intro-stderr>$(stderr) ;
 }
-alias gmp-install
-  : $(gmp-target)/<gmp-version>current/<gmp-link>both
+alias install
+  : $(target)
   ;

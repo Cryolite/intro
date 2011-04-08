@@ -1,5 +1,5 @@
 /bin/
 *~
-/downloaded
+/gmp-*.tar.gz
 /gmp-*.tar.bz2
-/gmp-*
+/gmp-*/

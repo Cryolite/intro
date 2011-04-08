@@ -1,4 +1,4 @@
-project gmp ;
+project mpfr ;
 
 import alias ;
 import errors ;
@@ -10,59 +10,102 @@ import string ;
 path-constant THIS_DIR : . ;
 
 
-make gmp.download
-  : # No sources.
-  : @download-gmp
-  ;
-explicit gmp.download ;
-
-rule download-gmp ( targets * : sources * : properties * )
+rule gmp-dep-req ( properties * )
 {
-  local ver = [ feature.get-values <gmp-version> : $(properties) ] ;
-  URL on $(targets) = http://core.ring.gr.jp/pub/GNU/gmp/gmp-$(ver).tar.bz2 ;
-  TARBALL on $(targets) = $(THIS_DIR)/gmp-$(ver).tar.bz2 ;
+  local result = <source>../gmp//install ;
+
+  # `<mpfr-version>' is automatically propagated.
+
+  result = $(result)/<intro-build>unspecified ;
+
+  local build = [ feature.get-values <intro-build> : $(properties) ] ;
+  local host = [ feature.get-values <intro-host> : $(properties) ] ;
+  if $(build) = $(host)
+  {
+    result = $(result)/<intro-host>unspecified ;
+  }
+  else
+  {
+    result = $(result)/<intro-host>$(host) ;
+  }
+
+  # `<intro-abi>' is automatically propagated.
+
+  # `<intro-prefix>' is automatically propagated.
+
+  # `<intro-link>' is automatically propagated.
+
+  # `<intro-check>' is automatically propagated.
+
+  # `<intro-stdour>' is automatically propagated.
+
+  # `<intro-stderr>' is automatically propagated.
+
+  #errors.error $(result) ;
+
+  return $(result) ;
+}
+
+alias gmp.dep
+  : # sources are introduced by the indirect conditional requirements.
+  : <conditional>@gmp-dep-req
+  ;
+explicit gmp.dep ;
+
+
+make mpfr.download
+  : # No sources.
+  : @download-mpfr
+  ;
+explicit mpfr.download ;
+
+rule download-mpfr ( targets * : sources * : properties * )
+{
+  local ver = [ feature.get-values <mpfr-version> : $(properties) ] ;
+  URL on $(targets) = http://core.ring.gr.jp/pub/GNU/mpfr/mpfr-$(ver).tar.bz2 ;
+  TARBALL on $(targets) = $(THIS_DIR)/mpfr-$(ver).tar.bz2 ;
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
-actions download-gmp
+actions download-mpfr
 {
   rm -f "$(<)" || exit $?
   rm -f "$(TARBALL)" || exit $?
   ( cd "$(TARBALL:D)" && wget --quiet --timestamping -- '$(URL)' ) \
-    || { echo "ERROR: failed to download the GMP tarball." 2>"$(STDOUT_)" 1>&2; exit 1; }
+    || { echo "ERROR: failed to download the MPFR tarball." 2>"$(STDOUT_)" 1>&2; exit 1; }
   [ ! -f "$(TARBALL)" ] && exit 1
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
 
 
-rule gmp-expand-req ( properties * )
+rule mpfr-expand-req ( properties * )
 {
   local result = ;
-  local ver = [ feature.get-values <gmp-version> : $(properties) ] ;
-  if [ path.exists $(THIS_DIR)/gmp-$(ver).tar.gz ]
+  local ver = [ feature.get-values <mpfr-version> : $(properties) ] ;
+  if [ path.exists $(THIS_DIR)/mpfr-$(ver).tar.gz ]
   {
-    result = <source>$(THIS_DIR)/gmp-$(ver).tar.gz ;
+    result = <source>$(THIS_DIR)/mpfr-$(ver).tar.gz ;
   }
-  else if [ path.exists $(THIS_DIR)/gmp-$(ver).tar.bz2 ]
+  else if [ path.exists $(THIS_DIR)/mpfr-$(ver).tar.bz2 ]
   {
-    result = <source>$(THIS_DIR)/gmp-$(ver).tar.bz2 ;
+    result = <source>$(THIS_DIR)/mpfr-$(ver).tar.bz2 ;
   }
   else
   {
-    result = <source>gmp.download ;
+    result = <source>mpfr.download ;
   }
   return $(result) ;
 }
 
-make gmp.expand
-  : # Sources are introduced by the indirect conditional requirements.
-  : @expand-gmp
-  : <conditional>@gmp-expand-req
+make mpfr.expand
+  : # Sources are introduced by the following indirect conditional requirements.
+  : @expand-mpfr
+  : <conditional>@mpfr-expand-req
   ;
-explicit gmp.expand ;
+explicit mpfr.expand ;
 
-rule expand-gmp ( targets * : sources * : properties * )
+rule expand-mpfr ( targets * : sources * : properties * )
 {
   if $(sources[2])
   {
@@ -74,20 +117,20 @@ rule expand-gmp ( targets * : sources * : properties * )
     errors.error "ERROR: no source." ;
   }
 
-  local ver = [ feature.get-values <gmp-version> : $(properties) ] ;
-  if [ regex.match (gmp-$(ver)\\.tar\\.gz)$ : $(source) : 1 ]
+  local ver = [ feature.get-values <mpfr-version> : $(properties) ] ;
+  if [ regex.match (mpfr-$(ver)\\.tar\\.gz)$ : $(source) : 1 ]
   {
-    TARBALL on $(targets) = $(THIS_DIR)/gmp-$(ver).tar.gz ;
+    TARBALL on $(targets) = $(THIS_DIR)/mpfr-$(ver).tar.gz ;
     OPTIONS on $(targets) = xzf ;
   }
-  else if [ regex.match (gmp-$(ver)\\.tar\\.bz2)$ : $(source) : 1 ]
+  else if [ regex.match (mpfr-$(ver)\\.tar\\.bz2)$ : $(source) : 1 ]
   {
-    TARBALL on $(targets) = $(THIS_DIR)/gmp-$(ver).tar.bz2 ;
+    TARBALL on $(targets) = $(THIS_DIR)/mpfr-$(ver).tar.bz2 ;
     OPTIONS on $(targets) = xjf ;
   }
-  else if [ regex.match (gmp.download)$ : $(source) : 1 ]
+  else if [ regex.match (mpfr.download)$ : $(source) : 1 ]
   {
-    TARBALL on $(targets) = $(THIS_DIR)/gmp-$(ver).tar.bz2 ;
+    TARBALL on $(targets) = $(THIS_DIR)/mpfr-$(ver).tar.bz2 ;
     OPTIONS on $(targets) = xjf ;
   }
   else
@@ -95,18 +138,18 @@ rule expand-gmp ( targets * : sources * : properties * )
     errors.error "ERROR: an invalid source." ;
   }
 
-  DEST_DIR on $(targets) = $(THIS_DIR)/gmp-$(ver) ;
+  DEST_DIR on $(targets) = $(THIS_DIR)/mpfr-$(ver) ;
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
-actions expand-gmp
+actions expand-mpfr
 {
   rm -f "$(<)" || exit $?
   rm -rf "$(DEST_DIR)" || exit $?
   [ ! -f "$(>)" ] && exit 1
   [ ! -f "$(TARBALL)" ] && exit 1
   tar $(OPTIONS) "$(TARBALL)" -C "$(TARBALL:D)" \
-    || { echo "ERROR: failed to expand the GMP tarball." 2>"$(STDERR_)" 1>&2; exit 1; }
+    || { echo "ERROR: failed to expand the tarball for the MPFR build." 2>"$(STDERR_)" 1>&2; exit 1; }
   [ ! -f "$(DEST_DIR)/configure" ] && exit 1
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
@@ -116,17 +159,17 @@ actions expand-gmp
 rule makefile-req ( properties * )
 {
   local results = ;
-  local ver = [ feature.get-values <gmp-version> : $(properties) ] ;
-  if [ path.exists $(THIS_DIR)/gmp-$(ver)/configure ]
+  local ver = [ feature.get-values <mpfr-version> : $(properties) ] ;
+  if [ path.exists $(THIS_DIR)/mpfr-$(ver)/configure ]
   {
-    results += <source>$(THIS_DIR)/gmp-$(ver)/configure ;
+    results += <source>$(THIS_DIR)/mpfr-$(ver)/configure ;
   }
   else
   {
-    local tmp = <source>gmp.expand ;
+    local tmp = <source>mpfr.expand ;
     tmp = $(tmp)/<intro-host>unspecified ;
     tmp = $(tmp)/<intro-abi>unspecified ;
-    tmp = $(tmp)/<intro-link>unspecified ;
+    tmp = $(tmp)/<mpfr-link>unspecified ;
     results += $(tmp) ;
   }
   #errors.error $(results) ;
@@ -134,7 +177,8 @@ rule makefile-req ( properties * )
 }
 
 make Makefile
-  : # Sources are introduced by the indirect conditional requirements.
+  : gmp.dep
+    # Other sources are introduced by the indirect conditional requirements.
   : @configure
   : <conditional>@makefile-req
   ;
@@ -144,10 +188,10 @@ rule configure ( targets * : sources * : properties * )
 {
   OPTIONS on $(targets) = ;
 
-  local ver = [ feature.get-values <gmp-version> : $(properties) ] ;
+  local ver = [ feature.get-values <mpfr-version> : $(properties) ] ;
 
   # Set the path to the 'configure' file.
-  local configure = $(THIS_DIR)/gmp-$(ver)/configure ;
+  local configure = $(THIS_DIR)/mpfr-$(ver)/configure ;
   CONFIGURE on $(targets) = $(configure) ;
 
   # Set the 'build' option for the 'configure' script.
@@ -158,12 +202,17 @@ rule configure ( targets * : sources * : properties * )
   local host = [ feature.get-values <intro-host> : $(properties) ] ;
   OPTIONS on $(targets) += --host=$(host) ;
 
-  # Set the 'ABI' option for the 'configure' script.
+  # Set the 'CC' option for the 'configure' script.
   local abi = [ feature.get-values <intro-abi> : $(properties) ] ;
-  ABI on $(targets) = ;
-  if $(abi) != unspecified
+  local cc = [ SHELL "\"$(THIS_DIR)/../cc.sh\" $(build) $(host) $(abi) || /bin/echo -n 'error'" ] ;
+  if $(cc) = error
   {
-    ABI on $(targets) = ABI=$(abi) ;
+    errors.error "ERROR: cannot determine the 'CC' option for the MPFR build." ;
+  }
+  CC on $(targets) = ;
+  if $(cc)
+  {
+    CC on $(targets) = "CC='$(cc)'" ;
   }
 
   # Set the 'prefix' option for the 'configure' script.
@@ -189,62 +238,62 @@ rule configure ( targets * : sources * : properties * )
     OPTIONS on $(targets) += --disable-shared ;
   }
 
+  # Set the 'with-gmp' option for the 'configure' script.
+  OPTIONS on $(targets) += --with-gmp=\"$(prefix)\" ;
+
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
 actions configure
 {
   ( cd "$(<:D)" && rm -rf * ) || exit $?
-  [ ! -f "$(>)" ] && exit 1
   [ ! -f "$(CONFIGURE)" ] && exit 1
-  ( cd "$(<:D)" && $(ABI) "$(CONFIGURE)" $(OPTIONS) 1>"$(STDOUT_)" 2>"$(STDERR_)" ) \
-    || { echo "ERROR: failed to 'configure' for the GMP build." 2>"$(STDERR_)" 1>&2; exit 1; }
+  ( cd "$(<:D)" && $(CC) "$(CONFIGURE)" $(OPTIONS) 1>"$(STDOUT_)" 2>"$(STDERR_)" ) \
+    || { echo "ERROR: failed to 'configure' for the MPFR build." 2>"$(STDERR_)" 1>&2; exit 1; }
   [ ! -f "$(<)" ] && exit 1
   exit 0
 }
 
 
-make gmp.make
+make mpfr.make
   : Makefile
-  : @make-gmp
+  : @make-mpfr
   ;
-explicit gmp.make ;
+explicit mpfr.make ;
 
-rule make-gmp ( targets * : sources * : properties * )
+rule make-mpfr ( targets * : sources * : properties * )
 {
   CHECK on $(targets) = [ feature.get-values <intro-check> : $(properties) ] ;
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
-actions make-gmp
+actions make-mpfr
 {
   rm -f "$(<)"  || exit $?
-  [ ! -f "$(>)" ] && exit 1
+  [ ! -e "$(>)" ] && exit 1
   ( cd "$(<:D)" && make 1>"$(STDOUT_)" 2>"$(STDERR_)" ) \
-    || { echo "ERROR: failed to 'make' for the GMP build." 2>"$(STDERR_)" 1>&2; exit 1; }
+    || { echo "ERROR: failed to 'make' for the MPFR build." 2>"$(STDERR_)" 1>&2; exit 1; }
   if [ $(CHECK) = yes ]; then
     ( cd "$(<:D)" && make check 1>"$(STDOUT_)" 2>"$(STDERR_)" ) \
-      || { echo "ERROR: failed to 'make check' for the GMP build." 2>"$(STDERR_)" 1>&2; exit 1; }
+      || { echo "ERROR: failed to 'make check' for the MPFR build." 2>"$(STDERR_)" 1>&2; exit 1; }
   fi
   ( cd "$(<:D)" && make install 1>"$(STDOUT_)" 2>"$(STDERR_)" ) \
-    || { echo "ERROR: failed to 'make install' for the GMP build." 2>"$(STDERR_)" 1>&2; exit 1; }
-  [ -e "$(<)" ] exit 1
+    || { echo "ERROR: failed to 'make install' for the MPFR build." 2>"$(STDERR_)" 1>&2; exit 1; }
+  [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
 
 
-make gmp.test
-  : gmp.make
-  : @test-gmp
-  : # Sources are introduced by the following indirect requirements.
-  : <conditional>@test-gmp
+make mpfr.test
+  : mpfr.make
+  : @test-mpfr
   ;
-explicit gmp.test ;
+explicit mpfr.test ;
 
-rule test-gmp ( targets * : sources * : properties * )
+rule test-mpfr ( targets * : sources * : properties * )
 {
   COMMAND on $(targets) = $(THIS_DIR)/test.sh ;
-  VERSION on $(targets) = [ feature.get-values <gmp-version> : $(properties) ] ;
+  VERSION on $(targets) = [ feature.get-values <mpfr-version> : $(properties) ] ;
   BUILD on $(targets) = [ feature.get-values <intro-build> : $(properties) ] ;
   HOST on $(targets) = [ feature.get-values <intro-host> : $(properties) ] ;
   ABI on $(targets) = [ feature.get-values <intro-abi> : $(properties) ] ;
@@ -253,11 +302,11 @@ rule test-gmp ( targets * : sources * : properties * )
   CHECK on $(targets) = [ feature.get-values <intro-check> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
-actions test-gmp
+actions test-mpfr
 {
   x=`"$(COMMAND)" $(VERSION) $(BUILD) $(HOST) $(ABI) "$(PREFIX)" $(LINK) $(CHECK)`
   if [ $? -ne 0 ]; then
-    /bin/echo 'ERROR: post-installation test failed for the GMP build.' 2>"$(STDERR_)" 1>&2
+    /bin/echo 'ERROR: post-installation test failed for the MPFR build.' 2>"$(STDERR_)" 1>&2
     exit 1
   fi
   [ "$x" != 'yes' ] && exit 1
@@ -267,17 +316,17 @@ actions test-gmp
 
 rule install-req ( properties * )
 {
-  local result = <source>gmp.test ;
+  local result = <source>mpfr.test ;
 
   local tmp = ;
 
-  local version = [ feature.get-values <gmp-version> : $(properties) ] ;
+  local version = [ feature.get-values <mpfr-version> : $(properties) ] ;
   if $(version) = current
   {
-    tmp = [ string.join [ feature.values <gmp-version> ] : "\\n" ] ;
+    tmp = [ string.join [ feature.values <mpfr-version> ] : "\\n" ] ;
     version = [ SHELL "/bin/echo -e -n '$(tmp)' | sort --version-sort | tail --lines=2 | head --lines=1 | tr --delete '\n'" ] ;
   }
-  result = $(result)/<gmp-version>$(version) ;
+  result = $(result)/<mpfr-version>$(version) ;
 
   local build = [ feature.get-values <intro-build> : $(properties) ] ;
   tmp = [ SHELL "\"$(THIS_DIR)/config.guess\" | tr --delete '\n'" ] ;
@@ -339,7 +388,7 @@ rule install-req ( properties * )
 }
 
 alias install
-  : # The source 'install-normalized' is introduced by the following indirect requirements.
+  : # The source 'install-normalized' is introduced by the following indirect conditional requirements.
   : <conditional>@install-req
   ;
 explicit install ;

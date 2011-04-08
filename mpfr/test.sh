@@ -10,7 +10,7 @@ check=$7
 
 cc=`"${0%/*}/../cc.sh" $build $host "$abi"` || exit 1
 
-x=`/bin/echo -e -n '#include <gmp.h>\n__GNU_MP_VERSION\n__GNU_MP_VERSION_MINOR\n__GNU_MP_VERSION_PATCHLEVEL' \
+x=`/bin/echo -e -n '#include <mpfr.h>\nMPFR_VERSION_MAJOR\nMPFR_VERSION_MINOR\nMPFR_VERSION_PATCHLEVEL' \
     | { $cc -E -I"${prefix}/include" -x c - || exit 1; } \
     | { tail --lines=3 || exit 1; } \
     | { tr '\n' '.' || exit 1; } \
@@ -21,7 +21,7 @@ y=`/bin/echo -e -n "$version\n$x" | { sort --version-sort || exit 1; } | { tail 
 
 source=`tempfile --suffix .c` || exit 1
 cat >"$source" <<EOT
-#include <gmp.h>
+#include <mpfr.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -29,32 +29,28 @@ int main(int argc, char *argv[])
 {
   int i = -1, j = -1, k = -1;
   sscanf("$version", "%d%*c%d%*c%d", &i, &j, &k);
-  if (__GNU_MP_VERSION < i) {
+  if (MPFR_VERSION_MAJOR < i) {
     return EXIT_FAILURE;
   }
-  if (__GNU_MP_VERSION == i) {
-    if (__GNU_MP_VERSION_MINOR < j) {
+  if (MPFR_VERSION_MAJOR == i) {
+    if (MPFR_VERSION_MINOR < j) {
       return EXIT_FAILURE;
     }
-    if (__GNU_MP_VERSION_MINOR == j) {
-      if (__GNU_MP_VERSION_PATCHLEVEL < k) {
+    if (MPFR_VERSION_MINOR == j) {
+      if (MPFR_VERSION_PATCHLEVEL < k) {
         return EXIT_FAILURE;
       }
     }
   }
 
   i = -1; j = -1; k = -1;
-  sscanf(gmp_version, "%d%*c%d%*c%d", &i, &j, &k);
-  if (i != __GNU_MP_VERSION
-        || j != __GNU_MP_VERSION_MINOR
-        || k != __GNU_MP_VERSION_PATCHLEVEL)
+  sscanf(mpfr_get_version(), "%d%*c%d%*c%d", &i, &j, &k);
+  if (i != MPFR_VERSION_MAJOR
+        || j != MPFR_VERSION_MINOR
+        || k != MPFR_VERSION_PATCHLEVEL)
   {
     return EXIT_FAILURE;
   }
-
-  mpz_t x;
-  mpz_init(x);
-  mpz_clear(x);
 
   return EXIT_SUCCESS;
 }
@@ -62,7 +58,7 @@ EOT
 
 program=`tempfile` || { rm "$source"; exit 1; }
 if [ $link = static -o $link = both ]; then
-    $cc -o "$program" -I"${prefix}/include" -L"${prefix}/lib" -Wl,-Bstatic "$source" -lgmp -Wl,-Bdynamic \
+    $cc -o "$program" -I"${prefix}/include" -L"${prefix}/lib" -Wl,-Bstatic "$source" -lmpfr -Wl,-Bdynamic \
 	|| { rm "$source" "$program"; /bin/echo -n 'no'; exit 0; }
     if [ $check = yes ]; then
 	case $host in
@@ -73,7 +69,7 @@ if [ $link = static -o $link = both ]; then
     fi
 fi
 if [ $link = shared -o $link = both ]; then
-    $cc -o "$program" -I"${prefix}/include" -L"${prefix}/lib" -Wl,-Bdynamic "$source" -lgmp -fpic -fPIC \
+    $cc -o "$program" -I"${prefix}/include" -L"${prefix}/lib" -Wl,-Bdynamic "$source" -lmpfr -fpic -fPIC \
 	|| { rm "$source" "$program"; /bin/echo -n 'no'; exit 0; }
     if [ $check = yes ]; then
 	case $host in
@@ -82,7 +78,7 @@ if [ $link = shared -o $link = both ]; then
 	    *-mingw32) ( PATH=${prefix}/bin:$PATH "$program" )                       \
 		           || { rm "$source" "$program"; /bin/echo -n 'no'; exit 0; };;
 	    *)         ( LD_LIBRARY_PATH=${prefix}/lib:$LD_LIBRARY_PATH "$program" ) \
-		           || { rm "$source" "$program"; /bin/echo -n 'no'; exit 0; };;
+                           || { rm "$source" "$program"; /bin/echo -n 'no'; exit 0; };;
 	esac
     fi
 fi
