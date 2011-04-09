@@ -273,14 +273,6 @@ rule install-req ( properties * )
 
   local tmp = ;
 
-  local version = [ feature.get-values <gmp-version> : $(properties) ] ;
-  if $(version) = current
-  {
-    tmp = [ string.join [ feature.values <gmp-version> ] : "\\n" ] ;
-    version = [ SHELL "/bin/echo -e -n '$(tmp)' | sort --version-sort | tail --lines=2 | head --lines=1 | tr --delete '\n'" ] ;
-  }
-  result = $(result)/<gmp-version>$(version) ;
-
   local build = [ feature.get-values <intro-build> : $(properties) ] ;
   tmp = [ SHELL "\"$(THIS_DIR)/config.guess\" | tr --delete '\n'" ] ;
   if $(build) = unspecified

@@ -123,12 +123,12 @@ feature intro-stdout : $(stdout) : path propagated incidental optional ;
 feature intro-stderr : $(stderr) : path propagated incidental optional ;
 
 
-feature gmp-version : current : propagated ;
+feature gmp-version : : propagated ;
 ECHO patience... ;
 local gmp-versions = [ regex.split [ SHELL "\"$(THIS_DIR)/gmp-versions.sh\" || /bin/echo -n 'error'" ] " +" ] ;
 for local i in $(gmp-versions)
 {
-  if [ regex.match "^([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : $(i) : 1 ]
+  if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(i) : 1 ]
   {
     feature.extend gmp-version : $(i) ;
   }
@@ -139,12 +139,12 @@ for local i in $(gmp-versions)
 }
 
 
-feature mpfr-version : current : propagated ;
+feature mpfr-version : : propagated ;
 ECHO patience... ;
 local mpfr-versions = [ regex.split [ SHELL "\"$(THIS_DIR)/mpfr-versions.sh\" || /bin/echo -n 'error'" ] " +" ] ;
 for local i in $(mpfr-versions)
 {
-  if [ regex.match "^([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : $(i) : 1 ]
+  if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(i) : 1 ]
   {
     feature.extend mpfr-version : $(i) ;
   }
@@ -155,7 +155,23 @@ for local i in $(mpfr-versions)
 }
 
 
-local target = mpfr//install/<gmp-version>current/<mpfr-version>current/<intro-link>both ;
+feature mpc-version : : propagated ;
+ECHO patience... ;
+local mpc-versions = [ regex.split [ SHELL "\"$(THIS_DIR)/mpc-versions.sh\" || /bin/echo -n 'error'" ] " +" ] ;
+for local i in $(mpc-versions)
+{
+  if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(i) : 1 ]
+  {
+    feature.extend mpc-version : $(i) ;
+  }
+  else
+  {
+    errors.error "ERROR: failed to extract MPC versions." ;
+  }
+}
+
+
+local target = mpc//install/<intro-link>both ;
 if $(prefix)
 {
   target = $(target)/<intro-prefix>$(prefix) ;
