@@ -2,98 +2,45 @@ project mpc ;
 
 import alias ;
 import errors ;
-import feature : feature ;
+import feature ;
 import make ;
 import regex ;
-import string ;
 
 path-constant THIS_DIR : . ;
-
-
-rule gmp-dep-req ( properties * )
-{
-  local result = <source>../gmp//install ;
-
-  # `<mpc-version>' is automatically propagated.
-
-  result = $(result)/<intro-build>unspecified ;
-
-  local build = [ feature.get-values <intro-build> : $(properties) ] ;
-  local host = [ feature.get-values <intro-host> : $(properties) ] ;
-  if $(build) = $(host)
-  {
-    result = $(result)/<intro-host>unspecified ;
-  }
-  else
-  {
-    result = $(result)/<intro-host>$(host) ;
-  }
-
-  # `<intro-abi>' is automatically propagated.
-
-  # `<intro-prefix>' is automatically propagated.
-
-  # `<intro-link>' is automatically propagated.
-
-  # `<intro-check>' is automatically propagated.
-
-  # `<intro-stdour>' is automatically propagated.
-
-  # `<intro-stderr>' is automatically propagated.
-
-  #errors.error $(result) ;
-
-  return $(result) ;
-}
-
-alias gmp.dep
-  : # sources are introduced by the indirect conditional requirements.
-  : <conditional>@gmp-dep-req
-  ;
-explicit gmp.dep ;
 
 
 rule mpfr-dep-req ( properties * )
 {
   local result = <source>../mpfr//install ;
-
-  # `<mpc-version>' is automatically propagated.
-
   result = $(result)/<intro-build>unspecified ;
-
   local build = [ feature.get-values <intro-build> : $(properties) ] ;
   local host = [ feature.get-values <intro-host> : $(properties) ] ;
-  if $(build) = $(host)
-  {
+  if $(host) = $(build) {
     result = $(result)/<intro-host>unspecified ;
   }
-  else
-  {
+  else {
     result = $(result)/<intro-host>$(host) ;
   }
-
+  # `<intro-target>' is automatically propagated.
   # `<intro-abi>' is automatically propagated.
-
   # `<intro-prefix>' is automatically propagated.
-
   # `<intro-link>' is automatically propagated.
-
   # `<intro-check>' is automatically propagated.
-
   # `<intro-stdour>' is automatically propagated.
-
   # `<intro-stderr>' is automatically propagated.
-
+  # `<gcc-version-cross-default>' is automatically propagated.
+  # `<gmp-version>' is automatically propagated.
+  # `<mpfr-version>' is automatically propagated.
+  result = $(result)/<mpc-version>unspecified ;
   #errors.error $(result) ;
-
   return $(result) ;
 }
 
-alias mpfr.dep
-  : # sources are introduced by the indirect conditional requirements.
+alias mpfr-dep
+  : # `../mpfr//install' is added by the indirect conditional requirements.
   : <conditional>@mpfr-dep-req
   ;
-explicit mpfr.dep ;
+explicit mpfr-dep ;
 
 
 make mpc.download
@@ -104,138 +51,102 @@ explicit mpc.download ;
 
 rule download-mpc ( targets * : sources * : properties * )
 {
-  local ver = [ feature.get-values <mpc-version> : $(properties) ] ;
-  URL on $(targets) = http://www.multiprecision.org/mpc/download/mpc-$(ver).tar.gz ;
-  TARBALL on $(targets) = $(THIS_DIR)/mpc-$(ver).tar.gz ;
+  local version = [ feature.get-values <mpc-version> : $(properties) ] ;
+  URL on $(targets) = http://www.multiprecision.org/mpc/download/mpc-$(version).tar.gz ;
+  TARBALL_GZ on $(targets) = $(THIS_DIR)/mpc-$(version).tar.gz ;
+  TARBALL_BZ2 on $(targets) = $(THIS_DIR)/mpc-$(version).tar.bz2 ;
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
 actions download-mpc
 {
   rm -f "$(<)" || exit $?
-  rm -f "$(TARBALL)" || exit $?
-  ( cd "$(TARBALL:D)" && wget --quiet --timestamping -- '$(URL)' ) \
-    || { echo "ERROR: failed to download the MPC tarball." 2>"$(STDOUT_)" 1>&2; exit 1; }
-  [ ! -f "$(TARBALL)" ] && exit 1
+  if [ ! -f "$(TARBALL_GZ)" -a ! -f "$(TARBALL_BZ2)" ]; then
+    ( cd "$(TARBALL_GZ:D)" && wget --quiet --timestamping -- '$(URL)' ) \
+      || { echo "ERROR: failed to download the MPC tarball." 2>"$(STDOUT_)" 1>&2; exit 1; }
+    [ ! -f "$(TARBALL_GZ)" ] && exit 1
+  fi
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
 
 
-rule mpc-expand-req ( properties * )
-{
-  local result = ;
-  local ver = [ feature.get-values <mpc-version> : $(properties) ] ;
-  if [ path.exists $(THIS_DIR)/mpc-$(ver).tar.gz ]
-  {
-    result = <source>$(THIS_DIR)/mpc-$(ver).tar.gz ;
-  }
-  else if [ path.exists $(THIS_DIR)/mpc-$(ver).tar.bz2 ]
-  {
-    result = <source>$(THIS_DIR)/mpc-$(ver).tar.bz2 ;
-  }
-  else
-  {
-    result = <source>mpc.download ;
-  }
-  return $(result) ;
-}
-
 make mpc.expand
-  : # Sources are introduced by the following indirect conditional requirements.
+  : mpc.download
   : @expand-mpc
-  : <conditional>@mpc-expand-req
   ;
 explicit mpc.expand ;
 
 rule expand-mpc ( targets * : sources * : properties * )
 {
-  if $(sources[2])
-  {
+  if ! $(sources[1]) {
     errors.error "ERROR: wrong number of sources." ;
   }
-  local source = $(sources[1]) ;
-  if ! $(source)
-  {
-    errors.error "ERROR: no source." ;
+  if $(sources[2]) {
+    errors.error "ERROR: wrong number of sources." ;
   }
-
-  local ver = [ feature.get-values <mpc-version> : $(properties) ] ;
-  if [ regex.match (mpc-$(ver)\\.tar\\.gz)$ : $(source) : 1 ]
-  {
-    TARBALL on $(targets) = $(THIS_DIR)/mpc-$(ver).tar.gz ;
-    OPTIONS on $(targets) = xzf ;
-  }
-  else if [ regex.match (mpc-$(ver)\\.tar\\.bz2)$ : $(source) : 1 ]
-  {
-    TARBALL on $(targets) = $(THIS_DIR)/mpc-$(ver).tar.bz2 ;
-    OPTIONS on $(targets) = xjf ;
-  }
-  else if [ regex.match (mpc.download)$ : $(source) : 1 ]
-  {
-    TARBALL on $(targets) = $(THIS_DIR)/mpc-$(ver).tar.gz ;
-    OPTIONS on $(targets) = xzf ;
-  }
-  else
-  {
-    errors.error "ERROR: an invalid source." ;
-  }
-
-  DEST_DIR on $(targets) = $(THIS_DIR)/mpc-$(ver) ;
+  local version = [ feature.get-values <mpc-version> : $(properties) ] ;
+  TARBALL_GZ on $(targets) = $(THIS_DIR)/mpc-$(version).tar.gz ;
+  TARBALL_BZ2 on $(targets) =  $(THIS_DIR)/mpc-$(version).tar.bz2 ;
+  DEST_DIR on $(targets) = $(THIS_DIR)/mpc-$(version) ;
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
 actions expand-mpc
 {
   rm -f "$(<)" || exit $?
-  rm -rf "$(DEST_DIR)" || exit $?
-  [ ! -f "$(>)" ] && exit 1
-  [ ! -f "$(TARBALL)" ] && exit 1
-  tar $(OPTIONS) "$(TARBALL)" -C "$(TARBALL:D)" \
-    || { echo "ERROR: failed to expand the tarball for the MPC build." 2>"$(STDERR_)" 1>&2; exit 1; }
-  [ ! -f "$(DEST_DIR)/configure" ] && exit 1
+  [ ! -f "$(>[1])" ] && exit 1
+  if [ ! -f "$(DEST_DIR)/configure" ]; then
+    rm -rf "$(DEST_DIR)" || exit $?
+    if [ -f "$(TARBALL_GZ)" ]; then
+      tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" \
+        || { echo "ERROR: failed to expand the tarball for the MPC build." 2>"$(STDERR_)" 1>&2; exit 1; }
+    elif [ -f "$(TARBALL_BZ2)" ]; then
+      tar xjf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)" \
+        || { echo "ERROR: failed to expand the tarball for the MPC build." 2>"$(STDERR_)" 1>&2; exit 1; }
+    else
+      exit 1
+    fi
+    [ ! -f "$(DEST_DIR)/configure" ] && exit 1
+  fi
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
 
 
-rule makefile-req ( properties * )
+rule run-var ( properties * )
 {
-  local results = ;
-  local ver = [ feature.get-values <mpc-version> : $(properties) ] ;
-  if [ path.exists $(THIS_DIR)/mpc-$(ver)/configure ]
-  {
-    results += <source>$(THIS_DIR)/mpc-$(ver)/configure ;
+  local result = ;
+  local build = [ feature.get-values <intro-build> : $(properties) ] ;
+  local prefix = [ feature.get-values <intro-prefix> : $(properties) ] ;
+  if [ regex.match "(-mingw32)$" : $(build) : 1 ] {
+    result = PATH=\"$(prefix)/bin\":$PATH ;
   }
-  else
-  {
-    local tmp = <source>mpc.expand ;
-    tmp = $(tmp)/<intro-host>unspecified ;
-    tmp = $(tmp)/<intro-abi>unspecified ;
-    tmp = $(tmp)/<intro-link>unspecified ;
-    results += $(tmp) ;
+  else if [ regex.match "(-cygwin)$" : $(build) : 1 ] {
+    result = PATH=\"$(prefix)/bin\":$PATH ;
   }
-  #errors.error $(results) ;
-  return $(results) ;
+  else {
+    result = LD_LIBRARY_PATH=\"$(prefix)/lib\":$LD_LIBRARY_PATH ;
+  }
+  return $(result) ;
 }
 
-make Makefile
-  : gmp.dep
-    mpfr.dep
-    # Other sources are introduced by the indirect conditional requirements.
-  : @configure
-  : <conditional>@makefile-req
-  ;
-explicit Makefile ;
 
-rule configure ( targets * : sources * : properties * )
+make mpc.configure
+  : mpfr-dep
+    mpc.expand/<intro-host>unspecified/<intro-target>unspecified/<intro-abi>unspecified/<intro-link>unspecified/<gcc-version>unspecified/<gcc-version-cross-default>unspecified/<gmp-version>unspecified/<mpfr-version>unspecified
+  : @configure-mpc
+  ;
+explicit mpc.configure ;
+
+rule configure-mpc ( targets * : sources * : properties * )
 {
   OPTIONS on $(targets) = ;
 
-  local ver = [ feature.get-values <mpc-version> : $(properties) ] ;
+  local version = [ feature.get-values <mpc-version> : $(properties) ] ;
 
   # Set the path to the 'configure' file.
-  local configure = $(THIS_DIR)/mpc-$(ver)/configure ;
+  local configure = $(THIS_DIR)/mpc-$(version)/configure ;
   CONFIGURE on $(targets) = $(configure) ;
 
   # Set the 'build' option for the 'configure' script.
@@ -249,13 +160,11 @@ rule configure ( targets * : sources * : properties * )
   # Set the 'CC' option for the 'configure' script.
   local abi = [ feature.get-values <intro-abi> : $(properties) ] ;
   local cc = [ SHELL "\"$(THIS_DIR)/../cc.sh\" $(build) $(host) $(abi) || /bin/echo -n 'error'" ] ;
-  if $(cc) = error
-  {
+  if $(cc) = error {
     errors.error "ERROR: cannot determine the 'CC' option for the MPC build." ;
   }
   CC on $(targets) = ;
-  if $(cc)
-  {
+  if $(cc) {
     CC on $(targets) = "CC='$(cc)'" ;
   }
 
@@ -265,20 +174,16 @@ rule configure ( targets * : sources * : properties * )
 
   # Set the link variants for the 'configure' script.
   local link = [ feature.get-values <intro-link> : $(properties) ] ;
-  if $(link) = both || $(link) = static
-  {
+  if $(link) = static || $(link) = both {
     OPTIONS on $(targets) += --enable-static ;
   }
-  else
-  {
+  else {
     OPTIONS on $(targets) += --disable-static ;
   }
-  if $(link) = both || $(link) = shared
-  {
+  if $(link) = shared || $(link) = both {
     OPTIONS on $(targets) += --enable-shared ;
   }
-  else
-  {
+  else {
     OPTIONS on $(targets) += --disable-shared ;
   }
 
@@ -288,43 +193,41 @@ rule configure ( targets * : sources * : properties * )
   # Set the 'with-mpfr' option for the 'configure' script.
   OPTIONS on $(targets) += --with-mpfr=\"$(prefix)\" ;
 
+  RUN_VAR on $(targets) = [ run-var $(properties) ] ;
+
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
-actions configure
+actions configure-mpc
 {
-  ( cd "$(<:D)" && rm -rf * ) || exit $?
+  rm -f "$(<)" || exit $?
+  ( mkdir -p "$(<:D)/build" && { cd "$(<:D)/build" && rm -rf *; } ) || exit $?
   [ ! -f "$(CONFIGURE)" ] && exit 1
-  ( cd "$(<:D)" && $(CC) "$(CONFIGURE)" $(OPTIONS) 1>"$(STDOUT_)" 2>"$(STDERR_)" ) \
+  ( cd "$(<:D)/build" && $(CC) $(RUN_VAR) "$(CONFIGURE)" $(OPTIONS) 1>"$(STDOUT_)" 2>"$(STDERR_)" ) \
     || { echo "ERROR: failed to 'configure' for the MPC build." 2>"$(STDERR_)" 1>&2; exit 1; }
-  [ ! -f "$(<)" ] && exit 1
-  exit 0
+  [ ! -f "$(<:D)/build/Makefile" ] && exit 1
+  [ -e "$(<)" ] && exit 1
+  touch "$(<)"
 }
 
 
 make mpc.make
-  : Makefile
+  : mpc.configure
   : @make-mpc
   ;
 explicit mpc.make ;
 
 rule make-mpc ( targets * : sources * : properties * )
 {
+  if ! $(sources[1]) {
+    errors.error "ERROR: wrong number of sources." ;
+  }
+  if $(sources[2]) {
+    errors.error "ERROR: wrong number of sources." ;
+  }
   local prefix = [ feature.get-values <intro-prefix> : $(properties) ] ;
   local build = [ feature.get-values <intro-build> : $(properties) ] ;
-  if [ regex.match "(-mingw32)$" : $(build) : 1 ]
-  {
-    RUN_VAR on $(targets) = "PATH=$(prefix)/bin:$PATH" ;
-  }
-  else if [ regex.match "(-cygwin)$" : $(build) : 1 ]
-  {
-    RUN_VAR on $(targets) = "PATH=$(prefix)/bin:$PATH" ;
-  }
-  else
-  {
-    RUN_VAR on $(targets) = "LD_LIBRARY_PATH=$(prefix)/lib:$LD_LIBRARY_PATH" ;
-  }
-
+  RUN_VAR on $(targets) = [ run-var $(properties) ] ;
   CHECK on $(targets) = [ feature.get-values <intro-check> : $(properties) ] ;
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
@@ -332,14 +235,15 @@ rule make-mpc ( targets * : sources * : properties * )
 actions make-mpc
 {
   rm -f "$(<)" || exit $?
-  [ ! -f "$(>)" ] && exit 1
-  ( cd "$(<:D)" && make 1>"$(STDOUT_)" 2>"$(STDERR_)" ) \
+  [ ! -f "$(>[1])" ] && exit 1
+  [ ! -f "$(>[1]:D)/build/Makefile" ] && exit 1
+  ( cd "$(<:D)/build" && make 1>"$(STDOUT_)" 2>"$(STDERR_)" ) \
     || { echo "ERROR: failed to 'make' for the MPC build." 2>"$(STDERR_)" 1>&2; exit 1; }
   if [ $(CHECK) = yes ]; then
-    ( cd "$(<:D)" && $(RUN_VAR) make check 1>"$(STDOUT_)" 2>"$(STDERR_)" ) \
+    ( cd "$(<:D)/build" && $(RUN_VAR) make check 1>"$(STDOUT_)" 2>"$(STDERR_)" ) \
       || { echo "ERROR: failed to 'make check' for the MPC build." 2>"$(STDERR_)" 1>&2; exit 1; }
   fi
-  ( cd "$(<:D)" && make install 1>"$(STDOUT_)" 2>"$(STDERR_)" ) \
+  ( cd "$(<:D)/build" && make install 1>"$(STDOUT_)" 2>"$(STDERR_)" ) \
     || { echo "ERROR: failed to 'make install' for the MPC build." 2>"$(STDERR_)" 1>&2; exit 1; }
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
@@ -354,6 +258,12 @@ explicit mpc.test ;
 
 rule test-mpc ( targets * : sources * : properties * )
 {
+  if ! $(sources[1]) {
+    errors.error "ERROR: wrong number of sources." ;
+  }
+  if $(sources[2]) {
+    errors.error "ERROR: wrong number of sources." ;
+  }
   COMMAND on $(targets) = $(THIS_DIR)/test.sh ;
   VERSION on $(targets) = [ feature.get-values <mpc-version> : $(properties) ] ;
   BUILD on $(targets) = [ feature.get-values <intro-build> : $(properties) ] ;
@@ -366,13 +276,15 @@ rule test-mpc ( targets * : sources * : properties * )
 }
 actions test-mpc
 {
-  rm -f "$(<)" || exit 1
-  x=`"$(COMMAND)" $(VERSION) $(BUILD) $(HOST) $(ABI) "$(PREFIX)" $(LINK) $(CHECK)`
+  rm -f "$(<)" || exit $?
+  [ ! -f "$(>[1])" ] && exit 1
+  result=`"$(COMMAND)" $(VERSION) $(BUILD) $(HOST) $(ABI) "$(PREFIX)" $(CHECK)`
   if [ $? -ne 0 ]; then
     /bin/echo 'ERROR: post-installation test failed for the MPC build.' 2>"$(STDERR_)" 1>&2
     exit 1
   fi
-  [ "$x" != 'yes' ] && exit 1
+  [ $(LINK) = static -a $result = shared ] && exit 1
+  [ $(LINK) = shared -a $result = static ] && exit 1
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
@@ -384,6 +296,11 @@ rule install-req ( properties * )
 
   local tmp = ;
 
+  local version = [ feature.get-values <mpc-version> : $(properties) ] ;
+  if $(version) = unspecified {
+    errors.error "ERROR: the property '<mpc-version>' is not specified for the MPC build." ;
+  }
+
   local build = [ feature.get-values <intro-build> : $(properties) ] ;
   tmp = [ SHELL "\"$(THIS_DIR)/config.guess\" | tr --delete '\n'" ] ;
   if $(build) = unspecified
@@ -392,7 +309,7 @@ rule install-req ( properties * )
   }
   if $(build) != $(tmp)
   {
-    errors.error "ERROR: the given property '<intro-build>$(build)' is not valid." ;
+    errors.error "ERROR: the property '<intro-build>$(build)' is not valid." ;
   }
   tmp = [ SHELL "\"$(THIS_DIR)/config.sub\" $(build) | tr --delete '\n'" ] ;
   if $(tmp) != $(build)
@@ -414,7 +331,7 @@ rule install-req ( properties * )
   result = $(result)/<intro-host>$(host) ;
 
   local target = [ feature.get-values <intro-target> : $(properties) ] ;
-  if ! $(target) = unspecified
+  if $(target) != unspecified
   {
     errors.error "ERROR: the property '<intro-target>$(target)' is specified for MPC build." ;
   }
@@ -444,7 +361,7 @@ rule install-req ( properties * )
 }
 
 alias install
-  : # The source 'install-normalized' is introduced by the following indirect conditional requirements.
+  : # The source 'mpc.test' is introduced by the following indirect conditional requirements.
   : <conditional>@install-req
   ;
 explicit install ;

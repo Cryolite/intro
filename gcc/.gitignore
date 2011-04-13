@@ -1,0 +1,5 @@
+/bin/
+*~
+/gcc-*.tar.gz
+/gcc-*.tar.bz2
+/gcc-*/

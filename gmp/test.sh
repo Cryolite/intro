@@ -1,14 +1,19 @@
 #!/usr/bin/env sh
 
 version=$1
+[ ! -n "$version" ] && exit 1
 build=$2
+[ ! -n "$build" ] && exit 1
 host=$3
+[ ! -n "$host" ] && exit 1
 abi=$4
+[ ! -n "$abi" ] && exit 1
 prefix=$5
-link=$6
-check=$7
+[ ! -n "$prefix" ] && exit 1
+check=$6
+[ ! -n "$check" ] && exit 1
 
-cc=`"${0%/*}/../cc.sh" $build $host "$abi"` || exit 1
+cc=`"${0%/*}/../cc.sh" $build $host $abi` || exit 1
 
 x=`/bin/echo -e -n '#include <gmp.h>\n__GNU_MP_VERSION\n__GNU_MP_VERSION_MINOR\n__GNU_MP_VERSION_PATCHLEVEL' \
     | { $cc -E -I"${prefix}/include" -x c - || exit 1; } \
@@ -28,7 +33,9 @@ cat >"$source" <<EOT
 int main(int argc, char *argv[])
 {
   int i = -1, j = -1, k = -1;
-  sscanf("$version", "%d%*c%d%*c%d", &i, &j, &k);
+  if (sscanf("${version}.0.0", "%d%*c%d%*c%d", &i, &j, &k) != 3) {
+    return EXIT_FAILURE;
+  }
   if (__GNU_MP_VERSION < i) {
     return EXIT_FAILURE;
   }
@@ -44,7 +51,20 @@ int main(int argc, char *argv[])
   }
 
   i = -1; j = -1; k = -1;
-  sscanf(gmp_version, "%d%*c%d%*c%d", &i, &j, &k);
+  char c = 0, d = 0;
+  int result = sscanf(gmp_version, "%d%c%d%c%d", &i, &c, &j, &d, &k);
+  if (c != '.') {
+    if (result < 2) {
+      return EXIT_FAILURE;
+    }
+    j = 0; k = 0;
+  }
+  else if (d != '.') {
+    if (result < 4) {
+      return EXIT_FAILURE;
+    }
+    k = 0;
+  }
   if (i != __GNU_MP_VERSION
         || j != __GNU_MP_VERSION_MINOR
         || k != __GNU_MP_VERSION_PATCHLEVEL)
@@ -61,32 +81,39 @@ int main(int argc, char *argv[])
 EOT
 
 program=`tempfile` || { rm "$source"; exit 1; }
-if [ $link = static -o $link = both ]; then
-    $cc -o "$program" -I"${prefix}/include" -L"${prefix}/lib" -Wl,-Bstatic "$source" -lgmp -Wl,-Bdynamic \
-	|| { rm "$source" "$program"; /bin/echo -n 'no'; exit 0; }
+link_static=no
+$cc -o "$program" -I"${prefix}/include" -L"${prefix}/lib" -Wl,-Bstatic "$source" -lgmp -Wl,-Bdynamic
+if [ $? -eq 0 ]; then
+    link_static=yes
     if [ $check = yes ]; then
 	case $host in
-	    *-cygwin)  ( PATH=${prefix}/bin:$PATH "$program" ) || { rm "$source" "$program"; /bin/echo -n 'no'; exit 0; };;
-	    *-mingw32) ( PATH=${prefix}/bin:$PATH "$program" ) || { rm "$source" "$program"; /bin/echo -n 'no'; exit 0; };;
-	    *)         "$program"                              || { rm "$source" "$program"; /bin/echo -n 'no'; exit 0; };;
+	    *-cygwin)  ( PATH=${prefix}/bin:$PATH "$program" ) || { rm "$source" "$program"; exit 1; };;
+	    *-mingw32) ( PATH=${prefix}/bin:$PATH "$program" ) || { rm "$source" "$program"; exit 1; };;
+	    *)         "$program"                              || { rm "$source" "$program"; exit 1; };;
 	esac
     fi
 fi
-if [ $link = shared -o $link = both ]; then
-    $cc -o "$program" -I"${prefix}/include" -L"${prefix}/lib" -Wl,-Bdynamic "$source" -lgmp -fpic -fPIC \
-	|| { rm "$source" "$program"; /bin/echo -n 'no'; exit 0; }
+link_shared=no
+$cc -o "$program" -I"${prefix}/include" -L"${prefix}/lib" -Wl,-Bdynamic "$source" -lgmp -fpic -fPIC
+if [ $? -eq 0 ]; then
+    link_shared=yes
     if [ $check = yes ]; then
 	case $host in
-	    *-cygwin)  ( PATH=${prefix}/bin:$PATH "$program" )                       \
-		           || { rm "$source" "$program"; /bin/echo -n 'no'; exit 0; };;
-	    *-mingw32) ( PATH=${prefix}/bin:$PATH "$program" )                       \
-		           || { rm "$source" "$program"; /bin/echo -n 'no'; exit 0; };;
-	    *)         ( LD_LIBRARY_PATH=${prefix}/lib:$LD_LIBRARY_PATH "$program" ) \
-		           || { rm "$source" "$program"; /bin/echo -n 'no'; exit 0; };;
+	    *-cygwin)  ( PATH=${prefix}/bin:$PATH "$program" )                       || { rm "$source" "$program"; exit 1; };;
+	    *-mingw32) ( PATH=${prefix}/bin:$PATH "$program" )                       || { rm "$source" "$program"; exit 1; };;
+	    *)         ( LD_LIBRARY_PATH=${prefix}/lib:$LD_LIBRARY_PATH "$program" ) || { rm "$source" "$program"; exit 1; };;
 	esac
     fi
 fi
 
-/bin/echo -n 'yes'
+if [ $link_static = yes -a $link_shared = yes ]; then
+    /bin/echo -n 'both'
+elif [ $link_static = yes ]; then
+    /bin/echo -n 'static'
+elif [ $link_shared = yes ]; then
+    /bin/echo -n 'shared'
+else
+    /bin/echo -n 'no'
+fi
+
 rm "$source" "$program"
-exit 0

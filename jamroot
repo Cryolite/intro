@@ -13,6 +13,7 @@ path-constant THIS_DIR : . ;
 
 hosts = ;
 prefix = ;
+gcc-versions = ;
 stdout = ;
 stderr = ;
 
@@ -21,22 +22,25 @@ for local i in [ modules.peek : ARGV ]
   local tmp = ;
 
   tmp = [ regex.match "^--hosts=(.*)" : $(i) : 1 ] ;
-  if $(tmp)
-  {
-    for local host in [ regex.split $(tmp) "," ]
-    {
+  if $(tmp) {
+    for local host in [ regex.split $(tmp) "," ] {
       hosts += $(host) ;
     }
   }
 
   tmp = [ regex.match "^--prefix=(.*)" : $(i) : 1 ] ;
-  if $(tmp) && $(prefix)
-  {
+  if $(tmp) && $(prefix) {
     errors.user-error "ERROR: duplicate '--prefix' option" ;
   }
-  else if $(tmp)
-  {
+  else if $(tmp) {
     prefix = $(tmp) ;
+  }
+
+  tmp = [ regex.match "^--gcc-versions=(.*)" : $(i) : 1 ] ;
+  if $(tmp) {
+    for local i in [ regex.split $(tmp) "," ] {
+      gcc-versions += $(i) ;
+    }
   }
 
   tmp = [ regex.match "^--stdout=(.*)" : $(i) : 1 ] ;
@@ -123,7 +127,7 @@ feature intro-stdout : $(stdout) : path propagated incidental optional ;
 feature intro-stderr : $(stderr) : path propagated incidental optional ;
 
 
-feature gmp-version : : propagated ;
+feature gmp-version : unspecified : propagated ;
 ECHO patience... ;
 local gmp-versions = [ regex.split [ SHELL "\"$(THIS_DIR)/gmp-versions.sh\" || /bin/echo -n 'error'" ] " +" ] ;
 for local i in $(gmp-versions)
@@ -138,8 +142,10 @@ for local i in $(gmp-versions)
   }
 }
 
+feature gmp-version-hidden : [ feature.values <gmp-version> ] : propagated incidental ;
 
-feature mpfr-version : : propagated ;
+
+feature mpfr-version : unspecified : propagated ;
 ECHO patience... ;
 local mpfr-versions = [ regex.split [ SHELL "\"$(THIS_DIR)/mpfr-versions.sh\" || /bin/echo -n 'error'" ] " +" ] ;
 for local i in $(mpfr-versions)
@@ -154,36 +160,89 @@ for local i in $(mpfr-versions)
   }
 }
 
+feature mpfr-version-hidden : [ feature.values <mpfr-version> ] : propagated incidental ;
 
-feature mpc-version : : propagated ;
+
+feature mpc-version : unspecified : propagated ;
 ECHO patience... ;
 local mpc-versions = [ regex.split [ SHELL "\"$(THIS_DIR)/mpc-versions.sh\" || /bin/echo -n 'error'" ] " +" ] ;
-for local i in $(mpc-versions)
-{
-  if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(i) : 1 ]
-  {
+for local i in $(mpc-versions) {
+  if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(i) : 1 ] {
     feature.extend mpc-version : $(i) ;
   }
-  else
-  {
+  else {
     errors.error "ERROR: failed to extract MPC versions." ;
   }
 }
 
+feature mpc-version-hidden : [ feature.values <mpc-version> ] : propagated incidental ;
 
-local target = mpc//install/<intro-link>both ;
-if $(prefix)
-{
-  target = $(target)/<intro-prefix>$(prefix) ;
+
+feature binutils-version : unspecified : propagated ;
+feature binutils-version-hidden : [ feature.values <binutils-version> ] : propagated incidental ;
+
+
+feature gcc-version : unspecified : propagated ;
+ECHO patience... ;
+for local i in [ regex.split [ SHELL "\"$(THIS_DIR)/gcc-versions.sh\" || /bin/echo -n 'error'" ] " +" ] {
+  if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(i) : 1 ] {
+    feature.extend gcc-version : $(i) ;
+  }
+  else {
+    errors.error "ERROR: failed to extract GCC versions." ;
+  }
 }
-if $(stdout)
-{
-  target = $(target)/<intro-stdout>$(stdout) ;
+
+feature gcc-version-cross-default : [ feature.values <gcc-version> ] : propagated ;
+
+
+if $(gcc-versions) {
+  local targets = ;
+  for local gcc-version in $(gcc-versions) {
+    local tmp = ;
+    tmp = [ feature.values <gcc-version> ] ;
+    if $(gcc-version) = current {
+      gcc-version = $(tmp[2]) ;
+    }
+    if $(gcc-version) = previous {
+      gcc-version = $(tmp[3]) ;
+    }
+    if $(gcc-version) = older {
+      gcc-version = $(tmp[4]) ;
+    }
+    if $(gcc-version) = oldest {
+      gcc-version = $(tmp[5]) ;
+    }
+
+    local target = gcc//install/<gcc-version>$(gcc-version) ;
+    if ! $(gmp-version) {
+      tmp = [ feature.values <gmp-version> ] ;
+      gmp-version = $(tmp[2]) ;
+    }
+    target = $(target)/<gmp-version>$(gmp-version) ;
+    if ! $(mpfr-version) {
+      tmp = [ feature.values <mpfr-version> ] ;
+      mpfr-version = $(tmp[2]) ;
+    }
+    target = $(target)/<mpfr-version>$(mpfr-version) ;
+    if ! $(mpc-version) {
+      tmp = [ feature.values <mpc-version> ] ;
+      mpc-version = $(tmp[2]) ;
+    }
+    target = $(target)/<mpc-version>$(mpc-version) ;
+    if $(prefix) {
+      target = $(target)/<intro-prefix>$(prefix) ;
+    }
+    if $(stdout) {
+      target = $(target)/<intro-stdout>$(stdout) ;
+    }
+    if $(stderr) {
+      target = $(target)/<intro-stderr>$(stderr) ;
+    }
+    targets += $(target) ;
+  }
+  alias install
+    : $(targets)
+    ;
 }
-if $(stderr)
-{
-  target = $(target)/<intro-stderr>$(stderr) ;
-}
-alias install
-  : $(target)
-  ;
+#errors.error ;
