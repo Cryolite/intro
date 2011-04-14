@@ -1,2 +1,6 @@
 *~
 /bin/
+/mingw-w64-*.tar.bz2
+/mingw-w64-*/
+!/mingw-w64-headers/
+!/mingw-w64-crt/

@@ -4,6 +4,7 @@ import alias ;
 import errors ;
 import feature ;
 import make ;
+import regex ;
 
 path-constant THIS_DIR : . ;
 
@@ -63,7 +64,7 @@ actions download-mpfr
   rm -f "$(<)" || exit $?
   if [ ! -f "$(TARBALL_GZ)" -a ! -f "$(TARBALL_BZ2)" ]; then
     ( cd "$(TARBALL_BZ2:D)" && wget --quiet --timestamping -- '$(URL)' ) \
-      || { echo "ERROR: failed to download the MPFR tarball." 2>"$(STDOUT_)" 1>&2; exit 1; }
+      || { echo "ERROR: failed to download the MPFR tarball." 2>>"$(STDOUT_)" 1>&2; exit 1; }
     [ ! -f "$(TARBALL_BZ2)" ] && exit 1
   fi
   [ -e "$(<)" ] && exit 1
@@ -100,10 +101,10 @@ actions expand-mpfr
     rm -rf "$(DEST_DIR)" || exit $?
     if [ -f "$(TARBALL_GZ)" ]; then
       tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" \
-        || { echo "ERROR: failed to expand the tarball for the MPFR build." 2>"$(STDERR_)" 1>&2; exit 1; }
+        || { echo "ERROR: failed to expand the tarball for the MPFR build." 2>>"$(STDERR_)" 1>&2; exit 1; }
     elif [ -f "$(TARBALL_BZ2)" ]; then
       tar xjf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)" \
-        || { echo "ERROR: failed to expand the tarball for the MPFR build." 2>"$(STDERR_)" 1>&2; exit 1; }
+        || { echo "ERROR: failed to expand the tarball for the MPFR build." 2>>"$(STDERR_)" 1>&2; exit 1; }
     else
       exit 1
     fi
@@ -111,6 +112,24 @@ actions expand-mpfr
   fi
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
+}
+
+
+rule run-var ( properties * )
+{
+  local result = ;
+  local build = [ feature.get-values <intro-build> : $(properties) ] ;
+  local prefix = [ feature.get-values <intro-prefix> : $(properties) ] ;
+  if [ regex.match "(-mingw32)$" : $(build) : 1 ] {
+    result = PATH=\"$(prefix)/bin\":$PATH ;
+  }
+  else if [ regex.match "(-cygwin)$" : $(build) : 1 ] {
+    result = PATH=\"$(prefix)/bin\":$PATH ;
+  }
+  else {
+    result = LD_LIBRARY_PATH=\"$(prefix)/lib\":$LD_LIBRARY_PATH ;
+  }
+  return $(result) ;
 }
 
 
@@ -174,14 +193,15 @@ rule configure-mpfr ( targets * : sources * : properties * )
 
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
+  RUN_VAR on $(targets) = [ run-var $(properties) ] ;
 }
 actions configure-mpfr
 {
   rm -f "$(<)" || exit $?
   ( mkdir -p "$(<:D)/build" && { cd "$(<:D)/build" && rm -rf *; } ) || exit $?
   [ ! -f "$(CONFIGURE)" ] && exit 1
-  ( cd "$(<:D)/build" && $(CC) "$(CONFIGURE)" $(OPTIONS) 1>"$(STDOUT_)" 2>"$(STDERR_)" ) \
-    || { echo "ERROR: failed to 'configure' for the MPFR build." 2>"$(STDERR_)" 1>&2; exit 1; }
+  ( cd "$(<:D)/build" && $(CC) $(RUN_VAR) "$(CONFIGURE)" $(OPTIONS) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
+    || { echo "ERROR: failed to 'configure' for the MPFR build." 2>>"$(STDERR_)" 1>&2; exit 1; }
   [ ! -f "$(<:D)/build/Makefile" ] && exit 1
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
@@ -205,20 +225,21 @@ rule make-mpfr ( targets * : sources * : properties * )
   CHECK on $(targets) = [ feature.get-values <intro-check> : $(properties) ] ;
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
+  RUN_VAR on $(targets) = [ run-var $(properties) ] ;
 }
 actions make-mpfr
 {
   rm -f "$(<)" || exit $?
   [ ! -f "$(>[1])" ] && exit 1
   [ ! -f "$(>[1]:D)/build/Makefile" ] && exit 1
-  ( cd "$(<:D)/build" && make 1>"$(STDOUT_)" 2>"$(STDERR_)" ) \
-    || { echo "ERROR: failed to 'make' for the MPFR build." 2>"$(STDERR_)" 1>&2; exit 1; }
+  ( cd "$(<:D)/build" && $(RUN_VAR) make 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
+    || { echo "ERROR: failed to 'make' for the MPFR build." 2>>"$(STDERR_)" 1>&2; exit 1; }
   if [ $(CHECK) = yes ]; then
-    ( cd "$(<:D)/build" && make check 1>"$(STDOUT_)" 2>"$(STDERR_)" ) \
-      || { echo "ERROR: failed to 'make check' for the MPFR build." 2>"$(STDERR_)" 1>&2; exit 1; }
+    ( cd "$(<:D)/build" && $(RUN_VAR) make check 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
+      || { echo "ERROR: failed to 'make check' for the MPFR build." 2>>"$(STDERR_)" 1>&2; exit 1; }
   fi
-  ( cd "$(<:D)/build" && make install 1>"$(STDOUT_)" 2>"$(STDERR_)" ) \
-    || { echo "ERROR: failed to 'make install' for the MPFR build." 2>"$(STDERR_)" 1>&2; exit 1; }
+  ( cd "$(<:D)/build" && $(RUN_VAR) make install 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
+    || { echo "ERROR: failed to 'make install' for the MPFR build." 2>>"$(STDERR_)" 1>&2; exit 1; }
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
@@ -254,7 +275,7 @@ actions test-mpfr
   [ ! -f "$(>[1])" ] && exit 1
   result=`"$(COMMAND)" $(VERSION) $(BUILD) $(HOST) $(ABI) "$(PREFIX)" $(CHECK)`
   if [ $? -ne 0 ]; then
-    /bin/echo 'ERROR: post-installation test failed for the MPFR build.' 2>"$(STDERR_)" 1>&2
+    /bin/echo 'ERROR: post-installation test failed for the MPFR build.' 2>>"$(STDERR_)" 1>&2
     exit 1
   fi
   [ $(LINK) = static -a $result = shared ] && exit 1

@@ -1,0 +1,205 @@
+project mingw-w64-crt ;
+
+import alias ;
+import errors ;
+import feature ;
+import make ;
+import regex ;
+
+path-constant THIS_DIR : . ;
+
+
+rule gcc-stage1-dep-req ( properties * )
+{
+  local result = <source>../gcc//gcc-mingw32-target-cross-stage1.make ;
+  # `<intro-build>' is automatically propagated.
+  # `<intro-host>' is automatically propagated.
+  # `<intro-target>' is automatically propagated.
+  # `<intro-abi>' is automatically propagated.
+  # `<intro-prefix>' is automatically propagated.
+  # `<intro-link>' is automatically propagated.
+  # `<intro-check>' is automatically propagated.
+  # `<intro-stdour>' is automatically propagated.
+  # `<intro-stderr>' is automatically propagated.
+  # `<gcc-version>' is automatically propagated.
+  #errors.error $(result) ;
+  return $(result) ;
+}
+
+alias gcc-stage1-dep
+  : # `../gcc//gcc-mingw32-target-cross-stage1.make' is added by the indirect conditional requirements.
+  : <conditional>@gcc-stage1-dep-req
+  ;
+explicit gcc-stage1-dep ;
+
+
+make mingw-w64-crt.configure
+  : gcc-stage1-dep
+  : @configure-mingw-w64-crt
+  ;
+explicit mingw-w64-crt.configure ;
+
+rule configure-mingw-w64-crt ( targets * : sources * : properties * )
+{
+  if ! $(sources[1]) {
+    errors.error "ERROR: wrong number of sources." ;
+  }
+  if $(sources[2]) {
+    errors.error "ERROR: wrong number of sources." ;
+  }
+
+  OPTIONS on $(targets) = ;
+
+  # Set the path to the 'configure' file.
+  local configure = $(THIS_DIR)/../mingw-w64-v1.0-20101003/mingw-w64-crt/configure ;
+  CONFIGURE on $(targets) = $(configure) ;
+
+  # Set the 'build' option for the 'configure' script.
+  local build = [ feature.get-values <intro-build> : $(properties) ] ;
+  OPTIONS on $(targets) += --build=$(build) ;
+
+  # Set the 'host' option for the 'configure' script.
+  local target = [ feature.get-values <intro-target> : $(properties) ] ;
+  HOST on $(targets) += $(target) ;
+  OPTIONS on $(targets) += --host=$(target) ;
+
+  # Set the 'prefix' option for the 'configure' script.
+  local prefix = [ feature.get-values <intro-prefix> : $(properties) ] ;
+  PREFIX on $(targets) += $(prefix) ;
+  OPTIONS on $(targets) += --prefix=\"$(prefix)\" ;
+
+  if [ regex.match "^(x86_64-)" : $(target) : 1 ] {
+    OPTIONS on $(targets) += --enable-lib64 ;
+  }
+  OPTIONS on $(targets) += --enable-lib32 ;
+
+  OPTIONS on $(targets) += --with-sysroot=\"$(prefix)\" ;
+
+  if [ regex.match "(-cygwin)$" : $(build) : 1 ] {
+    RUN_VAR on $(targets) = PATH=\"$(prefix)/bin\":$PATH ;
+  }
+  else if [ regex.match "(-mingw32)$" : $(build) : 1 ] {
+    RUN_VAR on $(targets) = PATH=\"$(prefix)/bin\":$PATH ;
+  }
+  else {
+    RUN_VAR on $(targets) = LD_LIBRARY_PATH=\"$(prefix)/lib\":$LD_LIBRARY_PATH ;
+  }
+
+  STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
+  STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
+}
+actions configure-mingw-w64-crt
+{
+  rm -f "$(<)" || exit $?
+  [ ! -f "$(>[1])" ] && exit 1
+  [ ! -f "$(CONFIGURE)" ] && exit 1
+  ( mkdir -p "$(<:D)/build" && { cd "$(<:D)/build" && rm -rf *; } ) || exit $?
+  rm -f "$(PREFIX)/mingw" || exit $?
+  ln -s "$(PREFIX)/$(HOST)" "$(PREFIX)/mingw" || exit $?
+  ( cd "$(<:D)/build" && $(RUN_VAR) "$(CONFIGURE)" $(OPTIONS) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
+    || { echo "ERROR: failed to 'configure' for the mingw-w64-crt build." 2>>"$(STDERR_)" 1>&2; exit 1; }
+  [ ! -f "$(<:D)/build/Makefile" ] && exit 1
+  rm "$(PREFIX)/mingw" || exit $?
+  [ -e "$(<)" ] && exit 1
+  touch "$(<)"
+}
+
+
+make mingw-w64-crt.make
+  : mingw-w64-crt.configure
+  : @make-mingw-w64-crt
+  ;
+explicit mingw-w64-crt.make ;
+
+rule make-mingw-w64-crt ( targets * : sources * : properties * )
+{
+  if ! $(sources[1]) {
+    errors.error "ERROR: wrong number of sources." ;
+  }
+  if $(sources[2]) {
+    errors.error "ERROR: wrong number of sources." ;
+  }
+  local build = [ feature.get-values <intro-build> : $(properties) ] ;
+  local host = [ feature.get-values <intro-target> : $(properties) ] ;
+  HOST on $(targets) = $(host) ;
+  local prefix = [ feature.get-values <intro-prefix> : $(properties) ] ;
+  PREFIX on $(targets) = [ feature.get-values <intro-prefix> : $(properties) ] ;
+  if [ regex.match "(-cygwin)$" : $(build) : 1 ] {
+    RUN_VAR on $(targets) = PATH=\"$(prefix)/bin\":$PATH ;
+  }
+  else if [ regex.match "(-mingw32)$" : $(build) : 1 ] {
+    RUN_VAR on $(targets) = PATH=\"$(prefix)/bin\":$PATH ;
+  }
+  else {
+    RUN_VAR on $(targets) = LD_LIBRARY_PATH=\"$(prefix)/lib\":$LD_LIBRARY_PATH ;
+  }
+  #CHECK on $(targets) = [ feature.get-values <intro-check> : $(properties) ] ;
+  STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
+  STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
+}
+actions make-mingw-w64-crt
+{
+  rm -f "$(<)" || exit $?
+  [ ! -f "$(>[1])" ] && exit 1
+  [ ! -f "$(>[1]:D)/build/Makefile" ] && exit 1
+  rm -f "$(PREFIX)/mingw" || exit $?
+  ln -s "$(PREFIX)/$(HOST)" "$(PREFIX)/mingw" || exit $?
+  ( cd "$(<:D)/build" && $(RUN_VAR) make 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
+    || { echo "ERROR: failed to 'make' for the mingw-w64-crt build." 2>>"$(STDERR_)" 1>&2; exit 1; }
+  # if [ $(CHECK) = yes ]; then
+  #   ( cd "$(<:D)/build" && $(RUN_VAR) make check 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
+  #     || { echo "ERROR: failed to 'make check' for the mingw-w64-crt build." 2>>"$(STDERR_)" 1>&2; exit 1; }
+  # fi
+  ( cd "$(<:D)/build" && $(RUN_VAR) make install 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
+    || { echo "ERROR: failed to 'make install' for the mingw-w64-crt build." 2>>"$(STDERR_)" 1>&2; exit 1; }
+  rm "$(PREFIX)/mingw" || exit $?
+  [ -e "$(<)" ] && exit 1
+  touch "$(<)"
+}
+
+
+rule install-req ( properties * )
+{
+  local result = <source>mingw-w64-crt.make ;
+
+  local build = [ feature.get-values <intro-build> : $(properties) ] ;
+  if $(build) = unspecified {
+    errors.error "ERROR: the property '<intro-build>' is not specified for mingw-w64-crt build." ;
+  }
+
+  local host = [ feature.get-values <intro-host> : $(properties) ] ;
+  if $(host) = unspecified {
+    errors.error "ERROR: the property '<intro-host>' is not specified for mingw-w64-crt build." ;
+  }
+
+  local target = [ feature.get-values <intro-target> : $(properties) ] ;
+  if $(target) = unspecified {
+    errors.error "ERROR: the property '<intro-target>' is not specified for mingw-w64-crt build." ;
+  }
+
+  local link = [ feature.get-values <intro-link> : $(properties) ] ;
+  if $(link) != unspecified {
+    errors.error "ERROR: '<intro-link>$(link)' is not valid for the mingw-w64-crt build." ;
+  }
+
+  local check = [ feature.get-values <intro-check> : $(properties) ] ;
+  if $(check) = unspecified {
+    if $(build) = $(host) {
+      check = yes ;
+    }
+    else {
+      check = no ;
+    }
+  }
+  result = $(result)/<intro-check>$(check) ;
+
+  #errors.error $(result) ;
+
+  return $(result) ;
+}
+
+alias install
+  : # The source 'mingw-w64-crt.make' is introduced by the indirect conditional requirements.
+  : <conditional>@install-req
+  ;
+explicit install ;

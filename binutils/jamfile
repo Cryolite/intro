@@ -1,74 +1,70 @@
-project gmp ;
+project binutils ;
 
 import alias ;
 import errors ;
 import feature ;
 import make ;
+import regex ;
 
 path-constant THIS_DIR : . ;
 
 
-rule gcc-dep-conditional-req ( properties * )
+rule gcc-dep-req ( properties * )
 {
-  local results = ;
   local build = [ feature.get-values <intro-build> : $(properties) ] ;
   local host = [ feature.get-values <intro-host> : $(properties) ] ;
   if $(host) != $(build) {
-    local gcc-target = ;
-    gcc-target = <source>../gcc//install ;
-    gcc-target = $(gcc-target)/<intro-build>unspecified ;
-    gcc-target = $(gcc-target)/<intro-host>unspecified ;
-    gcc-target = $(gcc-target)/<intro-target>$(host) ;
-    # `<intro-abi>' is automatically propagated.
-    local prefix = [ feature.get-values <intro-prefix> : $(properties) ] ;
-    if ! [ regex.match "^(/.+/$(host))$" : $(prefix) : 1 ] {
-      errors.error "ERROR: the property '<prefix>$(prefix)' is not valid." ;
+    local result = <source>../gcc//install ;
+    result = $(result)/<intro-build>unspecified ;
+    result = $(result)/<intro-host>unspecified ;
+    if $(host) = $(build) {
+      result = $(result)/<intro-target>unspecified ;
     }
-    local gcc-prefix = [ regex.match "^(/.+)/$(host)$" : $(prefix) : 1 ] ;
-    gcc-target = $(gcc-target)/<intro-prefix>$(gcc-prefix) ;
-    gcc-target = $(gcc-target)/<intro-link>unspecified ;
-    gcc-target = $(gcc-target)/<intro-check>yes ;
+    else {
+      result = $(result)/<intro-target>$(host) ;
+    }
+    # `<intro-abi>' is automatically propagated.
+    # `<intro-prefix>' is automatically propagated.
+    # `<intro-link>' is automatically propagated.
+    # `<intro-check>' is automatically propagated.
     # `<intro-stdour>' is automatically propagated.
     # `<intro-stderr>' is automatically propagated.
-    local gcc-version-cross-default = [ feature.get-values <gcc-version-cross-default> : $(properties) ] ;
-    gcc-target = $(gcc-target)/<gcc-version>$(gcc-version-cross-default) ;
-    gcc-target = $(gcc-target)/<gcc-version-cross-default>unspecified ;
-    errors.error $(gcc-target) ;
-    results += $(gcc-target) ;
+    local gcc-version = [ feature.get-values <gcc-version-cross-default> : $(properties) ] ;
+    result = $(result)/<gcc-version>$(gcc-version) ;
+    # `<binutils-version>' is automatically propagated.
+    #errors.error $(result) ;
+    return $(result) ;
   }
-  return $(results) ;
 }
 
-alias gcc-dep-conditional
-  : # `../gcc//install' is added as a source by the indirect conditional requirements.
-  : <conditional>@gcc-dep-conditional-req
+alias gcc-dep
+  : # `../gcc//install' is added by the indirect conditional requirements.
+  : <conditional>@gcc-dep-req
   ;
-explicit gcc-dep-conditional ;
+explicit gcc-dep ;
 
 
-make gmp.download
+make binutils.download
   : # No sources.
-  : @download-gmp
+  : @download-binutils
   ;
-explicit gmp.download ;
+explicit binutils.download ;
 
-rule download-gmp ( targets * : sources * : properties * )
+rule download-binutils ( targets * : sources * : properties * )
 {
-  local version = [ feature.get-values <gmp-version> : $(properties) ] ;
-  local host = [ feature.get-values <intro-host> : $(properties) ] ;
-  local link = [ feature.get-values <intro-link> : $(properties) ] ;
-  URL on $(targets) = http://core.ring.gr.jp/pub/GNU/gmp/gmp-$(version).tar.bz2 ;
-  TARBALL_GZ on $(targets) = $(THIS_DIR)/gmp-$(version).tar.gz ;
-  TARBALL_BZ2 on $(targets) = $(THIS_DIR)/gmp-$(version).tar.bz2 ;
+  local version = [ feature.get-values <binutils-version> : $(properties) ] ;
+  URL on $(targets) = http://core.ring.gr.jp/pub/GNU/binutils/binutils-$(version).tar.bz2 ;
+  TARBALL_GZ on $(targets) = $(THIS_DIR)/binutils-$(version).tar.gz ;
+  TARBALL_BZ2 on $(targets) = $(THIS_DIR)/binutils-$(version).tar.bz2 ;
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
-actions download-gmp
+actions download-binutils
 {
   rm -f "$(<)" || exit $?
   if [ ! -f "$(TARBALL_GZ)" -a ! -f "$(TARBALL_BZ2)" ]; then
     ( cd "$(TARBALL_BZ2:D)" && wget --quiet --timestamping -- '$(URL)' ) \
-      || { echo "ERROR: failed to download the GMP tarball." 2>>"$(STDOUT_)" 1>&2; exit 1; }
+      || { echo "ERROR: failed to download the Binutils tarball." 2>>"$(STDOUT_)" 1>&2; exit 1; }
     [ ! -f "$(TARBALL_BZ2)" ] && exit 1
   fi
   [ -e "$(<)" ] && exit 1
@@ -76,13 +72,13 @@ actions download-gmp
 }
 
 
-make gmp.expand
-  : gmp.download
-  : @expand-gmp
+make binutils.expand
+  : binutils.download
+  : @expand-binutils
   ;
-explicit gmp.expand ;
+explicit binutils.expand ;
 
-rule expand-gmp ( targets * : sources * : properties * )
+rule expand-binutils ( targets * : sources * : properties * )
 {
   if ! $(sources[1]) {
     errors.error "ERROR: wrong number of sources." ;
@@ -90,14 +86,14 @@ rule expand-gmp ( targets * : sources * : properties * )
   if $(sources[2]) {
     errors.error "ERROR: wrong number of sources." ;
   }
-  local version = [ feature.get-values <gmp-version> : $(properties) ] ;
-  TARBALL_GZ on $(targets) = $(THIS_DIR)/gmp-$(version).tar.gz ;
-  TARBALL_BZ2 on $(targets) = $(THIS_DIR)/gmp-$(version).tar.bz2 ;
-  DEST_DIR on $(targets) = $(THIS_DIR)/gmp-$(version) ;
+  local version = [ feature.get-values <binutils-version> : $(properties) ] ;
+  TARBALL_GZ on $(targets) = $(THIS_DIR)/binutils-$(version).tar.gz ;
+  TARBALL_BZ2 on $(targets) =  $(THIS_DIR)/binutils-$(version).tar.bz2 ;
+  DEST_DIR on $(targets) = $(THIS_DIR)/binutils-$(version) ;
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
-actions expand-gmp
+actions expand-binutils
 {
   rm -f "$(<)" || exit $?
   [ ! -f "$(>[1])" ] && exit 1
@@ -105,10 +101,10 @@ actions expand-gmp
     rm -rf "$(DEST_DIR)" || exit $?
     if [ -f "$(TARBALL_GZ)" ]; then
       tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" \
-        || { echo "ERROR: failed to expand the GMP tarball." 2>>"$(STDERR_)" 1>&2; exit 1; }
+        || { echo "ERROR: failed to expand the tarball for the Binutils build." 2>>"$(STDERR_)" 1>&2; exit 1; }
     elif [ -f "$(TARBALL_BZ2)" ]; then
       tar xjf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)" \
-        || { echo "ERROR: failed to expand the GMP tarball." 2>>"$(STDERR_)" 1>&2; exit 1; }
+        || { echo "ERROR: failed to expand the tarball for the Binutils build." 2>>"$(STDERR_)" 1>&2; exit 1; }
     else
       exit 1
     fi
@@ -119,21 +115,21 @@ actions expand-gmp
 }
 
 
-make gmp.configure
-  : gcc-dep-conditional
-    gmp.expand/<intro-host>unspecified/<intro-target>unspecified/<intro-link>unspecified/<gcc-version-cross-default>unspecified
-  : @configure-gmp
+make binutils.configure
+  : gcc-dep
+    binutils.expand/<intro-host>unspecified/<intro-target>unspecified/<intro-abi>unspecified/<intro-link>unspecified/<gcc-version-cross-default>unspecified
+  : @configure-binutils
   ;
-explicit gmp.configure ;
+explicit binutils.configure ;
 
-rule configure-gmp ( targets * : sources * : properties * )
+rule configure-binutils ( targets * : sources * : properties * )
 {
   OPTIONS on $(targets) = ;
 
-  local version = [ feature.get-values <gmp-version> : $(properties) ] ;
+  local version = [ feature.get-values <binutils-version> : $(properties) ] ;
 
   # Set the path to the 'configure' file.
-  local configure = $(THIS_DIR)/gmp-$(version)/configure ;
+  local configure = $(THIS_DIR)/binutils-$(version)/configure ;
   CONFIGURE on $(targets) = $(configure) ;
 
   # Set the 'build' option for the 'configure' script.
@@ -144,55 +140,58 @@ rule configure-gmp ( targets * : sources * : properties * )
   local host = [ feature.get-values <intro-host> : $(properties) ] ;
   OPTIONS on $(targets) += --host=$(host) ;
 
-  # Set the 'ABI' option for the 'configure' script.
+  local target = [ feature.get-values <intro-target> : $(properties) ] ;
+  OPTIONS on $(targets) += --target=$(target) ;
+
+  # Set the 'CC' option for the 'configure' script.
   local abi = [ feature.get-values <intro-abi> : $(properties) ] ;
-  ABI on $(targets) = ;
-  if $(abi) != unspecified {
-    ABI on $(targets) = ABI=$(abi) ;
+  local cc = [ SHELL "\"$(THIS_DIR)/../cc.sh\" $(build) $(host) $(abi) || /bin/echo -n 'error'" ] ;
+  if $(cc) = error {
+    errors.error "ERROR: cannot determine the 'CC' option for the Binutils build." ;
+  }
+  CC on $(targets) = ;
+  if $(cc) {
+    CC on $(targets) = "CC='$(cc)'" ;
   }
 
   # Set the 'prefix' option for the 'configure' script.
   local prefix = [ feature.get-values <intro-prefix> : $(properties) ] ;
+  if $(host) != $(build) {
+    prefix = $(prefix)/$(host) ;
+  }
   OPTIONS on $(targets) += --prefix=\"$(prefix)\" ;
 
-  # Set the link variants for the 'configure' script.
-  local link = [ feature.get-values <intro-link> : $(properties) ] ;
-  if $(link) = static || $(link) = both {
-    OPTIONS on $(targets) += --enable-static ;
+  if [ regex.match "(-w64-mingw32)$" : $(target) : 1 ] {
+    OPTIONS on $(targets) += --enable-targets=x86_64-w64-mingw32,i686-w64-mingw32 ;
   }
-  else {
-    OPTIONS on $(targets) += --disable-static ;
-  }
-  if $(link) = shared || $(link) = both {
-    OPTIONS on $(targets) += --enable-shared ;
-  }
-  else {
-    OPTIONS on $(targets) += --disable-shared ;
+
+  if $(target) != $(host) {
+    OPTIONS on $(targets) += --with-sysroot=\"$(prefix)\" ;
   }
 
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
-actions configure-gmp
+actions configure-binutils
 {
   rm -f "$(<)" || exit $?
   ( mkdir -p "$(<:D)/build" && { cd "$(<:D)/build" && rm -rf *; } ) || exit $?
   [ ! -f "$(CONFIGURE)" ] && exit 1
-  ( cd "$(<:D)/build" && $(ABI) "$(CONFIGURE)" $(OPTIONS) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
-    || { echo "ERROR: failed to 'configure' for the GMP build." 2>>"$(STDERR_)" 1>&2; exit 1; }
+  ( cd "$(<:D)/build" && $(CC) "$(CONFIGURE)" $(OPTIONS) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
+    || { echo "ERROR: failed to 'configure' for the Binutils build." 2>>"$(STDERR_)" 1>&2; exit 1; }
   [ ! -f "$(<:D)/build/Makefile" ] && exit 1
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
 
 
-make gmp.make
-  : gmp.configure
-  : @make-gmp
+make binutils.make
+  : binutils.configure
+  : @make-binutils
   ;
-explicit gmp.make ;
+explicit binutils.make ;
 
-rule make-gmp ( targets * : sources * : properties * )
+rule make-binutils ( targets * : sources * : properties * )
 {
   if ! $(sources[1]) {
     errors.error "ERROR: wrong number of sources." ;
@@ -204,31 +203,31 @@ rule make-gmp ( targets * : sources * : properties * )
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
-actions make-gmp
+actions make-binutils
 {
   rm -f "$(<)" || exit $?
   [ ! -f "$(>[1])" ] && exit 1
   [ ! -f "$(>[1]:D)/build/Makefile" ] && exit 1
   ( cd "$(<:D)/build" && make 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
-    || { echo "ERROR: failed to 'make' for the GMP build." 2>>"$(STDERR_)" 1>&2; exit 1; }
+    || { echo "ERROR: failed to 'make' for the Binutils build." 2>>"$(STDERR_)" 1>&2; exit 1; }
   if [ $(CHECK) = yes ]; then
     ( cd "$(<:D)/build" && make check 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
-      || { echo "ERROR: failed to 'make check' for the GMP build." 2>>"$(STDERR_)" 1>&2; exit 1; }
+      || { echo "ERROR: failed to 'make check' for the Binutils build." 2>>"$(STDERR_)" 1>&2; exit 1; }
   fi
   ( cd "$(<:D)/build" && make install 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
-    || { echo "ERROR: failed to 'make install' for the GMP build." 2>>"$(STDERR_)" 1>&2; exit 1; }
+    || { echo "ERROR: failed to 'make install' for the Bintuils build." 2>>"$(STDERR_)" 1>&2; exit 1; }
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
 
 
-make gmp.test
-  : gmp.make
-  : @test-gmp
+make binutils.test
+  : binutils.make
+  : @test-binutils
   ;
-explicit gmp.test ;
+explicit binutils.test ;
 
-rule test-gmp ( targets * : sources * : properties * )
+rule test-binutils ( targets * : sources * : properties * )
 {
   if ! $(sources[1]) {
     errors.error "ERROR: wrong number of sources." ;
@@ -237,7 +236,7 @@ rule test-gmp ( targets * : sources * : properties * )
     errors.error "ERROR: wrong number of sources." ;
   }
   COMMAND on $(targets) = $(THIS_DIR)/test.sh ;
-  VERSION on $(targets) = [ feature.get-values <gmp-version> : $(properties) ] ;
+  VERSION on $(targets) = [ feature.get-values <binutils-version> : $(properties) ] ;
   BUILD on $(targets) = [ feature.get-values <intro-build> : $(properties) ] ;
   HOST on $(targets) = [ feature.get-values <intro-host> : $(properties) ] ;
   ABI on $(targets) = [ feature.get-values <intro-abi> : $(properties) ] ;
@@ -246,17 +245,17 @@ rule test-gmp ( targets * : sources * : properties * )
   CHECK on $(targets) = [ feature.get-values <intro-check> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
-actions test-gmp
+actions test-binutils
 {
   rm -f "$(<)" || exit $?
   [ ! -f "$(>[1])" ] && exit 1
-  result=`"$(COMMAND)" $(VERSION) $(BUILD) $(HOST) $(ABI) "$(PREFIX)" $(CHECK)`
-  if [ $? -ne 0 ]; then
-    /bin/echo 'ERROR: post-installation test failed for the GMP build.' 2>>"$(STDERR_)" 1>&2
-    exit 1
-  fi
-  [ $(LINK) = static -a $result = shared ] && exit 1
-  [ $(LINK) = shared -a $result = static ] && exit 1
+  # result=`"$(COMMAND)" $(VERSION) $(BUILD) $(HOST) $(ABI) "$(PREFIX)" $(CHECK)`
+  # if [ $? -ne 0 ]; then
+  #   /bin/echo 'ERROR: post-installation test failed for the Binutils build.' 2>>"$(STDERR_)" 1>&2
+  #   exit 1
+  # fi
+  # [ $(LINK) = static -a $result = shared ] && exit 1
+  # [ $(LINK) = shared -a $result = static ] && exit 1
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
@@ -264,13 +263,13 @@ actions test-gmp
 
 rule install-req ( properties * )
 {
-  local result = <source>gmp.test ;
+  local result = <source>binutils.test ;
 
   local tmp = ;
 
-  local version = [ feature.get-values <gmp-version> : $(properties) ] ;
+  local version = [ feature.get-values <binutils-version> : $(properties) ] ;
   if $(version) = unspecified {
-    errors.error "ERROR: the property '<gmp-version>' is not specified for the GMP build.." ;
+    errors.error "ERROR: the property '<binutils-version>' is not specified for the Binutils build." ;
   }
 
   local build = [ feature.get-values <intro-build> : $(properties) ] ;
@@ -283,7 +282,7 @@ rule install-req ( properties * )
   }
   tmp = [ SHELL "\"$(THIS_DIR)/config.sub\" $(build) | tr --delete '\n'" ] ;
   if $(tmp) != $(build) {
-    errors.error "ERROR: the property '<intro-build>$(build)' is not canonical." ;
+    errors.error "ERROR: the given property '<intro-build>$(build)' is not canonical." ;
   }
   result = $(result)/<intro-build>$(build) ;
 
@@ -298,13 +297,18 @@ rule install-req ( properties * )
   result = $(result)/<intro-host>$(host) ;
 
   local target = [ feature.get-values <intro-target> : $(properties) ] ;
-  if $(target) != unspecified {
-    errors.error "ERROR: the property '<intro-target>$(target)' is specified for GMP build." ;
+  if $(target) = unspecified {
+    target = $(host) ;
   }
+  tmp = [ SHELL "\"$(THIS_DIR)/config.sub\" $(target) | tr --delete '\n'" ] ;
+  if $(tmp) != $(target) {
+    errors.error "ERROR: the property '<intro-target>$(target)' is not canonical." ;
+  }
+  result = $(result)/<intro-target>$(target) ;
 
   local link = [ feature.get-values <intro-link> : $(properties) ] ;
-  if $(link) = unspecified {
-    errors.error "ERROR: '<intro-link>' is not specified for the GMP build." ;
+  if $(link) != unspecified {
+    errors.error "ERROR: the property '<intro-link>$(link)' is not valid for the Binutils build." ;
   }
 
   local check = [ feature.get-values <intro-check> : $(properties) ] ;
@@ -324,7 +328,7 @@ rule install-req ( properties * )
 }
 
 alias install
-  : # The source 'install-normalized' is introduced by the following indirect requirements.
+  : # 'binutils.test' is added by the indirect conditional requirements.
   : <conditional>@install-req
   ;
 explicit install ;

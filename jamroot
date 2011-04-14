@@ -1,6 +1,4 @@
-project intro
-  : build-dir bin
-  ;
+project intro : build-dir bin ;
 
 import errors ;
 import feature : feature ;
@@ -179,6 +177,17 @@ feature mpc-version-hidden : [ feature.values <mpc-version> ] : propagated incid
 
 
 feature binutils-version : unspecified : propagated ;
+ECHO patience... ;
+local binutils-versions = [ regex.split [ SHELL "\"$(THIS_DIR)/binutils-versions.sh\" || /bin/echo -n 'error'" ] " +" ] ;
+for local i in $(binutils-versions) {
+  if [ regex.match "^([0123456789]+\\.[0123456789]+(\\.[0123456789]+)?)$" : $(i) : 1 ] {
+    feature.extend binutils-version : $(i) ;
+  }
+  else {
+    errors.error "ERROR: failed to extract Binutils versions." ;
+  }
+}
+
 feature binutils-version-hidden : [ feature.values <binutils-version> ] : propagated incidental ;
 
 
@@ -196,10 +205,30 @@ for local i in [ regex.split [ SHELL "\"$(THIS_DIR)/gcc-versions.sh\" || /bin/ec
 feature gcc-version-cross-default : [ feature.values <gcc-version> ] : propagated ;
 
 
+local target = gcc//install ;
+target = $(target)/<intro-target>x86_64-w64-mingw32 ;
+target = $(target)/<intro-prefix>/home/cryolite/local ;
+target = $(target)/<gmp-version>5.0.1 ;
+target = $(target)/<mpfr-version>3.0.1 ;
+target = $(target)/<mpc-version>0.9 ;
+target = $(target)/<binutils-version>2.21 ;
+target = $(target)/<gcc-version>4.6.0 ;
+if $(stdout) {
+  target = $(target)/<intro-stdout>$(stdout) ;
+}
+if $(stderr) {
+  target = $(target)/<intro-stderr>$(stderr) ;
+}
+
+alias intall
+  : $(target)
+  ;
+
+
 if $(gcc-versions) {
   local targets = ;
+  local tmp = ;
   for local gcc-version in $(gcc-versions) {
-    local tmp = ;
     tmp = [ feature.values <gcc-version> ] ;
     if $(gcc-version) = current {
       gcc-version = $(tmp[2]) ;
@@ -230,6 +259,28 @@ if $(gcc-versions) {
       mpc-version = $(tmp[2]) ;
     }
     target = $(target)/<mpc-version>$(mpc-version) ;
+    if ! $(binutils-version) {
+      tmp = [ feature.values <binutils-version> ] ;
+      binutils-version = $(tmp[2]) ;
+    }
+    target = $(target)/<binutils-version>$(binutils-version) ;
+    if ! $(gcc-version-cross-default) {
+      gcc-version-cross-default = $(gcc-versions[1]) ;
+      tmp = [ feature.values <gcc-version> ] ;
+      if $(gcc-version-cross-default) = current {
+        gcc-version-cross-default = $(tmp[2]) ;
+      }
+      if $(gcc-version-cross-default) = previous {
+        gcc-version-cross-default = $(tmp[3]) ;
+      }
+      if $(gcc-version-cross-default) = older {
+        gcc-version-cross-default = $(tmp[4]) ;
+      }
+      if $(gcc-version-cross-default) = oldest {
+        gcc-version-cross-default = $(tmp[5]) ;
+      }
+    }
+    target = $(target)/<gcc-version-cross-default>$(gcc-version-cross-default) ;
     if $(prefix) {
       target = $(target)/<intro-prefix>$(prefix) ;
     }
@@ -241,8 +292,8 @@ if $(gcc-versions) {
     }
     targets += $(target) ;
   }
-  alias install
-    : $(targets)
-    ;
+
+  #alias install
+  #  : $(targets)/<intro-host>$(hosts)
+  #  ;
 }
-#errors.error ;
