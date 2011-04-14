@@ -270,7 +270,7 @@ rule install-req ( properties * )
 
   local version = [ feature.get-values <gmp-version> : $(properties) ] ;
   if $(version) = unspecified {
-    errors.error "ERROR: the property '<gmp-version>' is not specified for the GMP build.." ;
+    errors.error "ERROR: the property '<gmp-version>' is not specified for the GMP build." ;
   }
 
   local build = [ feature.get-values <intro-build> : $(properties) ] ;
@@ -324,7 +324,7 @@ rule install-req ( properties * )
 }
 
 alias install
-  : # The source 'install-normalized' is introduced by the following indirect requirements.
+  : # The source 'gmp.test' is introduced by the conditional requirements.
   : <conditional>@install-req
   ;
 explicit install ;

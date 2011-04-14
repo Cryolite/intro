@@ -87,7 +87,7 @@ rule expand-mpc ( targets * : sources * : properties * )
   }
   local version = [ feature.get-values <mpc-version> : $(properties) ] ;
   TARBALL_GZ on $(targets) = $(THIS_DIR)/mpc-$(version).tar.gz ;
-  TARBALL_BZ2 on $(targets) =  $(THIS_DIR)/mpc-$(version).tar.bz2 ;
+  TARBALL_BZ2 on $(targets) = $(THIS_DIR)/mpc-$(version).tar.bz2 ;
   DEST_DIR on $(targets) = $(THIS_DIR)/mpc-$(version) ;
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
@@ -100,10 +100,10 @@ actions expand-mpc
     rm -rf "$(DEST_DIR)" || exit $?
     if [ -f "$(TARBALL_GZ)" ]; then
       tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" \
-        || { echo "ERROR: failed to expand the tarball for the MPC build." 2>>"$(STDERR_)" 1>&2; exit 1; }
+        || { echo "ERROR: failed to expand the MPC tarball." 2>>"$(STDERR_)" 1>&2; exit 1; }
     elif [ -f "$(TARBALL_BZ2)" ]; then
       tar xjf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)" \
-        || { echo "ERROR: failed to expand the tarball for the MPC build." 2>>"$(STDERR_)" 1>&2; exit 1; }
+        || { echo "ERROR: failed to expand the MPC tarball." 2>>"$(STDERR_)" 1>&2; exit 1; }
     else
       exit 1
     fi
@@ -224,8 +224,6 @@ rule make-mpc ( targets * : sources * : properties * )
   if $(sources[2]) {
     errors.error "ERROR: wrong number of sources." ;
   }
-  local prefix = [ feature.get-values <intro-prefix> : $(properties) ] ;
-  local build = [ feature.get-values <intro-build> : $(properties) ] ;
   CHECK on $(targets) = [ feature.get-values <intro-check> : $(properties) ] ;
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
@@ -302,50 +300,41 @@ rule install-req ( properties * )
 
   local build = [ feature.get-values <intro-build> : $(properties) ] ;
   tmp = [ SHELL "\"$(THIS_DIR)/config.guess\" | tr --delete '\n'" ] ;
-  if $(build) = unspecified
-  {
+  if $(build) = unspecified {
     build = $(tmp) ;
   }
-  if $(build) != $(tmp)
-  {
+  if $(build) != $(tmp) {
     errors.error "ERROR: the property '<intro-build>$(build)' is not valid." ;
   }
   tmp = [ SHELL "\"$(THIS_DIR)/config.sub\" $(build) | tr --delete '\n'" ] ;
-  if $(tmp) != $(build)
-  {
-    errors.error "ERROR: the given property '<intro-build>$(build)' is not canonical." ;
+  if $(tmp) != $(build) {
+    errors.error "ERROR: the property '<intro-build>$(build)' is not canonical." ;
   }
   result = $(result)/<intro-build>$(build) ;
 
   local host = [ feature.get-values <intro-host> : $(properties) ] ;
-  if $(host) = unspecified
-  {
+  if $(host) = unspecified {
     host = $(build) ;
   }
   tmp = [ SHELL "\"$(THIS_DIR)/config.sub\" $(host) | tr --delete '\n'" ] ;
-  if $(tmp) != $(host)
-  {
+  if $(tmp) != $(host) {
     errors.error "ERROR: the property '<intro-host>$(host)' is not canonical." ;
   }
   result = $(result)/<intro-host>$(host) ;
 
   local target = [ feature.get-values <intro-target> : $(properties) ] ;
-  if $(target) != unspecified
-  {
+  if $(target) != unspecified {
     errors.error "ERROR: the property '<intro-target>$(target)' is specified for MPC build." ;
   }
 
   local link = [ feature.get-values <intro-link> : $(properties) ] ;
-  if $(link) = unspecified
-  {
+  if $(link) = unspecified {
     errors.error "ERROR: '<intro-link>' is not specified for the MPC build." ;
   }
 
   local check = [ feature.get-values <intro-check> : $(properties) ] ;
-  if $(check) = unspecified
-  {
-    if $(build) = $(host)
-    {
+  if $(check) = unspecified {
+    if $(build) = $(host) {
       check = yes ;
     }
     else {
@@ -360,7 +349,7 @@ rule install-req ( properties * )
 }
 
 alias install
-  : # The source 'mpc.test' is introduced by the following indirect conditional requirements.
+  : # The source 'mpc.test' is introduced by the conditional requirements.
   : <conditional>@install-req
   ;
 explicit install ;
