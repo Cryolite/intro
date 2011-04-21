@@ -6,28 +6,38 @@ import feature ;
 import make ;
 import regex ;
 
-path-constant THIS_DIR : . ;
-
 
 rule gcc-stage1-dep-req ( properties * )
 {
-  local result = <source>../gcc//gcc-mingw32-target-cross-stage1.make ;
+  local result = <source>../gcc//gcc-mingw32-cross-stage1.make ;
   # `<intro-build>' is automatically propagated.
   # `<intro-host>' is automatically propagated.
   # `<intro-target>' is automatically propagated.
   # `<intro-abi>' is automatically propagated.
   # `<intro-prefix>' is automatically propagated.
   # `<intro-link>' is automatically propagated.
-  # `<intro-check>' is automatically propagated.
+  local check = [ feature.get-values <intro-check-hidden> : $(properties) ] ;
+  result = $(result)/<intro-check>$(check) ;
   # `<intro-stdour>' is automatically propagated.
   # `<intro-stderr>' is automatically propagated.
+  local binutils-version = [ feature.get-values <binutils-version-hidden> : $(properties) ] ;
+  result = $(result)/<binutils-version>$(binutils-version) ;
+  result = $(result)/<binutils-version-hidden>unspecified ;
+  local gmp-version = [ feature.get-values <gmp-version-hidden> : $(properties) ] ;
+  result = $(result)/<gmp-version>$(gmp-version) ;
+  result = $(result)/<gmp-version-hidden>unspecified ;
+  local mpfr-version = [ feature.get-values <mpfr-version-hidden> : $(properties) ] ;
+  result = $(result)/<mpfr-version>$(mpfr-version) ;
+  result = $(result)/<mpfr-version-hidden>unspecified ;
+  local mpc-version = [ feature.get-values <mpc-version-hidden> : $(properties) ] ;
+  result = $(result)/<mpc-version>$(mpc-version) ;
+  result = $(result)/<mpc-version-hidden>unspecified ;
   # `<gcc-version>' is automatically propagated.
-  #errors.error $(result) ;
   return $(result) ;
 }
 
 alias gcc-stage1-dep
-  : # `../gcc//gcc-mingw32-target-cross-stage1.make' is added by the indirect conditional requirements.
+  : # `../gcc//gcc-mingw32-cross-stage1.make' is added by the indirect conditional requirements.
   : <conditional>@gcc-stage1-dep-req
   ;
 explicit gcc-stage1-dep ;
@@ -51,7 +61,7 @@ rule configure-mingw-w64-crt ( targets * : sources * : properties * )
   OPTIONS on $(targets) = ;
 
   # Set the path to the 'configure' file.
-  local configure = $(THIS_DIR)/../mingw-w64-v1.0-20101003/mingw-w64-crt/configure ;
+  local configure = $(INTRO_ROOT_DIR)/mingw-w64-v1.0-20101003/mingw-w64-crt/configure ;
   CONFIGURE on $(targets) = $(configure) ;
 
   # Set the 'build' option for the 'configure' script.
@@ -68,22 +78,12 @@ rule configure-mingw-w64-crt ( targets * : sources * : properties * )
   PREFIX on $(targets) += $(prefix) ;
   OPTIONS on $(targets) += --prefix=\"$(prefix)\" ;
 
-  if [ regex.match "^(x86_64-)" : $(target) : 1 ] {
+  if $(target) = x86_64-w64-mingw32 {
     OPTIONS on $(targets) += --enable-lib64 ;
   }
   OPTIONS on $(targets) += --enable-lib32 ;
 
   OPTIONS on $(targets) += --with-sysroot=\"$(prefix)\" ;
-
-  if [ regex.match "(-cygwin)$" : $(build) : 1 ] {
-    RUN_VAR on $(targets) = PATH=\"$(prefix)/bin\":$PATH ;
-  }
-  else if [ regex.match "(-mingw32)$" : $(build) : 1 ] {
-    RUN_VAR on $(targets) = PATH=\"$(prefix)/bin\":$PATH ;
-  }
-  else {
-    RUN_VAR on $(targets) = LD_LIBRARY_PATH=\"$(prefix)/lib\":$LD_LIBRARY_PATH ;
-  }
 
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
@@ -94,9 +94,8 @@ actions configure-mingw-w64-crt
   [ ! -f "$(>[1])" ] && exit 1
   [ ! -f "$(CONFIGURE)" ] && exit 1
   ( mkdir -p "$(<:D)/build" && { cd "$(<:D)/build" && rm -rf *; } ) || exit $?
-  rm -f "$(PREFIX)/mingw" || exit $?
-  ln -s "$(PREFIX)/$(HOST)" "$(PREFIX)/mingw" || exit $?
-  ( cd "$(<:D)/build" && $(RUN_VAR) "$(CONFIGURE)" $(OPTIONS) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
+  ln -sf "$(PREFIX)/$(HOST)" "$(PREFIX)/mingw" || exit $?
+  ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
     || { echo "ERROR: failed to 'configure' for the mingw-w64-crt build." 2>>"$(STDERR_)" 1>&2; exit 1; }
   [ ! -f "$(<:D)/build/Makefile" ] && exit 1
   rm "$(PREFIX)/mingw" || exit $?
@@ -119,21 +118,9 @@ rule make-mingw-w64-crt ( targets * : sources * : properties * )
   if $(sources[2]) {
     errors.error "ERROR: wrong number of sources." ;
   }
-  local build = [ feature.get-values <intro-build> : $(properties) ] ;
-  local host = [ feature.get-values <intro-target> : $(properties) ] ;
-  HOST on $(targets) = $(host) ;
-  local prefix = [ feature.get-values <intro-prefix> : $(properties) ] ;
+  HOST on $(targets) = [ feature.get-values <intro-target> : $(properties) ] ;
   PREFIX on $(targets) = [ feature.get-values <intro-prefix> : $(properties) ] ;
-  if [ regex.match "(-cygwin)$" : $(build) : 1 ] {
-    RUN_VAR on $(targets) = PATH=\"$(prefix)/bin\":$PATH ;
-  }
-  else if [ regex.match "(-mingw32)$" : $(build) : 1 ] {
-    RUN_VAR on $(targets) = PATH=\"$(prefix)/bin\":$PATH ;
-  }
-  else {
-    RUN_VAR on $(targets) = LD_LIBRARY_PATH=\"$(prefix)/lib\":$LD_LIBRARY_PATH ;
-  }
-  #CHECK on $(targets) = [ feature.get-values <intro-check> : $(properties) ] ;
+  CHECK on $(targets) = [ feature.get-values <intro-check> : $(properties) ] ;
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
@@ -142,15 +129,14 @@ actions make-mingw-w64-crt
   rm -f "$(<)" || exit $?
   [ ! -f "$(>[1])" ] && exit 1
   [ ! -f "$(>[1]:D)/build/Makefile" ] && exit 1
-  rm -f "$(PREFIX)/mingw" || exit $?
-  ln -s "$(PREFIX)/$(HOST)" "$(PREFIX)/mingw" || exit $?
-  ( cd "$(<:D)/build" && $(RUN_VAR) make 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
+  ln -sf "$(PREFIX)/$(HOST)" "$(PREFIX)/mingw" || exit $?
+  ( cd "$(<:D)/build" && make 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
     || { echo "ERROR: failed to 'make' for the mingw-w64-crt build." 2>>"$(STDERR_)" 1>&2; exit 1; }
-  # if [ $(CHECK) = yes ]; then
-  #   ( cd "$(<:D)/build" && $(RUN_VAR) make check 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
-  #     || { echo "ERROR: failed to 'make check' for the mingw-w64-crt build." 2>>"$(STDERR_)" 1>&2; exit 1; }
-  # fi
-  ( cd "$(<:D)/build" && $(RUN_VAR) make install 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
+  if [ $(CHECK) = yes ]; then
+    ( cd "$(<:D)/build" && make check 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
+      || { echo "ERROR: failed to 'make check' for the mingw-w64-crt build." 2>>"$(STDERR_)" 1>&2; exit 1; }
+  fi
+  ( cd "$(<:D)/build" && make install 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
     || { echo "ERROR: failed to 'make install' for the mingw-w64-crt build." 2>>"$(STDERR_)" 1>&2; exit 1; }
   rm "$(PREFIX)/mingw" || exit $?
   [ -e "$(<)" ] && exit 1
@@ -162,19 +148,23 @@ rule install-req ( properties * )
 {
   local result = <source>mingw-w64-crt.make ;
 
+  local gcc-version = [ feature.get-values <gcc-version> : $(properties) ] ;
+  if $(gcc-version) = unspecified {
+    errors.error "ERROR: the property '<gcc-version>' is not specified for mingw-w64-crt build." ;
+  }
+
   local build = [ feature.get-values <intro-build> : $(properties) ] ;
   if $(build) = unspecified {
     errors.error "ERROR: the property '<intro-build>' is not specified for mingw-w64-crt build." ;
   }
 
-  local host = [ feature.get-values <intro-host> : $(properties) ] ;
-  if $(host) = unspecified {
-    errors.error "ERROR: the property '<intro-host>' is not specified for mingw-w64-crt build." ;
+  local target = [ feature.get-values <intro-target> : $(properties) ] ;
+  if $(target) != x86_64-w64-mingw32 && $(target) != i686-w64-mingw32 {
+    errors.error "ERROR: the property '<intro-target>$(target)' is not valid for mingw-w64-crt build." ;
   }
 
-  local target = [ feature.get-values <intro-target> : $(properties) ] ;
-  if $(target) = unspecified {
-    errors.error "ERROR: the property '<intro-target>' is not specified for mingw-w64-crt build." ;
+  if $(target) = $(build) {
+    errors.error "ERROR: self-build is not allowed for mingw-w64-crt." ;
   }
 
   local link = [ feature.get-values <intro-link> : $(properties) ] ;
@@ -184,7 +174,7 @@ rule install-req ( properties * )
 
   local check = [ feature.get-values <intro-check> : $(properties) ] ;
   if $(check) = unspecified {
-    if $(build) = $(host) {
+    if $(host) = $(build) {
       check = yes ;
     }
     else {
@@ -192,8 +182,6 @@ rule install-req ( properties * )
     }
   }
   result = $(result)/<intro-check>$(check) ;
-
-  #errors.error $(result) ;
 
   return $(result) ;
 }

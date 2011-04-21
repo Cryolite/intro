@@ -4,46 +4,7 @@ import alias ;
 import errors ;
 import feature ;
 import make ;
-
-path-constant THIS_DIR : . ;
-
-
-rule gcc-dep-conditional-req ( properties * )
-{
-  local results = ;
-  local build = [ feature.get-values <intro-build> : $(properties) ] ;
-  local host = [ feature.get-values <intro-host> : $(properties) ] ;
-  if $(host) != $(build) {
-    local gcc-target = ;
-    gcc-target = <source>../gcc//install ;
-    gcc-target = $(gcc-target)/<intro-build>unspecified ;
-    gcc-target = $(gcc-target)/<intro-host>unspecified ;
-    gcc-target = $(gcc-target)/<intro-target>$(host) ;
-    # `<intro-abi>' is automatically propagated.
-    local prefix = [ feature.get-values <intro-prefix> : $(properties) ] ;
-    if ! [ regex.match "^(/.+/$(host))$" : $(prefix) : 1 ] {
-      errors.error "ERROR: the property '<prefix>$(prefix)' is not valid." ;
-    }
-    local gcc-prefix = [ regex.match "^(/.+)/$(host)$" : $(prefix) : 1 ] ;
-    gcc-target = $(gcc-target)/<intro-prefix>$(gcc-prefix) ;
-    gcc-target = $(gcc-target)/<intro-link>unspecified ;
-    gcc-target = $(gcc-target)/<intro-check>yes ;
-    # `<intro-stdour>' is automatically propagated.
-    # `<intro-stderr>' is automatically propagated.
-    local gcc-version-cross-default = [ feature.get-values <gcc-version-cross-default> : $(properties) ] ;
-    gcc-target = $(gcc-target)/<gcc-version>$(gcc-version-cross-default) ;
-    gcc-target = $(gcc-target)/<gcc-version-cross-default>unspecified ;
-    errors.error $(gcc-target) ;
-    results += $(gcc-target) ;
-  }
-  return $(results) ;
-}
-
-alias gcc-dep-conditional
-  : # `../gcc//install' is added as a source by the indirect conditional requirements.
-  : <conditional>@gcc-dep-conditional-req
-  ;
-explicit gcc-dep-conditional ;
+import path ;
 
 
 make gmp.download
@@ -55,11 +16,9 @@ explicit gmp.download ;
 rule download-gmp ( targets * : sources * : properties * )
 {
   local version = [ feature.get-values <gmp-version> : $(properties) ] ;
-  local host = [ feature.get-values <intro-host> : $(properties) ] ;
-  local link = [ feature.get-values <intro-link> : $(properties) ] ;
   URL on $(targets) = http://core.ring.gr.jp/pub/GNU/gmp/gmp-$(version).tar.bz2 ;
-  TARBALL_GZ on $(targets) = $(THIS_DIR)/gmp-$(version).tar.gz ;
-  TARBALL_BZ2 on $(targets) = $(THIS_DIR)/gmp-$(version).tar.bz2 ;
+  TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/gmp-$(version).tar.gz ;
+  TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/gmp-$(version).tar.bz2 ;
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
@@ -91,9 +50,9 @@ rule expand-gmp ( targets * : sources * : properties * )
     errors.error "ERROR: wrong number of sources." ;
   }
   local version = [ feature.get-values <gmp-version> : $(properties) ] ;
-  TARBALL_GZ on $(targets) = $(THIS_DIR)/gmp-$(version).tar.gz ;
-  TARBALL_BZ2 on $(targets) = $(THIS_DIR)/gmp-$(version).tar.bz2 ;
-  DEST_DIR on $(targets) = $(THIS_DIR)/gmp-$(version) ;
+  TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/gmp-$(version).tar.gz ;
+  TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/gmp-$(version).tar.bz2 ;
+  DEST_DIR on $(targets) = $(INTRO_ROOT_DIR)/gmp-$(version) ;
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
@@ -120,8 +79,7 @@ actions expand-gmp
 
 
 make gmp.configure
-  : gcc-dep-conditional
-    gmp.expand/<intro-host>unspecified/<intro-target>unspecified/<intro-link>unspecified/<gcc-version-cross-default>unspecified
+  : gmp.expand/<intro-host>unspecified/<intro-abi>unspecified/<intro-link>unspecified
   : @configure-gmp
   ;
 explicit gmp.configure ;
@@ -133,7 +91,7 @@ rule configure-gmp ( targets * : sources * : properties * )
   local version = [ feature.get-values <gmp-version> : $(properties) ] ;
 
   # Set the path to the 'configure' file.
-  local configure = $(THIS_DIR)/gmp-$(version)/configure ;
+  local configure = $(INTRO_ROOT_DIR)/gmp-$(version)/configure ;
   CONFIGURE on $(targets) = $(configure) ;
 
   # Set the 'build' option for the 'configure' script.
@@ -176,8 +134,8 @@ rule configure-gmp ( targets * : sources * : properties * )
 actions configure-gmp
 {
   rm -f "$(<)" || exit $?
-  ( mkdir -p "$(<:D)/build" && { cd "$(<:D)/build" && rm -rf *; } ) || exit $?
   [ ! -f "$(CONFIGURE)" ] && exit 1
+  ( mkdir -p "$(<:D)/build" && { cd "$(<:D)/build" && rm -rf *; } ) || exit $?
   ( cd "$(<:D)/build" && $(ABI) "$(CONFIGURE)" $(OPTIONS) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
     || { echo "ERROR: failed to 'configure' for the GMP build." 2>>"$(STDERR_)" 1>&2; exit 1; }
   [ ! -f "$(<:D)/build/Makefile" ] && exit 1
@@ -236,11 +194,13 @@ rule test-gmp ( targets * : sources * : properties * )
   if $(sources[2]) {
     errors.error "ERROR: wrong number of sources." ;
   }
-  COMMAND on $(targets) = $(THIS_DIR)/test.sh ;
+  COMMAND on $(targets) = $(INTRO_ROOT_DIR)/gmp/test.sh ;
   VERSION on $(targets) = [ feature.get-values <gmp-version> : $(properties) ] ;
-  BUILD on $(targets) = [ feature.get-values <intro-build> : $(properties) ] ;
-  HOST on $(targets) = [ feature.get-values <intro-host> : $(properties) ] ;
-  ABI on $(targets) = [ feature.get-values <intro-abi> : $(properties) ] ;
+  local build = [ feature.get-values <intro-build> : $(properties) ] ;
+  local host = [ feature.get-values <intro-host> : $(properties) ] ;
+  HOST on $(targets) = $(host) ;
+  local abi = [ feature.get-values <intro-abi> : $(properties) ] ;
+  CC on $(targets) = [ SHELL "\"$(INTRO_ROOT_DIR)/cc.sh\" $(build) $(host) $(abi)" ] ;
   PREFIX on $(targets) = [ feature.get-values <intro-prefix> : $(properties) ] ;
   LINK on $(targets) = [ feature.get-values <intro-link> : $(properties) ] ;
   CHECK on $(targets) = [ feature.get-values <intro-check> : $(properties) ] ;
@@ -250,13 +210,11 @@ actions test-gmp
 {
   rm -f "$(<)" || exit $?
   [ ! -f "$(>[1])" ] && exit 1
-  result=`"$(COMMAND)" $(VERSION) $(BUILD) $(HOST) $(ABI) "$(PREFIX)" $(CHECK)`
+  ( CC=$(CC) "$(COMMAND)" $(VERSION) "$(PREFIX)" $(LINK) $(CHECK) )
   if [ $? -ne 0 ]; then
-    /bin/echo 'ERROR: post-installation test failed for the GMP build.' 2>>"$(STDERR_)" 1>&2
+    echo 'ERROR: post-installation test failed for the GMP build.' 2>>"$(STDERR_)" 1>&2
     exit 1
   fi
-  [ $(LINK) = static -a $result = shared ] && exit 1
-  [ $(LINK) = shared -a $result = static ] && exit 1
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
@@ -270,18 +228,19 @@ rule install-req ( properties * )
 
   local version = [ feature.get-values <gmp-version> : $(properties) ] ;
   if $(version) = unspecified {
-    errors.error "ERROR: the property '<gmp-version>' is not specified for the GMP build." ;
+    version = [ feature.values <gmp-version> ] ;
+    result = $(result)/<gmp-version>$(version[2]) ;
   }
 
   local build = [ feature.get-values <intro-build> : $(properties) ] ;
-  tmp = [ SHELL "\"$(THIS_DIR)/config.guess\" | tr --delete '\n'" ] ;
+  tmp = [ SHELL "\"$(INTRO_ROOT_DIR)/gmp/config.guess\" | tr --delete '\n'" ] ;
   if $(build) = unspecified {
     build = $(tmp) ;
   }
   if $(build) != $(tmp) {
     errors.error "ERROR: the property '<intro-build>$(build)' is not valid." ;
   }
-  tmp = [ SHELL "\"$(THIS_DIR)/config.sub\" $(build) | tr --delete '\n'" ] ;
+  tmp = [ SHELL "\"$(INTRO_ROOT_DIR)/gmp/config.sub\" $(build) | tr --delete '\n'" ] ;
   if $(tmp) != $(build) {
     errors.error "ERROR: the property '<intro-build>$(build)' is not canonical." ;
   }
@@ -291,7 +250,7 @@ rule install-req ( properties * )
   if $(host) = unspecified {
     host = $(build) ;
   }
-  tmp = [ SHELL "\"$(THIS_DIR)/config.sub\" $(host) | tr --delete '\n'" ] ;
+  tmp = [ SHELL "\"$(INTRO_ROOT_DIR)/gmp/config.sub\" $(host) | tr --delete '\n'" ] ;
   if $(tmp) != $(host) {
     errors.error "ERROR: the property '<intro-host>$(host)' is not canonical." ;
   }
@@ -317,8 +276,6 @@ rule install-req ( properties * )
     }
   }
   result = $(result)/<intro-check>$(check) ;
-
-  #errors.error $(result) ;
 
   return $(result) ;
 }

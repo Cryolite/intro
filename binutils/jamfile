@@ -6,43 +6,6 @@ import feature ;
 import make ;
 import regex ;
 
-path-constant THIS_DIR : . ;
-
-
-rule gcc-dep-req ( properties * )
-{
-  local build = [ feature.get-values <intro-build> : $(properties) ] ;
-  local host = [ feature.get-values <intro-host> : $(properties) ] ;
-  if $(host) != $(build) {
-    local result = <source>../gcc//install ;
-    result = $(result)/<intro-build>unspecified ;
-    result = $(result)/<intro-host>unspecified ;
-    if $(host) = $(build) {
-      result = $(result)/<intro-target>unspecified ;
-    }
-    else {
-      result = $(result)/<intro-target>$(host) ;
-    }
-    # `<intro-abi>' is automatically propagated.
-    # `<intro-prefix>' is automatically propagated.
-    # `<intro-link>' is automatically propagated.
-    # `<intro-check>' is automatically propagated.
-    # `<intro-stdour>' is automatically propagated.
-    # `<intro-stderr>' is automatically propagated.
-    local gcc-version = [ feature.get-values <gcc-version-cross-default> : $(properties) ] ;
-    result = $(result)/<gcc-version>$(gcc-version) ;
-    # `<binutils-version>' is automatically propagated.
-    #errors.error $(result) ;
-    return $(result) ;
-  }
-}
-
-alias gcc-dep
-  : # `../gcc//install' is added by the indirect conditional requirements.
-  : <conditional>@gcc-dep-req
-  ;
-explicit gcc-dep ;
-
 
 make binutils.download
   : # No sources.
@@ -54,8 +17,8 @@ rule download-binutils ( targets * : sources * : properties * )
 {
   local version = [ feature.get-values <binutils-version> : $(properties) ] ;
   URL on $(targets) = http://core.ring.gr.jp/pub/GNU/binutils/binutils-$(version).tar.bz2 ;
-  TARBALL_GZ on $(targets) = $(THIS_DIR)/binutils-$(version).tar.gz ;
-  TARBALL_BZ2 on $(targets) = $(THIS_DIR)/binutils-$(version).tar.bz2 ;
+  TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/binutils-$(version).tar.gz ;
+  TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/binutils-$(version).tar.bz2 ;
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
@@ -87,9 +50,9 @@ rule expand-binutils ( targets * : sources * : properties * )
     errors.error "ERROR: wrong number of sources." ;
   }
   local version = [ feature.get-values <binutils-version> : $(properties) ] ;
-  TARBALL_GZ on $(targets) = $(THIS_DIR)/binutils-$(version).tar.gz ;
-  TARBALL_BZ2 on $(targets) =  $(THIS_DIR)/binutils-$(version).tar.bz2 ;
-  DEST_DIR on $(targets) = $(THIS_DIR)/binutils-$(version) ;
+  TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/binutils-$(version).tar.gz ;
+  TARBALL_BZ2 on $(targets) =  $(INTRO_ROOT_DIR)/binutils-$(version).tar.bz2 ;
+  DEST_DIR on $(targets) = $(INTRO_ROOT_DIR)/binutils-$(version) ;
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
@@ -116,8 +79,7 @@ actions expand-binutils
 
 
 make binutils.configure
-  : gcc-dep
-    binutils.expand/<intro-host>unspecified/<intro-target>unspecified/<intro-abi>unspecified/<intro-link>unspecified/<gcc-version-cross-default>unspecified
+  : binutils.expand/<intro-host>unspecified/<intro-target>unspecified
   : @configure-binutils
   ;
 explicit binutils.configure ;
@@ -129,7 +91,7 @@ rule configure-binutils ( targets * : sources * : properties * )
   local version = [ feature.get-values <binutils-version> : $(properties) ] ;
 
   # Set the path to the 'configure' file.
-  local configure = $(THIS_DIR)/binutils-$(version)/configure ;
+  local configure = $(INTRO_ROOT_DIR)/binutils-$(version)/configure ;
   CONFIGURE on $(targets) = $(configure) ;
 
   # Set the 'build' option for the 'configure' script.
@@ -143,29 +105,19 @@ rule configure-binutils ( targets * : sources * : properties * )
   local target = [ feature.get-values <intro-target> : $(properties) ] ;
   OPTIONS on $(targets) += --target=$(target) ;
 
-  # Set the 'CC' option for the 'configure' script.
-  local abi = [ feature.get-values <intro-abi> : $(properties) ] ;
-  local cc = [ SHELL "\"$(THIS_DIR)/../cc.sh\" $(build) $(host) $(abi) || /bin/echo -n 'error'" ] ;
-  if $(cc) = error {
-    errors.error "ERROR: cannot determine the 'CC' option for the Binutils build." ;
-  }
-  CC on $(targets) = ;
-  if $(cc) {
-    CC on $(targets) = "CC='$(cc)'" ;
-  }
-
   # Set the 'prefix' option for the 'configure' script.
   local prefix = [ feature.get-values <intro-prefix> : $(properties) ] ;
-  if $(host) != $(build) {
-    prefix = $(prefix)/$(host) ;
-  }
   OPTIONS on $(targets) += --prefix=\"$(prefix)\" ;
 
-  if [ regex.match "(-w64-mingw32)$" : $(target) : 1 ] {
+  if $(host) != $(build) {
+    OPTIONS on $(targets) += --program-prefix=$(target)- ;
+  }
+
+  if $(target) = x86_64-w64-mingw32 {
     OPTIONS on $(targets) += --enable-targets=x86_64-w64-mingw32,i686-w64-mingw32 ;
   }
 
-  if $(target) != $(host) {
+  if $(target) != $(build) {
     OPTIONS on $(targets) += --with-sysroot=\"$(prefix)\" ;
   }
 
@@ -175,9 +127,9 @@ rule configure-binutils ( targets * : sources * : properties * )
 actions configure-binutils
 {
   rm -f "$(<)" || exit $?
-  ( mkdir -p "$(<:D)/build" && { cd "$(<:D)/build" && rm -rf *; } ) || exit $?
   [ ! -f "$(CONFIGURE)" ] && exit 1
-  ( cd "$(<:D)/build" && $(CC) "$(CONFIGURE)" $(OPTIONS) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
+  ( mkdir -p "$(<:D)/build" && { cd "$(<:D)/build" && rm -rf *; } ) || exit $?
+  ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
     || { echo "ERROR: failed to 'configure' for the Binutils build." 2>>"$(STDERR_)" 1>&2; exit 1; }
   [ ! -f "$(<:D)/build/Makefile" ] && exit 1
   [ -e "$(<)" ] && exit 1
@@ -221,66 +173,28 @@ actions make-binutils
 }
 
 
-make binutils.test
-  : binutils.make
-  : @test-binutils
-  ;
-explicit binutils.test ;
-
-rule test-binutils ( targets * : sources * : properties * )
-{
-  if ! $(sources[1]) {
-    errors.error "ERROR: wrong number of sources." ;
-  }
-  if $(sources[2]) {
-    errors.error "ERROR: wrong number of sources." ;
-  }
-  COMMAND on $(targets) = $(THIS_DIR)/test.sh ;
-  VERSION on $(targets) = [ feature.get-values <binutils-version> : $(properties) ] ;
-  BUILD on $(targets) = [ feature.get-values <intro-build> : $(properties) ] ;
-  HOST on $(targets) = [ feature.get-values <intro-host> : $(properties) ] ;
-  ABI on $(targets) = [ feature.get-values <intro-abi> : $(properties) ] ;
-  PREFIX on $(targets) = [ feature.get-values <intro-prefix> : $(properties) ] ;
-  LINK on $(targets) = [ feature.get-values <intro-link> : $(properties) ] ;
-  CHECK on $(targets) = [ feature.get-values <intro-check> : $(properties) ] ;
-  STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
-}
-actions test-binutils
-{
-  rm -f "$(<)" || exit $?
-  [ ! -f "$(>[1])" ] && exit 1
-  # result=`"$(COMMAND)" $(VERSION) $(BUILD) $(HOST) $(ABI) "$(PREFIX)" $(CHECK)`
-  # if [ $? -ne 0 ]; then
-  #   /bin/echo 'ERROR: post-installation test failed for the Binutils build.' 2>>"$(STDERR_)" 1>&2
-  #   exit 1
-  # fi
-  # [ $(LINK) = static -a $result = shared ] && exit 1
-  # [ $(LINK) = shared -a $result = static ] && exit 1
-  [ -e "$(<)" ] && exit 1
-  touch "$(<)"
-}
-
-
 rule install-req ( properties * )
 {
-  local result = <source>binutils.test ;
+  local result = <source>binutils.make ;
 
   local tmp = ;
 
   local version = [ feature.get-values <binutils-version> : $(properties) ] ;
   if $(version) = unspecified {
-    errors.error "ERROR: the property '<binutils-version>' is not specified for the Binutils build." ;
+    version = [ feature.values <binutils-version> ] ;
+    version = $(version[2]) ;
   }
+  result = $(result)/<binutils-version>$(version) ;
 
   local build = [ feature.get-values <intro-build> : $(properties) ] ;
-  tmp = [ SHELL "\"$(THIS_DIR)/config.guess\" | tr --delete '\n'" ] ;
+  tmp = [ SHELL "\"$(INTRO_ROOT_DIR)/binutils/config.guess\" | tr --delete '\n'" ] ;
   if $(build) = unspecified {
     build = $(tmp) ;
   }
   if $(build) != $(tmp) {
     errors.error "ERROR: the property '<intro-build>$(build)' is not valid." ;
   }
-  tmp = [ SHELL "\"$(THIS_DIR)/config.sub\" $(build) | tr --delete '\n'" ] ;
+  tmp = [ SHELL "\"$(INTRO_ROOT_DIR)/binutils/config.sub\" $(build) | tr --delete '\n'" ] ;
   if $(tmp) != $(build) {
     errors.error "ERROR: the given property '<intro-build>$(build)' is not canonical." ;
   }
@@ -290,7 +204,7 @@ rule install-req ( properties * )
   if $(host) = unspecified {
     host = $(build) ;
   }
-  tmp = [ SHELL "\"$(THIS_DIR)/config.sub\" $(host) | tr --delete '\n'" ] ;
+  tmp = [ SHELL "\"$(INTRO_ROOT_DIR)/binutils/config.sub\" $(host) | tr --delete '\n'" ] ;
   if $(tmp) != $(host) {
     errors.error "ERROR: the property '<intro-host>$(host)' is not canonical." ;
   }
@@ -300,11 +214,20 @@ rule install-req ( properties * )
   if $(target) = unspecified {
     target = $(host) ;
   }
-  tmp = [ SHELL "\"$(THIS_DIR)/config.sub\" $(target) | tr --delete '\n'" ] ;
+  tmp = [ SHELL "\"$(INTRO_ROOT_DIR)/binutils/config.sub\" $(target) | tr --delete '\n'" ] ;
   if $(tmp) != $(target) {
     errors.error "ERROR: the property '<intro-target>$(target)' is not canonical." ;
   }
   result = $(result)/<intro-target>$(target) ;
+
+  if $(target) = $(host) && $(host) = $(build) {
+    errors.error "ERROR: the self-build for the local system is not necessary." ;
+  }
+
+  local abi = [ feature.get-values <intro-abi> : $(properties) ] ;
+  if $(abi) != unspecified {
+    errors.error "ERROR: the property '<intro-abi>$(abi)' is not valid for the Binutils build." ;
+  }
 
   local link = [ feature.get-values <intro-link> : $(properties) ] ;
   if $(link) != unspecified {
@@ -313,7 +236,7 @@ rule install-req ( properties * )
 
   local check = [ feature.get-values <intro-check> : $(properties) ] ;
   if $(check) = unspecified {
-    if $(build) = $(host) {
+    if $(host) = $(build) {
       check = yes ;
     }
     else {
@@ -321,8 +244,6 @@ rule install-req ( properties * )
     }
   }
   result = $(result)/<intro-check>$(check) ;
-
-  #errors.error $(result) ;
 
   return $(result) ;
 }

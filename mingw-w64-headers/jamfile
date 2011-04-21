@@ -6,8 +6,6 @@ import feature ;
 import make ;
 import regex ;
 
-path-constant THIS_DIR : . ;
-
 
 make mingw-w64.download
   : # No sources.
@@ -18,7 +16,7 @@ explicit mingw-w64.download ;
 rule download-mingw-w64 ( targets * : sources * : properties * )
 {
   URL on $(targets) = http://downloads.sourceforge.net/project/mingw-w64/mingw-w64/mingw-w64-snapshot/mingw-w64-v1.0-snapshot-20101003.tar.bz2 ;
-  TARBALL on $(targets) = $(THIS_DIR)/../mingw-w64-v1.0-snapshot-20101003.tar.bz2 ;
+  TARBALL on $(targets) = $(INTRO_ROOT_DIR)/mingw-w64-v1.0-snapshot-20101003.tar.bz2 ;
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
@@ -49,8 +47,8 @@ rule expand-mingw-w64 ( targets * : sources * : properties * )
   if $(sources[2]) {
     errors.error "ERROR: wrong number of sources." ;
   }
-  TARBALL on $(targets) = $(THIS_DIR)/../mingw-w64-v1.0-snapshot-20101003.tar.bz2 ;
-  DEST_DIR on $(targets) = $(THIS_DIR)/../mingw-w64-v1.0-20101003 ;
+  TARBALL on $(targets) = $(INTRO_ROOT_DIR)/mingw-w64-v1.0-snapshot-20101003.tar.bz2 ;
+  DEST_DIR on $(targets) = $(INTRO_ROOT_DIR)/mingw-w64-v1.0-20101003 ;
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
@@ -81,16 +79,16 @@ rule configure-mingw-w64-headers ( targets * : sources * : properties * )
   OPTIONS on $(targets) = ;
 
   # Set the path to the 'configure' file.
-  local configure = $(THIS_DIR)/../mingw-w64-v1.0-20101003/mingw-w64-headers/configure ;
+  local configure = $(INTRO_ROOT_DIR)/mingw-w64-v1.0-20101003/mingw-w64-headers/configure ;
   CONFIGURE on $(targets) = $(configure) ;
 
   # Set the 'build' option for the 'configure' script.
-  local build = [ feature.get-values <intro-build> : $(properties) ] ;
-  OPTIONS on $(targets) += --build=$(build) ;
+  local host = [ feature.get-values <intro-host> : $(properties) ] ;
+  OPTIONS on $(targets) += --build=$(host) ;
 
   # Set the 'host' option for the 'configure' script.
-  local host = [ feature.get-values <intro-host> : $(properties) ] ;
-  OPTIONS on $(targets) += --host=$(host) ;
+  local target = [ feature.get-values <intro-target> : $(properties) ] ;
+  OPTIONS on $(targets) += --host=$(target) ;
 
   # Set the 'prefix' option for the 'configure' script.
   local prefix = [ feature.get-values <intro-prefix> : $(properties) ] ;
@@ -102,8 +100,8 @@ rule configure-mingw-w64-headers ( targets * : sources * : properties * )
 actions configure-mingw-w64-headers
 {
   rm -f "$(<)" || exit $?
-  ( mkdir -p "$(<:D)/build" && { cd "$(<:D)/build" && rm -rf *; } ) || exit $?
   [ ! -f "$(CONFIGURE)" ] && exit 1
+  ( mkdir -p "$(<:D)/build" && { cd "$(<:D)/build" && rm -rf *; } ) || exit $?
   ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
     || { echo "ERROR: failed to 'configure' for the mingw-w64-headers build." 2>>"$(STDERR_)" 1>&2; exit 1; }
   [ ! -f "$(<:D)/build/Makefile" ] && exit 1
@@ -126,10 +124,8 @@ rule make-mingw-w64-headers ( targets * : sources * : properties * )
   if $(sources[2]) {
     errors.error "ERROR: wrong number of sources." ;
   }
-  local host = [ feature.get-values <intro-host> : $(properties) ] ;
-  HOST on $(targets) = $(host) ;
-  local prefix = [ feature.get-values <intro-prefix> : $(properties) ] ;
-  PREFIX on $(targets) = $(prefix) ;
+  HOST on $(targets) = [ feature.get-values <intro-host> : $(properties) ] ;
+  PREFIX on $(targets) = [ feature.get-values <intro-prefix> : $(properties) ] ;
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
@@ -138,10 +134,14 @@ actions make-mingw-w64-headers
   rm -f "$(<)" || exit $?
   [ ! -f "$(>[1])" ] && exit 1
   [ ! -f "$(>[1]:D)/build/Makefile" ] && exit 1
+  ( cd "$(<:D)/build" && make 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
+    || { echo "ERROR: failed to 'make' for the mingw-w64-headers build." 2>>"$(STDERR_)" 1>&2; exit 1; }
   ( cd "$(<:D)/build" && make install 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
     || { echo "ERROR: failed to 'make install' for the mingw-w64-headers build." 2>>"$(STDERR_)" 1>&2; exit 1; }
-  mkdir -p "$(PREFIX)/$(HOST)/lib" || exit 1
-  ln -fs "$(PREFIX)/$(HOST)/lib" "$(PREFIX)/$(HOST)/lib64" || exit 1
+  if [ $(HOST) = x86_64-w64-mingw32 ]; then
+    mkdir -p "$(PREFIX)/$(HOST)/lib" || exit $?
+    ln -sf "$(PREFIX)/$(HOST)/lib" "$(PREFIX)/$(HOST)/lib64" || exit $?
+  fi
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
@@ -162,8 +162,13 @@ rule install-req ( properties * )
   }
 
   local target = [ feature.get-values <intro-target> : $(properties) ] ;
-  if $(target) != unspecified {
+  if $(target) != x86_64-w64-mingw32 && $(target) != i686-w64-mingw32 {
     errors.error "ERROR: the property '<intro-target>$(target)' is not valid for the mingw-w64-headers build." ;
+  }
+
+  local abi = [ feature.get-values <intro-abi> : $(properties) ] ;
+  if $(abi) != unspecified {
+    errors.error "ERROR: the property '<intro-abi>$(abi)' is not valid for the mingw-w64-headers build" ;
   }
 
   local link = [ feature.get-values <intro-link> : $(properties) ] ;
@@ -181,8 +186,6 @@ rule install-req ( properties * )
     }
   }
   result = $(result)/<intro-check>$(check) ;
-
-  #errors.error $(result) ;
 
   return $(result) ;
 }

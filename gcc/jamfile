@@ -4,48 +4,8 @@ import alias ;
 import errors ;
 import feature ;
 import make ;
+import path ;
 import regex ;
-
-path-constant THIS_DIR : . ;
-
-
-rule mpc-dep-req ( properties * )
-{
-  local result = <source>../mpc//install ;
-  results = $(results)/<intro-build>unspecified ;
-  local build = [ feature.get-values <intro-build> : $(properties) ] ;
-  local host = [ feature.get-values <intro-host> : $(properties) ] ;
-  if $(host) = $(build) {
-    result = $(result)/<intro-host>unspecified ;
-  }
-  else {
-    result = $(result)/<intro-host>$(host) ;
-  }
-  result = $(result)/<intro-target>unspecified ;
-  # `<intro-abi>' is automatically propagated.
-  # `<intro-prefix>' is automatically propagated.
-  if [ regex.match "^(.*-mingw32)$" : $(host) : 1 ] {
-    result = $(result)/<intro-link>static ;
-  }
-  else if [ regex.match "^(.*-cygwin)$" : $(host) : 1 ] {
-    result = $(result)/<intro-link>static ;
-  }
-  else {
-    result = $(result)/<intro-link>both ;
-  }
-  # `<intro-check>' is automatically propagated.
-  # `<intro-stdour>' is automatically propagated.
-  # `<intro-stderr>' is automatically propagated.
-  result = $(result)/<binutils-version>unspecified ;
-  #errors.error $(result) ;
-  return $(result) ;
-}
-
-alias mpc-dep
-  : # Sources are introduced by the indirect conditional requirements.
-  : <conditional>@mpc-dep-req
-  ;
-explicit mpc-dep ;
 
 
 rule binutils-dep-req ( properties * )
@@ -67,16 +27,62 @@ rule binutils-dep-req ( properties * )
     result = $(result)/<gmp-version>unspecified ;
     result = $(result)/<mpfr-version>unspecified ;
     result = $(result)/<mpc-version>unspecified ;
+    result = $(result)/<gcc-version>unspecified ;
   }
-  #errors.error $(result) ;
   return $(result) ;
 }
 
 alias binutils-dep
-  : # The source `../binutils//install' is specified by the indirect conditional requirements.
+  : # The source `../binutils//install' might be introduced by the conditional requirements.
   : <conditional>@binutils-dep-req
   ;
 explicit binutils-dep ;
+
+
+rule mpc-dep-req ( properties * )
+{
+  local result = <source>../mpc//install ;
+  results = $(results)/<intro-build>unspecified ;
+  local build = [ feature.get-values <intro-build> : $(properties) ] ;
+  local host = [ feature.get-values <intro-host> : $(properties) ] ;
+  if $(host) = $(build) {
+    result = $(result)/<intro-host>unspecified ;
+  }
+  else {
+    result = $(result)/<intro-host>$(host) ;
+  }
+  result = $(result)/<intro-target>unspecified ;
+  # `<intro-abi>' is automatically propagated.
+  local prefix = [ feature.get-values <intro-prefix> : $(properties) ] ;
+  if $(host) != $(build) {
+    prefix = $(prefix)/$(host) ;
+  }
+  result = $(result)/<intro-prefix>$(prefix) ;
+  if $(host) = x86_64-w64-mingw32 || $(host) = i686-w64-mingw32 {
+    result = $(result)/<intro-link>static ;
+  }
+  else {
+    result = $(result)/<intro-link>both ;
+  }
+  local check = [ feature.get-values <intro-check> : $(properties) ] ;
+  if $(host) = $(build) {
+    result = $(result)/<intro-check>yes ;
+  }
+  else {
+    result = $(result)/<intro-check>$(check) ;
+  }
+  # `<intro-stdour>' is automatically propagated.
+  # `<intro-stderr>' is automatically propagated.
+  result = $(result)/<binutils-version>unspecified ;
+  result = $(result)/<gcc-version>unspecified ;
+  return $(result) ;
+}
+
+alias mpc-dep
+  : # The source `../mpc//install' is introduced by the conditional requirements.
+  : <conditional>@mpc-dep-req
+  ;
+explicit mpc-dep ;
 
 
 rule mingw-w64-headers-dep-req ( properties * )
@@ -85,11 +91,12 @@ rule mingw-w64-headers-dep-req ( properties * )
   local host = [ feature.get-values <intro-host> : $(properties) ] ;
   local target = [ feature.get-values <intro-target> : $(properties) ] ;
   if $(target) != $(host) {
-    if [ regex.match "(-w64-mingw32)$" : $(target) : 1 ] {
+    if $(target) = x86_64-w64-mingw32 || $(target) = i686-w64-mingw32 {
       result = <source>../mingw-w64-headers//install ;
-      result = $(result)/<intro-host>$(target) ;
-      result = $(result)/<intro-target>unspecified ;
-      result = $(result)/<intro-abi>unspecified ;
+      # `<intro-build>' is automatically propagated.
+      # `<intro-host>' is automatically propagated.
+      # `<intro-target>' is automatically propagated.
+      # `<intro-abi>' is automatically propagated.
       # `<intro-prefix>' is automatically propagated.
       # `<intro-link>' is automatically propagated.
       # `<intro-check>' is automatically propagated.
@@ -99,40 +106,17 @@ rule mingw-w64-headers-dep-req ( properties * )
       result = $(result)/<mpfr-version>unspecified ;
       result = $(result)/<mpc-version>unspecified ;
       result = $(result)/<binutils-version>unspecified ;
-      #errors.error $(result) ;
+      result = $(result)/<gcc-version>unspecified ;
     }
   }
   return $(result) ;
 }
 
 alias mingw-w64-headers-dep
-  : # The source `../mingw-w64-headers//install' might be introduced by the requirements.
+  : # The source `../mingw-w64-headers//install' might be introduced by the conditional requirements.
   : <conditional>@mingw-w64-headers-dep-req
   ;
 explicit mingw-w64-headers-dep ;
-
-
-rule deps-req ( properties * )
-{
-  local results = mpc-dep binutils-dep mingw-w64-headers-dep ;
-  results = <source>$(results) ;
-  local gmp-version = [ feature.get-values <gmp-version> : $(properties) ] ;
-  results = $(results)/<gmp-version-hidden>$(gmp-version) ;
-  local mpfr-version = [ feature.get-values <mpfr-version> : $(properties) ] ;
-  results = $(results)/<mpfr-version-hidden>$(mpfr-version) ;
-  local mpc-version = [ feature.get-values <mpc-version> : $(properties) ] ;
-  results = $(results)/<mpc-version-hidden>$(mpc-version) ;
-  local binutils-version = [ feature.get-values <binutils-version> : $(properties) ] ;
-  results = $(results)/<binutils-version-hidden>$(binutils-version) ;
-  results = $(results)/<gcc-version>unspecified ;
-  return $(results) ;
-}
-
-alias deps
-  : # `mpc-dep', `binutils-dep' and `mingw-w64-headers-dep' are added by the requirements.
-  : <conditional>@deps-req
-  ;
-explicit deps ;
 
 
 make gcc.download
@@ -145,8 +129,8 @@ rule download-gcc ( targets * : sources * : properties * )
 {
   local version = [ feature.get-values <gcc-version> : $(properties) ] ;
   URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/gcc/releases/gcc-$(version)/gcc-$(version).tar.bz2 ;
-  TARBALL_GZ on $(targets) = $(THIS_DIR)/gcc-$(version).tar.gz ;
-  TARBALL_BZ2 on $(targets) = $(THIS_DIR)/gcc-$(version).tar.bz2 ;
+  TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/gcc-$(version).tar.gz ;
+  TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/gcc-$(version).tar.bz2 ;
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
@@ -178,9 +162,9 @@ rule expand-gcc ( targets * : sources * : properties * )
     errors.error "ERROR: wrong number of sources." ;
   }
   local version = [ feature.get-values <gcc-version> : $(properties) ] ;
-  TARBALL_GZ on $(targets) = $(THIS_DIR)/gcc-$(version).tar.gz ;
-  TARBALL_BZ2 on $(targets) = $(THIS_DIR)/gcc-$(version).tar.bz2 ;
-  DEST_DIR on $(targets) = $(THIS_DIR)/gcc-$(version) ;
+  TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/gcc-$(version).tar.gz ;
+  TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/gcc-$(version).tar.bz2 ;
+  DEST_DIR on $(targets) = $(INTRO_ROOT_DIR)/gcc-$(version) ;
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
@@ -206,27 +190,11 @@ actions expand-gcc
 }
 
 
-rule run-var ( properties * )
-{
-  local result = ;
-  local build = [ feature.get-values <intro-build> : $(properties) ] ;
-  local prefix = [ feature.get-values <intro-prefix> : $(properties) ] ;
-  if [ regex.match "(-mingw32)$" : $(build) : 1 ] {
-    result = PATH=\"$(prefix)/bin\":$PATH ;
-  }
-  else if [ regex.match "(-cygwin)$" : $(build) : 1 ] {
-    result = PATH=\"$(prefix)/bin\":$PATH ;
-  }
-  else {
-    result = LD_LIBRARY_PATH=\"$(prefix)/lib\":$LD_LIBRARY_PATH ;
-  }
-  return $(result) ;
-}
-
-
 make gcc.configure
-  : deps
-    gcc.expand/<intro-host>unspecified/<intro-target>unspecified/<intro-abi>unspecified/<intro-link>unspecified/<gcc-version-cross-default>unspecified/<gmp-version>unspecified/<mpfr-version>unspecified/<mpc-version>unspecified/<binutils-version>unspecified
+  : binutils-dep
+    mpc-dep
+    mingw-w64-headers-dep
+    gcc.expand/<intro-host>unspecified/<intro-target>unspecified/<gmp-version>unspecified/<mpfr-version>unspecified/<mpc-version>unspecified/<binutils-version>unspecified
   : @configure-gcc
   ;
 explicit gcc.configure ;
@@ -238,7 +206,7 @@ rule configure-gcc ( targets * : sources * : properties * )
   local version = [ feature.get-values <gcc-version> : $(properties) ] ;
 
   # Set the path to the 'configure' file.
-  local configure = $(THIS_DIR)/gcc-$(version)/configure ;
+  local configure = $(INTRO_ROOT_DIR)/gcc-$(version)/configure ;
   CONFIGURE on $(targets) = $(configure) ;
 
   # Set the 'build' option for the 'configure' script.
@@ -254,91 +222,104 @@ rule configure-gcc ( targets * : sources * : properties * )
   TARGET on $(targets) = $(target) ;
   OPTIONS on $(targets) += --target=$(target) ;
 
-  # Set the 'CC' option for the 'configure' script.
-  local abi = [ feature.get-values <intro-abi> : $(properties) ] ;
-  local cc = [ SHELL "\"$(THIS_DIR)/../cc.sh\" $(build) $(host) $(abi) || /bin/echo -n 'error'" ] ;
-  if $(cc) = error {
-    errors.error "ERROR: cannot determine the 'CC' option for the GCC build." ;
-  }
-  CC on $(targets) = ;
-  if $(cc) {
-    CC on $(targets) = "CC='$(cc)'" ;
-  }
-
-  local mingw32_target = 0 ;
-  local mingw32_cross = 0 ;
-  local mingw32_cross_target = 0 ;
-  local mingw32_cross_host = 0 ;
-  if [ regex.match "(-mingw32)$" : $(target) : 1 ] {
-    mingw32_target = 1 ;
-    if $(target) != $(host) {
-      mingw32_cross = 1 ;
-      mingw32_cross_target = 1 ;
-    }
+  local mingw32-target = 0 ;
+  local mingw32-host-cross = 0 ;
+  if $(target) = x86_64-w64-mingw32 || $(target) = i686-w64-mingw32 {
+    mingw32-target = 1 ;
     if $(host) != $(build) {
-      mingw32_cross = 1 ;
-      mingw32_cross_host = 1 ;
+      mingw32-host-cross = 1 ;
     }
   }
-  MINGW32_CROSS_TARGET on $(targets) = $(mingw32_cross_target) ;
+  MINGW32_TARGET on $(targets) = $(mingw32-target) ;
+  MINGW32_HOST_CROSS on $(targets) = $(mingw32-host-cross) ;
 
   # Set the 'prefix' option for the 'configure' script.
   local prefix = [ feature.get-values <intro-prefix> : $(properties) ] ;
-  if $(host) != $(build) {
-    prefix = $(prefix)/$(host) ;
-  }
   PREFIX on $(targets) = $(prefix) ;
+
   OPTIONS on $(targets) += --prefix=\"$(prefix)\" ;
 
-  OPTIONS on $(targets) += --program-suffix=-$(version) ;
+  if $(target) != $(host) {
+    OPTIONS on $(targets) += --program-prefix=$(target)- ;
+  }
+
+  local gcc-default = [ feature.get-values <gcc-default> : $(properties) ] ;
+  if $(gcc-default) = no {
+    OPTIONS on $(targets) += --program-suffix=-$(version) ;
+  }
 
   OPTIONS on $(targets) += --enable-shared ;
 
-  OPTIONS on $(targets) += --enable-multilib ;
+  if [ regex.match "^(x86_64-)" : $(target) : 1 ] {
+    OPTIONS on $(targets) += --enable-multilib ;
+  }
+  if $(target) = i686-w64-mingw32 {
+    OPTIONS on $(targets) += --disable-multilib ;
+  }
 
   OPTIONS on $(targets) += --enable-libstdcxx-debug ;
 
   OPTIONS on $(targets) += --enable-threads ;
 
-  OPTIONS on $(targets) += --enable-version-specific-runtime-libs ;
+  local check = [ feature.get-values <intro-check> : $(properties) ] ;
+  if $(check) = unspecified {
+    # Do nothing.
+  }
+  else if $(check) = no {
+    OPTIONS on $(targets) += --disable-bootstrap ;
+  }
+  else {
+    OPTIONS on $(targets) += --enable-bootstrap ;
+  }
+
+  if $(gcc-default) = no {
+    OPTIONS on $(targets) += --enable-version-specific-runtime-libs ;
+  }
 
   OPTIONS on $(targets) += --enable-languages=c,c++ ;
 
-  if $(mingw32_target) != 1 {
+  if $(mingw32-target) != 1 {
     # This option requires `pthreads-w32' for `*-mingw32' targets.
     OPTIONS on $(targets) += --enable-libgomp ;
   }
 
   # dwarf2 is not supported on 64-bit MinGW-w64.
-  # if $(mingw32_target) = 1 {
+  # if $(mingw32-target) = 1 {
   #   OPTIONS on $(targets) += --with-dwarf2 ;
   # }
 
-  OPTIONS on $(targets) += --enable-targets=all ;
+  if [ regex.match "^(x86_64-)" : $(target) : 1 ] {
+    OPTIONS on $(targets) += --enable-targets=all ;
+  }
 
-  if $(mingw32_target) = 1 {
+  if $(host) = x86_64-w64-mingw32 || $(host) = i686-w64-mingw32 {
+    OPTIONS on $(targets) += --disable-win32-registry ;
+  }
+
+  if $(host) = x86_64-w64-mingw32 || $(host) = i686-w64-mingw32 {
     OPTIONS on $(targets) += --disable-nls ;
   }
 
-  # Set the 'with-gmp' option for the 'configure' script.
-  OPTIONS on $(targets) += --with-gmp=\"$(prefix)\" ;
-
-  # Set the 'with-mpfr' option for the 'configure' script.
-  OPTIONS on $(targets) += --with-mpfr=\"$(prefix)\" ;
-
-  # Set the 'with-mpc' options for the 'configure' script.
-  OPTIONS on $(targets) += --with-mpc=\"$(prefix)\" ;
+  # Set the 'with-gmp', 'with-mpfr' and 'with-mpc' options for the 'configure' script.
+  if $(host) = $(build) {
+    OPTIONS on $(targets) += --with-gmp=\"$(prefix)\" ;
+    OPTIONS on $(targets) += --with-mpfr=\"$(prefix)\" ;
+    OPTIONS on $(targets) += --with-mpc=\"$(prefix)\" ;
+  }
+  else {
+    OPTIONS on $(targets) += --with-gmp=\"$(prefix)/$(host)\" ;
+    OPTIONS on $(targets) += --with-mpfr=\"$(prefix)/$(host)\" ;
+    OPTIONS on $(targets) += --with-mpc=\"$(prefix)/$(host)\" ;
+  }
 
   # Set the '--with-sysroot' option for the 'configure' script.
-  if $(mingw32_cross_target) = 1 {
+  if $(target) != $(build) {
     OPTIONS on $(targets) += --with-sysroot=\"$(prefix)\" ;
   }
 
-  # if $(mingw32_target) = 1 {
+  # if $(mingw32-target) = 1 {
   #   OPTIONS on $(targets) += --disable-sjlj-exceptions ;
   # }
-
-  RUN_VAR on $(targets) = [ run-var $(properties) ] ;
 
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
@@ -346,26 +327,28 @@ rule configure-gcc ( targets * : sources * : properties * )
 actions configure-gcc
 {
   rm -f "$(<)" || exit $?
-  ( mkdir -p "$(<:D)/build" && { cd "$(<:D)/build" && rm -rf *; } ) || exit $?
   [ ! -f "$(CONFIGURE)" ] && exit 1
-  [ $(MINGW32_CROSS_TARGET) -ne 0 ] \
-    && { rm -f "$(PREFIX)/mingw"; ln -s "$(PREFIX)/$(TARGET)" "$(PREFIX)/mingw" || exit $?; }
-  ( cd "$(<:D)/build" && $(CC) $(RUN_VAR) "$(CONFIGURE)" $(OPTIONS) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
+  ( mkdir -p "$(<:D)/build" && { cd "$(<:D)/build" && rm -rf *; } ) || exit $?
+  [ $(MINGW32_TARGET) -ne 0 ] \
+    && { ln -sf "$(PREFIX)/$(TARGET)" "$(PREFIX)/mingw" || exit $?; }
+  [ $(MINGW32_HOST_CROSS) -ne 0 ] \
+    && { ( mkdir -p "$(CONFIGURE:D)/winsup/mingw" && cd "$(CONFIGURE:D)/winsup/mingw" && ln -sf "$(PREFIX)/$(TARGET)/include" include ) || exit $?; }
+  ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
     || { echo "ERROR: failed to 'configure' for the GCC build." 2>>"$(STDERR_)" 1>&2; exit 1; }
-  [ $(MINGW32_CROSS_TARGET) -ne 0 ] && { rm "$(PREFIX)/mingw" || exit $?; }
+  [ $(MINGW32_TARGET) -ne 0 ] && { rm "$(PREFIX)/mingw" || exit $?; }
   [ ! -f "$(<:D)/build/Makefile" ] && exit 1
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
 
 
-make gcc-mingw32-target-cross-stage1.make
+make gcc-mingw32-cross-stage1.make
   : gcc.configure
-  : @make-gcc-mingw32-target-cross-stage1
+  : @make-gcc-mingw32-cross-stage1
   ;
-explicit gcc-mingw32-target-cross-stage1.make ;
+explicit gcc-mingw32-cross-stage1.make ;
 
-rule make-gcc-mingw32-target-cross-stage1 ( targets * : sources * : properties * )
+rule make-gcc-mingw32-cross-stage1 ( targets * : sources * : properties * )
 {
   if ! $(sources[1]) {
     errors.error "ERROR: wrong number of sources." ;
@@ -373,24 +356,20 @@ rule make-gcc-mingw32-target-cross-stage1 ( targets * : sources * : properties *
   if $(sources[2]) {
     errors.error "ERROR: wrong number of sources." ;
   }
-  local prefix = [ feature.get-values <intro-prefix> : $(properties) ] ;
-  local target = [ feature.get-values <intro-target> : $(properties) ] ;
-  PREFIX on $(targets) = $(prefix) ;
-  TARGET on $(targets) = $(target) ;
+  PREFIX on $(targets) = [ feature.get-values <intro-prefix> : $(properties) ] ;
+  TARGET on $(targets) = [ feature.get-values <intro-target> : $(properties) ] ;
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
-  RUN_VAR on $(targets) = [ run-var $(properties) ] ;
 }
-actions make-gcc-mingw32-target-cross-stage1
+actions make-gcc-mingw32-cross-stage1
 {
   rm -f "$(<)" || exit $?
   [ ! -f "$(>[1])" ] && exit 1
   [ ! -f "$(>[1]:D)/build/Makefile" ] && exit 1
-  rm -f "$(PREFIX)/mingw" || exit $?
-  ln -s "$(PREFIX)/$(TARGET)" "$(PREFIX)/mingw" || exit $?
-  ( cd "$(<:D)/build" && $(RUN_VAR) make all-gcc 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
+  ln -sf "$(PREFIX)/$(TARGET)" "$(PREFIX)/mingw" || exit $?
+  ( cd "$(<:D)/build" && make all-gcc 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
     || { echo "ERROR: failed to 'make all-gcc' for the GCC build." 2>>"$(STDERR_)" 1>&2; exit 1; }
-  ( cd "$(<:D)/build" && $(RUN_VAR) make install-gcc 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
+  ( cd "$(<:D)/build" && make install-gcc 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
     || { echo "ERROR: failed to 'make install-gcc' for the GCC build." 2>>"$(STDERR_)" 1>&2; exit 1; }
   rm "$(PREFIX)/mingw" || exit $?
   [ -e "$(<)" ] && exit 1
@@ -403,13 +382,22 @@ rule make-gcc-req ( properties * )
   local result = ;
   local host = [ feature.get-values <intro-host> : $(properties) ] ;
   local target = [ feature.get-values <intro-target> : $(properties) ] ;
-  if $(target) != $(host) {
-    if [ regex.match "(-mingw32)$" : $(target) : 1 ] {
-      result = <source>../mingw-w64-crt//install ;
-    }
-    else {
-      result = <source>gcc.configure ;
-    }
+  if $(target) = x86_64-w64-mingw32 || $(target) = i686-w64-mingw32 {
+    result = <source>../mingw-w64-crt//install ;
+    local check = [ feature.get-values <intro-check> : $(properties) ] ;
+    result = $(result)/<intro-check-hidden>$(check) ;
+    local binutils-version = [ feature.get-values <binutils-version> : $(properties) ] ;
+    result = $(result)/<binutils-version>unspecified ;
+    result = $(result)/<binutils-version-hidden>$(binutils-version) ;
+    local gmp-version = [ feature.get-values <gmp-version> : $(properties) ] ;
+    result = $(result)/<gmp-version>unspecified ;
+    result = $(result)/<gmp-version-hidden>$(gmp-version) ;
+    local mpfr-version = [ feature.get-values <mpfr-version> : $(properties) ] ;
+    result = $(result)/<mpfr-version>unspecified ;
+    result = $(result)/<mpfr-version-hidden>$(mpfr-version) ;
+    local mpc-version = [ feature.get-values <mpc-version> : $(properties) ] ;
+    result = $(result)/<mpc-version>unspecified ;
+    result = $(result)/<mpc-version-hidden>$(mpc-version) ;
   }
   else {
     result = <source>gcc.configure ;
@@ -418,7 +406,7 @@ rule make-gcc-req ( properties * )
 }
 
 make gcc.make
-  : # Sources are introduced by the indirect conditional requirements.
+  : # Sources are introduced by the conditional requirements.
   : @make-gcc
   : <conditional>@make-gcc-req
   ;
@@ -426,20 +414,14 @@ explicit gcc.make ;
 
 rule make-gcc ( targets * : sources * : properties * )
 {
-  local host = [ feature.get-values <intro-host> : $(properties) ] ;
   local target = [ feature.get-values <intro-target> : $(properties) ] ;
   TARGET on $(targets) = $(target) ;
-  local mingw32-cross-target = 0 ;
-  if $(target) != $(host) {
-    if [ regex.match "(-mingw32)$" : $(target) : 1 ] {
-      mingw32-cross-target = 1 ;
-    }
+  local mingw32-cross = 0 ;
+  if $(target) = x86_64-w64-mingw32 || $(target) = i686-w64-mingw32 {
+    mingw32-cross = 1 ;
   }
-  MINGW32_CROSS_TARGET on $(targets) = $(mingw32-cross-target) ;
-  local prefix = [ feature.get-values <intro-prefix> : $(properties) ] ;
-  PREFIX on $(targets) = $(prefix) ;
-  CHECK on $(targets) = [ feature.get-values <intro-check> : $(properties) ] ;
-  RUN_VAR on $(targets) = [ run-var $(properties) ] ;
+  MINGW32_CROSS on $(targets) = $(mingw32-cross) ;
+  PREFIX on $(targets) = [ feature.get-values <intro-prefix> : $(properties) ] ;
   STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
@@ -447,13 +429,13 @@ actions make-gcc
 {
   rm -f "$(<)" || exit $?
   [ ! -f "$(<[1]:D)/build/Makefile" ] && exit 1
-  [ $(MINGW32_CROSS_TARGET) -ne 0 ] \
-    && { rm -f "$(PREFIX)/mingw"; ln -s "$(PREFIX)/$(TARGET)" "$(PREFIX)/mingw" || exit $?; }
-  ( cd "$(<:D)/build" && $(RUN_VAR) make 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
+  [ $(MINGW32_CROSS) -ne 0 ] \
+    && { ln -sf "$(PREFIX)/$(TARGET)" "$(PREFIX)/mingw" || exit $?; }
+  ( cd "$(<:D)/build" && make 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
     || { echo "ERROR: failed to 'make' for the GCC build." 2>>"$(STDERR_)" 1>&2; exit 1; }
-  ( cd "$(<:D)/build" && $(RUN_VAR) make install 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
+  ( cd "$(<:D)/build" && make install 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
     || { echo "ERROR: failed to 'make install' for the GCC build." 2>>"$(STDERR_)" 1>&2; exit 1; }
-  [ $(MINGW32_CROSS_TARGET) -ne 0 ] && { rm "$(PREFIX)/mingw" || exit $?; }
+  [ $(MINGW32_CROSS) -ne 0 ] && { rm "$(PREFIX)/mingw" || exit $?; }
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
@@ -473,26 +455,25 @@ rule test-gcc ( targets * : sources * : properties * )
   if $(sources[2]) {
     errors.error "ERROR: wrong number of sources." ;
   }
-  COMMAND on $(targets) = $(THIS_DIR)/test.sh ;
+  COMMAND on $(targets) = $(INTRO_ROOT_DIR)/gcc/test.sh ;
   VERSION on $(targets) = [ feature.get-values <gcc-version> : $(properties) ] ;
   BUILD on $(targets) = [ feature.get-values <intro-build> : $(properties) ] ;
   HOST on $(targets) = [ feature.get-values <intro-host> : $(properties) ] ;
-  ABI on $(targets) = [ feature.get-values <intro-abi> : $(properties) ] ;
+  TARGET on $(targets) = [ feature.get-values <intro-target : $(properties) ] ;
   PREFIX on $(targets) = [ feature.get-values <intro-prefix> : $(properties) ] ;
-  LINK on $(targets) = [ feature.get-values <intro-link> : $(properties) ] ;
   CHECK on $(targets) = [ feature.get-values <intro-check> : $(properties) ] ;
+  DEFAULT on $(targets) = [ feature.get-values <gcc-default> : $(properties) ] ;
   STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
 actions test-gcc
 {
   rm -f "$(<)" || exit $?
   [ ! -f "$(>[1])" ] && exit 1
-  # x=`"$(COMMAND)" $(VERSION) $(BUILD) $(HOST) $(ABI) "$(PREFIX)" $(LINK) $(CHECK)`
-  # if [ $? -ne 0 ]; then
-  #   /bin/echo 'ERROR: post-installation test failed for the GCC build.' 2>>"$(STDERR_)" 1>&2
-  #   exit 1
-  # fi
-  # [ "$x" != 'yes' ] && exit 1
+  ( "$(COMMAND)" $(VERSION) $(BUILD) $(HOST) $(TARGET) "$(PREFIX)" $(CHECK) $(DEFAULT) )
+  if [ $? -ne 0 ]; then
+    /bin/echo 'ERROR: post-installation test failed for the GCC build.' 2>>"$(STDERR_)" 1>&2
+    exit 1
+  fi
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
@@ -508,16 +489,36 @@ rule install-req ( properties * )
   if $(version) = unspecified {
     errors.error "ERROR: the property '<gcc-version>' is not specified." ;
   }
+  local binutils-version = [ feature.get-values <binutils-version> : $(properties) ] ;
+  if $(binutils-version) = unspecified {
+    binutils-version = [ feature.values <binutils-version> ] ;
+    result = $(result)/<binutils-version>$(binutils-version[2]) ;
+  }
+  local gmp-version = [ feature.get-values <gmp-version> : $(properties) ] ;
+  if $(gmp-version) = unspecified {
+    gmp-version = [ feature.values <gmp-version> ] ;
+    result = $(result)/<gmp-version>$(gmp-version[2]) ;
+  }
+  local mpfr-version = [ feature.get-values <mpfr-version> : $(properties) ] ;
+  if $(mpfr-version) = unspecified {
+    mpfr-version = [ feature.values <mpfr-version> ] ;
+    result = $(result)/<mpfr-version>$(mpfr-version[2]) ;
+  }
+  local mpc-version = [ feature.get-values <mpc-version> : $(properties) ] ;
+  if $(mpc-version) = unspecified {
+    mpc-version = [ feature.values <mpc-version> ] ;
+    result = $(result)/<mpc-version>$(mpc-version[2]) ;
+  }
 
   local build = [ feature.get-values <intro-build> : $(properties) ] ;
-  tmp = [ SHELL "\"$(THIS_DIR)/config.guess\" | tr --delete '\n'" ] ;
+  tmp = [ SHELL "\"$(INTRO_ROOT_DIR)/gcc/config.guess\" | tr --delete '\n'" ] ;
   if $(build) = unspecified {
     build = $(tmp) ;
   }
   if $(build) != $(tmp) {
     errors.error "ERROR: the property '<intro-build>$(build)' is not valid." ;
   }
-  tmp = [ SHELL "\"$(THIS_DIR)/config.sub\" $(build) | tr --delete '\n'" ] ;
+  tmp = [ SHELL "\"$(INTRO_ROOT_DIR)/gcc/config.sub\" $(build) | tr --delete '\n'" ] ;
   if $(tmp) != $(build) {
     errors.error "ERROR: the property '<intro-build>$(build)' is not canonical." ;
   }
@@ -527,7 +528,7 @@ rule install-req ( properties * )
   if $(host) = unspecified {
     host = $(build) ;
   }
-  tmp = [ SHELL "\"$(THIS_DIR)/config.sub\" $(host) | tr --delete '\n'" ] ;
+  tmp = [ SHELL "\"$(INTRO_ROOT_DIR)/gcc/config.sub\" $(host) | tr --delete '\n'" ] ;
   if $(tmp) != $(host) {
     errors.error "ERROR: the property '<intro-host>$(host)' is not canonical." ;
   }
@@ -537,45 +538,32 @@ rule install-req ( properties * )
   if $(target) = unspecified {
     target = $(host) ;
   }
-  tmp = [ SHELL "\"$(THIS_DIR)/config.sub\" $(target) | tr --delete '\n'" ] ;
+  tmp = [ SHELL "\"$(INTRO_ROOT_DIR)/gcc/config.sub\" $(target) | tr --delete '\n'" ] ;
   if $(tmp) != $(target) {
     errors.error "ERROR: the property '<intro-target>$(target)' is not canonical." ;
   }
   result = $(result)/<intro-target>$(target) ;
 
+  if $(target) = $(host) && $(host) = $(build) {
+    local default_ = [ feature.get-values <gcc-default> : $(properties) ] ;
+    if $(default_) = yes {
+      errors.error "ERROR: self-host, self-target GCC should have a version suffix." ;
+    }
+  }
+
   if $(host) != $(build) && $(target) != $(host) {
     errors.error "ERROR: canadian cross is not supported." ;
   }
 
-  local version-cross-default = [ feature.get-values <gcc-version-cross-default> : $(properties) ] ;
-  if $(host) != $(build) {
-    if $(version-cross-default) = unspecified {
-      errors.error "ERROR: the property '<gcc-version-cross-default>' is not specified for the GCC cross-build." ;
-    }
-  }
-  else {
-    if $(version-cross-default) != unspecified {
-      errors.error "ERROR: the property '<gcc-version-cross-default>$(version-cross-default)' is not valid for the GCC self-build." ;
-    }
+  local abi = [ feature.get-values <intro-abi> : $(properties) ] ;
+  if $(abi) != unspecified {
+    errors.error "ERROR: the property '<intro-abi>$(abi)' is not valid for the GCC build." ;
   }
 
   local link = [ feature.get-values <intro-link> : $(properties) ] ;
   if $(link) != unspecified {
     errors.error "ERROR: the property '<intro-link>$(link)' is not valid for the GCC build." ;
   }
-
-  local check = [ feature.get-values <intro-check> : $(properties) ] ;
-  if $(check) = unspecified {
-    if $(host) != $(build) {
-      check = no ;
-    }
-    else {
-      check = yes ;
-    }
-  }
-  result = $(result)/<intro-check>$(check) ;
-
-  #errors.error $(result) ;
 
   return $(result) ;
 }

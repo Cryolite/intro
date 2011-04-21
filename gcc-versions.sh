@@ -1,6 +1,9 @@
 #!/usr/bin/env sh
 
-versions=`{ wget --quiet --output-document=- -- 'http://ftp.tsukuba.wide.ad.jp/software/gcc/releases/' || exit 1; } \
+url='http://core.ring.gr.jp/pub/GNU/gcc/'
+#url='http://ftp.tsukuba.wide.ad.jp/software/gcc/releases/'
+
+versions=`{ wget --quiet --output-document=- -- "$url" || exit 1; } \
     | { grep -oE 'gcc-[[:digit:]]+(\.[[:digit:]]+){1,2}/' || exit 1; } \
     | { grep -oE '[[:digit:]]+(\.[[:digit:]]+){1,2}' || exit 1; } \
     | { sort --version-sort --reverse || exit 1; } \
