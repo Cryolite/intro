@@ -5,13 +5,45 @@ import errors ;
 import feature ;
 import make ;
 import path ;
+import regex ;
 
 
-make gmp.download
-  : # No sources.
-  : @download-gmp
-  ;
-explicit gmp.download ;
+rule gcc-dep-req ( properties * )
+{
+  local result ;
+
+  local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
+  if $(stage) = 2 || $(stage) = 3 {
+    result = <source>../gcc//install ;
+    result = $(result)/<intro-stage>2 ;
+    # `<intro-host>' is automatically propagated.
+    result = $(result)/<intro-link>unspecified ;
+    local multilib = [ feature.get-values <intro-multilib-hidden> : $(properties) ] ;
+    result = $(result)/<intro-multilib>$(multilib) ;
+    result = $(result)/<intro-multilib-hidden>unspecified ;
+    local binutils-version = [ feature.get-values <binutils-version-hidden> : $(properties) ] ;
+    result = $(result)/<binutils-version>$(binutils-version) ;
+    result = $(result)/<binutils-version-hidden>unspecified ;
+    # `<gmp-version>' is automatically propagated.
+    # `<gmp-version>unspecified' is automatically propagated.
+    local mpfr-version = [ feature.get-values <mpfr-version-hidden> : $(properties) ] ;
+    result = $(result)/<mpfr-version>$(mpfr-version) ;
+    result = $(result)/<mpfr-version-hidden>unspecified ;
+    local mpc-version = [ feature.get-values <mpc-version-hidden> : $(properties) ] ;
+    result = $(result)/<mpc-version>$(mpc-version) ;
+    result = $(result)/<mpc-version-hidden>unspecified ;
+    # `<gcc-version>' is automatically propagated.
+    result = $(result)/<gcc-default>yes ;
+  }
+  return $(result) ;
+}
+
+alias gcc-dep : : <conditional>@gcc-dep-req ;
+explicit gcc-dep ;
+
+
+make download : : @download-gmp ;
+explicit download ;
 
 rule download-gmp ( targets * : sources * : properties * )
 {
@@ -19,27 +51,22 @@ rule download-gmp ( targets * : sources * : properties * )
   URL on $(targets) = http://core.ring.gr.jp/pub/GNU/gmp/gmp-$(version).tar.bz2 ;
   TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/gmp-$(version).tar.gz ;
   TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/gmp-$(version).tar.bz2 ;
-  STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
-  STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
 actions download-gmp
 {
   rm -f "$(<)" || exit $?
   if [ ! -f "$(TARBALL_GZ)" -a ! -f "$(TARBALL_BZ2)" ]; then
-    ( cd "$(TARBALL_BZ2:D)" && wget --quiet --timestamping -- '$(URL)' ) \
+    ( cd "$(TARBALL_BZ2:D)" && wget --quiet -- '$(URL)' ) \
       || { echo "ERROR: failed to download the GMP tarball." 2>>"$(STDOUT_)" 1>&2; exit 1; }
-    [ ! -f "$(TARBALL_BZ2)" ] && exit 1
+    [ -f "$(TARBALL_BZ2)" ] || exit 1
   fi
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
 
 
-make gmp.expand
-  : gmp.download
-  : @expand-gmp
-  ;
-explicit gmp.expand ;
+make expand : download : @expand-gmp ;
+explicit expand ;
 
 rule expand-gmp ( targets * : sources * : properties * )
 {
@@ -53,14 +80,12 @@ rule expand-gmp ( targets * : sources * : properties * )
   TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/gmp-$(version).tar.gz ;
   TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/gmp-$(version).tar.bz2 ;
   DEST_DIR on $(targets) = $(INTRO_ROOT_DIR)/gmp-$(version) ;
-  STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
-  STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
 actions expand-gmp
 {
   rm -f "$(<)" || exit $?
-  [ ! -f "$(>[1])" ] && exit 1
-  if [ ! -f "$(DEST_DIR)/configure" ]; then
+  [ -f "$(>[1])" ] || exit 1
+  if [ ! -x "$(DEST_DIR)/configure" ]; then
     rm -rf "$(DEST_DIR)" || exit $?
     if [ -f "$(TARBALL_GZ)" ]; then
       tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" \
@@ -71,20 +96,21 @@ actions expand-gmp
     else
       exit 1
     fi
-    [ ! -f "$(DEST_DIR)/configure" ] && exit 1
+    [ -x "$(DEST_DIR)/configure" ] || exit 1
   fi
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
 
 
-make gmp.configure
-  : gmp.expand/<intro-host>unspecified/<intro-abi>unspecified/<intro-link>unspecified
-  : @configure-gmp
+make make
+  : gcc-dep
+    expand/<intro-stage>unspecified/<intro-host>unspecified/<intro-link>unspecified/<gcc-version>unspecified
+  : @make-gmp
   ;
-explicit gmp.configure ;
+explicit make ;
 
-rule configure-gmp ( targets * : sources * : properties * )
+rule make-gmp ( targets * : sources * : properties * )
 {
   OPTIONS on $(targets) = ;
 
@@ -94,24 +120,29 @@ rule configure-gmp ( targets * : sources * : properties * )
   local configure = $(INTRO_ROOT_DIR)/gmp-$(version)/configure ;
   CONFIGURE on $(targets) = $(configure) ;
 
-  # Set the 'build' option for the 'configure' script.
-  local build = [ feature.get-values <intro-build> : $(properties) ] ;
-  OPTIONS on $(targets) += --build=$(build) ;
-
-  # Set the 'host' option for the 'configure' script.
-  local host = [ feature.get-values <intro-host> : $(properties) ] ;
-  OPTIONS on $(targets) += --host=$(host) ;
-
-  # Set the 'ABI' option for the 'configure' script.
-  local abi = [ feature.get-values <intro-abi> : $(properties) ] ;
-  ABI on $(targets) = ;
-  if $(abi) != unspecified {
-    ABI on $(targets) = ABI=$(abi) ;
+  # Set the '--build' and '--host' options for the 'configure' script.
+  local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
+  local build = [ SHELL "\"$(INTRO_ROOT_DIR)/gmp/config.guess\" | tr --delete '\n'" ] ;
+  if $(stage) = 1 {
+    OPTIONS on $(targets) += --build=$(build) ;
+    OPTIONS on $(targets) += --host=$(build) ;
+  }
+  else if $(stage) = 2 {
+    OPTIONS on $(targets) += --build=$(build) ;
+    OPTIONS on $(targets) += --host=$(HOST) ;
+  }
+  else {
+    OPTIONS on $(targets) += --build=$(HOST) ;
+    OPTIONS on $(targets) += --host=$(HOST) ;
   }
 
-  # Set the 'prefix' option for the 'configure' script.
-  local prefix = [ feature.get-values <intro-prefix> : $(properties) ] ;
-  OPTIONS on $(targets) += --prefix=\"$(prefix)\" ;
+  # Set the '--prefix' option for the 'configure' script.
+  if $(stage) = 1 || $(stage) = 2 {
+    OPTIONS on $(targets) += --prefix=\"$(PREFIX)\" ;
+  }
+  else {
+    OPTIONS on $(targets) += --prefix=\"$(CROSS_PREFIX)\" ;
+  }
 
   # Set the link variants for the 'configure' script.
   local link = [ feature.get-values <intro-link> : $(properties) ] ;
@@ -128,137 +159,181 @@ rule configure-gmp ( targets * : sources * : properties * )
     OPTIONS on $(targets) += --disable-shared ;
   }
 
-  STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
-  STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
-}
-actions configure-gmp
-{
-  rm -f "$(<)" || exit $?
-  [ ! -f "$(CONFIGURE)" ] && exit 1
-  ( mkdir -p "$(<:D)/build" && { cd "$(<:D)/build" && rm -rf *; } ) || exit $?
-  ( cd "$(<:D)/build" && $(ABI) "$(CONFIGURE)" $(OPTIONS) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
-    || { echo "ERROR: failed to 'configure' for the GMP build." 2>>"$(STDERR_)" 1>&2; exit 1; }
-  [ ! -f "$(<:D)/build/Makefile" ] && exit 1
-  [ -e "$(<)" ] && exit 1
-  touch "$(<)"
-}
-
-
-make gmp.make
-  : gmp.configure
-  : @make-gmp
-  ;
-explicit gmp.make ;
-
-rule make-gmp ( targets * : sources * : properties * )
-{
-  if ! $(sources[1]) {
-    errors.error "ERROR: wrong number of sources." ;
+  CHECK on $(targets) = no ;
+  if $(stage) = 1 || $(HOST_RUNNABLE) = yes {
+    CHECK on $(targets) = yes ;
   }
-  if $(sources[2]) {
-    errors.error "ERROR: wrong number of sources." ;
-  }
-  CHECK on $(targets) = [ feature.get-values <intro-check> : $(properties) ] ;
-  STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
-  STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
 actions make-gmp
 {
   rm -f "$(<)" || exit $?
-  [ ! -f "$(>[1])" ] && exit 1
-  [ ! -f "$(>[1]:D)/build/Makefile" ] && exit 1
-  ( cd "$(<:D)/build" && make 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
-    || { echo "ERROR: failed to 'make' for the GMP build." 2>>"$(STDERR_)" 1>&2; exit 1; }
-  if [ $(CHECK) = yes ]; then
-    ( cd "$(<:D)/build" && make check 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
-      || { echo "ERROR: failed to 'make check' for the GMP build." 2>>"$(STDERR_)" 1>&2; exit 1; }
-  fi
-  ( cd "$(<:D)/build" && make install 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
-    || { echo "ERROR: failed to 'make install' for the GMP build." 2>>"$(STDERR_)" 1>&2; exit 1; }
-  [ -e "$(<)" ] && exit 1
-  touch "$(<)"
-}
-
-
-make gmp.test
-  : gmp.make
-  : @test-gmp
-  ;
-explicit gmp.test ;
-
-rule test-gmp ( targets * : sources * : properties * )
-{
-  if ! $(sources[1]) {
-    errors.error "ERROR: wrong number of sources." ;
-  }
-  if $(sources[2]) {
-    errors.error "ERROR: wrong number of sources." ;
-  }
-  COMMAND on $(targets) = $(INTRO_ROOT_DIR)/gmp/test.sh ;
-  VERSION on $(targets) = [ feature.get-values <gmp-version> : $(properties) ] ;
-  local build = [ feature.get-values <intro-build> : $(properties) ] ;
-  local host = [ feature.get-values <intro-host> : $(properties) ] ;
-  HOST on $(targets) = $(host) ;
-  local abi = [ feature.get-values <intro-abi> : $(properties) ] ;
-  CC on $(targets) = [ SHELL "\"$(INTRO_ROOT_DIR)/cc.sh\" $(build) $(host) $(abi)" ] ;
-  PREFIX on $(targets) = [ feature.get-values <intro-prefix> : $(properties) ] ;
-  LINK on $(targets) = [ feature.get-values <intro-link> : $(properties) ] ;
-  CHECK on $(targets) = [ feature.get-values <intro-check> : $(properties) ] ;
-  STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
-}
-actions test-gmp
-{
-  rm -f "$(<)" || exit $?
-  [ ! -f "$(>[1])" ] && exit 1
-  ( CC=$(CC) "$(COMMAND)" $(VERSION) "$(PREFIX)" $(LINK) $(CHECK) )
+  [ -x "$(CONFIGURE)" ] || exit 1
+  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
+  $(SET_RUN_VARS)
+  ( cd "$(<:D)/build" && $(RUN_VAR) "$(CONFIGURE)" $(OPTIONS) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
   if [ $? -ne 0 ]; then
-    echo 'ERROR: post-installation test failed for the GMP build.' 2>>"$(STDERR_)" 1>&2
+    $(UNSET_RUN_VARS)
+    echo "ERROR: failed to 'configure' for the GMP build." 2>>"$(STDERR_)" 1>&2
     exit 1
   fi
+  [ -f "$(<:D)/build/Makefile" ] || { $(UNSET_RUN_VARS); exit 1; }
+  ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
+  if [ $? -ne 0 ]; then
+    $(UNSET_RUN_VARS)
+    echo "ERROR: failed to 'make' for the GMP build." 2>>"$(STDERR_)" 1>&2
+    exit 1
+  fi
+  if [ $(CHECK) = yes ]; then
+    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
+    if [ $? -ne 0 ]; then
+      $(UNSET_RUN_VARS)
+      echo "ERROR: failed to 'make check' for the GMP build." 2>>"$(STDERR_)" 1>&2
+      exit 1
+    fi
+  fi
+  ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) install 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
+  if [ $? -ne 0 ]; then
+    $(UNSET_RUN_VARS)
+    echo "ERROR: failed to 'make install' for the GMP build." 2>>"$(STDERR_)" 1>&2
+    exit 1
+  fi
+  $(UNSET_RUN_VARS)
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
+
+
+local BUILD = [ SHELL "\"$(INTRO_ROOT_DIR)/gcc/config.guess\" | tr --delete '\n'" ] ;
+local BUILD_SHARED_LIB_FILE ;
+local BUILD_XDLL_DIR ;
+if [ regex.match "(-w64-mingw32)$" : $(BUILD) : 1 ] {
+  BUILD_SHARED_LIB_FILE = "libgmp.dll.a" ;
+  BUILD_XDLL_DIR = "bin" ;
+}
+else {
+  BUILD_SHARED_LIB_FILE = "libgmp.so" ;
+  BUILD_XDLL_DIR = "lib" ;
+}
+
+local HOST_SHARED_LIB_FILE ;
+local HOST_XDLL_DIR ;
+if [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
+  HOST_SHARED_LIB_FILE = "libgmp.dll.a" ;
+  HOST_XDLL_DIR = "bin" ;
+}
+else {
+  HOST_SHARED_LIB_FILE = "libgmp.so" ;
+  HOST_XDLL_DIR = "lib" ;
+}
+
+
+make "$(PREFIX)/lib/libgmp.a" : make/<link>shared : @exists ;
+explicit "$(PREFIX)/lib/libgmp.a" ;
+
+make "$(PREFIX)/lib/$(BUILD_SHARED_LIB_FILE)" : make/<link>shared : @exists ;
+explicit "$(PREFIX)/lib$(BUILD_SHARED_LIB_FILE)" ;
+
+make "$(PREFIX)/$(HOST)/lib/libgmp.a" : make/<link>shared : @exists ;
+explicit "$(PREFIX)/$(HOST)/lib/libgmp.a" ;
+
+make "$(PREFIX)/$(HOST)/lib/$(HOST_SHARED_LIB_FILE)" : make/<link>shared : @exists ;
+explicit "$(PREFIX)/$(HOST)/lib/$(HOST_SHARED_LIB_FILE)" ;
+
+make "$(CROSS_PREFIX)/lib/libgmp.a" : make/<link>shared : @exists ;
+explicit "$(CROSS_PREFIX)/lib/libgmp.a" ;
+
+make "$(CROSS_PREFIX)/lib/$(HOST_SHARED_LIB_FILE)" : make/<link>shared : @exists ;
+explicit "$(CROSS_PREFIX)/lib/$(HOST_SHARED_LIB_FILE)" ;
+
+actions exists
+{
+  [ -f "$(<)" ] || exit 1
+  touch "$(<)"
+}
+
+
+lib gmp-raw.lib
+  :
+  : <intro-stage>1:<file>"$(PREFIX)/lib/libgmp.a"
+    <intro-stage>2:<file>"$(PREFIX)/$(HOST)/lib/libgmp.a"
+    <intro-stage>3:<file>"$(CROSS_PREFIX)/lib/libgmp.a"
+    <link>static
+  ;
+lib gmp-raw.lib
+  :
+  : <intro-stage>1:<file>"$(PREFIX)/lib/$(BUILD_SHARED_LIB_FILE)"
+    <intro-stage>2:<file>"$(PREFIX)/$(HOST)/lib/$(HOST_SHARED_LIB_FILE)"
+    <intro-stage>3:<file>"$(CROSS_PREFIX)/lib/$(HOST_SHARED_LIB_FILE)"
+    <link>shared
+  ;
+explicit gmp-raw.lib ;
+
+
+alias gmp.lib
+  : gmp-raw.lib
+  :
+  :
+  : <intro-stage>1:<include>"$(PREFIX)/include"
+    <intro-stage>2:<include>"$(PREFIX)/$(HOST)/include"
+    <intro-stage>3:<include>"$(CROSS_PREFIX)/include"
+    <intro-stage>1,<link>shared:<xdll-path>"$(PREFIX)/$(BUILD_XDLL_DIR)"
+    <intro-stage>2,<link>shared:<xdll-path>"$(PREFIX)/$(HOST)/$(HOST_XDLL_DIR)"
+    <intro-stage>3,<link>shared:<xdll-path>"$(CROSS_PREFIX)/$(HOST_XDLL_DIR)"
+  ;
+explicit gmp.lib ;
+
+
+obj test.obj
+  : "$(INTRO_ROOT_DIR)/gmp/test.c"
+  : <dependency>gmp-raw.lib
+    <intro-stage>1:<include>"$(PREFIX)/include"
+    <intro-stage>2:<include>"$(PREFIX)/$(HOST)/include"
+    <intro-stage>3:<include>"$(CROSS_PREFIX)/include"
+  ;
+explicit test.obj ;
+
+
+exe test.exe : gmp-raw.lib test.obj ;
+explicit test.exe ;
+
+
+rule test-run-req ( properties * )
+{
+  local version = [ feature.get-values <gmp-version> : $(properties) ] ;
+  return <testing.arg>$(version) ;
+}
+run test.exe
+  :
+  :
+  : <intro-stage>1,<link>shared:<xdll-path>"$(PREFIX)/$(BUILD_XDLL_DIR)"
+    <intro-stage>2,<link>shared:<xdll-path>"$(PREFIX)/$(HOST)/$(HOST_XDLL_DIR)"
+    <intro-stage>3,<link>shared:<xdll-path>"$(CROSS_PREFIX)/$(HOST_XDLL_DIR)"
+    <conditional>@test-run-req
+  : test.run
+  ;
+explicit test.run ;
 
 
 rule install-req ( properties * )
 {
-  local result = <source>gmp.test ;
-
   local tmp = ;
 
-  local version = [ feature.get-values <gmp-version> : $(properties) ] ;
-  if $(version) = unspecified {
-    version = [ feature.values <gmp-version> ] ;
-    result = $(result)/<gmp-version>$(version[2]) ;
-  }
-
-  local build = [ feature.get-values <intro-build> : $(properties) ] ;
-  tmp = [ SHELL "\"$(INTRO_ROOT_DIR)/gmp/config.guess\" | tr --delete '\n'" ] ;
-  if $(build) = unspecified {
-    build = $(tmp) ;
-  }
-  if $(build) != $(tmp) {
-    errors.error "ERROR: the property '<intro-build>$(build)' is not valid." ;
-  }
-  tmp = [ SHELL "\"$(INTRO_ROOT_DIR)/gmp/config.sub\" $(build) | tr --delete '\n'" ] ;
-  if $(tmp) != $(build) {
-    errors.error "ERROR: the property '<intro-build>$(build)' is not canonical." ;
-  }
-  result = $(result)/<intro-build>$(build) ;
+  local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
 
   local host = [ feature.get-values <intro-host> : $(properties) ] ;
   if $(host) = unspecified {
-    host = $(build) ;
+    if $(stage) != 1 {
+      errors.error "ERROR: '<intro-host>' is not specified for the GMP stage 2 or 3 build." ;
+    }
   }
-  tmp = [ SHELL "\"$(INTRO_ROOT_DIR)/gmp/config.sub\" $(host) | tr --delete '\n'" ] ;
-  if $(tmp) != $(host) {
-    errors.error "ERROR: the property '<intro-host>$(host)' is not canonical." ;
-  }
-  result = $(result)/<intro-host>$(host) ;
-
-  local target = [ feature.get-values <intro-target> : $(properties) ] ;
-  if $(target) != unspecified {
-    errors.error "ERROR: the property '<intro-target>$(target)' is specified for GMP build." ;
+  else {
+    if $(stage) = 1 {
+      errors.error "ERROR: '<intro-host>$(host)' is not valid for the GMP stage 1 build." ;
+    }
+    tmp = [ SHELL "\"$(INTRO_ROOT_DIR)/gmp/config.sub\" $(host) | tr --delete '\n'" ] ;
+    if $(tmp) != $(host) {
+      errors.error "ERROR: '<intro-host>$(host)' is not canonical for the GMP build." ;
+    }
   }
 
   local link = [ feature.get-values <intro-link> : $(properties) ] ;
@@ -266,22 +341,84 @@ rule install-req ( properties * )
     errors.error "ERROR: '<intro-link>' is not specified for the GMP build." ;
   }
 
-  local check = [ feature.get-values <intro-check> : $(properties) ] ;
-  if $(check) = unspecified {
-    if $(build) = $(host) {
-      check = yes ;
-    }
-    else {
-      check = no ;
-    }
+  local multilib = [ feature.get-values <intro-multilib> : $(properties) ] ;
+  if $(multilib) != unspecified {
+    errors.error "ERROR: '<intro-multilib>$(multilib)' is not valid for the GMP build." ;
   }
-  result = $(result)/<intro-check>$(check) ;
+  multilib = [ feature.get-values <intro-multilib-hidden> : $(properties) ] ;
+  if $(stage) = 1 && $(multilib) != unspecified {
+    errors.error "ERROR: '<intro-multilib-hidden>$(multilib)' is not valid for the GMP stage 1 build." ;
+  }
+
+  local result = ;
+  if $(stage) = 1 || $(HOST_RUNNABLE) = yes {
+    result = <source>test.run ;
+  }
+  else {
+    result = <source>test.exe ;
+  }
+  if $(link) = static {
+    result = $(result)/<link>static ;
+  }
+  else if $(link) = shared {
+    result = $(result)/<link>shared ;
+  }
+  else {
+    result = $(result)/<link>static $(result)/<link>shared ;
+  }
+
+  local binutils-version = [ feature.get-values <binutils-version> : $(properties) ] ;
+  if $(binutils-version) != unspecified {
+    errors.error "ERROR: '<binutils-version>$(binutils-version)' is not valid for the GMP build." ;
+  }
+  binutils-version = [ feature.get-values <binutils-version-hidden> : $(properties) ] ;
+  if $(stage) = 1 && $(binutils-version) != unspecified {
+    errors.error "ERROR: '<binutils-version-hidden>$(binutils-version)' is not valid for the GMP stage 1 build." ;
+  }
+
+  local gmp-version = [ feature.get-values <gmp-version> : $(properties) ] ;
+  if $(gmp-version) = unspecified {
+    gmp-version = [ feature.values <gmp-version> ] ;
+    result = $(result)/<gmp-version>$(gmp-version[2]) ;
+  }
+  gmp-version = [ feature.get-values <gmp-version-hidden> : $(properties) ] ;
+  if $(stage) = 1 && $(gmp-version) != unspecified {
+    errors.error "ERROR: '<gmp-version-hidden>$(gmp-version)' is not valid for the GMP stage 1 build." ;
+  }
+
+  local mpfr-version = [ feature.get-values <mpfr-version> : $(properties) ] ;
+  if $(mpfr-version) != unspecified {
+    errors.error "ERROR: '<mpfr-version>$(mpfr-version)' is not valid for the GMP build." ;
+  }
+  mpfr-version = [ feature.get-values <mpfr-version-hidden> : $(properties) ] ;
+  if $(stage) = 1 && $(mpfr-version) != unspecified {
+    errors.error "ERROR: '<mpfr-version-hidden>$(mpfr-version)' is not valid for the GMP stage 1 build." ;
+  }
+
+  local mpc-version = [ feature.get-values <mpc-version> : $(properties) ] ;
+  if $(mpc-version) != unspecified {
+    errors.error "ERROR: '<mpc-version>$(mpc-version)' is not valid for the GMP build." ;
+  }
+  mpc-version = [ feature.get-values <mpc-version-hidden> : $(properties) ] ;
+  if $(stage) = 1 && $(mpc-version) != unspecified {
+    errors.error "ERROR: '<mpc-version-hidden>$(mpc-version)' is not valid for the GMP stage 1 build." ;
+  }
+
+  local gcc-version = [ feature.get-values <gcc-version> : $(properties) ] ;
+  if $(stage) = 1 && $(gcc-version) != unspecified {
+    errors.error "ERROR: '<gcc-version>$(gcc-version)' is not valid for the GMP stage 1 build." ;
+  }
+  if ( $(stage) = 2 || $(stage) = 3 ) && $(gcc-version) = unspecified {
+    errors.error "ERROR: '<gcc-version>' is not specified for the GMP stage 2 or 3 build." ;
+  }
+
+  local gcc-default = [ feature.get-values <gcc-default> : $(properties) ] ;
+  if $(gcc-default) != unspecified {
+    errors.error "ERROR: '<gcc-default>$(gcc-default)' is not valid for the GMP build." ;
+  }
 
   return $(result) ;
 }
 
-alias install
-  : # The source 'gmp.test' is introduced by the conditional requirements.
-  : <conditional>@install-req
-  ;
+alias install : : <conditional>@install-req ;
 explicit install ;

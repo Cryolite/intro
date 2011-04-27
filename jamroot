@@ -7,96 +7,196 @@ import regex ;
 path-constant INTRO_ROOT_DIR : . ;
 
 
-local prefix = ;
-local stdout = ;
-local stderr = ;
+local host ;
+local prefix ;
+local cross-prefix ;
+local host-runnable ;
+local concurrency ;
+local stdout ;
+local stderr ;
 for local argv in [ modules.peek : ARGV ] {
   local tmp = ;
+  tmp = [ regex.match "^--host=(.*)$" : $(argv) : 1 ] ;
+  if $(tmp) {
+    if $(host) {
+      errors.error "ERROR: duplicate '--host' option." ;
+    }
+    host = $(tmp) ;
+  }
   tmp = [ regex.match "^--prefix=(/.*)$" : $(argv) : 1 ] ;
   if $(tmp) {
     if $(prefix) {
-      errors.error ;
+      errors.error "ERROR: duplicate '--prefix' option." ;
     }
-    else {
-      prefix = $(tmp) ;
+    prefix = $(tmp) ;
+  }
+  tmp = [ regex.match "^--cross-prefix=(/.*)$" : $(argv) : 1 ] ;
+  if $(tmp) {
+    if $(cross-prefix) {
+      errors.error "ERROR: duplicate '--cross-prefix' option." ;
     }
+    cross-prefix = $(tmp) ;
+  }
+  tmp = [ regex.match "^(--host-runnable)$" : $(argv) : 1 ] ;
+  if $(tmp) {
+    host-runnable = yes ;
+  }
+  tmp = [ regex.match "^--concurrency=([123456789][0123456789]*)$" : $(argv) : 1 ] ;
+  if $(tmp) {
+    if $(concurrency) {
+      errors.error "ERROR: duplicate '--concurrency' option." ;
+    }
+    concurrency = $(tmp) ;
   }
   tmp = [ regex.match "^--stdout=(/.*)$" : $(argv) : 1 ] ;
   if $(tmp) {
     if $(stdout) {
-      errors.error ;
+      errors.error "ERROR: duplicate '--stdout' option." ;
     }
-    else {
-      stdout = $(tmp) ;
-    }
+    stdout = $(tmp) ;
   }
   tmp = [ regex.match "^--stderr=(/.*)$" : $(argv) : 1 ] ;
   if $(tmp) {
     if $(stderr) {
-      errors.error ;
+      errors.error "ERROR: duplicate '--stderr' option." ;
+    }
+    stderr = $(tmp) ;
+  }
+}
+
+
+{
+  local build = [ SHELL "\"$(INTRO_ROOT_DIR)/gcc/config.guess\" | tr --delete '\n'" ] ;
+  if $(host) = $(build) {
+    errors.error "ERROR: '--host' option is the same as the build system triplet '$(build)'." ;
+  }
+  if $(host) {
+    constant HOST : $(host) ;
+  }
+  else {
+    constant HOST : $(build) ; # Fake value.
+  }
+
+  prefix ?= /usr/local ;
+  path-constant PREFIX : "$(prefix)" ;
+
+  if "$(cross-prefix)" && ( ! $(host) ) {
+    errors.error "ERROR: '--cross-prefix' option is specified, but '--host' option not." ;
+  }
+  if $(cross-prefix) {
+    path-constant CROSS_PREFIX : "$(cross-prefix)" ;
+  }
+  else {
+    path-constant CROSS_PREFIX : "$(prefix)/cross-fake" ; # Fake value.
+  }
+
+  local set-run-vars ;
+  local unset-run-vars ;
+  if ! $(host) {
+    # Do nothing.
+  }
+  else if ! $(cross-prefix) {
+    if [ regex.match "(-w64-mingw32)$" : $(build) : 1 ] {
+      if $(HOST_RUNNABLE) = yes {
+        set-run-vars = "OLD_PATH=$PATH; \"$(PREFIX)/$(HOST)/bin\":$PATH; export PATH" ;
+        unset-run-vars = "PATH=$OLD_PATH; export PATH" ;
+      }
     }
     else {
-      stderr = $(tmp) ;
+      if $(HOST_RUNNABLE) = yes {
+        set-run-vars = "OLD_LD_LIBRARY_PATH=$LD_LIBRARY_PATH; LD_LIBRARY_PATH=\"$(PREFIX)/$(HOST)/lib\":$LD_LIBRARY_PATH; export LD_LIBRARY_PATH" ;
+        unset-run-vars = "LD_LIBRARY_PATH=$OLD_LD_LIBRARY_PATH; export LD_LIBRARY_PATH" ;
+      }
     }
   }
-}
-
-
-project intro
-  : default-build
-    <intro-prefix>$(prefix)
-    <intro-stdout>$(stdout)
-    <intro-stderr>$(stderr)
-  : build-dir bin
-  ;
-
-
-feature intro-build : unspecified x86_64-w64-mingw32 i686-w64-mingw32 : propagated incidental ;
-for local i in [ path.glob $(INTRO_ROOT_DIR) : */config.guess ] {
-  local b = [ SHELL "\"$(i)\" | tr --delete '\n'" ] ;
-  if ! $(b) in [ feature.values <intro-build> ] {
-    feature.extend intro-build : $(b) ;
-  }
-}
-
-feature intro-host : [ feature.values <intro-build> ] : propagated ;
-
-feature intro-target : [ feature.values <intro-host> ] : propagated ;
-
-feature intro-abi : unspecified 32 64 o32 n32 aix64 mode64 mode32 : propagated ;
-
-feature intro-prefix : /usr/local : propagated incidental ;
-if $(prefix) && ! $(prefix) in [ feature.values <intro-prefix> ] {
-  feature.extend intro-prefix : $(prefix) ;
-}
-for local i in [ feature.values <intro-prefix> ] {
-  for local j in [ feature.values <intro-host> ] {
-    if $(j) != unspecified && ! $(i)/$(j) in [ feature.values <intro-prefix> ] {
-      feature.extend intro-prefix : $(i)/$(j) ;
+  else {
+    if [ regex.match "(-w64-mingw32)$" : $(build) : 1 ] {
+      if $(HOST_RUNNABLE) = yes {
+        set-run-vars = "OLD_PATH=$PATH; PATH=\"$(PREFIX)/$(HOST)/bin\":\"$(CROSS_PREFIX)/bin\":$PATH; export $PATH" ;
+      }
+      else {
+        set-run-vars = "OLD_PATH=$PATH; PATH=\"$(PREFIX)/$(HOST)/bin\":$PATH; export $PATH" ;
+      }
+      unset-run-vars = "PATH=$OLD_PATH; export PATH" ;
+    }
+    else {
+      if ( $(HOST_RUNNABLE) = yes ) {
+        set-run-vars = "OLD_PATH=$PATH; OLD_LD_LIBRARY_PATH=$LD_LIBRARY_PATH; PATH=\"$(PREFIX)/$(HOST)/bin\":$PATH; LD_LIBRARY_PATH=\"$(CROSS_PREFIX)/lib\":$LD_LIBRARY_PATH; export PATH; export LD_LIBRARY_PATH" ;
+        unset-run-vars = "PATH=$OLD_PATH; LD_LIBRARY_PATH=$OLD_LD_LIBRARY_PATH; export PATH; export LD_LIBRARY_PATH" ;
+      }
+      else {
+        set-run-vars = "OLD_PATH=$PATH; PATH=\"$(PREFIX)/$(HOST)/bin\":$PATH; export PATH" ;
+        unset-run-vars = "PATH=$OLD_PATH; export PATH" ;
+      }
     }
   }
+  if $(set-run-vars) {
+    constant SET_RUN_VARS : $(set-run-vars) ;
+    constant UNSET_RUN_VARS : $(unset-run-vars) ;
+  }
+
+  if ! $(host) {
+    host-runnable ?= yes ;
+  }
+  host-runnable ?= no ;
+  constant HOST_RUNNABLE : $(host-runnable) ;
+
+  if $(concurrency) {
+    constant CONCURRENCY : $(concurrency) ;
+  }
+
+  if "$(stdout)" {
+    path-constant STDOUT_ : "$(stdout)" ;
+  }
+
+  if "$(stderr)" {
+    path-constant STDERR_ : "$(stderr)" ;
+  }
+}
+
+
+project intro : build-dir bin ;
+
+
+feature intro-stage : unspecified 1 2 3 : propagated ;
+
+feature intro-host : unspecified x86_64-w64-mingw32 i686-w64-mingw32 : propagated ;
+for local i in [ path.glob $(INTRO_ROOT_DIR) : */config.guess ]
+{
+  local t = [ SHELL "\"$(i)\" | tr --delete '\n'" ] ;
+  if ! $(t) in [ feature.values <intro-host> ] {
+    feature.extend intro-host : $(t) ;
+  }
+}
+if ! $(host) in [ feature.values <intro-host> ] {
+  feature.extend intro-host : $(host) ;
 }
 
 feature intro-link : unspecified both shared static : propagated ;
 
-feature intro-check : unspecified yes no : propagated incidental ;
-feature intro-check-hidden : [ feature.values <intro-check> ] : propagated incidental ;
+feature intro-multilib : unspecified no yes : propagated ;
+feature intro-multilib-hidden : [ feature.values <intro-multilib> ] : propagated incidental ;
 
-feature intro-stdout : : path propagated incidental optional ;
-if $(stdout) {
-  feature.extend intro-stdout : $(stdout) ;
+
+feature binutils-version : unspecified : propagated ;
+ECHO patience... ;
+for local i in 2.21 #[ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/binutils-versions.sh\" || /bin/echo -n 'error'" ] " +" ]
+{
+  if [ regex.match "^([0123456789]+\\.[0123456789]+(\\.[0123456789]+)?)$" : $(i) : 1 ] {
+    feature.extend binutils-version : $(i) ;
+  }
+  else {
+    errors.error "ERROR: failed to extract Binutils versions." ;
+  }
 }
 
-feature intro-stderr : : path propagated incidental optional ;
-if $(stderr) {
-  feature.extend intro-stderr : $(stderr) ;
-}
+feature binutils-version-hidden : [ feature.values <binutils-version> ] : propagated incidental ;
 
 
 feature gmp-version : unspecified : propagated ;
 ECHO patience... ;
-local gmp-versions = [ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/gmp-versions.sh\" || /bin/echo -n 'error'" ] " +" ] ;
-for local i in $(gmp-versions) {
+for local i in 5.0.1 #[ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/gmp-versions.sh\" || /bin/echo -n 'error'" ] " +" ]
+{
   if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(i) : 1 ] {
     feature.extend gmp-version : $(i) ;
   }
@@ -110,8 +210,8 @@ feature gmp-version-hidden : [ feature.values <gmp-version> ] : propagated incid
 
 feature mpfr-version : unspecified : propagated ;
 ECHO patience... ;
-local mpfr-versions = [ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/mpfr-versions.sh\" || /bin/echo -n 'error'" ] " +" ] ;
-for local i in $(mpfr-versions) {
+for local i in 3.0.1 #[ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/mpfr-versions.sh\" || /bin/echo -n 'error'" ] " +" ]
+{
   if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(i) : 1 ] {
     feature.extend mpfr-version : $(i) ;
   }
@@ -125,8 +225,8 @@ feature mpfr-version-hidden : [ feature.values <mpfr-version> ] : propagated inc
 
 feature mpc-version : unspecified : propagated ;
 ECHO patience... ;
-local mpc-versions = [ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/mpc-versions.sh\" || /bin/echo -n 'error'" ] " +" ] ;
-for local i in $(mpc-versions) {
+for local i in 0.9 #[ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/mpc-versions.sh\" || /bin/echo -n 'error'" ] " +" ]
+{
   if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(i) : 1 ] {
     feature.extend mpc-version : $(i) ;
   }
@@ -138,24 +238,10 @@ for local i in $(mpc-versions) {
 feature mpc-version-hidden : [ feature.values <mpc-version> ] : propagated incidental ;
 
 
-feature binutils-version : unspecified : propagated ;
-ECHO patience... ;
-local binutils-versions = [ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/binutils-versions.sh\" || /bin/echo -n 'error'" ] " +" ] ;
-for local i in $(binutils-versions) {
-  if [ regex.match "^([0123456789]+\\.[0123456789]+(\\.[0123456789]+)?)$" : $(i) : 1 ] {
-    feature.extend binutils-version : $(i) ;
-  }
-  else {
-    errors.error "ERROR: failed to extract Binutils versions." ;
-  }
-}
-
-feature binutils-version-hidden : [ feature.values <binutils-version> ] : propagated incidental ;
-
-
 feature gcc-version : unspecified : propagated ;
 ECHO patience... ;
-for local i in [ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/gcc-versions.sh\" || /bin/echo -n 'error'" ] " +" ] {
+for local i in 4.6.0 #[ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/gcc-versions.sh\" || /bin/echo -n 'error'" ] " +" ]
+{
   if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(i) : 1 ] {
     feature.extend gcc-version : $(i) ;
   }
@@ -164,4 +250,55 @@ for local i in [ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/gcc-versions.sh\" || /
   }
 }
 
-feature gcc-default : no yes : propagated incidental ;
+feature gcc-default : unspecified no yes : propagated incidental ;
+
+
+
+if ! $(host) {
+  alias install-binutils : binutils//install/<intro-stage>1 ;
+  explicit install-binutils ;
+
+  alias install-gmp : gmp//install/<intro-stage>1 ;
+  explicit install-gmp ;
+
+  alias install-mpfr : mpfr//install/<intro-stage>1 ;
+  explicit install-mpfr ;
+
+  alias install-mpc : mpc//install/<intro-stage>1 ;
+  explicit install-mpc ;
+
+  alias install-gcc : gcc//install/<intro-stage>1 ;
+  explicit install-gcc ;
+}
+else if ! $(cross-prefix) {
+  alias install-binutils : binutils//install/<intro-stage>2/<intro-host>$(host) ;
+  explicit install-binutils ;
+
+  alias install-gmp : gmp//install/<intro-stage>2/<intro-host>$(host) ;
+  explicit install-gmp ;
+
+  alias install-mpfr : mpfr//install/<intro-stage>2/<intro-host>$(host) ;
+  explicit install-mpfr ;
+
+  alias install-mpc : mpc//install/<intro-stage>2/<intro-host>$(host) ;
+  explicit install-mpc ;
+
+  alias install-gcc : gcc//install/<intro-stage>2/<intro-host>$(host) ;
+  explicit install-gcc ;
+}
+else {
+  alias install-binutils : binutils//install/<intro-stage>3/<intro-host>$(host) ;
+  explicit install-binutils ;
+
+  alias install-gmp : gmp//install/<intro-stage>3/<intro-host>$(host) ;
+  explicit install-gmp ;
+
+  alias install-mpfr : mpfr//install/<intro-stage>3/<intro-host>$(host) ;
+  explicit install-mpfr ;
+
+  alias install-mpc : mpc//install/<intro-stage>3/<intro-host>$(host) ;
+  explicit install-mpc ;
+
+  alias install-gcc : gcc//install/<intro-stage>3/<intro-host>$(host) ;
+  explicit install-gcc ;
+}

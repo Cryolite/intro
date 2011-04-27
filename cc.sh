@@ -2,12 +2,15 @@
 
 build=$1
 host=$2
-abi=$3
+target=$3
+abi=$4
 
-if [ $build = $host ]; then
+if [ $host = unspecified -a $target = unspecified ]; then
     gcc=gcc
+elif [ $target != unspecified ]; then
+    gcc=$target-gcc
 else
-    gcc=${host}-gcc
+    gcc=$host-gcc
 fi
 
 x86 () {

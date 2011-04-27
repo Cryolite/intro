@@ -7,11 +7,8 @@ import make ;
 import regex ;
 
 
-make mingw-w64.download
-  : # No sources.
-  : @download-mingw-w64
-  ;
-explicit mingw-w64.download ;
+make download : : @download-mingw-w64 ;
+explicit download ;
 
 rule download-mingw-w64 ( targets * : sources * : properties * )
 {
@@ -24,20 +21,17 @@ actions download-mingw-w64
 {
   rm -f "$(<)" || exit $?
   if [ ! -f "$(TARBALL)" ]; then
-    ( cd "$(TARBALL:D)" && wget --quiet --timestamping -- '$(URL)' ) \
+    ( cd "$(TARBALL:D)" && wget --quiet -- '$(URL)' ) \
       || { echo "ERROR: failed to download the MinGW-w64 tarball." 2>>"$(STDOUT_)" 1>&2; exit 1; }
-    [ ! -f "$(TARBALL)" ] && exit 1
+    [ -f "$(TARBALL)" ] || exit 1
   fi
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
 
 
-make mingw-w64.expand
-  : mingw-w64.download
-  : @expand-mingw-w64
-  ;
-explicit mingw-w64.expand ;
+make expand : download : @expand-mingw-w64 ;
+explicit expand ;
 
 rule expand-mingw-w64 ( targets * : sources * : properties * )
 {
@@ -55,26 +49,26 @@ rule expand-mingw-w64 ( targets * : sources * : properties * )
 actions expand-mingw-w64
 {
   rm -f "$(<)" || exit $?
-  [ ! -f "$(>[1])" ] && exit 1
-  [ ! -f "$(TARBALL)" ] && exit 1
-  if [ ! -f "$(DEST_DIR)/mingw-w64-headers/configure" ]; then
+  [ -f "$(>[1])" ] || exit 1
+  [ -f "$(TARBALL)" ] || exit 1
+  if [ ! -x "$(DEST_DIR)/mingw-w64-headers/configure" ]; then
     rm -rf "$(DEST_DIR)" || exit $?
     tar xjf "$(TARBALL)" -C "$(TARBALL:D)" \
       || { echo "ERROR: failed to expand the tarball for the MinGW-w64 build." 2>>"$(STDERR_)" 1>&2; exit 1; }
-    [ ! -f "$(DEST_DIR)/mingw-w64-headers/configure" ] && exit 1
+    [ -x "$(DEST_DIR)/mingw-w64-headers/configure" ] || exit 1
   fi
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
 
 
-make mingw-w64-headers.configure
-  : mingw-w64.expand/<intro-host>unspecified
-  : @configure-mingw-w64-headers
+make make
+  : expand/<intro-stage>unspecified/<intro-host>unspecified
+  : @make-mingw-w64-headers
   ;
-explicit mingw-w64-headers.configure ;
+explicit make ;
 
-rule configure-mingw-w64-headers ( targets * : sources * : properties * )
+rule make-mingw-w64-headers ( targets * : sources * : properties * )
 {
   OPTIONS on $(targets) = ;
 
@@ -82,66 +76,55 @@ rule configure-mingw-w64-headers ( targets * : sources * : properties * )
   local configure = $(INTRO_ROOT_DIR)/mingw-w64-v1.0-20101003/mingw-w64-headers/configure ;
   CONFIGURE on $(targets) = $(configure) ;
 
-  # Set the 'build' option for the 'configure' script.
-  local host = [ feature.get-values <intro-host> : $(properties) ] ;
-  OPTIONS on $(targets) += --build=$(host) ;
-
-  # Set the 'host' option for the 'configure' script.
-  local target = [ feature.get-values <intro-target> : $(properties) ] ;
-  OPTIONS on $(targets) += --host=$(target) ;
+  # Set the '--build' and '--host' options for the 'configure' script.
+  local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
+  local build = [ SHELL "\"$(INTRO_ROOT_DIR)/gcc/config.guess\" | tr --delete '\n'" ] ;
+  if $(stage) = 1 {
+    errors.error "ERROR: internal error." ;
+  }
+  else if $(stage) = 2 {
+    OPTIONS on $(targets) += --build=$(build) ;
+    OPTIONS on $(targets) += --host=$(HOST) ;
+  }
+  else {
+    OPTIONS on $(targets) += --build=$(HOST) ;
+    OPTIONS on $(targets) += --host=$(HOST) ;
+  }
 
   # Set the 'prefix' option for the 'configure' script.
   local prefix = [ feature.get-values <intro-prefix> : $(properties) ] ;
-  OPTIONS on $(targets) += --prefix=\"$(prefix)\" ;
-
-  STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
-  STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
-}
-actions configure-mingw-w64-headers
-{
-  rm -f "$(<)" || exit $?
-  [ ! -f "$(CONFIGURE)" ] && exit 1
-  ( mkdir -p "$(<:D)/build" && { cd "$(<:D)/build" && rm -rf *; } ) || exit $?
-  ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
-    || { echo "ERROR: failed to 'configure' for the mingw-w64-headers build." 2>>"$(STDERR_)" 1>&2; exit 1; }
-  [ ! -f "$(<:D)/build/Makefile" ] && exit 1
-  [ -e "$(<)" ] && exit 1
-  touch "$(<)"
-}
-
-
-make mingw-w64-headers.make
-  : mingw-w64-headers.configure
-  : @make-mingw-w64-headers
-  ;
-explicit mingw-w64-headers.make ;
-
-rule make-mingw-w64-headers ( targets * : sources * : properties * )
-{
-  if ! $(sources[1]) {
-    errors.error "ERROR: wrong number of sources." ;
-  }
-  if $(sources[2]) {
-    errors.error "ERROR: wrong number of sources." ;
-  }
-  HOST on $(targets) = [ feature.get-values <intro-host> : $(properties) ] ;
-  PREFIX on $(targets) = [ feature.get-values <intro-prefix> : $(properties) ] ;
-  STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
-  STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
+  OPTIONS on $(targets) += --prefix=\"$(PREFIX)\" ;
 }
 actions make-mingw-w64-headers
 {
   rm -f "$(<)" || exit $?
-  [ ! -f "$(>[1])" ] && exit 1
-  [ ! -f "$(>[1]:D)/build/Makefile" ] && exit 1
-  ( cd "$(<:D)/build" && make 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
-    || { echo "ERROR: failed to 'make' for the mingw-w64-headers build." 2>>"$(STDERR_)" 1>&2; exit 1; }
-  ( cd "$(<:D)/build" && make install 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
-    || { echo "ERROR: failed to 'make install' for the mingw-w64-headers build." 2>>"$(STDERR_)" 1>&2; exit 1; }
+  [ -x "$(CONFIGURE)" ] || exit 1
+  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
+  $(SET_RUN_VARS)
+  ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
+  if [ $? -ne 0 ]; then
+    $(UNSET_RUN_VARS)
+    echo "ERROR: failed to 'configure' for the mingw-w64-headers build." 2>>"$(STDERR_)" 1>&2
+    exit 1
+  fi
+  [ -f "$(<:D)/build/Makefile" ] || exit 1
+  ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
+  if [ $? -ne 0 ]; then
+    $(UNSET_RUN_VARS)
+    echo "ERROR: failed to 'make' for the mingw-w64-headers build." 2>>"$(STDERR_)" 1>&2
+    exit 1
+  fi
+  ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) install 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
+  if [ $? -ne 0 ]; then
+    $(UNSET_RUN_VARS)
+    echo "ERROR: failed to 'make install' for the mingw-w64-headers build." 2>>"$(STDERR_)" 1>&2
+    exit 1
+  fi
   if [ $(HOST) = x86_64-w64-mingw32 ]; then
     mkdir -p "$(PREFIX)/$(HOST)/lib" || exit $?
     ln -sf "$(PREFIX)/$(HOST)/lib" "$(PREFIX)/$(HOST)/lib64" || exit $?
   fi
+  $(UNSET_RUN_VARS)
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
@@ -149,49 +132,72 @@ actions make-mingw-w64-headers
 
 rule install-req ( properties * )
 {
-  local result = <source>mingw-w64-headers.make ;
+  local result = <source>make ;
 
-  local build = [ feature.get-values <intro-build> : $(properties) ] ;
-  if $(build) = unspecified {
-    errors.error "ERROR: the property '<intro-build>' is not specified for the mingw-w64-headers build." ;
+  local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
+  if $(stage) = 1 {
+    errors.error "ERROR: '<intro-stage>1' is not valid for the mingw-w64-headers build." ;
   }
 
   local host = [ feature.get-values <intro-host> : $(properties) ] ;
   if $(host) = unspecified {
-    errors.error "ERROR: the property '<intro-host>' is not specified for the mingw-w64-headers build." ;
-  }
-
-  local target = [ feature.get-values <intro-target> : $(properties) ] ;
-  if $(target) != x86_64-w64-mingw32 && $(target) != i686-w64-mingw32 {
-    errors.error "ERROR: the property '<intro-target>$(target)' is not valid for the mingw-w64-headers build." ;
-  }
-
-  local abi = [ feature.get-values <intro-abi> : $(properties) ] ;
-  if $(abi) != unspecified {
-    errors.error "ERROR: the property '<intro-abi>$(abi)' is not valid for the mingw-w64-headers build" ;
+    errors.error "ERROR: '<intro-host>' is not specified for the mingw-w64-headers build." ;
   }
 
   local link = [ feature.get-values <intro-link> : $(properties) ] ;
   if $(link) != unspecified {
-    errors.error "ERROR: the property '<intro-link>$(link)' is not valid for the mingw-w64-headers build." ;
+    errors.error "ERROR: '<intro-link>$(link)' is not valid for the mingw-w64-headers build." ;
   }
 
-  local check = [ feature.get-values <intro-check> : $(properties) ] ;
-  if $(check) = unspecified {
-    if $(build) = $(host) {
-      check = yes ;
-    }
-    else {
-      check = no ;
-    }
+  local multilib = [ feature.get-values <intro-multilib> : $(properties) ] ;
+  if $(multilib) != unspecified {
+    errors.error "ERROR: '<intro-multilib>$(multilib)' is not valid for the mingw-w64-headers build." ;
   }
-  result = $(result)/<intro-check>$(check) ;
+
+  local version ;
+  version = [ feature.get-values <binutils-version> : $(properties) ] ;
+  if $(version) != unspecified {
+    errors.error "ERROR: '<binutils-version>$(version)' is not valid for the mingw-w64-headers build." ;
+  }
+  version = [ feature.get-values <binutils-version-hidden> : $(properties) ] ;
+  if $(version) != unspecified {
+    errors.error "ERROR: '<binutils-version-hidden>$(version)' is not valid for the mingw-w64-headers build." ;
+  }
+  version = [ feature.get-values <gmp-version> : $(properties) ] ;
+  if $(version) != unspecified {
+    errors.error "ERROR: '<gmp-version>$(version)' is not valid for the mingw-w64-headers build." ;
+  }
+  version = [ feature.get-values <gmp-version-hidden> : $(properties) ] ;
+  if $(version) != unspecified {
+    errors.error "ERROR: '<gmp-version-hidden>$(version)' is not valid for the mingw-w64-headers build." ;
+  }
+  version = [ feature.get-values <mpfr-version> : $(properties) ] ;
+  if $(version) != unspecified {
+    errors.error "ERROR: '<mpfr-version>$(version)' is not valid for the mingw-w64-headers build." ;
+  }
+  version = [ feature.get-values <mpfr-version-hidden> : $(properties) ] ;
+  if $(version) != unspecified {
+    errors.error "ERROR: '<mpfr-version-hidden>$(version)' is not valid for the mingw-w64-headers build." ;
+  }
+  version = [ feature.get-values <mpc-version> : $(properties) ] ;
+  if $(version) != unspecified {
+    errors.error "ERROR: '<mpc-version>$(version)' is not valid for the mingw-w64-headers build." ;
+  }
+  version = [ feature.get-values <mpc-version-hidden> : $(properties) ] ;
+  if $(version) != unspecified {
+    errors.error "ERROR: '<mpc-version-hidden>$(version)' is not valid for the mingw-w64-headers build." ;
+  }
+  version = [ feature.get-values <gcc-version> : $(properties) ] ;
+  if $(version) != unspecified {
+    errors.error "ERROR: '<gcc-version>$(version)' is not valid for the mingw-w64-headers build." ;
+  }
+  local gcc-default = [ feature.get-values <gcc-default> : $(properties) ] ;
+  if $(gcc-default) != unspecified {
+    errors.error "ERROR: '<gcc-default>$(gcc-default)' is not valid for the mingw-w64-headers build." ;
+  }
 
   return $(result) ;
 }
 
-alias install
-  : # 'mingw-w64-headers.make' is added by the indirect conditional requirements.
-  : <conditional>@install-req
-  ;
+alias install : : <conditional>@install-req ;
 explicit install ;

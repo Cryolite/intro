@@ -7,11 +7,41 @@ import make ;
 import regex ;
 
 
-make binutils.download
-  : # No sources.
-  : @download-binutils
-  ;
-explicit binutils.download ;
+rule gcc-dep-req ( properties * )
+{
+  local result ;
+
+  local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
+  if $(stage) = 3 {
+    result = <source>../gcc//install ;
+    result = $(result)/<intro-stage>2 ;
+    # `<intro-host>' is automatically propagated.
+    # `<intro-link>unspecified' is automatically propagated.
+    # `<intro-multilib>' is automatically propagated.
+    # `<intro-multilib-hidden>unspecified' is automatically propagated.
+    # `<binutils-version>' is automatically propagated.
+    # `<binutils-version-hidden>unspecified' is automatically propagated.
+    local gmp-version = [ feature.get-values <gmp-version-hidden> : $(properties) ] ;
+    result = $(result)/<gmp-version>$(gmp-version) ;
+    result = $(result)/<gmp-version-hidden>unspecified ;
+    local mpfr-version = [ feature.get-values <mpfr-version-hidden> : $(properties) ] ;
+    result = $(result)/<mpfr-version>$(mpfr-version) ;
+    result = $(result)/<mpfr-version-hidden>unspecified ;
+    local mpc-version = [ feature.get-values <mpc-version-hidden> : $(properties) ] ;
+    result = $(result)/<mpc-version>$(mpc-version) ;
+    result = $(result)/<mpc-version-hidden>unspecified ;
+    # `<gcc-version>' is automatically propagated.
+    result = $(result)/<gcc-default>yes ;
+  }
+  return $(result) ;
+}
+
+alias gcc-dep : : <conditional>@gcc-dep-req ;
+explicit gcc-dep ;
+
+
+make download : : @download-binutils ;
+explicit download ;
 
 rule download-binutils ( targets * : sources * : properties * )
 {
@@ -19,27 +49,22 @@ rule download-binutils ( targets * : sources * : properties * )
   URL on $(targets) = http://core.ring.gr.jp/pub/GNU/binutils/binutils-$(version).tar.bz2 ;
   TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/binutils-$(version).tar.gz ;
   TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/binutils-$(version).tar.bz2 ;
-  STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
-  STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
 actions download-binutils
 {
   rm -f "$(<)" || exit $?
   if [ ! -f "$(TARBALL_GZ)" -a ! -f "$(TARBALL_BZ2)" ]; then
-    ( cd "$(TARBALL_BZ2:D)" && wget --quiet --timestamping -- '$(URL)' ) \
+    ( cd "$(TARBALL_BZ2:D)" && wget --quiet -- '$(URL)' ) \
       || { echo "ERROR: failed to download the Binutils tarball." 2>>"$(STDOUT_)" 1>&2; exit 1; }
-    [ ! -f "$(TARBALL_BZ2)" ] && exit 1
+    [ -f "$(TARBALL_BZ2)" ] || exit 1
   fi
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
 
 
-make binutils.expand
-  : binutils.download
-  : @expand-binutils
-  ;
-explicit binutils.expand ;
+make expand : download : @expand-binutils ;
+explicit expand ;
 
 rule expand-binutils ( targets * : sources * : properties * )
 {
@@ -53,14 +78,12 @@ rule expand-binutils ( targets * : sources * : properties * )
   TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/binutils-$(version).tar.gz ;
   TARBALL_BZ2 on $(targets) =  $(INTRO_ROOT_DIR)/binutils-$(version).tar.bz2 ;
   DEST_DIR on $(targets) = $(INTRO_ROOT_DIR)/binutils-$(version) ;
-  STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
-  STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
 actions expand-binutils
 {
   rm -f "$(<)" || exit $?
-  [ ! -f "$(>[1])" ] && exit 1
-  if [ ! -f "$(DEST_DIR)/configure" ]; then
+  [ -f "$(>[1])" ] || exit 1
+  if [ ! -x "$(DEST_DIR)/configure" ]; then
     rm -rf "$(DEST_DIR)" || exit $?
     if [ -f "$(TARBALL_GZ)" ]; then
       tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" \
@@ -71,20 +94,21 @@ actions expand-binutils
     else
       exit 1
     fi
-    [ ! -f "$(DEST_DIR)/configure" ] && exit 1
+    [ -x "$(DEST_DIR)/configure" ] || exit 1
   fi
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
 
 
-make binutils.configure
-  : binutils.expand/<intro-host>unspecified/<intro-target>unspecified
-  : @configure-binutils
+make make
+  : gcc-dep
+    expand/<intro-stage>unspecified/<intro-host>unspecified/<intro-multilib>unspecified/<gcc-version>unspecified
+  : @make-binutils
   ;
-explicit binutils.configure ;
+explicit make ;
 
-rule configure-binutils ( targets * : sources * : properties * )
+rule make-binutils ( targets * : sources * : properties * )
 {
   OPTIONS on $(targets) = ;
 
@@ -94,80 +118,81 @@ rule configure-binutils ( targets * : sources * : properties * )
   local configure = $(INTRO_ROOT_DIR)/binutils-$(version)/configure ;
   CONFIGURE on $(targets) = $(configure) ;
 
-  # Set the 'build' option for the 'configure' script.
-  local build = [ feature.get-values <intro-build> : $(properties) ] ;
-  OPTIONS on $(targets) += --build=$(build) ;
-
-  # Set the 'host' option for the 'configure' script.
-  local host = [ feature.get-values <intro-host> : $(properties) ] ;
-  OPTIONS on $(targets) += --host=$(host) ;
-
-  local target = [ feature.get-values <intro-target> : $(properties) ] ;
-  OPTIONS on $(targets) += --target=$(target) ;
-
-  # Set the 'prefix' option for the 'configure' script.
-  local prefix = [ feature.get-values <intro-prefix> : $(properties) ] ;
-  OPTIONS on $(targets) += --prefix=\"$(prefix)\" ;
-
-  if $(host) != $(build) {
-    OPTIONS on $(targets) += --program-prefix=$(target)- ;
+  # Set the '--build', '--host' and '--target' options for the 'configure' script.
+  local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
+  local build = [ SHELL "\"$(INTRO_ROOT_DIR)/binutils/config.guess\" | tr --delete '\n'" ] ;
+  if $(stage) = 1 {
+    errors.error "ERROR: internal error." ;
+  }
+  else if $(stage) = 2 {
+    OPTIONS on $(targets) += --build=$(build) ;
+    OPTIONS on $(targets) += --host=$(build) ;
+    OPTIONS on $(targets) += --target=$(HOST) ;
+  }
+  else {
+    OPTIONS on $(targets) += --build=$(build) ;
+    OPTIONS on $(targets) += --host=$(HOST) ;
+    OPTIONS on $(targets) += --target=$(HOST) ;
   }
 
-  if $(target) = x86_64-w64-mingw32 {
-    OPTIONS on $(targets) += --enable-targets=x86_64-w64-mingw32,i686-w64-mingw32 ;
+  # Set the '--prefix' option for the 'configure' script.
+  if $(stage) = 2 {
+    OPTIONS on $(targets) += --prefix=\"$(PREFIX)\" ;
+  }
+  else {
+    OPTIONS on $(targets) += --prefix=\"$(CROSS_PREFIX)\" ;
   }
 
-  if $(target) != $(build) {
-    OPTIONS on $(targets) += --with-sysroot=\"$(prefix)\" ;
+  if $(stage) = 2 {
+    OPTIONS on $(targets) += --program-prefix=$(HOST)- ;
   }
 
-  STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
-  STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
-}
-actions configure-binutils
-{
-  rm -f "$(<)" || exit $?
-  [ ! -f "$(CONFIGURE)" ] && exit 1
-  ( mkdir -p "$(<:D)/build" && { cd "$(<:D)/build" && rm -rf *; } ) || exit $?
-  ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
-    || { echo "ERROR: failed to 'configure' for the Binutils build." 2>>"$(STDERR_)" 1>&2; exit 1; }
-  [ ! -f "$(<:D)/build/Makefile" ] && exit 1
-  [ -e "$(<)" ] && exit 1
-  touch "$(<)"
-}
-
-
-make binutils.make
-  : binutils.configure
-  : @make-binutils
-  ;
-explicit binutils.make ;
-
-rule make-binutils ( targets * : sources * : properties * )
-{
-  if ! $(sources[1]) {
-    errors.error "ERROR: wrong number of sources." ;
+  local multilib = [ feature.get-values <intro-multilib> : $(properties) ] ;
+  if $(multilib) = yes {
+    OPTIONS on $(targets) += --enable-targets=all ;
   }
-  if $(sources[2]) {
-    errors.error "ERROR: wrong number of sources." ;
+
+  OPTIONS on $(targets) += --with-sysroot=\"$(PREFIX)\" ;
+
+  CHECK on $(targets) = no ;
+  if $(stage) = 2 || $(HOST_RUNNABLE) = yes {
+    CHECK on $(targets) = yes ;
   }
-  CHECK on $(targets) = [ feature.get-values <intro-check> : $(properties) ] ;
-  STDOUT_ on $(targets) = [ feature.get-values <intro-stdout> : $(properties) ] ;
-  STDERR_ on $(targets) = [ feature.get-values <intro-stderr> : $(properties) ] ;
 }
 actions make-binutils
 {
   rm -f "$(<)" || exit $?
-  [ ! -f "$(>[1])" ] && exit 1
-  [ ! -f "$(>[1]:D)/build/Makefile" ] && exit 1
-  ( cd "$(<:D)/build" && make 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
-    || { echo "ERROR: failed to 'make' for the Binutils build." 2>>"$(STDERR_)" 1>&2; exit 1; }
-  if [ $(CHECK) = yes ]; then
-    ( cd "$(<:D)/build" && make check 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
-      || { echo "ERROR: failed to 'make check' for the Binutils build." 2>>"$(STDERR_)" 1>&2; exit 1; }
+  [ -x "$(CONFIGURE)" ] || exit 1
+  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
+  $(SET_RUN_VARS)
+  ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
+  if [ $? -ne 0 ]; then
+    $(UNSET_RUN_VARS)
+    echo "ERROR: failed to 'configure' for the Binutils build." 2>>"$(STDERR_)" 1>&2
+    exit 1
   fi
-  ( cd "$(<:D)/build" && make install 1>>"$(STDOUT_)" 2>>"$(STDERR_)" ) \
-    || { echo "ERROR: failed to 'make install' for the Bintuils build." 2>>"$(STDERR_)" 1>&2; exit 1; }
+  [ -f "$(<:D)/build/Makefile" ] || { $(UNSET_RUN_VARS); exit 1; }
+  ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
+  if [ $? -ne 0 ]; then
+    $(UNSET_RUN_VARS)
+    echo "ERROR: failed to 'make' for the Binutils build." 2>>"$(STDERR_)" 1>&2
+    exit 1
+  fi
+  if [ $(CHECK) = yes ]; then
+    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
+    if [ $? -ne 0 ]; then
+      $(UNSET_RUN_VARS)
+      echo "ERROR: failed to 'make check' for the Binutils build." 2>>"$(STDERR_)" 1>&2
+      exit 1
+    fi
+  fi
+  ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) install 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
+  if [ $? -ne 0 ]; then
+    $(UNSET_RUN_VARS)
+    echo "ERROR: failed to 'make install' for the Bintuils build." 2>>"$(STDERR_)" 1>&2
+    exit 1
+  fi
+  $(UNSET_RUN_VARS)
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
@@ -175,81 +200,76 @@ actions make-binutils
 
 rule install-req ( properties * )
 {
-  local result = <source>binutils.make ;
+  local result = <source>make ;
 
-  local tmp = ;
+  local tmp ;
 
-  local version = [ feature.get-values <binutils-version> : $(properties) ] ;
-  if $(version) = unspecified {
-    version = [ feature.values <binutils-version> ] ;
-    version = $(version[2]) ;
-  }
-  result = $(result)/<binutils-version>$(version) ;
-
-  local build = [ feature.get-values <intro-build> : $(properties) ] ;
-  tmp = [ SHELL "\"$(INTRO_ROOT_DIR)/binutils/config.guess\" | tr --delete '\n'" ] ;
-  if $(build) = unspecified {
-    build = $(tmp) ;
-  }
-  if $(build) != $(tmp) {
-    errors.error "ERROR: the property '<intro-build>$(build)' is not valid." ;
-  }
-  tmp = [ SHELL "\"$(INTRO_ROOT_DIR)/binutils/config.sub\" $(build) | tr --delete '\n'" ] ;
-  if $(tmp) != $(build) {
-    errors.error "ERROR: the given property '<intro-build>$(build)' is not canonical." ;
-  }
-  result = $(result)/<intro-build>$(build) ;
+  local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
 
   local host = [ feature.get-values <intro-host> : $(properties) ] ;
   if $(host) = unspecified {
-    host = $(build) ;
+    errors.error "ERROR: '<intro-host>' is not specified for the Binutils build." ;
   }
-  tmp = [ SHELL "\"$(INTRO_ROOT_DIR)/binutils/config.sub\" $(host) | tr --delete '\n'" ] ;
-  if $(tmp) != $(host) {
-    errors.error "ERROR: the property '<intro-host>$(host)' is not canonical." ;
-  }
-  result = $(result)/<intro-host>$(host) ;
-
-  local target = [ feature.get-values <intro-target> : $(properties) ] ;
-  if $(target) = unspecified {
-    target = $(host) ;
-  }
-  tmp = [ SHELL "\"$(INTRO_ROOT_DIR)/binutils/config.sub\" $(target) | tr --delete '\n'" ] ;
-  if $(tmp) != $(target) {
-    errors.error "ERROR: the property '<intro-target>$(target)' is not canonical." ;
-  }
-  result = $(result)/<intro-target>$(target) ;
-
-  if $(target) = $(host) && $(host) = $(build) {
-    errors.error "ERROR: the self-build for the local system is not necessary." ;
-  }
-
-  local abi = [ feature.get-values <intro-abi> : $(properties) ] ;
-  if $(abi) != unspecified {
-    errors.error "ERROR: the property '<intro-abi>$(abi)' is not valid for the Binutils build." ;
+  if $(host) != unspecified {
+    tmp = [ SHELL "\"$(INTRO_ROOT_DIR)/binutils/config.sub\" $(host) | tr --delete '\n'" ] ;
+    if $(tmp) != $(host) {
+      errors.error "ERROR: '<intro-host>$(host)' is not canonical for the Binutils build." ;
+    }
   }
 
   local link = [ feature.get-values <intro-link> : $(properties) ] ;
   if $(link) != unspecified {
-    errors.error "ERROR: the property '<intro-link>$(link)' is not valid for the Binutils build." ;
+    errors.error "ERROR: '<intro-link>$(link)' is not valid for the Binutils build." ;
   }
 
-  local check = [ feature.get-values <intro-check> : $(properties) ] ;
-  if $(check) = unspecified {
-    if $(host) = $(build) {
-      check = yes ;
-    }
-    else {
-      check = no ;
-    }
+  local multilib = [ feature.get-values <intro-multilib> : $(properties) ] ;
+  if $(multilib) = unspecified {
+    result = $(result)/<intro-multilib>yes ;
   }
-  result = $(result)/<intro-check>$(check) ;
+
+  local binutils-version = [ feature.get-values <binutils-version> : $(properties) ] ;
+  if $(binutils-version) = unspecified {
+    binutils-version = [ feature.values <binutils-version> ] ;
+    result = $(result)/<binutils-version>$(binutils-version[2]) ;
+  }
+  binutils-version = [ feature.get-values <binutils-version-hidden> : $(properties) ] ;
+  if $(binutils-version) != unspecified {
+    errors.error "ERROR: '<binutils-version-hidden>$(binutils-version)' is not valid for the Binutils build." ;
+  }
+
+  local gmp-version = [ feature.get-values <gmp-version> : $(properties) ] ;
+  if $(gmp-version) != unspecified {
+    errors.error "ERROR: '<gmp-version>$(gmp-version)' is not valid for the Binutils build." ;
+  }
+  # `<gmp-version-hidden>'
+
+  local mpfr-version = [ feature.get-values <mpfr-version> : $(properties) ] ;
+  if $(mpfr-version) != unspecified {
+    errors.error "ERROR: '<mpfr-version>$(mpfr-version)' is not valid for the Binutils build." ;
+  }
+  # `<mpfr-version-hidden>'
+
+  local mpc-version = [ feature.get-values <mpc-version> : $(properties) ] ;
+  if $(mpc-version) != unspecified {
+    errors.error "ERROR: '<mpc-version>$(mpc-version)' is not valid for the Binutils build." ;
+  }
+  # `<mpc-version-hidden>'
+
+  local gcc-version = [ feature.get-values <gcc-version> : $(properties) ] ;
+  if $(stage) = 2 && $(gcc-version) != unspecified {
+    errors.error "ERROR: '<gcc-version>$(gcc-version)' is not valid for the Binutils stage 2 build." ;
+  }
+  if $(stage) = 3 && $(gcc-version) = unspecified {
+    errors.error "ERROR: '<gcc-version>' is not specified for the Binutils stage 3 build." ;
+  }
+
+  local gcc-default = [ feature.get-values <gcc-default> : $(properties) ] ;
+  if $(gcc-default) != unspecified {
+    errors.error "ERROR: '<gcc-default>$(gcc-default)' is not valid for the Binutils build." ;
+  }
 
   return $(result) ;
 }
 
-alias install
-  : # 'binutils.test' is added by the indirect conditional requirements.
-  : <conditional>@install-req
-  ;
+alias install : : <conditional>@install-req ;
 explicit install ;
