@@ -66,7 +66,7 @@ for local argv in [ modules.peek : ARGV ] {
 
 
 {
-  local build = [ SHELL "\"$(INTRO_ROOT_DIR)/gcc/config.guess\" | tr --delete '\n'" ] ;
+  local build = [ SHELL "\"$(INTRO_ROOT_DIR)/stage1/gcc/config.guess\" | tr --delete '\n'" ] ;
   if $(host) = $(build) {
     errors.error "ERROR: '--host' option is the same as the build system triplet '$(build)'." ;
   }
@@ -88,51 +88,6 @@ for local argv in [ modules.peek : ARGV ] {
   }
   else {
     path-constant CROSS_PREFIX : "$(prefix)/cross-fake" ; # Fake value.
-  }
-
-  local set-run-vars ;
-  local unset-run-vars ;
-  if ! $(host) {
-    # Do nothing.
-  }
-  else if ! $(cross-prefix) {
-    if [ regex.match "(-w64-mingw32)$" : $(build) : 1 ] {
-      if $(HOST_RUNNABLE) = yes {
-        set-run-vars = "OLD_PATH=$PATH; \"$(PREFIX)/$(HOST)/bin\":$PATH; export PATH" ;
-        unset-run-vars = "PATH=$OLD_PATH; export PATH" ;
-      }
-    }
-    else {
-      if $(HOST_RUNNABLE) = yes {
-        set-run-vars = "OLD_LD_LIBRARY_PATH=$LD_LIBRARY_PATH; LD_LIBRARY_PATH=\"$(PREFIX)/$(HOST)/lib\":$LD_LIBRARY_PATH; export LD_LIBRARY_PATH" ;
-        unset-run-vars = "LD_LIBRARY_PATH=$OLD_LD_LIBRARY_PATH; export LD_LIBRARY_PATH" ;
-      }
-    }
-  }
-  else {
-    if [ regex.match "(-w64-mingw32)$" : $(build) : 1 ] {
-      if $(HOST_RUNNABLE) = yes {
-        set-run-vars = "OLD_PATH=$PATH; PATH=\"$(PREFIX)/$(HOST)/bin\":\"$(CROSS_PREFIX)/bin\":$PATH; export $PATH" ;
-      }
-      else {
-        set-run-vars = "OLD_PATH=$PATH; PATH=\"$(PREFIX)/$(HOST)/bin\":$PATH; export $PATH" ;
-      }
-      unset-run-vars = "PATH=$OLD_PATH; export PATH" ;
-    }
-    else {
-      if ( $(HOST_RUNNABLE) = yes ) {
-        set-run-vars = "OLD_PATH=$PATH; OLD_LD_LIBRARY_PATH=$LD_LIBRARY_PATH; PATH=\"$(PREFIX)/$(HOST)/bin\":$PATH; LD_LIBRARY_PATH=\"$(CROSS_PREFIX)/lib\":$LD_LIBRARY_PATH; export PATH; export LD_LIBRARY_PATH" ;
-        unset-run-vars = "PATH=$OLD_PATH; LD_LIBRARY_PATH=$OLD_LD_LIBRARY_PATH; export PATH; export LD_LIBRARY_PATH" ;
-      }
-      else {
-        set-run-vars = "OLD_PATH=$PATH; PATH=\"$(PREFIX)/$(HOST)/bin\":$PATH; export PATH" ;
-        unset-run-vars = "PATH=$OLD_PATH; export PATH" ;
-      }
-    }
-  }
-  if $(set-run-vars) {
-    constant SET_RUN_VARS : $(set-run-vars) ;
-    constant UNSET_RUN_VARS : $(unset-run-vars) ;
   }
 
   if ! $(host) {
@@ -158,10 +113,10 @@ for local argv in [ modules.peek : ARGV ] {
 project intro : build-dir bin ;
 
 
-feature intro-stage : unspecified 1 2 3 : propagated ;
+feature intro-stage : 1 2 3 : propagated incidental ;
 
 feature intro-host : unspecified x86_64-w64-mingw32 i686-w64-mingw32 : propagated ;
-for local i in [ path.glob $(INTRO_ROOT_DIR) : */config.guess ]
+for local i in [ path.glob $(INTRO_ROOT_DIR) : stage1/*/config.guess ]
 {
   local t = [ SHELL "\"$(i)\" | tr --delete '\n'" ] ;
   if ! $(t) in [ feature.values <intro-host> ] {
@@ -254,51 +209,50 @@ feature gcc-default : unspecified no yes : propagated incidental ;
 
 
 
+local binutils-version-default = [ feature.values <binutils-version> ] ;
+binutils-version-default = $(binutils-version-default[2]) ;
+local gmp-version-default = [ feature.values <gmp-version> ] ;
+gmp-version-default = $(gmp-version-default[2]) ;
+local mpfr-version-default = [ feature.values <mpfr-version> ] ;
+mpfr-version-default = $(mpfr-version-default[2]) ;
+local mpc-version-default = [ feature.values <mpc-version> ] ;
+mpc-version-default = $(mpc-version-default[2]) ;
+
 if ! $(host) {
-  alias install-binutils : binutils//install/<intro-stage>1 ;
-  explicit install-binutils ;
-
-  alias install-gmp : gmp//install/<intro-stage>1 ;
-  explicit install-gmp ;
-
-  alias install-mpfr : mpfr//install/<intro-stage>1 ;
-  explicit install-mpfr ;
-
-  alias install-mpc : mpc//install/<intro-stage>1 ;
-  explicit install-mpc ;
-
-  alias install-gcc : gcc//install/<intro-stage>1 ;
+  alias install-gcc
+    : stage1/gcc//install/<intro-stage>1
+    :
+    : <intro-multilib>yes
+      <gmp-version>$(gmp-version-default)
+      <mpfr-version>$(mpfr-version-default)
+      <mpc-version>$(mpc-version-default)
+      <gcc-default>no
+    ;
   explicit install-gcc ;
 }
 else if ! $(cross-prefix) {
-  alias install-binutils : binutils//install/<intro-stage>2/<intro-host>$(host) ;
-  explicit install-binutils ;
-
-  alias install-gmp : gmp//install/<intro-stage>2/<intro-host>$(host) ;
-  explicit install-gmp ;
-
-  alias install-mpfr : mpfr//install/<intro-stage>2/<intro-host>$(host) ;
-  explicit install-mpfr ;
-
-  alias install-mpc : mpc//install/<intro-stage>2/<intro-host>$(host) ;
-  explicit install-mpc ;
-
-  alias install-gcc : gcc//install/<intro-stage>2/<intro-host>$(host) ;
+  alias install-gcc
+    : stage2/gcc//install/<intro-stage>2/<intro-host>$(host)
+    :
+    : <intro-multilib>yes
+      <binutils-version>$(binutils-version-default)
+      <gmp-version>$(gmp-version-default)
+      <mpfr-version>$(mpfr-version-default)
+      <mpc-version>$(mpc-version-default)
+      <gcc-default>yes
+    ;
   explicit install-gcc ;
 }
 else {
-  alias install-binutils : binutils//install/<intro-stage>3/<intro-host>$(host) ;
-  explicit install-binutils ;
-
-  alias install-gmp : gmp//install/<intro-stage>3/<intro-host>$(host) ;
-  explicit install-gmp ;
-
-  alias install-mpfr : mpfr//install/<intro-stage>3/<intro-host>$(host) ;
-  explicit install-mpfr ;
-
-  alias install-mpc : mpc//install/<intro-stage>3/<intro-host>$(host) ;
-  explicit install-mpc ;
-
-  alias install-gcc : gcc//install/<intro-stage>3/<intro-host>$(host) ;
+  alias install-gcc
+    : stage3/gcc//install/<intro-stage>3/<intro-host>$(host)
+    :
+    : <intro-multilib>yes
+      <binutils-version>$(binutils-version-default)
+      <gmp-version>$(gmp-version-default)
+      <mpfr-version>$(mpfr-version-default)
+      <mpc-version>$(mpc-version-default)
+      <gcc-default>yes
+    ;
   explicit install-gcc ;
 }

@@ -12,12 +12,16 @@ rule binutils-dep-req ( properties * )
 {
   local result ;
   local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
-  if $(stage) = 2 || $(stage) = 3 {
-    result = <source>../binutils//install ;
-    # `<intro-stage>' is automatically propagated.
+  if $(stage) = 1 {
+    # Do nothing.
+  }
+  else if $(stage) = 2 {
+    result = <source>../../stage2/binutils//install ;
+    # `<intro-stage>2' is automatically propagated.
     # `<intro-host>' is automatically propagated.
     # `<intro-link>unspecified' is automatically propagated.
     # `<intro-multilib>' is automatically propagated.
+    # `<intro-multilib-hidden>unspecified' is automatically propagated.
     # `<binutils-version>' is automatically propagated.
     # `<binutils-version-hidden>unspecified' is automatically propagated.
     result = $(result)/<gmp-version>unspecified ;
@@ -25,13 +29,29 @@ rule binutils-dep-req ( properties * )
     result = $(result)/<mpfr-version>unspecified ;
     # `<mpfr-version-hidden>unspecified' is automatically propagated.
     result = $(result)/<mpc-version>unspecified ;
-    # `<mpc-version-hidden>' is automatically propagated.
-    if $(stage) = 2 {
-      result = $(result)/<gcc-version>unspecified ;
-    }
-    else {
-      # `<gcc-version>' is automatically propagated.
-    }
+    # `<mpc-version-hidden>unspecified' is automatically propagated.
+    result = $(result)/<gcc-version>unspecified ;
+    result = $(result)/<gcc-default>unspecified ;
+  }
+  else {
+    result = <source>../../stage3/binutils//install ;
+    # `<intro-stage>3' is automatically propagated.
+    # `<intro-host>' is automatically propagated.
+    # `<intro-link>unspecified' is automatically propagated.
+    # `<intro-multilib>' is automatically propagated.
+    # `<intro-multilib-hidden>unspecified' is automatically propagated.
+    # `<binutils-version>' is automatically propagated.
+    # `<binutils-version-hidden>unspecified' is automatically propagated.
+    local gmp-version = [ feature.get-values <gmp-version> : $(properties) ] ;
+    result = $(result)/<gmp-version>unspecified ;
+    result = $(result)/<gmp-version-hidden>$(gmp-version) ;
+    local mpfr-version = [ feature.get-values <mpfr-version> : $(properties) ] ;
+    result = $(result)/<mpfr-version>unspecified ;
+    result = $(result)/<mpfr-version-hidden>$(mpfr-version) ;
+    local mpc-version = [ feature.get-values <mpc-version> : $(properties) ] ;
+    result = $(result)/<mpc-version>unspecified ;
+    result = $(result)/<mpc-version-hidden>$(mpc-version) ;
+    # `<gcc-version>' is automatically propagated.
     result = $(result)/<gcc-default>unspecified ;
   }
   return $(result) ;
@@ -43,38 +63,45 @@ explicit binutils-dep ;
 
 rule mpc-dep-req ( properties * )
 {
-  local result = <source>../mpc//install ;
+  local result ;
   local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
   if $(stage) = 1 || $(stage) = 2 {
+    result = <source>../../stage1/mpc//install ;
     result = $(result)/<intro-stage>1 ;
     result = $(result)/<intro-host>unspecified ;
-    local build = [ SHELL "\"$(INTRO_ROOT_DIR)/gcc/config.guess\" | tr --delete '\n'" ] ;
+    local build = [ SHELL "\"$(INTRO_ROOT_DIR)/stage1/gcc/config.guess\" | tr --delete '\n'" ] ;
     if [ regex.match "(-w64-mingw32)$" : $(build) : 1 ] {
-      result = $(result)/<intro-link>shared ;
+      result = $(result)/<intro-link>static ;
     }
     else {
       result = $(result)/<intro-link>both ;
     }
+    result = $(result)/<intro-multilib>unspecified ;
+    # `<intro-multilib-hidden>unspecified' is automatically propagated.
+    result = $(result)/<binutils-version>unspecified ;
+    # `<binutils-version-hidden>unspecified' is automatically propagated.
   }
   else {
-    result = $(result)/<intro-stage>3 ;
+    result = <source>../../stage2/mpc//install/<intro-stage>2 <source>../../stage3/mpc//install/<intro-stage>3 ;
     # `<intro-host>' is automatically propagated.
     if [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
-      result = $(result)/<intro-link>shared ;
+      result = $(result)/<intro-link>static ;
     }
     else {
       result = $(result)/<intro-link>both ;
     }
+    local multilib = [ feature.get-values <intro-multilib> : $(properties) ] ;
+    result = $(result)/<intro-multilib>unspecified ;
+    result = $(result)/<intro-multilib-hidden>$(multilib) ;
+    # `<binutils-version>' is automatically propagated.
+    # `<binutils-version-hidden>unspecified' is automatically propagated.
   }
-  result = $(result)/<intro-multilib>unspecified ;
-  result = $(result)/<binutils-version>unspecified ;
-  # `<binutils-version-hidden>unspecified' is automatically propagated.
   # `<gmp-version>' is automatically propagated.
   # `<gmp-version-hidden>unspecified' is automatically propagated.
   # `<mpfr-version>' is automatically propagated.
   # `<mpfr-version-hidden>unspecified' is automatically propagated.
   # `<mpc-version>' is automatically propagated.
-  # `<mpc-version-hidden>' is automatically propagated.
+  # `<mpc-version-hidden>unspecified' is automatically propagated.
   if $(stage) = 1 || $(stage) = 2 {
     result = $(result)/<gcc-version>unspecified ;
   }
@@ -95,11 +122,12 @@ rule mingw-w64-headers-dep-req ( properties * )
   local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
   if $(stage) = 2 {
     if [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
-      result = <source>../mingw-w64-headers//install ;
+      result = <source>../../mingw-w64-headers//install ;
       # `<intro-stage>2' is automatically propagated.
       # `<intro-host>' is automatically propagated.
       # `<intro-link>unspecified' is automatically propagated.
       result = $(result)/<intro-multilib>unspecified ;
+      # `<intro-multilib-hidden>unspecified' is automatically propagated.
       result = $(result)/<binutils-version>unspecified ;
       # `<binutils-version-hidden>unspecified' is automatically propagated.
       result = $(result)/<gmp-version>unspecified ;
@@ -107,7 +135,7 @@ rule mingw-w64-headers-dep-req ( properties * )
       result = $(result)/<mpfr-version>unspecified ;
       # `<mpfr-version-hidden>unspecified' is automatically propagated.
       result = $(result)/<mpc-version>unspecified ;
-      # `<mpc-version-hidden>' is automatically propagated.
+      # `<mpc-version-hidden>unspecified' is automatically propagated.
       result = $(result)/<gcc-version>unspecified ;
       result = $(result)/<gcc-default>unspecified ;
     }
@@ -187,7 +215,7 @@ make configure
   : binutils-dep
     mpc-dep
     mingw-w64-headers-dep
-    expand/<intro-stage>unspecified/<intro-host>unspecified/<intro-multilib>unspecified/<binutils-version>unspecified/<gmp-version>unspecified/<mpfr-version>unspecified/<mpc-version>unspecified
+    ../../stage1/gcc//expand/<intro-host>unspecified/<intro-multilib>unspecified/<binutils-version>unspecified/<gmp-version>unspecified/<mpfr-version>unspecified/<mpc-version>unspecified
   : @configure-gcc
   ;
 explicit configure ;
@@ -204,7 +232,7 @@ rule configure-gcc ( targets * : sources * : properties * )
 
   # Set the '--build', '--host' and '--target' options for the 'configure' script.
   local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
-  local build = [ SHELL "\"$(INTRO_ROOT_DIR)/gcc/config.guess\" | tr --delete '\n'" ] ;
+  local build = [ SHELL "\"$(INTRO_ROOT_DIR)/stage1/gcc/config.guess\" | tr --delete '\n'" ] ;
   if $(stage) = 1 {
     OPTIONS on $(targets) += --build=$(build) ;
     OPTIONS on $(targets) += --host=$(build) ;
@@ -218,7 +246,7 @@ rule configure-gcc ( targets * : sources * : properties * )
   else {
     OPTIONS on $(targets) += --build=$(build) ;
     OPTIONS on $(targets) += --host=$(HOST) ;
-    OPTIONS on $(targets) += --build=$(HOST) ;
+    OPTIONS on $(targets) += --target=$(HOST) ;
   }
 
   # Set the '--prefix' option for the 'configure' script.
@@ -333,15 +361,60 @@ rule configure-gcc ( targets * : sources * : properties * )
     UNSET_MINGW_SYMLINK on $(targets) = "rm \"$(PREFIX)/mingw\"" ;
   }
   else if $(stage) = 3 && [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
-    SET_MINGW_SYMLINK on $(targets) = "ln -sf \"$(CROSS_PREFIX)/$(HOST)\" \"$(CROSS_PREFIX)/mingw\" || exit $?" ;
+    SET_MINGW_SYMLINK on $(targets) = "{ mkdir -p \"$(CROSS_PREFIX)/$(HOST)\" && ln -sf \"$(CROSS_PREFIX)/$(HOST)\" \"$(CROSS_PREFIX)/mingw\"; } || exit $?" ;
     UNSET_MINGW_SYMLINK on $(targets) = "rm \"$(CROSS_PREFIX)/mingw\"" ;
   }
 
   SET_MINGW_WINSUP_SYMLINK on $(targets) = ;
   UNSET_MINGW_WINSUP_SYMLINK on $(targets) = ;
   if $(stage) = 3 && [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
-    SET_MINGW_WINSUP_SYMLINK on $(targets) = "{ mkdir -p \"$(INTRO_ROOT_DIR)/gcc-$(version)/winsup/mingw\" && ( cd \"$(INTRO_ROOT_DIR)/gcc-$(version)/winsup/mingw\" && ln -sf \"$(CROSS_PREFIX)/$(HOST)/include\" include ); } || exit $?" ;
+    SET_MINGW_WINSUP_SYMLINK on $(targets) = "{ mkdir -p \"$(INTRO_ROOT_DIR)/gcc-$(version)/winsup/mingw\" && ( cd \"$(INTRO_ROOT_DIR)/gcc-$(version)/winsup/mingw\" && mkdir -p \"$(CROSS_PREFIX)/$(HOST)/include\" && ln -sf \"$(CROSS_PREFIX)/$(HOST)/include\" include ); } || exit $?" ;
     UNSET_MINGW_WINSUP_SYMLINK on $(targets) = "rm \"$(INTRO_ROOT_DIR)/gcc-$(version)/winsup/mingw/include\"" ;
+  }
+
+  SET_RUN_VARS on $(targets) = ;
+  UNSET_RUN_VARS on $(targets) = ;
+  if $(stage) = 1 {
+    if [ regex.match "(-w64-mingw32)$" : $(build) : 1 ] {
+      SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; PATH=\"$(PREFIX)/bin\":$PATH; export PATH" ;
+      UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; export PATH" ;
+    }
+    else {
+      SET_RUN_VARS on $(targets) = "OLD_LD_LIBRARY_PATH=$LD_LIBRARY_PATH; LD_LIBRARY_PATH=\"$(PREFIX)/lib\":$LD_LIBRARY_PATH; export LD_LIBRARY_PATH" ;
+      UNSET_RUN_VARS on $(targets) = "LD_LIBRARY_PATH=$OLD_LD_LIBRARY_PATH; export LD_LIBRARY_PATH" ;
+    }
+  }
+  else if $(stage) = 2 {
+    if [ regex.match "(-w64-mingw32)$" : $(build) : 1 ] {
+      SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; PATH=\"$(PREFIX)/bin\":$PATH; export PATH" ;
+      UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; export PATH" ;
+    }
+    else {
+      SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; OLD_LD_LIBRARY_PATH=$LD_LIBRARY_PATH; PATH=\"$(PREFIX)/bin\":$PATH; LD_LIBRARY_PATH=\"$(PREFIX)/lib\":$LD_LIBRARY_PATH; export PATH; export LD_LIBRARY_PATH" ;
+      UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; LD_LIBRARY_PATH=$OLD_LD_LIBRARY_PATH; export PATH; export LD_LIBRARY_PATH" ;
+    }
+  }
+  else {
+    if [ regex.match "(-w64-mingw32)$" : $(build) : 1 ] {
+      if $(HOST_RUNNABLE) = yes {
+        SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; PATH=\"$(PREFIX)/bin\":\"$(CROSS_PREFIX)/bin\":$PATH; export PATH" ;
+        UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; export PATH" ;
+      }
+      else {
+        SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; PATH=\"$(PREFIX)/bin\":$PATH; export PATH" ;
+        UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; export PATH" ;
+      }
+    }
+    else {
+      if $(HOST_RUNNABLE) = yes {
+        SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; OLD_LD_LIBRARY_PATH=$LD_LIBRARY_PATH; PATH=\"$(PREFIX)/bin\":$PATH; LD_LIBRARY_PATH=\"$(PREFIX)/lib\":\"$(CROSS_PREFIX)/lib\":$LD_LIBRARY_PATH; export PATH; export LD_LIBRARY_PATH" ;
+        UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; LD_LIBRARY_PATH=$OLD_LD_LIBRARY_PATH; export PATH; export LD_LIBRARY_PATH" ;
+      }
+      else {
+        SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; OLD_LD_LIBRARY_PATH=$LD_LIBRARY_PATH; PATH=\"$(PREFIX)/bin\":$PATH; LD_LIBRARY_PATH=\"$(PREFIX)/lib\":$LD_LIBRARY_PATH; export PATH; export LD_LIBRARY_PATH" ;
+        UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; LD_LIBRARY_PATH=$OLD_LD_LIBRARY_PATH; export PATH; export LD_LIBRARY_PATH" ;
+      }
+    }
   }
 }
 actions configure-gcc
@@ -380,9 +453,57 @@ rule make-mingw32-stage1 ( targets * : sources * : properties * )
   if $(sources[2]) {
     errors.error "ERROR: wrong number of sources." ;
   }
+
   local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
   if $(stage) != 2 {
     errors.error "ERROR: internal error." ;
+  }
+
+  local build = [ SHELL "\"$(INTRO_ROOT_DIR)/stage1/gcc/config.guess\" | tr --delete '\n'" ] ;
+
+  SET_RUN_VARS on $(targets) = ;
+  UNSET_RUN_VARS on $(targets) = ;
+  if $(stage) = 1 {
+    if [ regex.match "(-w64-mingw32)$" : $(build) : 1 ] {
+      SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; PATH=\"$(PREFIX)/bin\":$PATH; export PATH" ;
+      UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; export PATH" ;
+    }
+    else {
+      SET_RUN_VARS on $(targets) = "OLD_LD_LIBRARY_PATH=$LD_LIBRARY_PATH; LD_LIBRARY_PATH=\"$(PREFIX)/lib\":$LD_LIBRARY_PATH; export LD_LIBRARY_PATH" ;
+      UNSET_RUN_VARS on $(targets) = "LD_LIBRARY_PATH=$OLD_LD_LIBRARY_PATH; export LD_LIBRARY_PATH" ;
+    }
+  }
+  else if $(stage) = 2 {
+    if [ regex.match "(-w64-mingw32)$" : $(build) : 1 ] {
+      SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; PATH=\"$(PREFIX)/bin\":$PATH; export PATH" ;
+      UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; export PATH" ;
+    }
+    else {
+      SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; OLD_LD_LIBRARY_PATH=$LD_LIBRARY_PATH; PATH=\"$(PREFIX)/bin\":$PATH; LD_LIBRARY_PATH=\"$(PREFIX)/lib\":$LD_LIBRARY_PATH; export PATH; export LD_LIBRARY_PATH" ;
+      UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; LD_LIBRARY_PATH=$OLD_LD_LIBRARY_PATH; export PATH; export LD_LIBRARY_PATH" ;
+    }
+  }
+  else {
+    if [ regex.match "(-w64-mingw32)$" : $(build) : 1 ] {
+      if $(HOST_RUNNABLE) = yes {
+        SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; PATH=\"$(PREFIX)/bin\":\"$(CROSS_PREFIX)/bin\":$PATH; export PATH" ;
+        UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; export PATH" ;
+      }
+      else {
+        SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; PATH=\"$(PREFIX)/bin\":$PATH; export PATH" ;
+        UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; export PATH" ;
+      }
+    }
+    else {
+      if $(HOST_RUNNABLE) = yes {
+        SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; OLD_LD_LIBRARY_PATH=$LD_LIBRARY_PATH; PATH=\"$(PREFIX)/bin\":$PATH; LD_LIBRARY_PATH=\"$(PREFIX)/lib\":\"$(CROSS_PREFIX)/lib\":$LD_LIBRARY_PATH; export PATH; export LD_LIBRARY_PATH" ;
+        UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; LD_LIBRARY_PATH=$OLD_LD_LIBRARY_PATH; export PATH; export LD_LIBRARY_PATH" ;
+      }
+      else {
+        SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; OLD_LD_LIBRARY_PATH=$LD_LIBRARY_PATH; PATH=\"$(PREFIX)/bin\":$PATH; LD_LIBRARY_PATH=\"$(PREFIX)/lib\":$LD_LIBRARY_PATH; export PATH; export LD_LIBRARY_PATH" ;
+        UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; LD_LIBRARY_PATH=$OLD_LD_LIBRARY_PATH; export PATH; export LD_LIBRARY_PATH" ;
+      }
+    }
   }
 }
 actions make-mingw32-stage1
@@ -415,17 +536,17 @@ actions make-mingw32-stage1
 
 rule make-req ( properties * )
 {
-  local result = ;
+  local result ;
   local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
   if $(stage) = 2 && [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
-    result = <source>../mingw-w64-crt//install ;
+    result = <source>../../stage2/mingw-w64-crt//install ;
     # `<intro-stage>2' is automatically propagated.
     # `<intro-host>' is automatically propagated.
     # `<intro-link>unspecified' is automatically propagated.
     # `<intro-multilib>' is automatically propagated.
-    local binutils-version = [ feature.get-values <binutils-version> : $(properties) ] ;
-    result = $(result)/<binutils-version>unspecified ;
-    result = $(result)/<binutils-version-hidden>$(binutils-version) ;
+    # `<intro-multilib-hidden>unspecified' is automatically propagated.
+    # `<binutils-version>' is automatically propagated.
+    # `<binutils-version-hidden>unspecified' is automatically propagated.
     local gmp-version = [ feature.get-values <gmp-version> : $(properties) ] ;
     result = $(result)/<gmp-version>unspecified ;
     result = $(result)/<gmp-version-hidden>$(gmp-version) ;
@@ -450,6 +571,7 @@ explicit make ;
 rule make-gcc ( targets * : sources * : properties * )
 {
   local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
+  local build = [ SHELL "\"$(INTRO_ROOT_DIR)/stage1/gcc/config.guess\" | tr --delete '\n'" ] ;
   local version = [ feature.get-values <gcc-version> : $(properties) ] ;
 
   SET_MINGW_SYMLINK on $(targets) = ;
@@ -459,15 +581,60 @@ rule make-gcc ( targets * : sources * : properties * )
     UNSET_MINGW_SYMLINK on $(targets) = "rm \"$(PREFIX)/mingw\"" ;
   }
   else if $(stage) = 3 && [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
-    SET_MINGW_SYMLINK on $(targets) = "ln -sf \"$(CROSS_PREFIX)/$(HOST)\" \"$(CROSS_PREFIX)/mingw\" || exit $?" ;
+    SET_MINGW_SYMLINK on $(targets) = "{ mkdir -p \"$(CROSS_PREFIX)/$(HOST)\" && ln -sf \"$(CROSS_PREFIX)/$(HOST)\" \"$(CROSS_PREFIX)/mingw\"; } || exit $?" ;
     UNSET_MINGW_SYMLINK on $(targets) = "rm \"$(CROSS_PREFIX)/mingw\"" ;
   }
 
   SET_MINGW_WINSUP_SYMLINK on $(targets) = ;
   UNSET_MINGW_WINSUP_SYMLINK on $(targets) = ;
   if $(stage) = 3 && [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
-    SET_MINGW_WINSUP_SYMLINK on $(targets) = "{ mkdir -p \"$(INTRO_ROOT_DIR)/gcc-$(version)/winsup/mingw\" && ( cd \"$(INTRO_ROOT_DIR)/gcc-$(version)/winsup/mingw\" && ln -sf \"$(CROSS_PREFIX)/$(HOST)/include\" include ); } || exit $?" ;
+    SET_MINGW_WINSUP_SYMLINK on $(targets) = "{ mkdir -p \"$(INTRO_ROOT_DIR)/gcc-$(version)/winsup/mingw\" && ( cd \"$(INTRO_ROOT_DIR)/gcc-$(version)/winsup/mingw\" && mkdir -p \"$(CROSS_PREFIX)/$(HOST)/include\" && ln -sf \"$(CROSS_PREFIX)/$(HOST)/include\" include ); } || exit $?" ;
     UNSET_MINGW_WINSUP_SYMLINK on $(targets) = "rm \"$(INTRO_ROOT_DIR)/gcc-$(version)/winsup/mingw/include\"" ;
+  }
+
+  SET_RUN_VARS on $(targets) = ;
+  UNSET_RUN_VARS on $(targets) = ;
+  if $(stage) = 1 {
+    if [ regex.match "(-w64-mingw32)$" : $(build) : 1 ] {
+      SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; PATH=\"$(PREFIX)/bin\":$PATH; export PATH" ;
+      UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; export PATH" ;
+    }
+    else {
+      SET_RUN_VARS on $(targets) = "OLD_LD_LIBRARY_PATH=$LD_LIBRARY_PATH; LD_LIBRARY_PATH=\"$(PREFIX)/lib\":$LD_LIBRARY_PATH; export LD_LIBRARY_PATH" ;
+      UNSET_RUN_VARS on $(targets) = "LD_LIBRARY_PATH=$OLD_LD_LIBRARY_PATH; export LD_LIBRARY_PATH" ;
+    }
+  }
+  else if $(stage) = 2 {
+    if [ regex.match "(-w64-mingw32)$" : $(build) : 1 ] {
+      SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; PATH=\"$(PREFIX)/bin\":$PATH; export PATH" ;
+      UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; export PATH" ;
+    }
+    else {
+      SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; OLD_LD_LIBRARY_PATH=$LD_LIBRARY_PATH; PATH=\"$(PREFIX)/bin\":$PATH; LD_LIBRARY_PATH=\"$(PREFIX)/lib\":$LD_LIBRARY_PATH; export PATH; export LD_LIBRARY_PATH" ;
+      UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; LD_LIBRARY_PATH=$OLD_LD_LIBRARY_PATH; export PATH; export LD_LIBRARY_PATH" ;
+    }
+  }
+  else {
+    if [ regex.match "(-w64-mingw32)$" : $(build) : 1 ] {
+      if $(HOST_RUNNABLE) = yes {
+        SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; PATH=\"$(PREFIX)/bin\":\"$(CROSS_PREFIX)/bin\":$PATH; export PATH" ;
+        UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; export PATH" ;
+      }
+      else {
+        SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; PATH=\"$(PREFIX)/bin\":$PATH; export PATH" ;
+        UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; export PATH" ;
+      }
+    }
+    else {
+      if $(HOST_RUNNABLE) = yes {
+        SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; OLD_LD_LIBRARY_PATH=$LD_LIBRARY_PATH; PATH=\"$(PREFIX)/bin\":$PATH; LD_LIBRARY_PATH=\"$(PREFIX)/lib\":\"$(CROSS_PREFIX)/lib\":$LD_LIBRARY_PATH; export PATH; export LD_LIBRARY_PATH" ;
+        UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; LD_LIBRARY_PATH=$OLD_LD_LIBRARY_PATH; export PATH; export LD_LIBRARY_PATH" ;
+      }
+      else {
+        SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; OLD_LD_LIBRARY_PATH=$LD_LIBRARY_PATH; PATH=\"$(PREFIX)/bin\":$PATH; LD_LIBRARY_PATH=\"$(PREFIX)/lib\":$LD_LIBRARY_PATH; export PATH; export LD_LIBRARY_PATH" ;
+        UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; LD_LIBRARY_PATH=$OLD_LD_LIBRARY_PATH; export PATH; export LD_LIBRARY_PATH" ;
+      }
+    }
   }
 }
 actions make-gcc
@@ -517,7 +684,7 @@ rule install-req ( properties * )
     errors.error "ERROR: '<intro-host>' is not specified for the GCC stage 2 or 3 build." ;
   }
   if $(host) != unspecified {
-    tmp = [ SHELL "\"$(INTRO_ROOT_DIR)/gcc/config.sub\" $(host) | tr --delete '\n'" ] ;
+    tmp = [ SHELL "\"$(INTRO_ROOT_DIR)/stage1/gcc/config.sub\" $(host) | tr --delete '\n'" ] ;
     if $(tmp) != $(host) {
       errors.error "ERROR: '<intro-host>$(host)' is not canonical for the GCC build." ;
     }
@@ -530,13 +697,19 @@ rule install-req ( properties * )
 
   local multilib = [ feature.get-values <intro-multilib> : $(properties) ] ;
   if $(multilib) = unspecified {
-    result = $(result)/<intro-multilib>yes ;
+    errors.error "ERROR: '<intro-multilib>' is not specified for the GCC build." ;
+  }
+  multilib = [ feature.get-values <intro-multilib-hidden> : $(properties) ] ;
+  if $(multilib) != unspecified {
+    errors.error "ERROR: '<intro-multilib-hidden>$(multilib)' is not valid for the GCC build." ;
   }
 
   local binutils-version = [ feature.get-values <binutils-version> : $(properties) ] ;
-  if $(binutils-version) = unspecified {
-    binutils-version = [ feature.values <binutils-version> ] ;
-    result = $(result)/<binutils-version>$(binutils-version[2]) ;
+  if $(stage) = 1 && $(binutils-version) != unspecified {
+    errors.error "ERROR: '<binutils-version>$(binutils-version)' is not valid for the GCC stage 1 build." ;
+  }
+  if ( $(stage) = 2 || $(stage) = 3 ) && $(binutils-version) = unspecified {
+    errors.error "ERROR: '<binutils-version>' is not specified for the GCC stage 2 or 3 build." ;
   }
   binutils-version = [ feature.get-values <binutils-version-hidden> : $(properties) ] ;
   if $(binutils-version) != unspecified {
@@ -545,8 +718,7 @@ rule install-req ( properties * )
 
   local gmp-version = [ feature.get-values <gmp-version> : $(properties) ] ;
   if $(gmp-version) = unspecified {
-    gmp-version = [ feature.values <gmp-version> ] ;
-    result = $(result)/<gmp-version>$(gmp-version[2]) ;
+    errors.error "ERROR: '<gcc-version>' is not specified for the GCC build." ;
   }
   gmp-version = [ feature.get-values <gmp-version-hidden> : $(properties) ] ;
   if $(gmp-version) != unspecified {
@@ -555,8 +727,7 @@ rule install-req ( properties * )
 
   local mpfr-version = [ feature.get-values <mpfr-version> : $(properties) ] ;
   if $(mpfr-version) = unspecified {
-    mpfr-version = [ feature.values <mpfr-version> ] ;
-    result = $(result)/<mpfr-version>$(mpfr-version[2]) ;
+    errors.error "ERROR: '<mpfr-version>' is not specified for the GCC build." ;
   }
   mpfr-version = [ feature.get-values <mpfr-version-hidden> : $(properties) ] ;
   if $(mpfr-version) != unspecified {
@@ -565,8 +736,7 @@ rule install-req ( properties * )
 
   local mpc-version = [ feature.get-values <mpc-version> : $(properties) ] ;
   if $(mpc-version) = unspecified {
-    mpc-version = [ feature.values <mpc-version> ] ;
-    result = $(result)/<mpc-version>$(mpc-version[2]) ;
+    errors.error "ERROR: '<mpc-version>' is not specified for the GCC build." ;
   }
   mpc-version = [ feature.get-values <mpc-version-hidden> : $(properties) ] ;
   if $(mpc-version) != unspecified {
