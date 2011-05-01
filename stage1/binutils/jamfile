@@ -10,7 +10,6 @@ import regex ;
 rule gcc-dep-req ( properties * )
 {
   local result ;
-
   local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
   if $(stage) = 3 {
     result = <source>../../stage2/gcc//install ;
@@ -31,11 +30,10 @@ rule gcc-dep-req ( properties * )
     result = $(result)/<mpc-version>$(mpc-version) ;
     result = $(result)/<mpc-version-hidden>unspecified ;
     # `<gcc-version>' is automatically propagated.
-    result = $(result)/<gcc-default>yes ;
+    # `<gcc-default>yes' is automatically propagated. ;
   }
   return $(result) ;
 }
-
 alias gcc-dep : : <conditional>@gcc-dep-req ;
 explicit gcc-dep ;
 
@@ -122,7 +120,7 @@ rule make-binutils ( targets * : sources * : properties * )
   local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
   local build = [ SHELL "\"$(INTRO_ROOT_DIR)/stage1/binutils/config.guess\" | tr --delete '\n'" ] ;
   if $(stage) = 1 {
-    errors.error "ERROR: internal error." ;
+    errors.error "ERROR: an internal error." ;
   }
   else if $(stage) = 2 {
     OPTIONS on $(targets) += --build=$(build) ;
@@ -130,6 +128,7 @@ rule make-binutils ( targets * : sources * : properties * )
     OPTIONS on $(targets) += --target=$(HOST) ;
   }
   else {
+    # For stage 3.
     OPTIONS on $(targets) += --build=$(build) ;
     OPTIONS on $(targets) += --host=$(HOST) ;
     OPTIONS on $(targets) += --target=$(HOST) ;
@@ -137,12 +136,13 @@ rule make-binutils ( targets * : sources * : properties * )
 
   # Set the '--prefix' option for the 'configure' script.
   if $(stage) = 1 {
-    errors.error "ERROR: internal error." ;
+    errors.error "ERROR:an iinternal error." ;
   }
   else if $(stage) = 2 {
     OPTIONS on $(targets) += --prefix=\"$(PREFIX)\" ;
   }
   else {
+    # For stage 3.
     OPTIONS on $(targets) += --prefix=\"$(CROSS_PREFIX)\" ;
   }
 
@@ -152,23 +152,36 @@ rule make-binutils ( targets * : sources * : properties * )
 
   local multilib = [ feature.get-values <intro-multilib> : $(properties) ] ;
   if $(multilib) = yes {
-    OPTIONS on $(targets) += --enable-targets=all ;
+    if $(stage) = 1 {
+      errors.error "ERROR: an internal error." ;
+    }
+    else {
+      # For stage 2 or 3.
+      local tmp = [ regex.match "^x86_64-(.+)" : $(HOST) : 1 ] ;
+      if $(tmp) {
+        OPTIONS on $(targets) += --enable-targets=x86_64-$(tmp),i686-$(tmp) ;
+      }
+      else {
+        errors.error "ERROR: `multilib' is not supported on `$(HOST)'." ;
+      }
+    }
   }
 
   if $(stage) = 1 {
-    errors.error "ERROR: internal error." ;
+    errors.error "ERROR: an internal error." ;
   }
   else if $(stage) = 2 {
     OPTIONS on $(targets) += --with-sysroot=\"$(PREFIX)\" ;
   }
   else {
+    # For stage 3.
     OPTIONS on $(targets) += --with-sysroot=\"$(CROSS_PREFIX)\" ;
   }
 
   SET_RUN_VARS on $(targets) = ;
   UNSET_RUN_VARS on $(targets) = ;
   if $(stage) = 1 {
-    errors.error "ERROR: internal error." ;
+    errors.error "ERROR: an internal error." ;
   }
   else if $(stage) = 2 {
     # Do nothing.
@@ -236,90 +249,103 @@ rule install-req ( properties * )
 
   local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
   if $(stage) = 1 {
-    errors.error "ERROR: '<intro-stage>1' is not valid for the Binutils build." ;
+    errors.error "ERROR: `<intro-stage>1' is not valid for the Binutils build." ;
   }
+
+  local build = [ SHELL "\"$(INTRO_ROOT_DIR)/stage1/binutils/config.guess\" | tr --delete '\n'" ] ;
 
   local host = [ feature.get-values <intro-host> : $(properties) ] ;
   if $(host) = unspecified {
-    errors.error "ERROR: '<intro-host>' is not specified for the Binutils build." ;
+    errors.error "ERROR: `<intro-host>' is not specified for the Binutils build." ;
   }
   if $(host) != unspecified {
     tmp = [ SHELL "\"$(INTRO_ROOT_DIR)/stage1/binutils/config.sub\" $(host) | tr --delete '\n'" ] ;
     if $(tmp) != $(host) {
-      errors.error "ERROR: '<intro-host>$(host)' is not canonical for the Binutils build." ;
+      errors.error "ERROR: `<intro-host>$(host)' is not canonical for the Binutils build." ;
     }
   }
 
   local link = [ feature.get-values <intro-link> : $(properties) ] ;
   if $(link) != unspecified {
-    errors.error "ERROR: '<intro-link>$(link)' is not valid for the Binutils build." ;
+    errors.error "ERROR: `<intro-link>$(link)' is not valid for the Binutils build." ;
   }
 
   local multilib = [ feature.get-values <intro-multilib> : $(properties) ] ;
   if $(multilib) = unspecified {
-    errors.error "ERROR: '<intro-multilib>' is not specified for the Binutils build." ;
+    errors.error "ERROR: `<intro-multilib>' is not specified for the Binutils build." ;
+  }
+  if $(multilib) = yes {
+    if [ regex.match "^(x86_64-)" : $(HOST) : 1 ] {
+      # Do nothing.
+    }
+    else {
+      errors.error "ERROR: `multilib' is not supported on `$(HOST)'." ;
+    }
   }
   multilib = [ feature.get-values <intro-multilib-hidden> : $(properties) ] ;
   if $(multilib) != unspecified {
-    errors.error "ERROR: '<intro-multilib-hidden>$(multilib)' is not valid for the Binutils build." ;
+    errors.error "ERROR: `<intro-multilib-hidden>$(multilib)' is not valid for the Binutils build." ;
   }
 
   local binutils-version = [ feature.get-values <binutils-version> : $(properties) ] ;
   if $(binutils-version) = unspecified {
-    errors.error "ERROR: '<binutils-version>' is not specified for the Binutils build" ;
+    errors.error "ERROR: `<binutils-version>' is not specified for the Binutils build" ;
   }
   binutils-version = [ feature.get-values <binutils-version-hidden> : $(properties) ] ;
   if $(binutils-version) != unspecified {
-    errors.error "ERROR: '<binutils-version-hidden>$(binutils-version)' is not valid for the Binutils build." ;
+    errors.error "ERROR: `<binutils-version-hidden>$(binutils-version)' is not valid for the Binutils build." ;
   }
 
   local gmp-version = [ feature.get-values <gmp-version> : $(properties) ] ;
   if $(gmp-version) != unspecified {
-    errors.error "ERROR: '<gmp-version>$(gmp-version)' is not valid for the Binutils build." ;
+    errors.error "ERROR: `<gmp-version>$(gmp-version)' is not valid for the Binutils build." ;
   }
   gmp-version = [ feature.get-values <gmp-version-hidden> : $(properties) ] ;
   if $(stage) = 2 && $(gmp-version) != unspecified {
-    errors.error "ERROR: '<gmp-version-hidden>$(gmp-version)' is not valid for the Binutils stage 2 build." ;
+    errors.error "ERROR: `<gmp-version-hidden>$(gmp-version)' is not valid for the Binutils stage 2 build." ;
   }
   if $(stage) = 3 && $(gmp-version) = unspecified {
-    errors.error "ERROR: '<gmp-version-hidden>' is not specified for the Binutils stage 3 build." ;
+    errors.error "ERROR: `<gmp-version-hidden>' is not specified for the Binutils stage 3 build." ;
   }
 
   local mpfr-version = [ feature.get-values <mpfr-version> : $(properties) ] ;
   if $(mpfr-version) != unspecified {
-    errors.error "ERROR: '<mpfr-version>$(mpfr-version)' is not valid for the Binutils build." ;
+    errors.error "ERROR: `<mpfr-version>$(mpfr-version)' is not valid for the Binutils build." ;
   }
   mpfr-version = [ feature.get-values <mpfr-version-hidden> : $(properties) ] ;
   if $(stage) = 2 && $(mpfr-version) != unspecified {
-    errors.error "ERROR: '<mpfr-version-hidden>$(mpfr-version)' is not valid for the Binutils stage 2 build." ;
+    errors.error "ERROR: `<mpfr-version-hidden>$(mpfr-version)' is not valid for the Binutils stage 2 build." ;
   }
   if $(stage) = 3 && $(mpfr-version) = unspecified {
-    errors.error "ERROR: '<mpfr-version-hidden>' is not specified for the Binutils stage 3 build." ;
+    errors.error "ERROR: `<mpfr-version-hidden>' is not specified for the Binutils stage 3 build." ;
   }
 
   local mpc-version = [ feature.get-values <mpc-version> : $(properties) ] ;
   if $(mpc-version) != unspecified {
-    errors.error "ERROR: '<mpc-version>$(mpc-version)' is not valid for the Binutils build." ;
+    errors.error "ERROR: `<mpc-version>$(mpc-version)' is not valid for the Binutils build." ;
   }
   mpc-version = [ feature.get-values <mpc-version-hidden> : $(properties) ] ;
   if $(stage) = 2 && $(mpc-version) != unspecified {
-    errors.error "ERROR: '<mpc-version-hidden>$(mpc-version)' is not valid for the Binutils stage 2 build." ;
+    errors.error "ERROR: `<mpc-version-hidden>$(mpc-version)' is not valid for the Binutils stage 2 build." ;
   }
   if $(stage) = 3 && $(mpc-version) = unspecified {
-    errors.error "ERROR: '<mpc-version-hidden>' is not specified for the Binutils stage 3 build." ;
+    errors.error "ERROR: `<mpc-version-hidden>' is not specified for the Binutils stage 3 build." ;
   }
 
   local gcc-version = [ feature.get-values <gcc-version> : $(properties) ] ;
   if $(stage) = 2 && $(gcc-version) != unspecified {
-    errors.error "ERROR: '<gcc-version>$(gcc-version)' is not valid for the Binutils stage 2 build." ;
+    errors.error "ERROR: `<gcc-version>$(gcc-version)' is not valid for the Binutils stage 2 build." ;
   }
   if $(stage) = 3 && $(gcc-version) = unspecified {
-    errors.error "ERROR: '<gcc-version>' is not specified for the Binutils stage 3 build." ;
+    errors.error "ERROR: `<gcc-version>' is not specified for the Binutils stage 3 build." ;
   }
 
   local gcc-default = [ feature.get-values <gcc-default> : $(properties) ] ;
-  if $(gcc-default) != unspecified {
-    errors.error "ERROR: '<gcc-default>$(gcc-default)' is not valid for the Binutils build." ;
+  if $(stage) = 2 && $(gcc-default) != unspecified {
+    errors.error "ERROR: `<gcc-default>$(gcc-default)' is not valid for the Binutils stage 2 build." ;
+  }
+  if $(stage) = 3 && $(gcc-default) != yes {
+    errors.error "ERROR: `<gcc-default>no' is not valid for the Binutils stage 3 build." ;
   }
 
   return $(result) ;

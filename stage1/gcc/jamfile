@@ -34,6 +34,7 @@ rule binutils-dep-req ( properties * )
     result = $(result)/<gcc-default>unspecified ;
   }
   else {
+    # For stage 3.
     result = <source>../../stage3/binutils//install ;
     # `<intro-stage>3' is automatically propagated.
     # `<intro-host>' is automatically propagated.
@@ -52,11 +53,10 @@ rule binutils-dep-req ( properties * )
     result = $(result)/<mpc-version>unspecified ;
     result = $(result)/<mpc-version-hidden>$(mpc-version) ;
     # `<gcc-version>' is automatically propagated.
-    result = $(result)/<gcc-default>unspecified ;
+    # `<gcc-default>' is automatically propagated.
   }
   return $(result) ;
 }
-
 alias binutils-dep : : <conditional>@binutils-dep-req ;
 explicit binutils-dep ;
 
@@ -111,7 +111,6 @@ rule mpc-dep-req ( properties * )
   result = $(result)/<gcc-default>unspecified ;
   return $(result) ;
 }
-
 alias mpc-dep : : <conditional>@mpc-dep-req ;
 explicit mpc-dep ;
 
@@ -145,7 +144,6 @@ rule mingw-w64-headers-dep-req ( properties * )
   }
   return $(result) ;
 }
-
 alias mingw-w64-headers-dep : : <conditional>@mingw-w64-headers-dep-req ;
 explicit mingw-w64-headers-dep ;
 
@@ -321,7 +319,16 @@ rule configure-gcc ( targets * : sources * : properties * )
   # }
 
   if $(multilib) = yes {
-    OPTIONS on $(targets) += --enable-targets=all ;
+    if $(stage) = 1 {
+      if [ regex.match "^(x86_64-)" : $(build) : 1 ] {
+        OPTIONS on $(targets) += --enable-targets=all ;
+      }
+    }
+    else {
+      if [ regex.match "^(x86_64-)" : $(HOST) : 1 ] {
+        OPTIONS on $(targets) += --enable-targets=all ;
+      }
+    }
   }
 
   # Set `--disable-win32-registry' and `--disable-nls' options for Windows hosts.
@@ -678,86 +685,104 @@ rule install-req ( properties * )
 
   local host = [ feature.get-values <intro-host> : $(properties) ] ;
   if $(stage) = 1 && $(host) != unspecified {
-    errors.error "ERROR: '<intro-host>$(host)' is not valid for the GCC stage 1 build." ;
+    errors.error "ERROR: `<intro-host>$(host)' is not valid for the GCC stage 1 build." ;
   }
   if ( $(stage) = 2 || $(stage) = 3 ) && $(host) = unspecified {
-    errors.error "ERROR: '<intro-host>' is not specified for the GCC stage 2 or 3 build." ;
+    errors.error "ERROR: `<intro-host>' is not specified for the GCC stage 2 or 3 build." ;
   }
   if $(host) != unspecified {
     tmp = [ SHELL "\"$(INTRO_ROOT_DIR)/stage1/gcc/config.sub\" $(host) | tr --delete '\n'" ] ;
     if $(tmp) != $(host) {
-      errors.error "ERROR: '<intro-host>$(host)' is not canonical for the GCC build." ;
+      errors.error "ERROR: `<intro-host>$(host)' is not canonical for the GCC build." ;
     }
   }
 
   local link = [ feature.get-values <intro-link> : $(properties) ] ;
   if $(link) != unspecified {
-    errors.error "ERROR: '<intro-link>$(link)' is not valid for the GCC build." ;
+    errors.error "ERROR: `<intro-link>$(link)' is not valid for the GCC build." ;
   }
 
   local multilib = [ feature.get-values <intro-multilib> : $(properties) ] ;
   if $(multilib) = unspecified {
-    errors.error "ERROR: '<intro-multilib>' is not specified for the GCC build." ;
+    errors.error "ERROR: `<intro-multilib>' is not specified for the GCC build." ;
+  }
+  if $(multilib) = yes {
+    if $(stage) = 1 {
+      if [ regex.match "^(x86_64-)" : $(build) : 1 ] {
+        # Do nothing.
+      }
+      else {
+        errors.error "ERROR: `multilib' is not supported on `$(build)'." ;
+      }
+    }
+    else {
+      if [ regex.match "^(x86_64-)" : $(HOST) : 1 ] {
+        # Do nothing.
+      }
+      else {
+        errors.error "ERROR: `multilib' is not supported on `$(HOST)'." ;
+      }
+    }
   }
   multilib = [ feature.get-values <intro-multilib-hidden> : $(properties) ] ;
   if $(multilib) != unspecified {
-    errors.error "ERROR: '<intro-multilib-hidden>$(multilib)' is not valid for the GCC build." ;
+    errors.error "ERROR: `<intro-multilib-hidden>$(multilib)' is not valid for the GCC build." ;
   }
 
   local binutils-version = [ feature.get-values <binutils-version> : $(properties) ] ;
   if $(stage) = 1 && $(binutils-version) != unspecified {
-    errors.error "ERROR: '<binutils-version>$(binutils-version)' is not valid for the GCC stage 1 build." ;
+    errors.error "ERROR: `<binutils-version>$(binutils-version)' is not valid for the GCC stage 1 build." ;
   }
   if ( $(stage) = 2 || $(stage) = 3 ) && $(binutils-version) = unspecified {
-    errors.error "ERROR: '<binutils-version>' is not specified for the GCC stage 2 or 3 build." ;
+    errors.error "ERROR: `<binutils-version>' is not specified for the GCC stage 2 or 3 build." ;
   }
   binutils-version = [ feature.get-values <binutils-version-hidden> : $(properties) ] ;
   if $(binutils-version) != unspecified {
-    errors.error "ERROR: '<binutils-version-hidden>$(binutils-version)' is not valid for the GCC build." ;
+    errors.error "ERROR: `<binutils-version-hidden>$(binutils-version)' is not valid for the GCC build." ;
   }
 
   local gmp-version = [ feature.get-values <gmp-version> : $(properties) ] ;
   if $(gmp-version) = unspecified {
-    errors.error "ERROR: '<gcc-version>' is not specified for the GCC build." ;
+    errors.error "ERROR: `<gcc-version>' is not specified for the GCC build." ;
   }
   gmp-version = [ feature.get-values <gmp-version-hidden> : $(properties) ] ;
   if $(gmp-version) != unspecified {
-    errors.error "ERROR: '<gmp-version-hidden>$(gmp-version)' is not valid for the GCC build." ;
+    errors.error "ERROR: `<gmp-version-hidden>$(gmp-version)' is not valid for the GCC build." ;
   }
 
   local mpfr-version = [ feature.get-values <mpfr-version> : $(properties) ] ;
   if $(mpfr-version) = unspecified {
-    errors.error "ERROR: '<mpfr-version>' is not specified for the GCC build." ;
+    errors.error "ERROR: `<mpfr-version>' is not specified for the GCC build." ;
   }
   mpfr-version = [ feature.get-values <mpfr-version-hidden> : $(properties) ] ;
   if $(mpfr-version) != unspecified {
-    errors.error "ERROR: '<mpfr-version-hidden>$(mpfr-version)' is not valid for the GCC build." ;
+    errors.error "ERROR: `<mpfr-version-hidden>$(mpfr-version)' is not valid for the GCC build." ;
   }
 
   local mpc-version = [ feature.get-values <mpc-version> : $(properties) ] ;
   if $(mpc-version) = unspecified {
-    errors.error "ERROR: '<mpc-version>' is not specified for the GCC build." ;
+    errors.error "ERROR: `<mpc-version>' is not specified for the GCC build." ;
   }
   mpc-version = [ feature.get-values <mpc-version-hidden> : $(properties) ] ;
   if $(mpc-version) != unspecified {
-    errors.error "ERROR: '<mpc-version-hidden>$(mpc-version)' is not valid for the GCC build." ;
+    errors.error "ERROR: `<mpc-version-hidden>$(mpc-version)' is not valid for the GCC build." ;
   }
 
   local gcc-version = [ feature.get-values <gcc-version> : $(properties) ] ;
   if $(gcc-version) = unspecified {
-    errors.error "ERROR: '<gcc-version>' is not specified for the GCC build." ;
+    errors.error "ERROR: `<gcc-version>' is not specified for the GCC build." ;
   }
 
   local gcc-default = [ feature.get-values <gcc-default> : $(properties) ] ;
   if $(gcc-default) = unspecified {
-    errors.error "ERROR: '<gcc-default>' is not specified for the GCC build." ;
+    errors.error "ERROR: `<gcc-default>' is not specified for the GCC build." ;
   }
   if $(stage) = 1 && $(gcc-default) = yes {
-    errors.error "ERROR: '<gcc-default>yes' is not valid for the GCC stage 1 build." ;
+    errors.error "ERROR: `<gcc-default>yes' is not valid for the GCC stage 1 build." ;
   }
 
   version = [ feature.get-values <gcc-version> : $(properties) ] ;
-  if [ SHELL "{ gcc -v 2>&1 | grep -Eq '^gcc version $(version)'; } && /bin/echo -n 'yes'" ] = yes {
+  if [ SHELL "{ ( LC_ALL=C gcc -v 2>&1 ) | grep -Eq '^gcc version $(version)'; } && /bin/echo -n 'yes'" ] = yes {
     result = <build>no ;
   }
 

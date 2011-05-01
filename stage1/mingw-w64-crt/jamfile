@@ -10,11 +10,10 @@ import regex ;
 rule gcc-stage1-dep-req ( properties * )
 {
   local result ;
-
   local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
-  if $(stage) = 2 {
+  if $(stage) = 2 || $(stage) = 3 {
     result = <source>../../stage2/gcc//mingw32-stage1.make ;
-    # `<intro-stage>2' is automatically propagated.
+    result = $(result)/<intro-stage>2 ;
     # `<intro-host>' is automatically propagated.
     # `<intro-link>unspecified' is automatically propagated.
     # `<intro-multilib>' is automatically propagated.
@@ -40,40 +39,15 @@ alias gcc-stage1-dep : : <conditional>@gcc-stage1-dep-req ;
 explicit gcc-stage1-dep ;
 
 
-rule gcc-dep-req ( properties * )
-{
-  local result ;
-
-  local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
-  if $(stage) = 3 {
-    result = <source>../../stage2/gcc//mingw32-stage1.make ;
-    result = $(result)/<intro-stage>2 ;
-    # `<intro-host>' is automatically propagated.
-    # `<intro-link>unspecified' is automatically propagated.
-    # `<intro-multilib>' is automatically propagated.
-    # `<intro-multilib-hidden>unspecified' is automatically propagated.
-    # `<binutils-version>' is automatically propagated.
-    # `<binutils-version-hidden>unspecified' is automatically propagated.
-    local gmp-version = [ feature.get-values <gmp-version-hidden> : $(properties) ] ;
-    result = $(result)/<gmp-version>$(gmp-version) ;
-    result = $(result)/<gmp-version-hidden>unspecified ;
-    local mpfr-version = [ feature.get-values <mpfr-version-hidden> : $(properties) ] ;
-    result = $(result)/<mpfr-version>$(mpfr-version) ;
-    result = $(result)/<mpfr-version-hidden>unspecified ;
-    local mpc-version = [ feature.get-values <mpc-version-hidden> : $(properties) ] ;
-    result = $(result)/<mpc-version>$(mpc-version) ;
-    result = $(result)/<mpc-version-hidden>unspecified ;
-    # `<gcc-version>' is automatically propagated.
-    result = $(result)/<gcc-default>yes ;
-  }
-  return $(result) ;
-}
-
-alias gcc-dep : : <conditional>@gcc-dep-req ;
-explicit gcc-dep ;
+make "$(CROSS_PREFIX)/$(HOST)/include" : : @common.mkdir ;
+explicit "$(CROSS_PREFIX)/$(HOST)/include" ;
 
 
-make make : gcc-stage1-dep gcc-dep : @make-mingw-w64-crt ;
+alias mkdir-dep : : <intro-stage>3:<source>"$(CROSS_PREFIX)/$(HOST)/include" ;
+explicit mkdir-dep ;
+
+
+make make : gcc-stage1-dep mkdir-dep : @make-mingw-w64-crt ;
 explicit make ;
 
 rule make-mingw-w64-crt ( targets * : sources * : properties * )
@@ -88,13 +62,10 @@ rule make-mingw-w64-crt ( targets * : sources * : properties * )
   local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
   local build = [ SHELL "\"$(INTRO_ROOT_DIR)/stage1/gcc/config.guess\" | tr --delete '\n'" ] ;
   if $(stage) = 1 {
-    errors.error "ERROR: internal error." ;
-  }
-  else if $(stage) = 2 {
-    OPTIONS on $(targets) += --build=$(build) ;
-    OPTIONS on $(targets) += --host=$(HOST) ;
+    errors.error "ERROR: an internal error." ;
   }
   else {
+    # For stage 2 or 3.
     OPTIONS on $(targets) += --build=$(build) ;
     OPTIONS on $(targets) += --host=$(HOST) ;
   }
@@ -107,6 +78,7 @@ rule make-mingw-w64-crt ( targets * : sources * : properties * )
     OPTIONS on $(targets) += --prefix=\"$(PREFIX)\" ;
   }
   else {
+    # For stage 3.
     OPTIONS on $(targets) += --prefix=\"$(CROSS_PREFIX)\" ;
   }
 
@@ -116,25 +88,30 @@ rule make-mingw-w64-crt ( targets * : sources * : properties * )
     if $(multilib) = yes {
       OPTIONS on $(targets) += --enable-lib32 ;
     }
+    else {
+      OPTIONS on $(targets) += --disable-lib32 ;
+    }
   }
   else {
     OPTIONS on $(targets) += --enable-lib32 ;
+    OPTIONS on $(targets) += --disable-lib64 ;
   }
 
   if $(stage) = 1 {
-    errors.error "ERROR: internal error." ;
+    errors.error "ERROR: an internal error." ;
   }
   else if $(stage) = 2 {
     OPTIONS on $(targets) += --with-sysroot=\"$(PREFIX)\" ;
   }
   else {
+    # For stage 3.
     OPTIONS on $(targets) += --with-sysroot=\"$(CROSS_PREFIX)\" ;
   }
 
   SET_RUN_VARS on $(targets) = ;
   UNSET_RUN_VARS on $(targets) = ;
   if $(stage) = 1 {
-    errors.error "ERROR: internal error." ;
+    errors.error "ERROR: an internal error." ;
   }
   else {
     if [ regex.match "(-w64-mingw32)$" : $(build) : 1 ] {
@@ -194,75 +171,82 @@ rule install-req ( properties * )
 
   local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
   if $(stage) = 1 {
-    errors.error "ERROR: '<intro-stage>1' is not valid for the mingw-w64-crt build." ;
+    errors.error "ERROR: `<intro-stage>1' is not valid for the mingw-w64-crt build." ;
   }
+
+  local build = [ SHELL "\"$(INTRO_ROOT_DIR)/stage1/gcc/config.guess\" | tr --delete '\n'" ] ;
 
   local host = [ feature.get-values <intro-host> : $(properties) ] ;
   if $(host) = unspecified {
-    errors.error "ERROR: '<intro-host>' is not specified for the mingw-w64-crt build." ;
+    errors.error "ERROR: `<intro-host>' is not specified for the mingw-w64-crt build." ;
   }
 
   local link = [ feature.get-values <intro-link> : $(properties) ] ;
   if $(link) != unspecified {
-    errors.error "ERROR: '<intro-link>$(link)' is not valid for the mingw-w64-crt build." ;
+    errors.error "ERROR: `<intro-link>$(link)' is not valid for the mingw-w64-crt build." ;
   }
 
   local multilib = [ feature.get-values <intro-multilib> : $(properties) ] ;
   if $(multilib) = unspecified {
-    errors.error "ERROR: '<intro-multilib>' is not specified for the mingw-w64-crt build." ;
+    errors.error "ERROR: `<intro-multilib>' is not specified for the mingw-w64-crt build." ;
+  }
+  if $(multilib) = yes {
+    if [ regex.match "^(x86_64-)" : $(HOST) : 1 ] {
+      # Do nothing.
+    }
+    else {
+      errors.error "ERROR: `multilib' is not supported on `$(HOST)'." ;
+    }
   }
   multilib = [ feature.get-values <intro-multilib-hidden> : $(properties) ] ;
   if $(multilib) != unspecified {
-    errors.error "ERROR: '<intro-multilib-hidden>$(multilib)' is not valid for the mingw-w64-crt build." ;
+    errors.error "ERROR: `<intro-multilib-hidden>$(multilib)' is not valid for the mingw-w64-crt build." ;
   }
 
   local binutils-version = [ feature.get-values <binutils-version> : $(properties) ] ;
   if $(binutils-version) = unspecified {
-    errors.error "ERROR: '<binutils-version>' is not specified for the mingw-w64-crt build." ;
+    errors.error "ERROR: `<binutils-version>' is not specified for the mingw-w64-crt build." ;
   }
   binutils-version = [ feature.get-values <binutils-version-hidden> : $(properties) ] ;
   if $(binutils-version) != unspecified {
-    errors.error "ERROR: '<binutils-version-hidden>$(binutils-version)' is not valid for the mingw-w64-crt build." ;
+    errors.error "ERROR: `<binutils-version-hidden>$(binutils-version)' is not valid for the mingw-w64-crt build." ;
   }
 
   local gmp-version = [ feature.get-values <gmp-version> : $(properties) ] ;
   if $(gmp-version) != unspecified {
-    errors.error "ERROR: '<gmp-version>$(gmp-version)' is not valid for the mingw-w64-crt build." ;
+    errors.error "ERROR: `<gmp-version>$(gmp-version)' is not valid for the mingw-w64-crt build." ;
   }
   gmp-version = [ feature.get-values <gmp-version-hidden> : $(properties) ] ;
   if $(gmp-version) = unspecified {
-    errors.error "ERROR: '<gmp-version-hidden>' is not specified for the mingw-w64-crt build." ;
+    errors.error "ERROR: `<gmp-version-hidden>' is not specified for the mingw-w64-crt build." ;
   }
 
   local mpfr-version = [ feature.get-values <mpfr-version> : $(properties) ] ;
   if $(mpfr-version) != unspecified {
-    errors.error "ERROR: '<mpfr-version>$(mpfr-version)' is not valid for the mingw-w64-crt build." ;
+    errors.error "ERROR: `<mpfr-version>$(mpfr-version)' is not valid for the mingw-w64-crt build." ;
   }
   mpfr-version = [ feature.get-values <mpfr-version-hidden> : $(properties) ] ;
   if $(mpfr-version) = unspecified {
-    errors.error "ERROR: '<mpfr-version-hidden>' is not specified for the mingw-w64-crt build." ;
+    errors.error "ERROR: `<mpfr-version-hidden>' is not specified for the mingw-w64-crt build." ;
   }
 
   local mpc-version = [ feature.get-values <mpc-version> : $(properties) ] ;
   if $(mpc-version) != unspecified {
-    errors.error "ERROR: '<mpc-version>$(mpc-version)' is not valid for the mingw-w64-crt build." ;
+    errors.error "ERROR: `<mpc-version>$(mpc-version)' is not valid for the mingw-w64-crt build." ;
   }
   mpc-version = [ feature.get-values <mpc-version-hidden> : $(properties) ] ;
   if $(mpc-version) = unspecified {
-    errors.error "ERROR: '<mpc-version-hidden>' is not specified for the mingw-w64-crt build." ;
+    errors.error "ERROR: `<mpc-version-hidden>' is not specified for the mingw-w64-crt build." ;
   }
 
   local gcc-version = [ feature.get-values <gcc-version> : $(properties) ] ;
   if $(gcc-version) = unspecified {
-    errors.error "ERROR: '<gcc-version>' is not specified for the mingw-w64-crt build." ;
+    errors.error "ERROR: `<gcc-version>' is not specified for the mingw-w64-crt build." ;
   }
 
   local gcc-default = [ feature.get-values <gcc-default> : $(properties) ] ;
-  if $(stage) = 2 && $(gcc-default) != yes {
-    errors.error "ERROR: '<gcc-default>$(gcc-default)' is not valid for the mingw-w64-crt stage 2 build." ;
-  }
-  if $(stage) = 3 && $(gcc-default) != unspecified {
-    errors.error "ERROR: '<gcc-default>$(gcc-default)' is not valid for the mingw-w64-crt stage 3 build." ;
+  if $(gcc-default) != yes {
+    errors.error "ERROR: `<gcc-default>$(gcc-default)' is not valid for the mingw-w64-crt build." ;
   }
 
   return $(result) ;

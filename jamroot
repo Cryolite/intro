@@ -8,9 +8,10 @@ path-constant INTRO_ROOT_DIR : . ;
 
 
 local host ;
+local host-runnable ;
 local prefix ;
 local cross-prefix ;
-local host-runnable ;
+local multilib ;
 local concurrency ;
 local stdout ;
 local stderr ;
@@ -22,6 +23,10 @@ for local argv in [ modules.peek : ARGV ] {
       errors.error "ERROR: duplicate '--host' option." ;
     }
     host = $(tmp) ;
+  }
+  tmp = [ regex.match "^(--host-runnable)$" : $(argv) : 1 ] ;
+  if $(tmp) {
+    host-runnable = yes ;
   }
   tmp = [ regex.match "^--prefix=(/.*)$" : $(argv) : 1 ] ;
   if $(tmp) {
@@ -37,9 +42,30 @@ for local argv in [ modules.peek : ARGV ] {
     }
     cross-prefix = $(tmp) ;
   }
-  tmp = [ regex.match "^(--host-runnable)$" : $(argv) : 1 ] ;
+  tmp = [ regex.match "^(--enable-multilib(=((yes)|(no)))?)$" : $(argv) : 1 ] ;
   if $(tmp) {
-    host-runnable = yes ;
+    if $(multilib) {
+      errors.error "ERROR: duplicate '--enable-multilib' or '--disable-multilib' options." ;
+    }
+    if $(tmp) = "--enable-multilib" {
+      multilib = yes ;
+    }
+    else if $(tmp) = "--enable-multilib=yes" {
+      multilib = yes ;
+    }
+    else if $(tmp) = "--disable-multilib=no" {
+      multilib = no ;
+    }
+    else {
+      errors.error "ERROR: an internal error." ;
+    }
+  }
+  tmp = [ regex.match "^(--disable-multilib)$" : $(argv) : 1 ] ;
+  if $(tmp) {
+    if $(multilib) {
+      errors.error "ERROR: duplicate '--enable-multilib' or '--disable-multilib' options." ;
+    }
+    multilib = no ;
   }
   tmp = [ regex.match "^--concurrency=([123456789][0123456789]*)$" : $(argv) : 1 ] ;
   if $(tmp) {
@@ -88,6 +114,27 @@ for local argv in [ modules.peek : ARGV ] {
   }
   else {
     path-constant CROSS_PREFIX : "$(prefix)/cross-fake" ; # Fake value.
+  }
+
+  if ! $(multilib) {
+    if ! $(host) {
+      # For stage 1.
+      if [ regex.match "^(x86_64-)" : $(build) : 1 ] {
+        multilib = yes ;
+      }
+      else {
+        multilib = no ;
+      }
+    }
+    else {
+      # For stage 2 or 3.
+      if [ regex.match "^(x86_64-)" : $(host) : 1 ] {
+        multilib = yes ;
+      }
+      else {
+        multilib = no ;
+      }
+    }
   }
 
   if ! $(host) {
@@ -220,10 +267,9 @@ mpc-version-default = $(mpc-version-default[2]) ;
 
 if ! $(host) {
   alias install-gcc
-    : stage1/gcc//install/<intro-stage>1
+    : stage1/gcc//install/<intro-stage>1/<intro-multilib>$(multilib)
     :
-    : <intro-multilib>yes
-      <gmp-version>$(gmp-version-default)
+    : <gmp-version>$(gmp-version-default)
       <mpfr-version>$(mpfr-version-default)
       <mpc-version>$(mpc-version-default)
       <gcc-default>no
@@ -232,10 +278,9 @@ if ! $(host) {
 }
 else if ! $(cross-prefix) {
   alias install-gcc
-    : stage2/gcc//install/<intro-stage>2/<intro-host>$(host)
+    : stage2/gcc//install/<intro-stage>2/<intro-host>$(host)/<intro-multilib>$(multilib)
     :
-    : <intro-multilib>yes
-      <binutils-version>$(binutils-version-default)
+    : <binutils-version>$(binutils-version-default)
       <gmp-version>$(gmp-version-default)
       <mpfr-version>$(mpfr-version-default)
       <mpc-version>$(mpc-version-default)
@@ -245,10 +290,9 @@ else if ! $(cross-prefix) {
 }
 else {
   alias install-gcc
-    : stage3/gcc//install/<intro-stage>3/<intro-host>$(host)
+    : stage3/gcc//install/<intro-stage>3/<intro-host>$(host)/<intro-multilib>$(multilib)
     :
-    : <intro-multilib>yes
-      <binutils-version>$(binutils-version-default)
+    : <binutils-version>$(binutils-version-default)
       <gmp-version>$(gmp-version-default)
       <mpfr-version>$(mpfr-version-default)
       <mpc-version>$(mpc-version-default)

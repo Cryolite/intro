@@ -64,7 +64,7 @@ rule crt-dep-req ( properties * )
     # `<mpc-version>unspecified' is automatically propagated.
     # `<mpc-version-hidden>' is automatically propagated.
     # `<gcc-version>' is automatically propagated.
-    # `<gcc-default>unspecified' is automatically propagated.
+    result = $(result)/<gcc-default>yes ;
   }
   return $(result) ;
 }
