@@ -55,7 +55,7 @@ rule make-mingw-w64-crt ( targets * : sources * : properties * )
   OPTIONS on $(targets) = ;
 
   # Set the path to the 'configure' file.
-  local configure = $(INTRO_ROOT_DIR)/mingw-w64-v1.0-20101003/mingw-w64-crt/configure ;
+  local configure = $(INTRO_ROOT_DIR)/mingw-w64-v1.0-20110428/mingw-w64-crt/configure ;
   CONFIGURE on $(targets) = $(configure) ;
 
   # Set the '--build' and '--host' options for the 'configure' script.

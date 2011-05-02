@@ -12,8 +12,8 @@ explicit download ;
 
 rule download-mingw-w64 ( targets * : sources * : properties * )
 {
-  URL on $(targets) = http://downloads.sourceforge.net/project/mingw-w64/mingw-w64/mingw-w64-snapshot/mingw-w64-v1.0-snapshot-20101003.tar.bz2 ;
-  TARBALL on $(targets) = $(INTRO_ROOT_DIR)/mingw-w64-v1.0-snapshot-20101003.tar.bz2 ;
+  URL on $(targets) = "http://downloads.sourceforge.net/project/mingw-w64/mingw-w64/mingw-w64-snapshot/mingw-w64-v1.0-snapshot-20110428.tar.bz2" ;
+  TARBALL on $(targets) = "$(INTRO_ROOT_DIR)/mingw-w64-v1.0-snapshot-20110428.tar.bz2" ;
 }
 actions download-mingw-w64
 {
@@ -39,8 +39,8 @@ rule expand-mingw-w64 ( targets * : sources * : properties * )
   if $(sources[2]) {
     errors.error "ERROR: wrong number of sources." ;
   }
-  TARBALL on $(targets) = $(INTRO_ROOT_DIR)/mingw-w64-v1.0-snapshot-20101003.tar.bz2 ;
-  DEST_DIR on $(targets) = $(INTRO_ROOT_DIR)/mingw-w64-v1.0-20101003 ;
+  TARBALL on $(targets) = $(INTRO_ROOT_DIR)/mingw-w64-v1.0-snapshot-20110428.tar.bz2 ;
+  DEST_DIR on $(targets) = $(INTRO_ROOT_DIR)/mingw-w64-v1.0-20110428 ;
 }
 actions expand-mingw-w64
 {
@@ -59,7 +59,7 @@ actions expand-mingw-w64
 
 
 make make
-  : expand/<intro-host>unspecified
+  : ../../stage1/mingw-w64-headers//expand/<intro-host>unspecified
   : @make-mingw-w64-headers
   ;
 explicit make ;
@@ -69,27 +69,36 @@ rule make-mingw-w64-headers ( targets * : sources * : properties * )
   OPTIONS on $(targets) = ;
 
   # Set the path to the 'configure' file.
-  local configure = $(INTRO_ROOT_DIR)/mingw-w64-v1.0-20101003/mingw-w64-headers/configure ;
+  local configure = $(INTRO_ROOT_DIR)/mingw-w64-v1.0-20110428/mingw-w64-headers/configure ;
   CONFIGURE on $(targets) = $(configure) ;
 
   # Set the '--build' and '--host' options for the 'configure' script.
   local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
   local build = [ SHELL "\"$(INTRO_ROOT_DIR)/stage1/gcc/config.guess\" | tr --delete '\n'" ] ;
   if $(stage) = 1 {
-    errors.error "ERROR: internal error." ;
+    errors.error "ERROR: an internal error." ;
   }
   else if $(stage) = 2 {
     OPTIONS on $(targets) += --build=$(build) ;
     OPTIONS on $(targets) += --host=$(HOST) ;
   }
   else {
+    # For stage 3.
     OPTIONS on $(targets) += --build=$(HOST) ;
     OPTIONS on $(targets) += --host=$(HOST) ;
   }
 
   # Set the 'prefix' option for the 'configure' script.
-  local prefix = [ feature.get-values <intro-prefix> : $(properties) ] ;
-  OPTIONS on $(targets) += --prefix=\"$(PREFIX)\" ;
+  if $(stage) = 1 {
+    errors.error "ERROR: an internal error." ;
+  }
+  else if $(stage) = 2 {
+    OPTIONS on $(targets) += --prefix=\"$(PREFIX)\" ;
+  }
+  else {
+    # For stage 3.
+    OPTIONS on $(targets) += --prefix=\"$(CROSS_PREFIX)\" ;
+  }
 }
 actions make-mingw-w64-headers
 {
@@ -132,72 +141,72 @@ rule install-req ( properties * )
 
   local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
   if $(stage) = 1 {
-    errors.error "ERROR: '<intro-stage>1' is not valid for the mingw-w64-headers build." ;
+    errors.error "ERROR: `<intro-stage>1' is not valid for the mingw-w64-headers build." ;
   }
 
   local host = [ feature.get-values <intro-host> : $(properties) ] ;
   if $(host) = unspecified {
-    errors.error "ERROR: '<intro-host>' is not specified for the mingw-w64-headers build." ;
+    errors.error "ERROR: `<intro-host>' is not specified for the mingw-w64-headers build." ;
   }
 
   local link = [ feature.get-values <intro-link> : $(properties) ] ;
   if $(link) != unspecified {
-    errors.error "ERROR: '<intro-link>$(link)' is not valid for the mingw-w64-headers build." ;
+    errors.error "ERROR: `<intro-link>$(link)' is not valid for the mingw-w64-headers build." ;
   }
 
   local multilib = [ feature.get-values <intro-multilib> : $(properties) ] ;
   if $(multilib) != unspecified {
-    errors.error "ERROR: '<intro-multilib>$(multilib)' is not valid for the mingw-w64-headers build." ;
+    errors.error "ERROR: `<intro-multilib>$(multilib)' is not valid for the mingw-w64-headers build." ;
   }
   multilib = [ feature.get-values <intro-multilib-hidden> : $(properties) ] ;
   if $(multilib) != unspecified {
-    errors.error "ERROR: '<intro-multilib-hidden>$(multilib)' is not valid for the mingw-w64-headers build." ;
+    errors.error "ERROR: `<intro-multilib-hidden>$(multilib)' is not valid for the mingw-w64-headers build." ;
   }
 
   local binutils-version = [ feature.get-values <binutils-version> : $(properties) ] ;
   if $(binutils-version) != unspecified {
-    errors.error "ERROR: '<binutils-version>$(binutils-version)' is not valid for the mingw-w64-headers build." ;
+    errors.error "ERROR: `<binutils-version>$(binutils-version)' is not valid for the mingw-w64-headers build." ;
   }
   binutils-version = [ feature.get-values <binutils-version-hidden> : $(properties) ] ;
   if $(binutils-version) != unspecified {
-    errors.error "ERROR: '<binutils-version-hidden>$(binutils-version)' is not valid for the mingw-w64-headers build." ;
+    errors.error "ERROR: `<binutils-version-hidden>$(binutils-version)' is not valid for the mingw-w64-headers build." ;
   }
 
   local gmp-version = [ feature.get-values <gmp-version> : $(properties) ] ;
   if $(gmp-version) != unspecified {
-    errors.error "ERROR: '<gmp-version>$(gmp-version)' is not valid for the mingw-w64-headers build." ;
+    errors.error "ERROR: `<gmp-version>$(gmp-version)' is not valid for the mingw-w64-headers build." ;
   }
   gmp-version = [ feature.get-values <gmp-version-hidden> : $(properties) ] ;
   if $(gmp-version) != unspecified {
-    errors.error "ERROR: '<gmp-version-hidden>$(gmp-version)' is not valid for the mingw-w64-headers build." ;
+    errors.error "ERROR: `<gmp-version-hidden>$(gmp-version)' is not valid for the mingw-w64-headers build." ;
   }
 
   local mpfr-version = [ feature.get-values <mpfr-version> : $(properties) ] ;
   if $(mpfr-version) != unspecified {
-    errors.error "ERROR: '<mpfr-version>$(mpfr-version)' is not valid for the mingw-w64-headers build." ;
+    errors.error "ERROR: `<mpfr-version>$(mpfr-version)' is not valid for the mingw-w64-headers build." ;
   }
   mpfr-version = [ feature.get-values <mpfr-version-hidden> : $(properties) ] ;
   if $(mpfr-version) != unspecified {
-    errors.error "ERROR: '<mpfr-version-hidden>$(mpfr-version)' is not valid for the mingw-w64-headers build." ;
+    errors.error "ERROR: `<mpfr-version-hidden>$(mpfr-version)' is not valid for the mingw-w64-headers build." ;
   }
 
   local mpc-version = [ feature.get-values <mpc-version> : $(properties) ] ;
   if $(mpc-version) != unspecified {
-    errors.error "ERROR: '<mpc-version>$(mpc-version)' is not valid for the mingw-w64-headers build." ;
+    errors.error "ERROR: `<mpc-version>$(mpc-version)' is not valid for the mingw-w64-headers build." ;
   }
   mpc-version = [ feature.get-values <mpc-version-hidden> : $(properties) ] ;
   if $(mpc-version) != unspecified {
-    errors.error "ERROR: '<mpc-version-hidden>$(mpc-version)' is not valid for the mingw-w64-headers build." ;
+    errors.error "ERROR: `<mpc-version-hidden>$(mpc-version)' is not valid for the mingw-w64-headers build." ;
   }
 
   local gcc-version = [ feature.get-values <gcc-version> : $(properties) ] ;
   if $(gcc-version) != unspecified {
-    errors.error "ERROR: '<gcc-version>$(gcc-version)' is not valid for the mingw-w64-headers build." ;
+    errors.error "ERROR: `<gcc-version>$(gcc-version)' is not valid for the mingw-w64-headers build." ;
   }
 
   local gcc-default = [ feature.get-values <gcc-default> : $(properties) ] ;
   if $(gcc-default) != unspecified {
-    errors.error "ERROR: '<gcc-default>$(gcc-default)' is not valid for the mingw-w64-headers build." ;
+    errors.error "ERROR: `<gcc-default>$(gcc-default)' is not valid for the mingw-w64-headers build." ;
   }
 
   return $(result) ;

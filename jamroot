@@ -182,7 +182,7 @@ feature intro-multilib-hidden : [ feature.values <intro-multilib> ] : propagated
 
 feature binutils-version : unspecified : propagated ;
 ECHO patience... ;
-for local i in 2.21 #[ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/binutils-versions.sh\" || /bin/echo -n 'error'" ] " +" ]
+for local i in [ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/binutils-versions.sh\" || /bin/echo -n 'error'" ] " +" ]
 {
   if [ regex.match "^([0123456789]+\\.[0123456789]+(\\.[0123456789]+)?)$" : $(i) : 1 ] {
     feature.extend binutils-version : $(i) ;
@@ -197,7 +197,7 @@ feature binutils-version-hidden : [ feature.values <binutils-version> ] : propag
 
 feature gmp-version : unspecified : propagated ;
 ECHO patience... ;
-for local i in 5.0.1 #[ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/gmp-versions.sh\" || /bin/echo -n 'error'" ] " +" ]
+for local i in [ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/gmp-versions.sh\" || /bin/echo -n 'error'" ] " +" ]
 {
   if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(i) : 1 ] {
     feature.extend gmp-version : $(i) ;
@@ -212,7 +212,7 @@ feature gmp-version-hidden : [ feature.values <gmp-version> ] : propagated incid
 
 feature mpfr-version : unspecified : propagated ;
 ECHO patience... ;
-for local i in 3.0.1 #[ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/mpfr-versions.sh\" || /bin/echo -n 'error'" ] " +" ]
+for local i in [ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/mpfr-versions.sh\" || /bin/echo -n 'error'" ] " +" ]
 {
   if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(i) : 1 ] {
     feature.extend mpfr-version : $(i) ;
@@ -227,7 +227,7 @@ feature mpfr-version-hidden : [ feature.values <mpfr-version> ] : propagated inc
 
 feature mpc-version : unspecified : propagated ;
 ECHO patience... ;
-for local i in 0.9 #[ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/mpc-versions.sh\" || /bin/echo -n 'error'" ] " +" ]
+for local i in [ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/mpc-versions.sh\" || /bin/echo -n 'error'" ] " +" ]
 {
   if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(i) : 1 ] {
     feature.extend mpc-version : $(i) ;
@@ -242,7 +242,7 @@ feature mpc-version-hidden : [ feature.values <mpc-version> ] : propagated incid
 
 feature gcc-version : unspecified : propagated ;
 ECHO patience... ;
-for local i in 4.6.0 #[ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/gcc-versions.sh\" || /bin/echo -n 'error'" ] " +" ]
+for local i in [ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/gcc-versions.sh\" || /bin/echo -n 'error'" ] " +" ]
 {
   if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(i) : 1 ] {
     feature.extend gcc-version : $(i) ;
