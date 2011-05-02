@@ -119,10 +119,10 @@ rule mingw-w64-headers-dep-req ( properties * )
 {
   local result = ;
   local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
-  if $(stage) = 2 {
+  if $(stage) = 2 || $(stage) = 3 {
     if [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
-      result = <source>../../mingw-w64-headers//install ;
-      # `<intro-stage>2' is automatically propagated.
+      result = <source>../mingw-w64-headers//install ;
+      # `<intro-stage>' is automatically propagated.
       # `<intro-host>' is automatically propagated.
       # `<intro-link>unspecified' is automatically propagated.
       result = $(result)/<intro-multilib>unspecified ;
