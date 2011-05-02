@@ -53,7 +53,7 @@ for local argv in [ modules.peek : ARGV ] {
     else if $(tmp) = "--enable-multilib=yes" {
       multilib = yes ;
     }
-    else if $(tmp) = "--disable-multilib=no" {
+    else if $(tmp) = "--enable-multilib=no" {
       multilib = no ;
     }
     else {

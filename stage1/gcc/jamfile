@@ -683,6 +683,8 @@ rule install-req ( properties * )
 
   local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
 
+  local build = [ SHELL "\"$(INTRO_ROOT_DIR)/stage1/gcc/config.guess\" | tr --delete '\n'" ] ;
+
   local host = [ feature.get-values <intro-host> : $(properties) ] ;
   if $(stage) = 1 && $(host) != unspecified {
     errors.error "ERROR: `<intro-host>$(host)' is not valid for the GCC stage 1 build." ;
