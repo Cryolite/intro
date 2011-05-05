@@ -7,6 +7,39 @@ import make ;
 import regex ;
 
 
+rule mingw-w64-headers-dep-req ( properties * )
+{
+  local result ;
+  local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
+  if $(stage) = 3 {
+    if [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
+      result = <source>../mingw-w64-headers//install ;
+      # `<intro-stage>3' is automatically propagated.
+      # `<intro-host>' is automatically propagated.
+      # `<intro-link>unspecified' is automatically propagated.
+      result = $(result)/<intro-multilib>unspecified ;
+      # `<intro-multilib-hidden>unspecified' is automatically propagated.
+      result = $(result)/<binutils-version>unspecified ;
+      # `<binutils-version-hidden>unspecified' is automatically propagated.
+      # `<gmp-version>unspecified' is automatically propagated.
+      result = $(result)/<gmp-version-hidden>unspecified ;
+      # `<mpfr-version>unspecified' is automatically propagated.
+      result = $(result)/<mpfr-version-hidden>unspecified ;
+      # `<mpc-version>unspecified' is automatically propagated.
+      result = $(result)/<mpc-version-hidden>unspecified ;
+      result = $(result)/<gcc-version>unspecified ;
+      result = $(result)/<gcc-default>unspecified ;
+    }
+    else {
+      errors.error "ERROR: unknown cross target." ;
+    }
+  }
+  return $(result) ;
+}
+alias mingw-w64-headers-dep : : <conditional>@mingw-w64-headers-dep-req ;
+explicit mingw-w64-headers-dep ;
+
+
 rule gcc-stage1-dep-req ( properties * )
 {
   local result ;
@@ -34,7 +67,6 @@ rule gcc-stage1-dep-req ( properties * )
   }
   return $(result) ;
 }
-
 alias gcc-stage1-dep : : <conditional>@gcc-stage1-dep-req ;
 explicit gcc-stage1-dep ;
 
@@ -47,7 +79,7 @@ alias mkdir-dep : : <intro-stage>3:<source>"$(CROSS_PREFIX)/$(HOST)/include" ;
 explicit mkdir-dep ;
 
 
-make make : gcc-stage1-dep mkdir-dep : @make-mingw-w64-crt ;
+make make : mingw-w64-headers-dep gcc-stage1-dep mkdir-dep : @make-mingw-w64-crt ;
 explicit make ;
 
 rule make-mingw-w64-crt ( targets * : sources * : properties * )

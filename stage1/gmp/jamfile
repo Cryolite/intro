@@ -13,7 +13,7 @@ rule gcc-dep-req ( properties * )
   local result ;
   local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
   local host = [ feature.get-values <intro-host> : $(properties) ] ;
-  if $(stage) = 2 || ( $(stage) = 3 && ! [ regex.match "(-w64-mingw32)$" : $(host) : 1 ] ) {
+  if $(stage) = 2 || $(stage) = 3 {
     result = <source>../../stage2/gcc//install ;
     result = $(result)/<intro-stage>2 ;
     # `<intro-host>' is automatically propagated.
@@ -194,6 +194,14 @@ rule make-gmp ( targets * : sources * : properties * )
     OPTIONS on $(targets) += --disable-shared ;
   }
 
+  local build-raw = [ SHELL "\"$(INTRO_ROOT_DIR)/stage1/gcc/config.guess\" | tr --delete '\n'" ] ;
+  SET_X64_X86_USR_SYMLINK on $(targets) = ;
+  UNSET_X64_X86_USR_SYMLINK on $(targets) = ;
+  if ( $(stage) = 2 || $(stage) = 3 ) && $(build-raw) = x86_64-unknown-linux-gnu && $(HOST) = i686-pc-linux-gnu {
+    SET_X64_X86_USR_SYMLINK on $(targets) = "{ mkdir -p \"$(PREFIX)/usr\" && ln -sf /usr/include \"$(PREFIX)/usr/include\" && ln -sf /usr/lib32 \"$(PREFIX)/usr/lib\"; } || exit $?" ;
+    UNSET_X64_X86_USR_SYMLINK on $(targets) = "rm \"$(PREFIX)/usr/include\" \"$(PREFIX)/usr/lib\"; rmdir \"$(PREFIX)/usr\"" ;
+  }
+
   SET_RUN_VARS on $(targets) = ;
   UNSET_RUN_VARS on $(targets) = ;
   if $(stage) = 1 {
@@ -220,17 +228,20 @@ actions make-gmp
   rm -f "$(<)" || exit $?
   [ -x "$(CONFIGURE)" ] || exit 1
   { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
+  $(SET_X64_X86_USR_SYMLINK)
   $(SET_RUN_VARS)
   ( cd "$(<:D)/build" && $(RUN_VAR) "$(CONFIGURE)" $(OPTIONS) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
   if [ $? -ne 0 ]; then
     $(UNSET_RUN_VARS)
+    $(UNSET_X64_X86_USR_SYMLINK)
     echo "ERROR: failed to 'configure' for the GMP build." 2>>"$(STDERR_)" 1>&2
     exit 1
   fi
-  [ -f "$(<:D)/build/Makefile" ] || { $(UNSET_RUN_VARS); exit 1; }
+  [ -f "$(<:D)/build/Makefile" ] || { $(UNSET_RUN_VARS); $(UNSET_X64_X86_USR_SYMLINK); exit 1; }
   ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
   if [ $? -ne 0 ]; then
     $(UNSET_RUN_VARS)
+    $(UNSET_X64_X86_USR_SYMLINK)
     echo "ERROR: failed to 'make' for the GMP build." 2>>"$(STDERR_)" 1>&2
     exit 1
   fi
@@ -238,6 +249,7 @@ actions make-gmp
     ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
     if [ $? -ne 0 ]; then
       $(UNSET_RUN_VARS)
+      $(UNSET_X64_X86_USR_SYMLINK)
       echo "ERROR: failed to 'make check' for the GMP build." 2>>"$(STDERR_)" 1>&2
       exit 1
     fi
@@ -245,10 +257,12 @@ actions make-gmp
   ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) install 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
   if [ $? -ne 0 ]; then
     $(UNSET_RUN_VARS)
+    $(UNSET_X64_X86_USR_SYMLINK)
     echo "ERROR: failed to 'make install' for the GMP build." 2>>"$(STDERR_)" 1>&2
     exit 1
   fi
   $(UNSET_RUN_VARS)
+  $(UNSET_X64_X86_USR_SYMLINK)
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }

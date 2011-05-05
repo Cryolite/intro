@@ -119,10 +119,11 @@ rule mingw-w64-headers-dep-req ( properties * )
 {
   local result = ;
   local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
-  if $(stage) = 2 || $(stage) = 3 {
+  local build = [ SHELL "\"$(INTRO_ROOT_DIR)/stage1/gcc/config.guess\" | tr --delete '\n'" ] ;
+  if $(stage) = 2 {
     if [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
       result = <source>../mingw-w64-headers//install ;
-      # `<intro-stage>' is automatically propagated.
+      # `<intro-stage>2' is automatically propagated.
       # `<intro-host>' is automatically propagated.
       # `<intro-link>unspecified' is automatically propagated.
       result = $(result)/<intro-multilib>unspecified ;
@@ -137,6 +138,9 @@ rule mingw-w64-headers-dep-req ( properties * )
       # `<mpc-version-hidden>unspecified' is automatically propagated.
       result = $(result)/<gcc-version>unspecified ;
       result = $(result)/<gcc-default>unspecified ;
+    }
+    else if $(build) = x86_64-unknown-linux-gnu && $(HOST) = i686-pc-linux-gnu {
+      # Do nothing.
     }
     else {
       errors.error "ERROR: unknown cross target." ;
@@ -280,12 +284,12 @@ rule configure-gcc ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) += --enable-threads ;
 
-  if $(stage) = 1 || $(HOST_RUNNABLE) = yes {
-    OPTIONS on $(targets) += --enable-bootstrap ;
-  }
-  else {
-    OPTIONS on $(targets) += --disable-bootstrap ;
-  }
+  # if $(stage) = 1 || ( $(stage) = 3 && $(HOST_RUNNABLE) = yes ) {
+  #   OPTIONS on $(targets) += --enable-bootstrap ;
+  # }
+  # else {
+  #   OPTIONS on $(targets) += --disable-bootstrap ;
+  # }
 
   if $(gcc-default) = no {
     OPTIONS on $(targets) += --enable-version-specific-runtime-libs ;
@@ -379,6 +383,17 @@ rule configure-gcc ( targets * : sources * : properties * )
     UNSET_MINGW_WINSUP_SYMLINK on $(targets) = "rm \"$(INTRO_ROOT_DIR)/gcc-$(version)/winsup/mingw/include\"" ;
   }
 
+  SET_X64_X86_USR_SYMLINK on $(targets) = ;
+  UNSET_X64_X86_USR_SYMLINK on $(targets) = ;
+  if $(stage) = 2 && $(build) = x86_64-unknown-linux-gnu && $(HOST) = i686-pc-linux-gnu {
+    SET_X64_X86_USR_SYMLINK on $(targets) = "{ mkdir -p \"$(PREFIX)/usr\" && ln -sf /usr/include \"$(PREFIX)/usr/include\" && ln -sf /usr/lib32 \"$(PREFIX)/usr/lib\"; } || exit $?" ;
+    UNSET_X64_X86_USR_SYMLINK on $(targets) = "rm \"$(PREFIX)/usr/include\" \"$(PREFIX)/usr/lib\"; rmdir \"$(PREFIX)/usr\"" ;
+  }
+  if $(stage) = 3 && $(build) = x86_64-unknown-linux-gnu && $(HOST) = i686-pc-linux-gnu {
+    SET_X64_X86_USR_SYMLINK on $(targets) = "{ mkdir -p \"$(PREFIX)/usr\" && ln -sf /usr/include \"$(PREFIX)/usr/include\" && ln -sf /usr/lib32 \"$(PREFIX)/usr/lib\" && mkdir -p \"$(CROSS_PREFIX)/usr\" && ln -sf /usr/include \"$(CROSS_PREFIX)/usr/include\" && ln -sf /usr/lib32 \"$(CROSS_PREFIX)/usr/lib\"; } || exit $?" ;
+    UNSET_X64_X86_USR_SYMLINK on $(targets) = "rm \"$(PREFIX)/usr/include\" \"$(PREFIX)/usr/lib\"; rmdir \"$(PREFIX)/usr\"; rm \"$(CROSS_PREFIX)/usr/include\" \"$(CROSS_PREFIX)/usr/lib\"; rmdir \"$(CROSS_PREFIX)/usr\"" ;
+  }
+
   SET_RUN_VARS on $(targets) = ;
   UNSET_RUN_VARS on $(targets) = ;
   if $(stage) = 1 {
@@ -431,16 +446,19 @@ actions configure-gcc
   { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
   $(SET_MINGW_SYMLINK)
   $(SET_MINGW_WINSUP_SYMLINK)
+  $(SET_X64_X86_USR_SYMLINK)
   $(SET_RUN_VARS)
   ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
   if [ $? -ne 0 ]; then
     $(UNSET_RUN_VARS)
+    $(UNSET_X64_X86_USR_SYMLINK)
     $(UNSET_MINGW_WINSUP_SYMLINK)
     $(UNSET_MINGW_SYMLINK)
     echo "ERROR: failed to 'configure' for the GCC build." 2>>"$(STDERR_)" 1>&2
     exit 1
   fi
   $(UNSET_RUN_VARS)
+  $(UNSET_X64_X86_USR_SYMLINK)
   $(UNSET_MINGW_WINSUP_SYMLINK)
   $(UNSET_MINGW_SYMLINK)
   [ -f "$(<:D)/build/Makefile" ] || exit 1
@@ -599,6 +617,17 @@ rule make-gcc ( targets * : sources * : properties * )
     UNSET_MINGW_WINSUP_SYMLINK on $(targets) = "rm \"$(INTRO_ROOT_DIR)/gcc-$(version)/winsup/mingw/include\"" ;
   }
 
+  SET_X64_X86_USR_SYMLINK on $(targets) = ;
+  UNSET_X64_X86_USR_SYMLINK on $(targets) = ;
+  if $(stage) = 2 && $(build) = x86_64-unknown-linux-gnu && $(HOST) = i686-pc-linux-gnu {
+    SET_X64_X86_USR_SYMLINK on $(targets) = "{ mkdir -p \"$(PREFIX)/usr\" && ln -sf /usr/include \"$(PREFIX)/usr/include\" && ln -sf /usr/lib32 \"$(PREFIX)/usr/lib\"; } || exit $?" ;
+    UNSET_X64_X86_USR_SYMLINK on $(targets) = "rm \"$(PREFIX)/usr/include\" \"$(PREFIX)/usr/lib\"; rmdir \"$(PREFIX)/usr\"" ;
+  }
+  if $(stage) = 3 && $(build) = x86_64-unknown-linux-gnu && $(HOST) = i686-pc-linux-gnu {
+    SET_X64_X86_USR_SYMLINK on $(targets) = "{ mkdir -p \"$(PREFIX)/usr\" && ln -sf /usr/include \"$(PREFIX)/usr/include\" && ln -sf /usr/lib32 \"$(PREFIX)/usr/lib\" && mkdir -p \"$(CROSS_PREFIX)/usr\" && ln -sf /usr/include \"$(CROSS_PREFIX)/usr/include\" && ln -sf /usr/lib32 \"$(CROSS_PREFIX)/usr/lib\"; } || exit $?" ;
+    UNSET_X64_X86_USR_SYMLINK on $(targets) = "rm \"$(PREFIX)/usr/include\" \"$(PREFIX)/usr/lib\"; rmdir \"$(PREFIX)/usr\"; rm \"$(CROSS_PREFIX)/usr/include\" \"$(CROSS_PREFIX)/usr/lib\"; rmdir \"$(CROSS_PREFIX)/usr\"" ;
+  }
+
   SET_RUN_VARS on $(targets) = ;
   UNSET_RUN_VARS on $(targets) = ;
   if $(stage) = 1 {
@@ -650,10 +679,12 @@ actions make-gcc
   [ -f "$(<:D)/build/Makefile" ] || exit 1
   $(SET_MINGW_SYMLINK)
   $(SET_MINGW_WINSUP_SYMLINK)
+  $(SET_X64_X86_USR_SYMLINK)
   $(SET_RUN_VARS)
   ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
   if [ $? -ne 0 ]; then
     $(UNSET_RUN_VARS)
+    $(UNSET_X64_X86_USR_SYMLINK)
     $(UNSET_MINGW_WINSUP_SYMLINK)
     $(UNSET_MINGW_SYMLINK)
     echo "ERROR: failed to 'make' for the GCC build." 2>>"$(STDERR_)" 1>&2
@@ -662,12 +693,14 @@ actions make-gcc
   ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) install 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
   if [ $? -ne 0 ]; then
     $(UNSET_RUN_VARS)
+    $(UNSET_X64_X86_USR_SYMLINK)
     $(UNSET_MINGW_WINSUP_SYMLINK)
     $(UNSET_MINGW_SYMLINK)
     echo "ERROR: failed to 'make install' for the GCC build." 2>>"$(STDERR_)" 1>&2
     exit 1
   fi
   $(UNSET_RUN_VARS)
+  $(UNSET_X64_X86_USR_SYMLINK)
   $(UNSET_MINGW_WINSUP_SYMLINK)
   $(UNSET_MINGW_SYMLINK)
   [ -e "$(<)" ] && exit 1
