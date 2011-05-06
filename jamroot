@@ -137,6 +137,19 @@ for local argv in [ modules.peek : ARGV ] {
     }
   }
 
+  if $(build) = x86_64-unknown-linux-gnu && $(HOST) = i686-pc-linux-gnu {
+    constant STAGE2_SET_RUNTIME_SYMLINK : "{ mkdir -p \"$(PREFIX)/usr\" && ln -s /usr/include \"$(PREFIX)/usr/include\" && ln -s /usr/lib32 \"$(PREFIX)/usr/lib\"; } || exit $?" ;
+    constant STAGE2_UNSET_RUNTIME_SYMLINK : "rm \"$(PREFIX)/usr/include\"; rm \"$(PREFIX)/usr/lib\"; rmdir \"$(PREFIX)/usr\"" ;
+    constant STAGE3_SET_RUNTIME_SYMLINK : "{ mkdir -p \"$(CROSS_PREFIX)/usr\" && ln -s /usr/include \"$(CROSS_PREFIX)/usr/include\" && ln -s /usr/lib32 \"$(CROSS_PREFIX)/usr/lib\"; } || exit $?" ;
+    constant STAGE3_UNSET_RUNTIME_SYMLINK : "rm \"$(CROSS_PREFIX)/usr/include\"; rm \"$(CROSS_PREFIX)/usr/lib\"; rmdir \"$(CROSS_PREFIX)/usr\"" ;
+  }
+  else if [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
+    constant STAGE2_SET_RUNTIME_SYMLINK : "ln -s \"$(PREFIX)/$(HOST)\" \"$(PREFIX)/mingw\" || exit $?" ;
+    constant STAGE2_UNSET_RUNTIME_SYMLINK : "rm \"$(PREFIX)/mingw\"" ;
+    constant STAGE3_SET_RUNTIME_SYMLINK : "ln -s \"$(CROSS_PREFIX)/$(HOST)\" \"$(CROSS_PREFIX)/mingw\" || exit $?" ;
+    constant STAGE3_UNSET_RUNTIME_SYMLINK : "rm \"$(CROSS_PREFIX)/mingw\"" ;
+  }
+
   if ! $(host) {
     host-runnable ?= yes ;
   }

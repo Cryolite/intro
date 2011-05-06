@@ -365,15 +365,15 @@ rule configure-gcc ( targets * : sources * : properties * )
   #   OPTIONS on $(targets) += --disable-sjlj-exceptions ;
   # }
 
-  SET_MINGW_SYMLINK on $(targets) = ;
-  UNSET_MINGW_SYMLINK on $(targets) = ;
-  if $(stage) = 2 && [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
-    SET_MINGW_SYMLINK on $(targets) = "ln -sf \"$(PREFIX)/$(HOST)\" \"$(PREFIX)/mingw\" || exit $?" ;
-    UNSET_MINGW_SYMLINK on $(targets) = "rm \"$(PREFIX)/mingw\"" ;
+  SET_RUNTIME_SYMLINK on $(targets) = ;
+  UNSET_RUNTIME_SYMLINK on $(targets) = ;
+  if $(stage) = 2 {
+    SET_RUNTIME_SYMLINK on $(targets) = $(STAGE2_SET_RUNTIME_SYMLINK) ;
+    UNSET_RUNTIME_SYMLINK on $(targets) = $(STAGE2_UNSET_RUNTIME_SYMLINK) ;
   }
-  else if $(stage) = 3 && [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
-    SET_MINGW_SYMLINK on $(targets) = "{ mkdir -p \"$(CROSS_PREFIX)/$(HOST)\" && ln -sf \"$(CROSS_PREFIX)/$(HOST)\" \"$(CROSS_PREFIX)/mingw\"; } || exit $?" ;
-    UNSET_MINGW_SYMLINK on $(targets) = "rm \"$(CROSS_PREFIX)/mingw\"" ;
+  else if $(stage) = 3 {
+    SET_RUNTIME_SYMLINK on $(targets) = "$(STAGE2_SET_RUNTIME_SYMLINK); $(STAGE3_SET_RUNTIME_SYMLINK)" ;
+    UNSET_RUNTIME_SYMLINK on $(targets) = "$(STAGE2_UNSET_RUNTIME_SYMLINK); $(STAGE3_UNSET_RUNTIME_SYMLINK)" ;
   }
 
   SET_MINGW_WINSUP_SYMLINK on $(targets) = ;
@@ -381,17 +381,6 @@ rule configure-gcc ( targets * : sources * : properties * )
   if $(stage) = 3 && [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
     SET_MINGW_WINSUP_SYMLINK on $(targets) = "{ mkdir -p \"$(INTRO_ROOT_DIR)/gcc-$(version)/winsup/mingw\" && ( cd \"$(INTRO_ROOT_DIR)/gcc-$(version)/winsup/mingw\" && mkdir -p \"$(CROSS_PREFIX)/$(HOST)/include\" && ln -sf \"$(CROSS_PREFIX)/$(HOST)/include\" include ); } || exit $?" ;
     UNSET_MINGW_WINSUP_SYMLINK on $(targets) = "rm \"$(INTRO_ROOT_DIR)/gcc-$(version)/winsup/mingw/include\"" ;
-  }
-
-  SET_X64_X86_USR_SYMLINK on $(targets) = ;
-  UNSET_X64_X86_USR_SYMLINK on $(targets) = ;
-  if $(stage) = 2 && $(build) = x86_64-unknown-linux-gnu && $(HOST) = i686-pc-linux-gnu {
-    SET_X64_X86_USR_SYMLINK on $(targets) = "{ mkdir -p \"$(PREFIX)/usr\" && ln -sf /usr/include \"$(PREFIX)/usr/include\" && ln -sf /usr/lib32 \"$(PREFIX)/usr/lib\"; } || exit $?" ;
-    UNSET_X64_X86_USR_SYMLINK on $(targets) = "rm \"$(PREFIX)/usr/include\" \"$(PREFIX)/usr/lib\"; rmdir \"$(PREFIX)/usr\"" ;
-  }
-  if $(stage) = 3 && $(build) = x86_64-unknown-linux-gnu && $(HOST) = i686-pc-linux-gnu {
-    SET_X64_X86_USR_SYMLINK on $(targets) = "{ mkdir -p \"$(PREFIX)/usr\" && ln -sf /usr/include \"$(PREFIX)/usr/include\" && ln -sf /usr/lib32 \"$(PREFIX)/usr/lib\" && mkdir -p \"$(CROSS_PREFIX)/usr\" && ln -sf /usr/include \"$(CROSS_PREFIX)/usr/include\" && ln -sf /usr/lib32 \"$(CROSS_PREFIX)/usr/lib\"; } || exit $?" ;
-    UNSET_X64_X86_USR_SYMLINK on $(targets) = "rm \"$(PREFIX)/usr/include\" \"$(PREFIX)/usr/lib\"; rmdir \"$(PREFIX)/usr\"; rm \"$(CROSS_PREFIX)/usr/include\" \"$(CROSS_PREFIX)/usr/lib\"; rmdir \"$(CROSS_PREFIX)/usr\"" ;
   }
 
   SET_RUN_VARS on $(targets) = ;
@@ -444,23 +433,20 @@ actions configure-gcc
   rm -f "$(<)" || exit $?
   [ -x "$(CONFIGURE)" ] || exit 1
   { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
-  $(SET_MINGW_SYMLINK)
+  $(SET_RUNTIME_SYMLINK)
   $(SET_MINGW_WINSUP_SYMLINK)
-  $(SET_X64_X86_USR_SYMLINK)
   $(SET_RUN_VARS)
   ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
   if [ $? -ne 0 ]; then
     $(UNSET_RUN_VARS)
-    $(UNSET_X64_X86_USR_SYMLINK)
     $(UNSET_MINGW_WINSUP_SYMLINK)
-    $(UNSET_MINGW_SYMLINK)
+    $(UNSET_RUNTIME_SYMLINK)
     echo "ERROR: failed to 'configure' for the GCC build." 2>>"$(STDERR_)" 1>&2
     exit 1
   fi
   $(UNSET_RUN_VARS)
-  $(UNSET_X64_X86_USR_SYMLINK)
   $(UNSET_MINGW_WINSUP_SYMLINK)
-  $(UNSET_MINGW_SYMLINK)
+  $(UNSET_RUNTIME_SYMLINK)
   [ -f "$(<:D)/build/Makefile" ] || exit 1
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
@@ -599,15 +585,15 @@ rule make-gcc ( targets * : sources * : properties * )
   local build = [ SHELL "\"$(INTRO_ROOT_DIR)/stage1/gcc/config.guess\" | tr --delete '\n'" ] ;
   local version = [ feature.get-values <gcc-version> : $(properties) ] ;
 
-  SET_MINGW_SYMLINK on $(targets) = ;
-  UNSET_MINGW_SYMLINK on $(targets) = ;
-  if $(stage) = 2 && [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
-    SET_MINGW_SYMLINK on $(targets) = "ln -sf \"$(PREFIX)/$(HOST)\" \"$(PREFIX)/mingw\" || exit $?" ;
-    UNSET_MINGW_SYMLINK on $(targets) = "rm \"$(PREFIX)/mingw\"" ;
+  SET_RUNTIME_SYMLINK on $(targets) = ;
+  UNSET_RUNTIME_SYMLINK on $(targets) = ;
+  if $(stage) = 2 {
+    SET_RUNTIME_SYMLINK on $(targets) = $(STAGE2_SET_RUNTIME_SYMLINK) ;
+    UNSET_RUNTIME_SYMLINK on $(targets) = $(STAGE2_UNSET_RUNTIME_SYMLINK) ;
   }
-  else if $(stage) = 3 && [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
-    SET_MINGW_SYMLINK on $(targets) = "{ mkdir -p \"$(CROSS_PREFIX)/$(HOST)\" && ln -sf \"$(CROSS_PREFIX)/$(HOST)\" \"$(CROSS_PREFIX)/mingw\"; } || exit $?" ;
-    UNSET_MINGW_SYMLINK on $(targets) = "rm \"$(CROSS_PREFIX)/mingw\"" ;
+  else if $(stage) = 3 {
+    SET_RUNTIME_SYMLINK on $(targets) = "$(STAGE2_SET_RUNTIME_SYMLINK); $(STAGE3_SET_RUNTIME_SYMLINK)" ;
+    UNSET_RUNTIME_SYMLINK on $(targets) = "$(STAGE2_UNSET_RUNTIME_SYMLINK); $(STAGE3_UNSET_RUNTIME_SYMLINK)" ;
   }
 
   SET_MINGW_WINSUP_SYMLINK on $(targets) = ;
@@ -615,17 +601,6 @@ rule make-gcc ( targets * : sources * : properties * )
   if $(stage) = 3 && [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
     SET_MINGW_WINSUP_SYMLINK on $(targets) = "{ mkdir -p \"$(INTRO_ROOT_DIR)/gcc-$(version)/winsup/mingw\" && ( cd \"$(INTRO_ROOT_DIR)/gcc-$(version)/winsup/mingw\" && mkdir -p \"$(CROSS_PREFIX)/$(HOST)/include\" && ln -sf \"$(CROSS_PREFIX)/$(HOST)/include\" include ); } || exit $?" ;
     UNSET_MINGW_WINSUP_SYMLINK on $(targets) = "rm \"$(INTRO_ROOT_DIR)/gcc-$(version)/winsup/mingw/include\"" ;
-  }
-
-  SET_X64_X86_USR_SYMLINK on $(targets) = ;
-  UNSET_X64_X86_USR_SYMLINK on $(targets) = ;
-  if $(stage) = 2 && $(build) = x86_64-unknown-linux-gnu && $(HOST) = i686-pc-linux-gnu {
-    SET_X64_X86_USR_SYMLINK on $(targets) = "{ mkdir -p \"$(PREFIX)/usr\" && ln -sf /usr/include \"$(PREFIX)/usr/include\" && ln -sf /usr/lib32 \"$(PREFIX)/usr/lib\"; } || exit $?" ;
-    UNSET_X64_X86_USR_SYMLINK on $(targets) = "rm \"$(PREFIX)/usr/include\" \"$(PREFIX)/usr/lib\"; rmdir \"$(PREFIX)/usr\"" ;
-  }
-  if $(stage) = 3 && $(build) = x86_64-unknown-linux-gnu && $(HOST) = i686-pc-linux-gnu {
-    SET_X64_X86_USR_SYMLINK on $(targets) = "{ mkdir -p \"$(PREFIX)/usr\" && ln -sf /usr/include \"$(PREFIX)/usr/include\" && ln -sf /usr/lib32 \"$(PREFIX)/usr/lib\" && mkdir -p \"$(CROSS_PREFIX)/usr\" && ln -sf /usr/include \"$(CROSS_PREFIX)/usr/include\" && ln -sf /usr/lib32 \"$(CROSS_PREFIX)/usr/lib\"; } || exit $?" ;
-    UNSET_X64_X86_USR_SYMLINK on $(targets) = "rm \"$(PREFIX)/usr/include\" \"$(PREFIX)/usr/lib\"; rmdir \"$(PREFIX)/usr\"; rm \"$(CROSS_PREFIX)/usr/include\" \"$(CROSS_PREFIX)/usr/lib\"; rmdir \"$(CROSS_PREFIX)/usr\"" ;
   }
 
   SET_RUN_VARS on $(targets) = ;
@@ -677,32 +652,28 @@ actions make-gcc
 {
   rm -f "$(<)" || exit $?
   [ -f "$(<:D)/build/Makefile" ] || exit 1
-  $(SET_MINGW_SYMLINK)
+  $(SET_RUNTIME_SYMLINK)
   $(SET_MINGW_WINSUP_SYMLINK)
-  $(SET_X64_X86_USR_SYMLINK)
   $(SET_RUN_VARS)
   ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
   if [ $? -ne 0 ]; then
     $(UNSET_RUN_VARS)
-    $(UNSET_X64_X86_USR_SYMLINK)
     $(UNSET_MINGW_WINSUP_SYMLINK)
-    $(UNSET_MINGW_SYMLINK)
+    $(UNSET_RUNTIME_SYMLINK)
     echo "ERROR: failed to 'make' for the GCC build." 2>>"$(STDERR_)" 1>&2
     exit 1
   fi
   ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) install 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
   if [ $? -ne 0 ]; then
     $(UNSET_RUN_VARS)
-    $(UNSET_X64_X86_USR_SYMLINK)
     $(UNSET_MINGW_WINSUP_SYMLINK)
-    $(UNSET_MINGW_SYMLINK)
+    $(UNSET_RUNTIME_SYMLINK)
     echo "ERROR: failed to 'make install' for the GCC build." 2>>"$(STDERR_)" 1>&2
     exit 1
   fi
   $(UNSET_RUN_VARS)
-  $(UNSET_X64_X86_USR_SYMLINK)
   $(UNSET_MINGW_WINSUP_SYMLINK)
-  $(UNSET_MINGW_SYMLINK)
+  $(UNSET_RUNTIME_SYMLINK)
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
