@@ -136,7 +136,7 @@ rule make-binutils ( targets * : sources * : properties * )
 
   # Set the '--prefix' option for the 'configure' script.
   if $(stage) = 1 {
-    errors.error "ERROR:an iinternal error." ;
+    errors.error "ERROR: an internal error." ;
   }
   else if $(stage) = 2 {
     OPTIONS on $(targets) += --prefix=\"$(PREFIX)\" ;
@@ -146,9 +146,9 @@ rule make-binutils ( targets * : sources * : properties * )
     OPTIONS on $(targets) += --prefix=\"$(CROSS_PREFIX)\" ;
   }
 
-  if $(stage) = 2 {
-    OPTIONS on $(targets) += --program-prefix=$(HOST)- ;
-  }
+  # if $(stage) = 2 {
+  #   OPTIONS on $(targets) += --program-prefix=$(HOST)- ;
+  # }
 
   local multilib = [ feature.get-values <intro-multilib> : $(properties) ] ;
   if $(multilib) = yes {
@@ -194,13 +194,14 @@ rule make-binutils ( targets * : sources * : properties * )
     # Do nothing.
   }
   else {
+    # For stage 3.
     if [ regex.match "(-w64-mingw32)$" : $(build) : 1 ] {
       SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; PATH=\"$(PREFIX)/bin\":$PATH; export PATH" ;
       UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; export PATH" ;
     }
     else {
-      SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; OLD_LD_LIBRARY_PATH=$LD_LIBRARY_PATH; PATH=\"$(PREFIX)/bin\":$PATH; LD_LIBRARY_PATH=\"$(PREFIX)/lib\":$LD_LIBRARY_PATH; export PATH; export LD_LIBRARY_PATH" ;
-      UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; LD_LIBRARY_PATH=$OLD_LD_LIBRARY_PATH; export PATH; export LD_LIBRARY_PATH" ;
+      SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; PATH=\"$(PREFIX)/bin\":$PATH; export PATH; OLD_LD_LIBRARY_PATH=$LD_LIBRARY_PATH; LD_LIBRARY_PATH=\"$(PREFIX)/lib\":$LD_LIBRARY_PATH; export LD_LIBRARY_PATH" ;
+      UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; export PATH; LD_LIBRARY_PATH=$OLD_LD_LIBRARY_PATH; export LD_LIBRARY_PATH" ;
     }
   }
 
@@ -254,9 +255,78 @@ actions make-binutils
 }
 
 
+make test : make : @test-binutils ;
+explicit test ;
+
+rule test-binutils ( targets * : sources * : properties * )
+{
+  local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
+  local build = [ SHELL "\"$(INTRO_ROOT_DIR)/stage1/binutils/config.guess\" | tr --delete '\n'" ] ;
+
+  LD on $(targets) = ;
+  if $(stage) = 2 {
+    if [ regex.match "(-w64-mingw32)$" : $(build) : 1 ] {
+      LD on $(targets) = "$(PREFIX)/bin/$(HOST)-ld.exe" ;
+    }
+    else {
+      LD on $(targets) = "$(PREFIX)/bin/$(HOST)-ld" ;
+    }
+  }
+  else if $(stage) = 3 {
+    if [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
+      LD on $(targets) = "$(CROSS_PREFIX)/bin/ld.exe" ;
+    }
+    else {
+      LD on $(targets) = "$(CROSS_PREFIX)/bin/ld" ;
+    }
+  }
+  else {
+    errors.error "ERROR: an internal error." ;
+  }
+
+  local version = [ feature.get-values <binutils-version> : $(properties) ] ;
+  VERSION on $(targets) = $(version) ;
+
+  TEST on $(targets) = no ;
+  if $(stage) = 2 || $(HOST_RUNNABLE) = yes {
+    TEST on $(targets) = yes ;
+  }
+
+  SET_RUN_VARS on $(targets) = ;
+  UNSET_RUN_VARS on $(targets) = ;
+  if $(stage) = 2 {
+    SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; PATH=\"$(PREFIX)/bin\":$PATH; export PATH" ;
+    UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; export PATH" ;
+  }
+  else if $(stage) = 3 {
+    if $(HOST_RUNNABLE) = yes {
+      SET_RUN_VARS on $(targets) = "OLD_PATH=$PATH; PATH=\"$(CROSS_PREFIX)/bin\":$PATH; export PATH" ;
+      UNSET_RUN_VARS on $(targets) = "PATH=$OLD_PATH; export PATH" ;
+    }
+  }
+  else {
+    errors.error "ERROR: an internal error." ;
+  }
+}
+actions test-binutils
+{
+  rm -f "$(<)" || exit $?
+  [ -e "$(LD)" ] || { rm -f "$(<:D)/make"; exit 1; }
+  if [ $(TEST) = yes ]; then
+    $(SET_RUN_VARS)
+    { "$(LD)" -v || exit $?; } | grep -Fq "$(VERSION)"
+    result=$?
+    $(UNSET_RUN_VARS)
+    [ $result -eq 0 ] || { rm -f "$(<:D)/make"; exit 1; }
+  fi
+  [ ! -e "$(<)" ] || { rm -f "$(<:D)/make"; exit 1; }
+  touch "$(<)"
+}
+
+
 rule install-req ( properties * )
 {
-  local result = <source>make ;
+  local result = <source>test ;
 
   local tmp ;
 
