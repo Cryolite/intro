@@ -9,31 +9,24 @@ import regex ;
 
 rule mingw-w64-headers-dep-req ( properties * )
 {
-  local result ;
-  local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
-  if $(stage) = 3 {
-    if [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
-      result = <source>../mingw-w64-headers//install ;
-      # `<intro-stage>3' is automatically propagated.
-      # `<intro-host>' is automatically propagated.
-      # `<intro-link>unspecified' is automatically propagated.
-      result = $(result)/<intro-multilib>unspecified ;
-      # `<intro-multilib-hidden>unspecified' is automatically propagated.
-      result = $(result)/<binutils-version>unspecified ;
-      # `<binutils-version-hidden>unspecified' is automatically propagated.
-      # `<gmp-version>unspecified' is automatically propagated.
-      result = $(result)/<gmp-version-hidden>unspecified ;
-      # `<mpfr-version>unspecified' is automatically propagated.
-      result = $(result)/<mpfr-version-hidden>unspecified ;
-      # `<mpc-version>unspecified' is automatically propagated.
-      result = $(result)/<mpc-version-hidden>unspecified ;
-      result = $(result)/<gcc-version>unspecified ;
-      result = $(result)/<gcc-default>unspecified ;
-    }
-    else {
-      errors.error "ERROR: unknown cross target." ;
-    }
-  }
+  # For stage 2 and 3.
+  local result = <source>../mingw-w64-headers//install ;
+  # `<intro-stage>' is automatically propagated.
+  # `<intro-host>' is automatically propagated.
+  # `<intro-link>unspecified' is automatically propagated.
+  result = $(result)/<intro-multilib>unspecified ;
+  # `<intro-multilib-hidden>unspecified' is automatically propagated.
+  result = $(result)/<binutils-version>unspecified ;
+  # `<binutils-version-hidden>unspecified' is automatically propagated.
+  # `<gmp-version>unspecified' is automatically propagated.
+  result = $(result)/<gmp-version-hidden>unspecified ;
+  # `<mpfr-version>unspecified' is automatically propagated.
+  result = $(result)/<mpfr-version-hidden>unspecified ;
+  # `<mpc-version>unspecified' is automatically propagated.
+  result = $(result)/<mpc-version-hidden>unspecified ;
+  result = $(result)/<gcc-version>unspecified ;
+  result = $(result)/<enable-cross-binutils>unspecified ;
+  # `<enable-cross-crt>yes' is automatically propagated.
   return $(result) ;
 }
 alias mingw-w64-headers-dep : : <conditional>@mingw-w64-headers-dep-req ;
@@ -42,29 +35,27 @@ explicit mingw-w64-headers-dep ;
 
 rule gcc-stage1-dep-req ( properties * )
 {
-  local result ;
-  local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
-  if $(stage) = 2 || $(stage) = 3 {
-    result = <source>../../stage2/gcc//mingw32-stage1.make ;
-    result = $(result)/<intro-stage>2 ;
-    # `<intro-host>' is automatically propagated.
-    # `<intro-link>unspecified' is automatically propagated.
-    # `<intro-multilib>' is automatically propagated.
-    # `<intro-multilib-hidden>unspecified' is automatically propagated.
-    # `<binutils-version>' is automatically propagated.
-    # `<binutils-version-hidden>unspecified' is automatically propagated.
-    local gmp-version = [ feature.get-values <gmp-version-hidden> : $(properties) ] ;
-    result = $(result)/<gmp-version>$(gmp-version) ;
-    result = $(result)/<gmp-version-hidden>unspecified ;
-    local mpfr-version = [ feature.get-values <mpfr-version-hidden> : $(properties) ] ;
-    result = $(result)/<mpfr-version>$(mpfr-version) ;
-    result = $(result)/<mpfr-version-hidden>unspecified ;
-    local mpc-version = [ feature.get-values <mpc-version-hidden> : $(properties) ] ;
-    result = $(result)/<mpc-version>$(mpc-version) ;
-    result = $(result)/<mpc-version-hidden>unspecified ;
-    # `<gcc-version>' is automatically propagated.
-    # `<gcc-default>yes' is automatically propagated.
-  }
+  # For stage 2 and 3.
+  local result = <source>../../stage2/gcc//mingw32-stage1.make ;
+  result = $(result)/<intro-stage>2 ;
+  # `<intro-host>' is automatically propagated.
+  # `<intro-link>unspecified' is automatically propagated.
+  # `<intro-multilib>' is automatically propagated.
+  # `<intro-multilib-hidden>unspecified' is automatically propagated.
+  # `<binutils-version>' is automatically propagated.
+  # `<binutils-version-hidden>unspecified' is automatically propagated.
+  local gmp-version = [ feature.get-values <gmp-version-hidden> : $(properties) ] ;
+  result = $(result)/<gmp-version>$(gmp-version) ;
+  result = $(result)/<gmp-version-hidden>unspecified ;
+  local mpfr-version = [ feature.get-values <mpfr-version-hidden> : $(properties) ] ;
+  result = $(result)/<mpfr-version>$(mpfr-version) ;
+  result = $(result)/<mpfr-version-hidden>unspecified ;
+  local mpc-version = [ feature.get-values <mpc-version-hidden> : $(properties) ] ;
+  result = $(result)/<mpc-version>$(mpc-version) ;
+  result = $(result)/<mpc-version-hidden>unspecified ;
+  # `<gcc-version>' is automatically propagated.
+  # `<enable-cross-binutils>' is automatically propagated.
+  # `<enable-cross-crt>yes' is automatically propagated.
   return $(result) ;
 }
 alias gcc-stage1-dep : : <conditional>@gcc-stage1-dep-req ;
@@ -168,7 +159,10 @@ actions make-mingw-w64-crt
     echo "ERROR: failed to 'configure' for the mingw-w64-crt build." 2>>"$(STDERR_)" 1>&2
     exit 1
   fi
-  [ -f "$(<:D)/build/Makefile" ] || { $(UNSET_RUN_VARS); exit 1; }
+  if [ ! -f "$(<:D)/build/Makefile" ]; then
+    $(UNSET_RUN_VARS)
+    exit 1
+  fi
   ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
   if [ $? -ne 0 ]; then
     $(UNSET_RUN_VARS)
@@ -190,7 +184,7 @@ actions make-mingw-w64-crt
     exit 1
   fi
   $(UNSET_RUN_VARS)
-  [ -e "$(<)" ] && exit 1
+  [ ! -e "$(<)" ] || exit 1
   touch "$(<)"
 }
 
@@ -276,9 +270,14 @@ rule install-req ( properties * )
     errors.error "ERROR: `<gcc-version>' is not specified for the mingw-w64-crt build." ;
   }
 
-  local gcc-default = [ feature.get-values <gcc-default> : $(properties) ] ;
-  if $(gcc-default) != yes {
-    errors.error "ERROR: `<gcc-default>$(gcc-default)' is not valid for the mingw-w64-crt build." ;
+  local enable-cross-binutils = [ feature.get-values <enable-cross-binutils> : $(properties) ] ;
+  if $(enable-cross-binutils) = unspecified {
+    errors.error "ERROR: `<enable-cross-binutils>' is not specified for the mingw-w64-crt build." ;
+  }
+
+  local enable-cross-crt = [ feature.get-values <enable-cross-crt> : $(properties) ] ;
+  if $(enable-cross-crt) != yes {
+    errors.error "ERROR: `<enable-cross-crt>$(enable-cross-crt)' is not valid for the mingw-w64-crt build." ;
   }
 
   return $(result) ;

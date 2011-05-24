@@ -11,7 +11,9 @@ local host ;
 local host-runnable ;
 local prefix ;
 local cross-prefix ;
+local enable-cross-crt ;
 local multilib ;
+local enable-cross-binutils ;
 local concurrency ;
 local stdout ;
 local stderr ;
@@ -42,6 +44,31 @@ for local argv in [ modules.peek : ARGV ] {
     }
     cross-prefix = $(tmp) ;
   }
+  tmp = [ regex.match "^(--enable-cross-crt(=((yes)|(no)))?)$" : $(argv) : 1 ] ;
+  if $(tmp) {
+    if $(enable-cross-crt) {
+      errors.error "ERROR: duplicate '--enable-cross-crt' or '--disable-cross-crt' options." ;
+    }
+    if $(tmp) = "--enable-cross-crt" {
+      enable-cross-crt = yes ;
+    }
+    else if $(tmp) = "--enable-cross-crt=yes" {
+      enable-cross-crt = yes ;
+    }
+    else if $(tmp) = "--enable-cross-crt=no" {
+      enable-cross-crt = no ;
+    }
+    else {
+      errors.error "ERROR: an internal error." ;
+    }
+  }
+  tmp = [ regex.match "^(--disable-cross-crt)$" : $(argv) : 1 ] ;
+  if $(tmp) {
+    if $(enable-cross-crt) {
+      errors.error "ERROR: duplicate '--enable-cross-crt' or '--disable-cross-crt' options." ;
+    }
+    enable-cross-crt = no ;
+  }
   tmp = [ regex.match "^(--enable-multilib(=((yes)|(no)))?)$" : $(argv) : 1 ] ;
   if $(tmp) {
     if $(multilib) {
@@ -66,6 +93,31 @@ for local argv in [ modules.peek : ARGV ] {
       errors.error "ERROR: duplicate '--enable-multilib' or '--disable-multilib' options." ;
     }
     multilib = no ;
+  }
+  tmp = [ regex.match "^(--enable-cross-binutils(=((yes)|(no)))?)$" : $(argv) : 1 ] ;
+  if $(tmp) {
+    if $(enable-cross-binutils) {
+      errors.error "ERROR: duplicate '--enable-cross-binutils' or '--disable-cross-binutils' options." ;
+    }
+    if $(tmp) = "--enable-cross-binutils" {
+      enable-cross-binutils = yes ;
+    }
+    else if $(tmp) = "--enable-cross-binutils=yes" {
+      enable-cross-binutils = yes ;
+    }
+    else if $(tmp) = "--enable-cross-binutils=no" {
+      enable-cross-binutils = no ;
+    }
+    else {
+      errors.error "ERROR: an internal error." ;
+    }
+  }
+  tmp = [ regex.match "^(--disable-cross-binutils)$" : $(argv) : 1 ] ;
+  if $(tmp) {
+    if $(enable-cross-binutils) {
+      errors.error "ERROR: duplicate '--enable-cross-binutils' or '--disable-cross-binutils' options." ;
+    }
+    enable-cross-binutils = no ;
   }
   tmp = [ regex.match "^--concurrency=([123456789][0123456789]*)$" : $(argv) : 1 ] ;
   if $(tmp) {
@@ -138,15 +190,15 @@ for local argv in [ modules.peek : ARGV ] {
   }
 
   if $(build) = x86_64-unknown-linux-gnu && $(HOST) = i686-pc-linux-gnu {
-    constant STAGE2_SET_RUNTIME_SYMLINK : "{ mkdir -p \"$(PREFIX)/usr\" && ln -s /usr/include \"$(PREFIX)/usr/include\" && ln -s /usr/lib32 \"$(PREFIX)/usr/lib\"; } || exit $?" ;
+    constant STAGE2_SET_RUNTIME_SYMLINK : "{ mkdir -p \"$(PREFIX)/usr\" && ln -sf /usr/include \"$(PREFIX)/usr/include\" && ln -sf /usr/lib32 \"$(PREFIX)/usr/lib\"; } || exit $?" ;
     constant STAGE2_UNSET_RUNTIME_SYMLINK : "rm \"$(PREFIX)/usr/include\"; rm \"$(PREFIX)/usr/lib\"; rmdir \"$(PREFIX)/usr\"" ;
-    constant STAGE3_SET_RUNTIME_SYMLINK : "{ mkdir -p \"$(CROSS_PREFIX)/usr\" && ln -s /usr/include \"$(CROSS_PREFIX)/usr/include\" && ln -s /usr/lib32 \"$(CROSS_PREFIX)/usr/lib\"; } || exit $?" ;
+    constant STAGE3_SET_RUNTIME_SYMLINK : "{ mkdir -p \"$(CROSS_PREFIX)/usr\" && ln -sf /usr/include \"$(CROSS_PREFIX)/usr/include\" && ln -sf /usr/lib32 \"$(CROSS_PREFIX)/usr/lib\"; } || exit $?" ;
     constant STAGE3_UNSET_RUNTIME_SYMLINK : "rm \"$(CROSS_PREFIX)/usr/include\"; rm \"$(CROSS_PREFIX)/usr/lib\"; rmdir \"$(CROSS_PREFIX)/usr\"" ;
   }
   else if [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
-    constant STAGE2_SET_RUNTIME_SYMLINK : "ln -s \"$(PREFIX)/$(HOST)\" \"$(PREFIX)/mingw\" || exit $?" ;
+    constant STAGE2_SET_RUNTIME_SYMLINK : "ln -sf \"$(PREFIX)/$(HOST)\" \"$(PREFIX)/mingw\" || exit $?" ;
     constant STAGE2_UNSET_RUNTIME_SYMLINK : "rm \"$(PREFIX)/mingw\"" ;
-    constant STAGE3_SET_RUNTIME_SYMLINK : "ln -s \"$(CROSS_PREFIX)/$(HOST)\" \"$(CROSS_PREFIX)/mingw\" || exit $?" ;
+    constant STAGE3_SET_RUNTIME_SYMLINK : "ln -sf \"$(CROSS_PREFIX)/$(HOST)\" \"$(CROSS_PREFIX)/mingw\" || exit $?" ;
     constant STAGE3_UNSET_RUNTIME_SYMLINK : "rm \"$(CROSS_PREFIX)/mingw\"" ;
   }
 
@@ -155,6 +207,10 @@ for local argv in [ modules.peek : ARGV ] {
   }
   host-runnable ?= no ;
   constant HOST_RUNNABLE : $(host-runnable) ;
+
+  enable-cross-crt ?= unspecified ;
+
+  enable-cross-binutils ?= unspecified ;
 
   if $(concurrency) {
     constant CONCURRENCY : $(concurrency) ;
@@ -265,12 +321,25 @@ for local i in [ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/gcc-versions.sh\" || /
   }
 }
 
-feature gcc-default : unspecified no yes : propagated incidental ;
+
+feature enable-cross-crt : unspecified no yes : propagated incidental ;
+
+
+feature enable-cross-binutils : unspecified no yes : propagated incidental ;
 
 
 
 local binutils-version-default = [ feature.values <binutils-version> ] ;
-binutils-version-default = $(binutils-version-default[2]) ;
+if $(enable-cross-binutils) = no {
+  binutils-version-default = [ SHELL "$(PREFIX)/bin/$(host)-ld --version | grep -F \"GNU ld (GNU Binutils)\" | grep -Eo \"[[:digit:]]+(\\.[[:digit:]]+(\\.[[:digit:]]+)?)?\" | tr --delete '\n'" ] ;
+  if ! [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(binutils-version-default) : 1 ] {
+    errors.error "ERROR: Cannot extract the pre-installed binutils version." ;
+  }
+}
+else {
+  binutils-version-default = $(binutils-version-default[2]) ;
+}
+
 local gmp-version-default = [ feature.values <gmp-version> ] ;
 gmp-version-default = $(gmp-version-default[2]) ;
 local mpfr-version-default = [ feature.values <mpfr-version> ] ;
@@ -279,37 +348,52 @@ local mpc-version-default = [ feature.values <mpc-version> ] ;
 mpc-version-default = $(mpc-version-default[2]) ;
 
 if ! $(host) {
+  if $(enable-cross-crt) != unspecified {
+    errors.error "ERROR: '--enable-cross-crt' is not valid for a cross build." ;
+  }
+  if $(enable-cross-binutils) != unspecified {
+    errors.error "ERROR: '--enable-cross-binutils' is not valid for a cross build." ;
+  }
   alias install-gcc
-    : stage1/gcc//install/<intro-stage>1/<intro-multilib>$(multilib)
+    : stage1/gcc//install/<intro-stage>1/<intro-multilib>$(multilib)/<enable-cross-crt>unspecified/<enable-cross-binutils>unspecified
     :
     : <gmp-version>$(gmp-version-default)
       <mpfr-version>$(mpfr-version-default)
       <mpc-version>$(mpc-version-default)
-      <gcc-default>no
     ;
   explicit install-gcc ;
 }
 else if ! $(cross-prefix) {
+  if $(enable-cross-crt) = unspecified {
+    errors.error "ERROR: '--enable-cross-crt' is not specified for a cross build." ;
+  }
+  if $(enable-cross-binutils) = unspecified {
+    errors.error "ERROR: '--enable-cross-binutils' is not specified for a cross build." ;
+  }
   alias install-gcc
-    : stage2/gcc//install/<intro-stage>2/<intro-host>$(host)/<intro-multilib>$(multilib)
+    : stage2/gcc//install/<intro-stage>2/<intro-host>$(host)/<intro-multilib>$(multilib)/<enable-cross-crt>$(enable-cross-crt)/<enable-cross-binutils>$(enable-cross-binutils)
     :
     : <binutils-version>$(binutils-version-default)
       <gmp-version>$(gmp-version-default)
       <mpfr-version>$(mpfr-version-default)
       <mpc-version>$(mpc-version-default)
-      <gcc-default>yes
     ;
   explicit install-gcc ;
 }
 else {
+  if $(enable-cross-crt) = unspecified {
+    errors.error "ERROR: '--enable-cross-crt' is not specified for a cross build." ;
+  }
+  if $(enable-cross-binutils) = unspecified {
+    errors.error "ERROR: '--enable-cross-binutils' is not specified for a cross build." ;
+  }
   alias install-gcc
-    : stage3/gcc//install/<intro-stage>3/<intro-host>$(host)/<intro-multilib>$(multilib)
+    : stage3/gcc//install/<intro-stage>3/<intro-host>$(host)/<intro-multilib>$(multilib)/<enable-cross-crt>$(enable-cross-crt)/<enable-cross-binutils>$(enable-cross-binutils)
     :
     : <binutils-version>$(binutils-version-default)
       <gmp-version>$(gmp-version-default)
       <mpfr-version>$(mpfr-version-default)
       <mpc-version>$(mpc-version-default)
-      <gcc-default>yes
     ;
   explicit install-gcc ;
 }

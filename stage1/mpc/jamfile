@@ -37,7 +37,8 @@ rule mpfr-dep-req ( properties * )
     result = $(result)/<mpc-version-hidden>$(mpc-version) ;
   }
   # `<gcc-version>' is automatically propagated.
-  # `<gcc-default>unspecified' is automatically propagated.
+  # `<enable-cross-crt>' is automatically propagated.
+  # `<enable-cross-binutils>' is automatically propagated.
   return $(result) ;
 }
 
@@ -63,7 +64,7 @@ actions download-mpc
       || { echo "ERROR: failed to download the MPC tarball." 2>>"$(STDOUT_)" 1>&2; exit 1; }
     [ -f "$(TARBALL_GZ)" ] || exit 1
   fi
-  [ -e "$(<)" ] && exit 1
+  [ ! -e "$(<)" ] || exit 1
   touch "$(<)"
 }
 
@@ -83,6 +84,73 @@ rule expand-mpc ( targets * : sources * : properties * )
   TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/mpc-$(version).tar.gz ;
   TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/mpc-$(version).tar.bz2 ;
   DEST_DIR on $(targets) = $(INTRO_ROOT_DIR)/mpc-$(version) ;
+
+  local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
+  if $(stage) != 1 {
+    errors.error "ERROR: `<intro-stage>$(stage)' is not valid for the GMP `expand' target." ;
+  }
+
+  local host = [ feature.get-values <intro-host> : $(properties) ] ;
+  if $(host) != unspecified {
+    errors.error "ERROR: `<intro-host>$(host)' is not valid for the GMP `expand' target." ;
+  }
+
+  local link = [ feature.get-values <intro-link> : $(properties) ] ;
+  if $(link) != unspecified {
+    errors.error "ERROR: `<intro-link>$(link)' is not valid for the GMP `expand' target." ;
+  }
+
+  local multilib = [ feature.get-values <intro-multilib> : $(properties) ] ;
+  if $(multilib) != unspecified {
+    errors.error "ERROR: `<intro-multilib>$(multilib)' is not valid for the GMP `expand' target." ;
+  }
+
+  local binutils-version = [ feature.get-values <binutils-version> : $(properties) ] ;
+  if $(binutils-version) != unspecified {
+    errors.error "ERROR: `<binutils-version>$(binutils-version)' is not valid for the GMP `expand' target." ;
+  }
+  binutils-version = [ feature.get-values <binutils-version-hidden> : $(properties) ] ;
+  if $(binutils-version) != unspecified {
+    errors.error "ERROR: `<binutils-version-hidden>$(binutils-version)' is not valid for the GMP `expand' target." ;
+  }
+
+  local gmp-version = [ feature.get-values <gmp-version> : $(properties) ] ;
+  if $(gmp-version) != unspecified {
+    errors.error "ERROR: `<gmp-version>$(gmp-version)' is not valid for the GMP `expand' target." ;
+  }
+  gmp-version = [ feature.get-values <gmp-version-hidden> : $(properties) ] ;
+  if $(gmp-version) != unspecified {
+    errors.error "ERROR: `<gmp-version-hidden>$(gmp-version)' is not valid for the GMP `expand' target." ;
+  }
+
+  local mpfr-version = [ feature.get-values <mpfr-version> : $(properties) ] ;
+  if $(mpfr-version) != unspecified {
+    errors.error "ERROR: `<mpfr-version>$(mpfr-version)' is not valid for the GMP `expand' target." ;
+  }
+  mpfr-version = [ feature.get-values <mpfr-version-hidden> : $(properties) ] ;
+  if $(mpfr-version) != unspecified {
+    errors.error "ERROR: `<mpfr-version-hidden>$(mpfr-version)' is not valid for the GMP `expand' target." ;
+  }
+
+  local mpc-version = [ feature.get-values <mpc-version-hidden> : $(properties) ] ;
+  if $(mpc-version) != unspecified {
+    errors.error "ERROR: `<mpc-version-hidden>$(mpc-version)' is not valid for the GMP `expand' target." ;
+  }
+
+  local gcc-version = [ feature.get-values <gcc-version> : $(properties) ] ;
+  if $(gcc-version) != unspecified {
+    errors.error "ERROR: `<gcc-version>$(gcc-version)' is not valid for the GMP `expand' target." ;
+  }
+
+  local enable-cross-binutils = [ feature.get-values <enable-cross-binutils> : $(properties) ] ;
+  if $(enable-cross-binutils) != unspecified {
+    errors.error "ERROR: `<enable-cross-binutils>$(enable-cross-binutils)' is not valid for the GMP `expand' target." ;
+  }
+
+  local enable-cross-crt = [ feature.get-values <enable-cross-crt> : $(properties) ] ;
+  if $(enable-cross-crt) != unspecified {
+    errors.error "ERROR: `<enable-cross-crt>$(enable-cross-crt)' is not valid for the GMP `expand' target." ;
+  }
 }
 actions expand-mpc
 {
@@ -101,7 +169,7 @@ actions expand-mpc
     fi
     [ -x "$(DEST_DIR)/configure" ] || exit 1
   fi
-  [ -e "$(<)" ] && exit 1
+  [ ! -e "$(<)" ] || exit 1
   touch "$(<)"
 }
 
@@ -256,7 +324,7 @@ actions make-mpc
   fi
   $(UNSET_RUN_VARS)
   $(UNSET_RUNTIME_SYMLINK)
-  [ -e "$(<)" ] && exit 1
+  [ ! -e "$(<)" ] || exit 1
   touch "$(<)"
 }
 
@@ -483,9 +551,28 @@ rule install-req ( properties * )
     errors.error "ERROR: '<gcc-version>' is not specified for the MPFR stage 2 or 3 build." ;
   }
 
-  local gcc-default = [ feature.get-values <gcc-default> : $(properties) ] ;
-  if $(gcc-default) != unspecified {
-    errors.error "ERROR: '<gcc-default>$(gcc-default)' is not valid for the MPFR build." ;
+  local enable-cross-crt = [ feature.get-values <enable-cross-crt> : $(properties) ] ;
+  if $(stage) = 1 {
+    if $(enable-cross-crt) != unspecified {
+      errors.error "ERROR: `<enable-cross-crt>$(enable-cross-crt)' is not valid for the GMP stage 1 build." ;
+    }
+  }
+  else {
+    if $(enable-cross-crt) = unspecified {
+      errors.error "ERROR: `<enable-cross-crt>' is not specified for the GMP stage 2 or 3 build." ;
+    }
+  }
+
+  local enable-cross-binutils = [ feature.get-values <enable-cross-binutils> : $(properties) ] ;
+  if $(stage) = 1 {
+    if $(enable-cross-binutils) != unspecified {
+      errors.error "ERROR: `<enable-cross-binutils>$(enable-cross-binutils)' is not valid for the GMP stage 1 build." ;
+    }
+  }
+  else {
+    if $(enable-cross-binutils) = unspecified {
+      errors.error "ERROR: `<enable-cross-binutils>' is not specified for the GMP stage 2 or 3 build." ;
+    }
   }
 
   return $(result) ;

@@ -30,7 +30,8 @@ rule gcc-dep-req ( properties * )
     result = $(result)/<mpc-version>$(mpc-version) ;
     result = $(result)/<mpc-version-hidden>unspecified ;
     # `<gcc-version>' is automatically propagated.
-    # `<gcc-default>yes' is automatically propagated. ;
+    # `<enable-cross-crt>' is automatically propagated.
+    # `<enable-cross-binutils>yes' is automatically propagated.
   }
   return $(result) ;
 }
@@ -56,7 +57,7 @@ actions download-binutils
       || { echo "ERROR: failed to download the Binutils tarball." 2>>"$(STDOUT_)" 1>&2; exit 1; }
     [ -f "$(TARBALL_BZ2)" ] || exit 1
   fi
-  [ -e "$(<)" ] && exit 1
+  [ ! -e "$(<)" ] || exit 1
   touch "$(<)"
 }
 
@@ -94,7 +95,7 @@ actions expand-binutils
     fi
     [ -x "$(DEST_DIR)/configure" ] || exit 1
   fi
-  [ -e "$(<)" ] && exit 1
+  [ ! -e "$(<)" ] || exit 1
   touch "$(<)"
 }
 
@@ -224,7 +225,11 @@ actions make-binutils
     echo "ERROR: failed to 'configure' for the Binutils build." 2>>"$(STDERR_)" 1>&2
     exit 1
   fi
-  [ -f "$(<:D)/build/Makefile" ] || { $(UNSET_RUN_VARS); $(UNSET_RUNTIME_SYMLINK); exit 1; }
+  if [ ! -f "$(<:D)/build/Makefile" ]; then
+    $(UNSET_RUN_VARS)
+    $(UNSET_RUNTIME_SYMLINK)
+    exit 1
+  fi
   ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
   if [ $? -ne 0 ]; then
     $(UNSET_RUN_VARS)
@@ -250,7 +255,7 @@ actions make-binutils
   fi
   $(UNSET_RUN_VARS)
   $(UNSET_RUNTIME_SYMLINK)
-  [ -e "$(<)" ] && exit 1
+  [ ! -e "$(<)" ] || exit 1
   touch "$(<)"
 }
 
@@ -310,17 +315,17 @@ rule test-binutils ( targets * : sources * : properties * )
 }
 actions test-binutils
 {
-  rm -f "$(<)" || exit $?
+  rm -f "$(<)" || { rm -f "$(<:D)/make"; exit 1; }
   [ -e "$(LD)" ] || { rm -f "$(<:D)/make"; exit 1; }
   if [ $(TEST) = yes ]; then
     $(SET_RUN_VARS)
-    { "$(LD)" -v || exit $?; } | grep -Fq "$(VERSION)"
+    { ( LC_ALL=C "$(LD)" -v ) || { rm -f "$(<:D)/make"; exit 1; }; } | grep -Fq "$(VERSION)"
     result=$?
     $(UNSET_RUN_VARS)
     [ $result -eq 0 ] || { rm -f "$(<:D)/make"; exit 1; }
   fi
   [ ! -e "$(<)" ] || { rm -f "$(<:D)/make"; exit 1; }
-  touch "$(<)"
+  touch "$(<)" || { rm -f "$(<:D)/make"; exit 1; }
 }
 
 
@@ -423,12 +428,17 @@ rule install-req ( properties * )
     errors.error "ERROR: `<gcc-version>' is not specified for the Binutils stage 3 build." ;
   }
 
-  local gcc-default = [ feature.get-values <gcc-default> : $(properties) ] ;
-  if $(stage) = 2 && $(gcc-default) != unspecified {
-    errors.error "ERROR: `<gcc-default>$(gcc-default)' is not valid for the Binutils stage 2 build." ;
+  local enable-cross-crt = [ feature.get-values <enable-cross-crt> : $(properties) ] ;
+  if $(stage) = 2 && $(enable-cross-crt) != unspecified {
+    errors.error "ERROR: `<enable-cross-crt>$(enable-cross-crt)' is not valid for the Binutils stage 2 build." ;
   }
-  if $(stage) = 3 && $(gcc-default) != yes {
-    errors.error "ERROR: `<gcc-default>no' is not valid for the Binutils stage 3 build." ;
+  if $(stage) = 3 && $(enable-cross-crt) = unspecified {
+    errors.error "ERROR: `<enable-cross-crt>' is not specified for the Binutils stage 3 build." ;
+  }
+
+  local enable-cross-binutils = [ feature.get-values <enable-cross-binutils> : $(properties) ] ;
+  if $(enable-cross-binutils) != yes {
+    errors.error "ERROR: `<enable-cross-binutils>$(enable-cross-binutils)' is not valid for the Binutils build." ;
   }
 
   return $(result) ;

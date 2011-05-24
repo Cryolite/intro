@@ -12,8 +12,8 @@ explicit download ;
 
 rule download-mingw-w64 ( targets * : sources * : properties * )
 {
-  URL on $(targets) = "http://downloads.sourceforge.net/project/mingw-w64/mingw-w64/mingw-w64-snapshot/mingw-w64-v1.0-snapshot-20110428.tar.bz2" ;
-  TARBALL on $(targets) = "$(INTRO_ROOT_DIR)/mingw-w64-v1.0-snapshot-20110428.tar.bz2" ;
+  URL on $(targets) = "http://downloads.sourceforge.net/project/mingw-w64/mingw-w64/mingw-w64-snapshot/mingw-w64-v1.0-snapshot-20110523.tar.bz2" ;
+  TARBALL on $(targets) = "$(INTRO_ROOT_DIR)/mingw-w64-v1.0-snapshot-20110523.tar.bz2" ;
 }
 actions download-mingw-w64
 {
@@ -23,7 +23,7 @@ actions download-mingw-w64
       || { echo "ERROR: failed to download the MinGW-w64 tarball." 2>>"$(STDOUT_)" 1>&2; exit 1; }
     [ -f "$(TARBALL)" ] || exit 1
   fi
-  [ -e "$(<)" ] && exit 1
+  [ ! -e "$(<)" ] || exit 1
   touch "$(<)"
 }
 
@@ -39,8 +39,8 @@ rule expand-mingw-w64 ( targets * : sources * : properties * )
   if $(sources[2]) {
     errors.error "ERROR: wrong number of sources." ;
   }
-  TARBALL on $(targets) = $(INTRO_ROOT_DIR)/mingw-w64-v1.0-snapshot-20110428.tar.bz2 ;
-  DEST_DIR on $(targets) = $(INTRO_ROOT_DIR)/mingw-w64-v1.0-20110428 ;
+  TARBALL on $(targets) = $(INTRO_ROOT_DIR)/mingw-w64-v1.0-snapshot-20110523.tar.bz2 ;
+  DEST_DIR on $(targets) = $(INTRO_ROOT_DIR)/mingw-w64-v1.0-20110523 ;
 }
 actions expand-mingw-w64
 {
@@ -53,7 +53,7 @@ actions expand-mingw-w64
       || { echo "ERROR: failed to expand the tarball for the MinGW-w64 build." 2>>"$(STDERR_)" 1>&2; exit 1; }
     [ -x "$(DEST_DIR)/mingw-w64-headers/configure" ] || exit 1
   fi
-  [ -e "$(<)" ] && exit 1
+  [ ! -e "$(<)" ] || exit 1
   touch "$(<)"
 }
 
@@ -69,7 +69,7 @@ rule make-mingw-w64-headers ( targets * : sources * : properties * )
   OPTIONS on $(targets) = ;
 
   # Set the path to the 'configure' file.
-  local configure = $(INTRO_ROOT_DIR)/mingw-w64-v1.0-20110428/mingw-w64-headers/configure ;
+  local configure = $(INTRO_ROOT_DIR)/mingw-w64-v1.0-20110523/mingw-w64-headers/configure ;
   CONFIGURE on $(targets) = $(configure) ;
 
   # Set the '--build' and '--host' options for the 'configure' script.
@@ -130,7 +130,7 @@ actions make-mingw-w64-headers
     ln -sf "$(PREFIX)/$(HOST)/lib" "$(PREFIX)/$(HOST)/lib64" || exit $?
   fi
   $(UNSET_RUN_VARS)
-  [ -e "$(<)" ] && exit 1
+  [ ! -e "$(<)" ] || exit 1
   touch "$(<)"
 }
 
@@ -204,9 +204,14 @@ rule install-req ( properties * )
     errors.error "ERROR: `<gcc-version>$(gcc-version)' is not valid for the mingw-w64-headers build." ;
   }
 
-  local gcc-default = [ feature.get-values <gcc-default> : $(properties) ] ;
-  if $(gcc-default) != unspecified {
-    errors.error "ERROR: `<gcc-default>$(gcc-default)' is not valid for the mingw-w64-headers build." ;
+  local enable-cross-binutils = [ feature.get-values <enable-cross-binutils> : $(properties) ] ;
+  if $(enable-cross-binutils) != unspecified {
+    errors.error "ERROR: `<enable-cross-binutils>$(enable-cross-binutils)' is not valid for the mingw-w64-headers build." ;
+  }
+
+  local enable-cross-crt = [ feature.get-values <enable-cross-crt> : $(properties) ] ;
+  if $(enable-cross-crt) != yes {
+    errors.error "ERROR: `<enable-cross-crt>$(enable-cross-crt)' is not valid for the mingw-w64-headers build." ;
   }
 
   return $(result) ;

@@ -12,48 +12,55 @@ rule binutils-dep-req ( properties * )
 {
   local result ;
   local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
+  local enable-cross-binutils = [ feature.get-values <enable-cross-binutils> : $(properties) ] ;
   if $(stage) = 1 {
     # Do nothing.
   }
   else if $(stage) = 2 {
-    result = <source>../../stage2/binutils//install ;
-    # `<intro-stage>2' is automatically propagated.
-    # `<intro-host>' is automatically propagated.
-    # `<intro-link>unspecified' is automatically propagated.
-    # `<intro-multilib>' is automatically propagated.
-    # `<intro-multilib-hidden>unspecified' is automatically propagated.
-    # `<binutils-version>' is automatically propagated.
-    # `<binutils-version-hidden>unspecified' is automatically propagated.
-    result = $(result)/<gmp-version>unspecified ;
-    # `<gmp-version-hidden>unspecified' is automatically propagated.
-    result = $(result)/<mpfr-version>unspecified ;
-    # `<mpfr-version-hidden>unspecified' is automatically propagated.
-    result = $(result)/<mpc-version>unspecified ;
-    # `<mpc-version-hidden>unspecified' is automatically propagated.
-    result = $(result)/<gcc-version>unspecified ;
-    result = $(result)/<gcc-default>unspecified ;
+    if $(enable-cross-binutils) = yes {
+      result = <source>../../stage2/binutils//install ;
+      # `<intro-stage>2' is automatically propagated.
+      # `<intro-host>' is automatically propagated.
+      # `<intro-link>unspecified' is automatically propagated.
+      # `<intro-multilib>' is automatically propagated.
+      # `<intro-multilib-hidden>unspecified' is automatically propagated.
+      # `<binutils-version>' is automatically propagated.
+      # `<binutils-version-hidden>unspecified' is automatically propagated.
+      result = $(result)/<gmp-version>unspecified ;
+      # `<gmp-version-hidden>unspecified' is automatically propagated.
+      result = $(result)/<mpfr-version>unspecified ;
+      # `<mpfr-version-hidden>unspecified' is automatically propagated.
+      result = $(result)/<mpc-version>unspecified ;
+      # `<mpc-version-hidden>unspecified' is automatically propagated.
+      result = $(result)/<gcc-version>unspecified ;
+      # `<enable-cross-binutils>yes' is automatically propagated.
+      result = $(result)/<enable-cross-crt>unspecified ;
+    }
   }
   else {
     # For stage 3.
-    result = <source>../../stage3/binutils//install ;
-    # `<intro-stage>3' is automatically propagated.
-    # `<intro-host>' is automatically propagated.
-    # `<intro-link>unspecified' is automatically propagated.
-    # `<intro-multilib>' is automatically propagated.
-    # `<intro-multilib-hidden>unspecified' is automatically propagated.
-    # `<binutils-version>' is automatically propagated.
-    # `<binutils-version-hidden>unspecified' is automatically propagated.
-    local gmp-version = [ feature.get-values <gmp-version> : $(properties) ] ;
-    result = $(result)/<gmp-version>unspecified ;
-    result = $(result)/<gmp-version-hidden>$(gmp-version) ;
-    local mpfr-version = [ feature.get-values <mpfr-version> : $(properties) ] ;
-    result = $(result)/<mpfr-version>unspecified ;
-    result = $(result)/<mpfr-version-hidden>$(mpfr-version) ;
-    local mpc-version = [ feature.get-values <mpc-version> : $(properties) ] ;
-    result = $(result)/<mpc-version>unspecified ;
-    result = $(result)/<mpc-version-hidden>$(mpc-version) ;
-    # `<gcc-version>' is automatically propagated.
-    # `<gcc-default>' is automatically propagated.
+    if $(enable-cross-binutils) = yes {
+      result = <source>../../stage3/binutils//install ;
+      # `<intro-stage>3' is automatically propagated.
+      # `<intro-host>' is automatically propagated.
+      # `<intro-link>unspecified' is automatically propagated.
+      # `<intro-multilib>' is automatically propagated.
+      # `<intro-multilib-hidden>unspecified' is automatically propagated.
+      # `<binutils-version>' is automatically propagated.
+      # `<binutils-version-hidden>unspecified' is automatically propagated.
+      local gmp-version = [ feature.get-values <gmp-version> : $(properties) ] ;
+      result = $(result)/<gmp-version>unspecified ;
+      result = $(result)/<gmp-version-hidden>$(gmp-version) ;
+      local mpfr-version = [ feature.get-values <mpfr-version> : $(properties) ] ;
+      result = $(result)/<mpfr-version>unspecified ;
+      result = $(result)/<mpfr-version-hidden>$(mpfr-version) ;
+      local mpc-version = [ feature.get-values <mpc-version> : $(properties) ] ;
+      result = $(result)/<mpc-version>unspecified ;
+      result = $(result)/<mpc-version-hidden>$(mpc-version) ;
+      # `<gcc-version>' is automatically propagated.
+      # `<enable-cross-binutils>yes' is automatically propagated.
+      # `<enable-cross-crt>' is automatically propagated.
+    }
   }
   return $(result) ;
 }
@@ -63,52 +70,23 @@ explicit binutils-dep ;
 
 rule mpc-dep-req ( properties * )
 {
-  local result ;
-  local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
-  if $(stage) = 1 || $(stage) = 2 {
-    result = <source>../../stage1/mpc//install ;
-    result = $(result)/<intro-stage>1 ;
-    result = $(result)/<intro-host>unspecified ;
-    local build = [ SHELL "\"$(INTRO_ROOT_DIR)/stage1/gcc/config.guess\" | tr --delete '\n'" ] ;
-    if [ regex.match "(-w64-mingw32)$" : $(build) : 1 ] {
-      result = $(result)/<intro-link>static ;
-    }
-    else {
-      result = $(result)/<intro-link>both ;
-    }
-    result = $(result)/<intro-multilib>unspecified ;
-    # `<intro-multilib-hidden>unspecified' is automatically propagated.
-    result = $(result)/<binutils-version>unspecified ;
-    # `<binutils-version-hidden>unspecified' is automatically propagated.
-  }
-  else {
-    result = <source>../../stage2/mpc//install/<intro-stage>2 <source>../../stage3/mpc//install/<intro-stage>3 ;
-    # `<intro-host>' is automatically propagated.
-    if [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
-      result = $(result)/<intro-link>static ;
-    }
-    else {
-      result = $(result)/<intro-link>both ;
-    }
-    local multilib = [ feature.get-values <intro-multilib> : $(properties) ] ;
-    result = $(result)/<intro-multilib>unspecified ;
-    result = $(result)/<intro-multilib-hidden>$(multilib) ;
-    # `<binutils-version>' is automatically propagated.
-    # `<binutils-version-hidden>unspecified' is automatically propagated.
-  }
-  # `<gmp-version>' is automatically propagated.
+  local result = ../../stage1/gmp//expand/<mpfr-version>unspecified/<mpc-version>unspecified
+                 ../../stage1/mpfr//expand/<gmp-version>unspecified/<mpc-version>unspecified
+                 ../../stage1/mpc//expand/<gmp-version>unspecified/<mpfr-version>unspecified ;
+  result = <source>$(result) ;
+  result = $(result)/<intro-stage>1 ;
+  result = $(result)/<intro-host>unspecified ;
+  # `<intro-link>unspecified' is automatically propagated.
+  result = $(result)/<intro-multilib>unspecified ;
+  # `<intro-multilib-hidden>unspecified' is automatically propagated.
+  result = $(result)/<binutils-version>unspecified ;
+  # `<binutils-version-hidden>unspecified' is automatically propagated.
   # `<gmp-version-hidden>unspecified' is automatically propagated.
-  # `<mpfr-version>' is automatically propagated.
   # `<mpfr-version-hidden>unspecified' is automatically propagated.
-  # `<mpc-version>' is automatically propagated.
   # `<mpc-version-hidden>unspecified' is automatically propagated.
-  if $(stage) = 1 || $(stage) = 2 {
-    result = $(result)/<gcc-version>unspecified ;
-  }
-  else {
-    # `<gcc-version>' is automatically propagated.
-  }
-  result = $(result)/<gcc-default>unspecified ;
+  result = $(result)/<gcc-version>unspecified ;
+  result = $(result)/<enable-cross-binutils>unspecified ;
+  result = $(result)/<enable-cross-crt>unspecified ;
   return $(result) ;
 }
 alias mpc-dep : : <conditional>@mpc-dep-req ;
@@ -117,30 +95,101 @@ explicit mpc-dep ;
 
 rule mingw-w64-headers-dep-req ( properties * )
 {
-  local result = ;
+  local result ;
   local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
   local build = [ SHELL "\"$(INTRO_ROOT_DIR)/stage1/gcc/config.guess\" | tr --delete '\n'" ] ;
+  local enable-cross-crt = [ feature.get-values <enable-cross-crt> : $(properties) ] ;
   if $(stage) = 2 {
+    if $(enable-cross-crt) = yes {
+      if [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
+        result = <source>../mingw-w64-headers//install ;
+        # `<intro-stage>2' is automatically propagated.
+        # `<intro-host>' is automatically propagated.
+        # `<intro-link>unspecified' is automatically propagated.
+        result = $(result)/<intro-multilib>unspecified ;
+        # `<intro-multilib-hidden>unspecified' is automatically propagated.
+        result = $(result)/<binutils-version>unspecified ;
+        # `<binutils-version-hidden>unspecified' is automatically propagated.
+        result = $(result)/<gmp-version>unspecified ;
+        # `<gmp-version-hidden>unspecified' is automatically propagated.
+        result = $(result)/<mpfr-version>unspecified ;
+        # `<mpfr-version-hidden>unspecified' is automatically propagated.
+        result = $(result)/<mpc-version>unspecified ;
+        # `<mpc-version-hidden>unspecified' is automatically propagated.
+        result = $(result)/<gcc-version>unspecified ;
+        result = $(result)/<enable-cross-binutils>unspecified ;
+        # `<enable-cross-crt>yes' is automatically propagated.
+      }
+      else if $(build) = x86_64-unknown-linux-gnu && $(HOST) = i686-pc-linux-gnu {
+        # Do nothing.
+      }
+      else {
+        errors.error "ERROR: unknown cross target." ;
+      }
+    }
+  }
+  return $(result) ;
+}
+alias mingw-w64-headers-dep : : <conditional>@mingw-w64-headers-dep-req ;
+explicit mingw-w64-headers-dep ;
+
+
+rule gcc-dep-req ( properties * )
+{
+  local result ;
+  local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
+  if $(stage) = 3 {
+    result = <source>../../stage2/gcc//install ;
+    result = $(result)/<intro-stage>2 ;
+    # `<intro-host>' is automatically propagated.
+    # `<intro-link>unspecified' is automatically propagated.
+    # `<intro-multilib>' is automatically propagated.
+    # `<intro-multilib-hidden>unspecified' is automatically propagated.
+    # `<binutils-version>' is automatically propagated.
+    # `<binutils-version-hidden>unspecified' is automatically propagated.
+    # `<gmp-version>' is automatically propagated.
+    # `<gmp-version-hidden>unspecified' is automatically propagated.
+    # `<mpfr-version>' is automatically propagated.
+    # `<mpfr-version-hidden>unspecified' is automatically propagated.
+    # `<mpc-version>' is automatically propagated.
+    # `<mpc-version-hidden>unspecified' is automatically propagated.
+    # `<gcc-version>' is automatically propagated.
+    # `<enable-cross-crt>' is automatically propagated.
+    # `<enable-cross-binutils>' is automatically propagated.
+  }
+  return $(result) ;
+}
+alias gcc-dep : : <conditional>@gcc-dep-req ;
+explicit gcc-dep ;
+
+
+rule mingw-w64-crt-dep-req ( properties * )
+{
+  local result ;
+  local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
+  local enable-cross-crt = [ feature.get-values <enable-cross-crt> : $(properties) ] ;
+  if $(stage) = 3 && $(enable-cross-crt) = yes {
     if [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
-      result = <source>../mingw-w64-headers//install ;
-      # `<intro-stage>2' is automatically propagated.
+      result = <source>../../stage3/mingw-w64-crt//install ;
+      # `<intro-stage>3' is automatically propagated.
       # `<intro-host>' is automatically propagated.
       # `<intro-link>unspecified' is automatically propagated.
-      result = $(result)/<intro-multilib>unspecified ;
+      # `<intro-multilib>' is automatically propagated.
       # `<intro-multilib-hidden>unspecified' is automatically propagated.
-      result = $(result)/<binutils-version>unspecified ;
+      # `<binutils-version>' is automatically propagated.
       # `<binutils-version-hidden>unspecified' is automatically propagated.
+      local gmp-version = [ feature.get-values <gmp-version> : $(properties) ] ;
       result = $(result)/<gmp-version>unspecified ;
-      # `<gmp-version-hidden>unspecified' is automatically propagated.
+      result = $(result)/<gmp-version-hidden>$(gmp-version) ;
+      local mpfr-version = [ feature.get-values <mpfr-version> : $(properties) ] ;
       result = $(result)/<mpfr-version>unspecified ;
-      # `<mpfr-version-hidden>unspecified' is automatically propagated.
+      result = $(result)/<mpfr-version-hidden>$(mpfr-version) ;
+      local mpc-version = [ feature.get-values <mpc-version> : $(properties) ] ;
       result = $(result)/<mpc-version>unspecified ;
-      # `<mpc-version-hidden>unspecified' is automatically propagated.
-      result = $(result)/<gcc-version>unspecified ;
-      result = $(result)/<gcc-default>unspecified ;
-    }
-    else if $(build) = x86_64-unknown-linux-gnu && $(HOST) = i686-pc-linux-gnu {
-      # Do nothing.
+      result = $(result)/<mpc-version-hidden>$(mpc-version) ;
+      # `<gcc-version>' is automatically propagated.
+      # `<enable-cross-binutils>' is automatically propagated.
+      # `<enable-cross-crt>yes' is automatically propagated.
     }
     else {
       errors.error "ERROR: unknown cross target." ;
@@ -148,8 +197,8 @@ rule mingw-w64-headers-dep-req ( properties * )
   }
   return $(result) ;
 }
-alias mingw-w64-headers-dep : : <conditional>@mingw-w64-headers-dep-req ;
-explicit mingw-w64-headers-dep ;
+alias mingw-w64-crt-dep : : <conditional>@mingw-w64-crt-dep-req ;
+explicit mingw-w64-crt-dep ;
 
 
 make download : : @download-gcc ;
@@ -170,7 +219,7 @@ actions download-gcc
       || { echo "ERROR: failed to download the GCC tarball." 2>>"$(STDOUT_)" 1>&2; exit 1; }
     [ -f "$(TARBALL_BZ2)" ] || exit 1
   fi
-  [ -e "$(<)" ] && exit 1
+  [ ! -e "$(<)" ] || exit 1
   touch "$(<)"
 }
 
@@ -208,7 +257,7 @@ actions expand-gcc
     fi
     [ -x "$(DEST_DIR)/configure" ] || exit 1
   fi
-  [ -e "$(<)" ] && exit 1
+  [ ! -e "$(<)" ] || exit 1
   touch "$(<)"
 }
 
@@ -217,6 +266,8 @@ make configure
   : binutils-dep
     mpc-dep
     mingw-w64-headers-dep
+    gcc-dep
+    mingw-w64-crt-dep
     ../../stage1/gcc//expand/<intro-host>unspecified/<intro-multilib>unspecified/<binutils-version>unspecified/<gmp-version>unspecified/<mpfr-version>unspecified/<mpc-version>unspecified
   : @configure-gcc
   ;
@@ -259,12 +310,11 @@ rule configure-gcc ( targets * : sources * : properties * )
     OPTIONS on $(targets) += --prefix=\"$(CROSS_PREFIX)\" ;
   }
 
-  if $(stage) = 2 {
-    OPTIONS on $(targets) += --program-prefix=$(HOST)- ;
-  }
+  # if $(stage) = 2 {
+  #   OPTIONS on $(targets) += --program-prefix=$(HOST)- ;
+  # }
 
-  local gcc-default = [ feature.get-values <gcc-default> : $(properties) ] ;
-  if $(gcc-default) = no {
+  if $(stage) = 1 {
     OPTIONS on $(targets) += --program-suffix=-$(version) ;
   }
 
@@ -291,9 +341,7 @@ rule configure-gcc ( targets * : sources * : properties * )
   #   OPTIONS on $(targets) += --disable-bootstrap ;
   # }
 
-  if $(gcc-default) = no {
-    OPTIONS on $(targets) += --enable-version-specific-runtime-libs ;
-  }
+  OPTIONS on $(targets) += --enable-version-specific-runtime-libs ;
 
   OPTIONS on $(targets) += --enable-languages=c,c++ ;
 
@@ -345,12 +393,12 @@ rule configure-gcc ( targets * : sources * : properties * )
     OPTIONS on $(targets) += --disable-nls ;
   }
 
-  # Set the `--with-gmp', `--with-mpfr' and `--with-mpc' options for the 'configure' script.
-  if $(stage) = 1 || $(stage) = 2 {
-    OPTIONS on $(targets) += --with-gmp=\"$(PREFIX)\" ;
-    OPTIONS on $(targets) += --with-mpfr=\"$(PREFIX)\" ;
-    OPTIONS on $(targets) += --with-mpc=\"$(PREFIX)\" ;
-  }
+  # # Set the `--with-gmp', `--with-mpfr' and `--with-mpc' options for the 'configure' script.
+  # if $(stage) = 1 || $(stage) = 2 {
+  #   OPTIONS on $(targets) += --with-gmp=\"$(PREFIX)\" ;
+  #   OPTIONS on $(targets) += --with-mpfr=\"$(PREFIX)\" ;
+  #   OPTIONS on $(targets) += --with-mpc=\"$(PREFIX)\" ;
+  # }
 
   # Set the '--with-sysroot' option for the 'configure' script.
   if $(stage) = 2 {
@@ -375,6 +423,18 @@ rule configure-gcc ( targets * : sources * : properties * )
     SET_RUNTIME_SYMLINK on $(targets) = "$(STAGE2_SET_RUNTIME_SYMLINK); $(STAGE3_SET_RUNTIME_SYMLINK)" ;
     UNSET_RUNTIME_SYMLINK on $(targets) = "$(STAGE2_UNSET_RUNTIME_SYMLINK); $(STAGE3_UNSET_RUNTIME_SYMLINK)" ;
   }
+
+  local gmp-version = [ feature.get-values <gmp-version> : $(properties) ] ;
+  SET_GMP_SYMLINK on $(targets) = "ln -sf \"$(INTRO_ROOT_DIR)/gmp-$(gmp-version)\" \"$(INTRO_ROOT_DIR)/gcc-$(version)/gmp\"" ;
+  UNSET_GMP_SYMLINK on $(targets) = "rm \"$(INTRO_ROOT_DIR)/gcc-$(version)/gmp\"" ;
+
+  local mpfr-version = [ feature.get-values <mpfr-version> : $(properties) ] ;
+  SET_MPFR_SYMLINK on $(targets) = "ln -sf \"$(INTRO_ROOT_DIR)/mpfr-$(mpfr-version)\" \"$(INTRO_ROOT_DIR)/gcc-$(version)/mpfr\"" ;
+  UNSET_MPFR_SYMLINK on $(targets) = "rm \"$(INTRO_ROOT_DIR)/gcc-$(version)/mpfr\"" ;
+
+  local mpc-version = [ feature.get-values <mpc-version> : $(properties) ] ;
+  SET_MPC_SYMLINK on $(targets) = "ln -sf \"$(INTRO_ROOT_DIR)/mpc-$(mpc-version)\" \"$(INTRO_ROOT_DIR)/gcc-$(version)/mpc\"" ;
+  UNSET_MPC_SYMLINK on $(targets) = "rm \"$(INTRO_ROOT_DIR)/gcc-$(version)/mpc\"" ;
 
   SET_MINGW_WINSUP_SYMLINK on $(targets) = ;
   UNSET_MINGW_WINSUP_SYMLINK on $(targets) = ;
@@ -434,21 +494,30 @@ actions configure-gcc
   [ -x "$(CONFIGURE)" ] || exit 1
   { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
   $(SET_RUNTIME_SYMLINK)
+  $(SET_GMP_SYMLINK)
+  $(SET_MPFR_SYMLINK)
+  $(SET_MPC_SYMLINK)
   $(SET_MINGW_WINSUP_SYMLINK)
   $(SET_RUN_VARS)
   ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
   if [ $? -ne 0 ]; then
     $(UNSET_RUN_VARS)
     $(UNSET_MINGW_WINSUP_SYMLINK)
+    $(UNSET_MPC_SYMLINK)
+    $(UNSET_MPFR_SYMLINK)
+    $(UNSET_GMP_SYMLINK)
     $(UNSET_RUNTIME_SYMLINK)
     echo "ERROR: failed to 'configure' for the GCC build." 2>>"$(STDERR_)" 1>&2
     exit 1
   fi
   $(UNSET_RUN_VARS)
   $(UNSET_MINGW_WINSUP_SYMLINK)
+  $(UNSET_MPC_SYMLINK)
+  $(UNSET_MPFR_SYMLINK)
+  $(UNSET_GMP_SYMLINK)
   $(UNSET_RUNTIME_SYMLINK)
   [ -f "$(<:D)/build/Makefile" ] || exit 1
-  [ -e "$(<)" ] && exit 1
+  [ ! -e "$(<)" ] || exit 1
   touch "$(<)"
 }
 
@@ -465,12 +534,27 @@ rule make-mingw32-stage1 ( targets * : sources * : properties * )
     errors.error "ERROR: wrong number of sources." ;
   }
 
+  local version = [ feature.get-values <gcc-version> : $(properties) ] ;
+  SRC_DIR on $(targets) = "$(INTRO_ROOT_DIR)/gcc-$(version)" ;
+
   local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
   if $(stage) != 2 {
     errors.error "ERROR: internal error." ;
   }
 
   local build = [ SHELL "\"$(INTRO_ROOT_DIR)/stage1/gcc/config.guess\" | tr --delete '\n'" ] ;
+
+  local gmp-version = [ feature.get-values <gmp-version> : $(properties) ] ;
+  SET_GMP_SYMLINK on $(targets) = "ln -sf \"$(INTRO_ROOT_DIR)/gmp-$(gmp-version)\" \"$(INTRO_ROOT_DIR)/gcc-$(version)/gmp\"" ;
+  UNSET_GMP_SYMLINK on $(targets) = "rm \"$(INTRO_ROOT_DIR)/gcc-$(version)/gmp\"" ;
+
+  local mpfr-version = [ feature.get-values <mpfr-version> : $(properties) ] ;
+  SET_MPFR_SYMLINK on $(targets) = "ln -sf \"$(INTRO_ROOT_DIR)/mpfr-$(mpfr-version)\" \"$(INTRO_ROOT_DIR)/gcc-$(version)/mpfr\"" ;
+  UNSET_MPFR_SYMLINK on $(targets) = "rm \"$(INTRO_ROOT_DIR)/gcc-$(version)/mpfr\"" ;
+
+  local mpc-version = [ feature.get-values <mpc-version> : $(properties) ] ;
+  SET_MPC_SYMLINK on $(targets) = "ln -sf \"$(INTRO_ROOT_DIR)/mpc-$(mpc-version)\" \"$(INTRO_ROOT_DIR)/gcc-$(version)/mpc\"" ;
+  UNSET_MPC_SYMLINK on $(targets) = "rm \"$(INTRO_ROOT_DIR)/gcc-$(version)/mpc\"" ;
 
   SET_RUN_VARS on $(targets) = ;
   UNSET_RUN_VARS on $(targets) = ;
@@ -519,15 +603,21 @@ rule make-mingw32-stage1 ( targets * : sources * : properties * )
 }
 actions make-mingw32-stage1
 {
-  rm -f "$(<)" || exit $?
+  rm -f "$(<)" || exit 1
   [ -f "$(>[1])" ] || exit 1
   [ -f "$(>[1]:D)/build/Makefile" ] || exit 1
-  ln -sf "$(PREFIX)/$(HOST)" "$(PREFIX)/mingw" || exit $?
+  $(SET_GMP_SYMLINK)
+  $(SET_MPFR_SYMLINK)
+  $(SET_MPC_SYMLINK)
+  ln -sf "$(PREFIX)/$(HOST)" "$(PREFIX)/mingw" || exit 1
   $(SET_RUN_VARS)
   ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) all-gcc 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
   if [ $? -ne 0 ]; then
     $(UNSET_RUN_VARS)
     rm "$(PREFIX)/mingw"
+    $(UNSET_MPC_SYMLINK)
+    $(UNSET_MPFR_SYMLINK)
+    $(UNSET_GMP_SYMLINK)
     echo "ERROR: failed to 'make all-gcc' for the GCC build." 2>>"$(STDERR_)" 1>&2
     exit 1
   fi
@@ -535,12 +625,18 @@ actions make-mingw32-stage1
   if [ $? -ne 0 ]; then
     $(UNSET_RUN_VARS)
     rm "$(PREFIX)/mingw"
+    $(UNSET_MPC_SYMLINK)
+    $(UNSET_MPFR_SYMLINK)
+    $(UNSET_GMP_SYMLINK)
     echo "ERROR: failed to 'make install-gcc' for the GCC build." 2>>"$(STDERR_)" 1>&2
     exit 1
   fi
   $(UNSET_RUN_VARS)
-  rm "$(PREFIX)/mingw" || exit $?
-  [ -e "$(<)" ] && exit 1
+  rm "$(PREFIX)/mingw"
+  $(UNSET_MPC_SYMLINK)
+  $(UNSET_MPFR_SYMLINK)
+  $(UNSET_GMP_SYMLINK)
+  [ ! -e "$(<)" ] || exit 1
   touch "$(<)"
 }
 
@@ -549,26 +645,33 @@ rule make-req ( properties * )
 {
   local result ;
   local stage = [ feature.get-values <intro-stage> : $(properties) ] ;
-  if $(stage) = 2 && [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
-    result = <source>../../stage2/mingw-w64-crt//install ;
-    # `<intro-stage>2' is automatically propagated.
-    # `<intro-host>' is automatically propagated.
-    # `<intro-link>unspecified' is automatically propagated.
-    # `<intro-multilib>' is automatically propagated.
-    # `<intro-multilib-hidden>unspecified' is automatically propagated.
-    # `<binutils-version>' is automatically propagated.
-    # `<binutils-version-hidden>unspecified' is automatically propagated.
-    local gmp-version = [ feature.get-values <gmp-version> : $(properties) ] ;
-    result = $(result)/<gmp-version>unspecified ;
-    result = $(result)/<gmp-version-hidden>$(gmp-version) ;
-    local mpfr-version = [ feature.get-values <mpfr-version> : $(properties) ] ;
-    result = $(result)/<mpfr-version>unspecified ;
-    result = $(result)/<mpfr-version-hidden>$(mpfr-version) ;
-    local mpc-version = [ feature.get-values <mpc-version> : $(properties) ] ;
-    result = $(result)/<mpc-version>unspecified ;
-    result = $(result)/<mpc-version-hidden>$(mpc-version) ;
-    # `<gcc-version>' is automatically propagated.
-    # `<gcc-default>' is automatically propagated.
+  local enable-cross-crt = [ feature.get-values <enable-cross-crt> : $(properties) ] ;
+  if $(stage) = 2 && $(enable-cross-crt) = yes {
+    if [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
+      result = <source>../../stage2/mingw-w64-crt//install ;
+      # `<intro-stage>2' is automatically propagated.
+      # `<intro-host>' is automatically propagated.
+      # `<intro-link>unspecified' is automatically propagated.
+      # `<intro-multilib>' is automatically propagated.
+      # `<intro-multilib-hidden>unspecified' is automatically propagated.
+      # `<binutils-version>' is automatically propagated.
+      # `<binutils-version-hidden>unspecified' is automatically propagated.
+      local gmp-version = [ feature.get-values <gmp-version> : $(properties) ] ;
+      result = $(result)/<gmp-version>unspecified ;
+      result = $(result)/<gmp-version-hidden>$(gmp-version) ;
+      local mpfr-version = [ feature.get-values <mpfr-version> : $(properties) ] ;
+      result = $(result)/<mpfr-version>unspecified ;
+      result = $(result)/<mpfr-version-hidden>$(mpfr-version) ;
+      local mpc-version = [ feature.get-values <mpc-version> : $(properties) ] ;
+      result = $(result)/<mpc-version>unspecified ;
+      result = $(result)/<mpc-version-hidden>$(mpc-version) ;
+      # `<gcc-version>' is automatically propagated.
+      # `<enable-cross-binutils>' is automatically propagated.
+      # `<enable-cross-crt>yes' is automatically propagated.
+    }
+    else {
+      errors.error "ERROR: unknown cross target." ;
+    }
   }
   else {
     result = <source>configure ;
@@ -585,6 +688,10 @@ rule make-gcc ( targets * : sources * : properties * )
   local build = [ SHELL "\"$(INTRO_ROOT_DIR)/stage1/gcc/config.guess\" | tr --delete '\n'" ] ;
   local version = [ feature.get-values <gcc-version> : $(properties) ] ;
 
+  STAGE on $(targets) = $(stage) ;
+
+  VERSION on $(targets) = $(version) ;
+
   SET_RUNTIME_SYMLINK on $(targets) = ;
   UNSET_RUNTIME_SYMLINK on $(targets) = ;
   if $(stage) = 2 {
@@ -595,6 +702,18 @@ rule make-gcc ( targets * : sources * : properties * )
     SET_RUNTIME_SYMLINK on $(targets) = "$(STAGE2_SET_RUNTIME_SYMLINK); $(STAGE3_SET_RUNTIME_SYMLINK)" ;
     UNSET_RUNTIME_SYMLINK on $(targets) = "$(STAGE2_UNSET_RUNTIME_SYMLINK); $(STAGE3_UNSET_RUNTIME_SYMLINK)" ;
   }
+
+  local gmp-version = [ feature.get-values <gmp-version> : $(properties) ] ;
+  SET_GMP_SYMLINK on $(targets) = "ln -sf \"$(INTRO_ROOT_DIR)/gmp-$(gmp-version)\" \"$(INTRO_ROOT_DIR)/gcc-$(version)/gmp\"" ;
+  UNSET_GMP_SYMLINK on $(targets) = "rm \"$(INTRO_ROOT_DIR)/gcc-$(version)/gmp\"" ;
+
+  local mpfr-version = [ feature.get-values <mpfr-version> : $(properties) ] ;
+  SET_MPFR_SYMLINK on $(targets) = "ln -sf \"$(INTRO_ROOT_DIR)/mpfr-$(mpfr-version)\" \"$(INTRO_ROOT_DIR)/gcc-$(version)/mpfr\"" ;
+  UNSET_MPFR_SYMLINK on $(targets) = "rm \"$(INTRO_ROOT_DIR)/gcc-$(version)/mpfr\"" ;
+
+  local mpc-version = [ feature.get-values <mpc-version> : $(properties) ] ;
+  SET_MPC_SYMLINK on $(targets) = "ln -sf \"$(INTRO_ROOT_DIR)/mpc-$(mpc-version)\" \"$(INTRO_ROOT_DIR)/gcc-$(version)/mpc\"" ;
+  UNSET_MPC_SYMLINK on $(targets) = "rm \"$(INTRO_ROOT_DIR)/gcc-$(version)/mpc\"" ;
 
   SET_MINGW_WINSUP_SYMLINK on $(targets) = ;
   UNSET_MINGW_WINSUP_SYMLINK on $(targets) = ;
@@ -650,15 +769,21 @@ rule make-gcc ( targets * : sources * : properties * )
 }
 actions make-gcc
 {
-  rm -f "$(<)" || exit $?
+  rm -f "$(<)" || exit 1
   [ -f "$(<:D)/build/Makefile" ] || exit 1
   $(SET_RUNTIME_SYMLINK)
+  $(SET_GMP_SYMLINK)
+  $(SET_MPFR_SYMLINK)
+  $(SET_MPC_SYMLINK)
   $(SET_MINGW_WINSUP_SYMLINK)
   $(SET_RUN_VARS)
   ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) 1>>"$(STDOUT_)" 2>>"$(STDERR_)" )
   if [ $? -ne 0 ]; then
     $(UNSET_RUN_VARS)
     $(UNSET_MINGW_WINSUP_SYMLINK)
+    $(UNSET_MPC_SYMLINK)
+    $(UNSET_MPFR_SYMLINK)
+    $(UNSET_GMP_SYMLINK)
     $(UNSET_RUNTIME_SYMLINK)
     echo "ERROR: failed to 'make' for the GCC build." 2>>"$(STDERR_)" 1>&2
     exit 1
@@ -667,14 +792,59 @@ actions make-gcc
   if [ $? -ne 0 ]; then
     $(UNSET_RUN_VARS)
     $(UNSET_MINGW_WINSUP_SYMLINK)
+    $(UNSET_MPC_SYMLINK)
+    $(UNSET_MPFR_SYMLINK)
+    $(UNSET_GMP_SYMLINK)
     $(UNSET_RUNTIME_SYMLINK)
     echo "ERROR: failed to 'make install' for the GCC build." 2>>"$(STDERR_)" 1>&2
     exit 1
   fi
   $(UNSET_RUN_VARS)
   $(UNSET_MINGW_WINSUP_SYMLINK)
+  $(UNSET_MPC_SYMLINK)
+  $(UNSET_MPFR_SYMLINK)
+  $(UNSET_GMP_SYMLINK)
   $(UNSET_RUNTIME_SYMLINK)
-  [ -e "$(<)" ] && exit 1
+  if [ $(STAGE) -eq 2 ]; then
+    find "$(PREFIX)/bin" -maxdepth 1 -type f | grep -Eq ".+\\.dll$" && mv -n "$(PREFIX)/bin"/*.dll "$(PREFIX)/lib/gcc/$(HOST)/$(VERSION)/"
+    find "$(PREFIX)/bin" -maxdepth 1 -type f | grep -Eq ".+\\.dll$" && exit 1
+    [ -f "$(PREFIX)/lib/gcc/$(HOST)/lib/libgcc_s.a" ] && mv -n "$(PREFIX)/lib/gcc/$(HOST)/lib/libgcc_s.a" "$(PREFIX)/lib/gcc/$(HOST)/$(VERSION)/"
+    [ -f "$(PREFIX)/lib/gcc/$(HOST)/lib/libgcc_s.a" ] && exit 1
+    [ -f "$(PREFIX)/lib/gcc/$(HOST)/lib64/libgcc_s.a" ] && mv -n "$(PREFIX)/lib/gcc/$(HOST)/lib64/libgcc_s.a" "$(PREFIX)/lib/gcc/$(HOST)/$(VERSION)/"
+    [ -f "$(PREFIX)/lib/gcc/$(HOST)/lib64/libgcc_s.a" ] && exit 1
+    [ -f "$(PREFIX)/lib/gcc/$(HOST)/lib32/libgcc_s.a" -a -d "$(PREFIX)/lib/gcc/$(HOST)/$(VERSION)/32/" ] && mv -n "$(PREFIX)/lib/gcc/$(HOST)/lib32/libgcc_s.a" "$(PREFIX)/lib/gcc/$(HOST)/$(VERSION)/32/"
+    [ -f "$(PREFIX)/lib/gcc/$(HOST)/lib32/libgcc_s.a" -a ! -d "$(PREFIX)/lib/gcc/$(HOST)/$(VERSION)/32/" ] && mv -n "$(PREFIX)/lib/gcc/$(HOST)/lib32/libgcc_s.a" "$(PREFIX)/lib/gcc/$(HOST)/$(VERSION)/"
+    [ -f "$(PREFIX)/lib/gcc/$(HOST)/lib32/libgcc_s.a" ] && exit 1
+    find "$(PREFIX)/lib/gcc/$(HOST)" -maxdepth 1 -type f | grep -Eq "^libgcc_s_.+\\.dll$" && mv -n "$(PREFIX)/lib/gcc/$(HOST)"/libgcc_s_*.dll "$(PREFIX)/lib/gcc/$(HOST)/$(VERSION)/"
+    find "$(PREFIX)/lib/gcc/$(HOST)" -maxdepth 1 -type f | grep -Eq ".+" && exit 1
+    find "$(PREFIX)/lib/gcc/$(HOST)/32" -maxdepth 1 -type f | grep -Eq "^libgcc_s_.+\\.dll$" && mv -n "$(PREFIX)/lib/gcc/$(HOST)/32"/libgcc_s_*.dll "$(PREFIX)/lib/gcc/$(HOST)/$(VERSION)/32/"
+    find "$(PREFIX)/lib/gcc/$(HOST)/32" -maxdepth 1 -type f | grep -Eq ".+" && exit 1
+    [ -d "$(PREFIX)/lib/gcc/$(HOST)/lib" ] && { rmdir "$(PREFIX)/lib/gcc/$(HOST)/lib" || exit 1; }
+    [ -d "$(PREFIX)/lib/gcc/$(HOST)/lib64" ] && { rmdir "$(PREFIX)/lib/gcc/$(HOST)/lib64" || exit 1; }
+    [ -d "$(PREFIX)/lib/gcc/$(HOST)/lib32" ] && { rmdir "$(PREFIX)/lib/gcc/$(HOST)/lib32" || exit 1; }
+    [ -d "$(PREFIX)/lib/gcc/$(HOST)/32" ] && { rmdir "$(PREFIX)/lib/gcc/$(HOST)/32" || exit 1; }
+  elif [ $(STAGE) -eq 3 ]; then
+    find "$(CROSS_PREFIX)/bin" -maxdepth 1 -type f | grep -Eq ".+\\.dll$" && mv -n "$(CROSS_PREFIX)/bin"/*.dll "$(CROSS_PREFIX)/lib/gcc/$(HOST)/$(VERSION)/"
+    find "$(CROSS_PREFIX)/bin" -maxdepth 1 -type f | grep -Eq ".+\\.dll$" && exit 1
+    [ -f "$(CROSS_PREFIX)/lib/gcc/$(HOST)/lib/libgcc_s.a" ] && mv -n "$(CROSS_PREFIX)/lib/gcc/$(HOST)/lib/libgcc_s.a" "$(CROSS_PREFIX)/lib/gcc/$(HOST)/$(VERSION)/"
+    [ -f "$(CROSS_PREFIX)/lib/gcc/$(HOST)/lib/libgcc_s.a" ] && exit 1
+    [ -f "$(CROSS_PREFIX)/lib/gcc/$(HOST)/lib64/libgcc_s.a" ] && mv -n "$(CROSS_PREFIX)/lib/gcc/$(HOST)/lib64/libgcc_s.a" "$(CROSS_PREFIX)/lib/gcc/$(HOST)/$(VERSION)/"
+    [ -f "$(CROSS_PREFIX)/lib/gcc/$(HOST)/lib64/libgcc_s.a" ] && exit 1
+    [ -f "$(CROSS_PREFIX)/lib/gcc/$(HOST)/lib32/libgcc_s.a" -a -d "$(CROSS_PREFIX)/lib/gcc/$(HOST)/$(VERSION)/32/" ] && mv -n "$(CROSS_PREFIX)/lib/gcc/$(HOST)/lib32/libgcc_s.a" "$(CROSS_PREFIX)/lib/gcc/$(HOST)/$(VERSION)/32/"
+    [ -f "$(CROSS_PREFIX)/lib/gcc/$(HOST)/lib32/libgcc_s.a" -a ! -d "$(CROSS_PREFIX)/lib/gcc/$(HOST)/$(VERSION)/32/" ] && mv -n "$(CROSS_PREFIX)/lib/gcc/$(HOST)/lib32/libgcc_s.a" "$(CROSS_PREFIX)/lib/gcc/$(HOST)/$(VERSION)/"
+    [ -f "$(CROSS_PREFIX)/lib/gcc/$(HOST)/lib32/libgcc_s.a" ] && exit 1
+    find "$(CROSS_PREFIX)/lib/gcc/$(HOST)" -maxdepth 1 -type f | grep -Eq "^libgcc_s_.+\\.dll$" && mv -n "$(CROSS_PREFIX)/lib/gcc/$(HOST)"/libgcc_s_*.dll "$(CROSS_PREFIX)/lib/gcc/$(HOST)/$(VERSION)/"
+    find "$(CROSS_PREFIX)/lib/gcc/$(HOST)" -maxdepth 1 -type f | grep -Eq ".+" && exit 1
+    find "$(CROSS_PREFIX)/lib/gcc/$(HOST)/32" -maxdepth 1 -type f | grep -Eq "^libgcc_s_.+\\.dll$" && mv -n "$(CROSS_PREFIX)/lib/gcc/$(HOST)/32"/libgcc_s_*.dll "$(CROSS_PREFIX)/lib/gcc/$(HOST)/$(VERSION)/32/"
+    find "$(CROSS_PREFIX)/lib/gcc/$(HOST)/32" -maxdepth 1 -type f | grep -Eq ".+" && exit 1
+    cp -n "$(PREFIX)/lib/gcc/$(HOST)/$(VERSION)"/*.dll "$(CROSS_PREFIX)/lib/gcc/$(HOST)/$(VERSION)/"
+    [ -d "$(PREFIX)/lib/gcc/$(HOST)/$(VERSION)/32" ] && cp -n "$(PREFIX)/lib/gcc/$(HOST)/$(VERSION)/32"/*.dll "$(CROSS_PREFIX)/lib/gcc/$(HOST)/$(VERSION)/32/"
+    [ -d "$(CROSS_PREFIX)/lib/gcc/$(HOST)/lib" ] && { rmdir "$(CROSS_PREFIX)/lib/gcc/$(HOST)/lib" || exit 1; }
+    [ -d "$(CROSS_PREFIX)/lib/gcc/$(HOST)/lib64" ] && { rmdir "$(CROSS_PREFIX)/lib/gcc/$(HOST)/lib64" || exit 1; }
+    [ -d "$(CROSS_PREFIX)/lib/gcc/$(HOST)/lib32" ] && { rmdir "$(CROSS_PREFIX)/lib/gcc/$(HOST)/lib32" || exit 1; }
+    [ -d "$(CROSS_PREFIX)/lib/gcc/$(HOST)/32" ] && { rmdir "$(CROSS_PREFIX)/lib/gcc/$(HOST)/32" || exit 1; }
+  fi
+  [ ! -e "$(<)" ] || exit 1
   touch "$(<)"
 }
 
@@ -722,6 +892,7 @@ rule install-req ( properties * )
       }
     }
     else {
+      # For stage 2 or 3.
       if [ regex.match "^(x86_64-)" : $(HOST) : 1 ] {
         # Do nothing.
       }
@@ -779,17 +950,34 @@ rule install-req ( properties * )
     errors.error "ERROR: `<gcc-version>' is not specified for the GCC build." ;
   }
 
-  local gcc-default = [ feature.get-values <gcc-default> : $(properties) ] ;
-  if $(gcc-default) = unspecified {
-    errors.error "ERROR: `<gcc-default>' is not specified for the GCC build." ;
-  }
-  if $(stage) = 1 && $(gcc-default) = yes {
-    errors.error "ERROR: `<gcc-default>yes' is not valid for the GCC stage 1 build." ;
+  if [ SHELL "{ ( LC_ALL=C gcc -v 2>&1 ) | grep -Eq '^gcc version $(gcc-version)'; } && /bin/echo -n 'yes'" ] = yes {
+    result = <build>no ;
   }
 
-  version = [ feature.get-values <gcc-version> : $(properties) ] ;
-  if [ SHELL "{ ( LC_ALL=C gcc -v 2>&1 ) | grep -Eq '^gcc version $(version)'; } && /bin/echo -n 'yes'" ] = yes {
-    result = <build>no ;
+  local enable-cross-binutils = [ feature.get-values <enable-cross-binutils> : $(properties) ] ;
+  if $(stage) = 1 {
+    if $(enable-cross-binutils) != unspecified {
+      errors.error "ERROR: `<enable-cross-binutils>$(enable-cross-binutils)' is not valid for the GCC stage 1 build." ;
+    }
+  }
+  else {
+    # For stage 2 or 3.
+    if $(enable-cross-binutils) = unspecified {
+      errors.error "ERROR: `<enable-cross-binutils>' is not specified for the GCC stage 2 or 3 build." ;
+    }
+  }
+
+  local enable-cross-crt = [ feature.get-values <enable-cross-crt> : $(properties) ] ;
+  if $(stage) = 1 {
+    if $(enable-cross-crt) != unspecified {
+      errors.error "ERROR: `<enable-cross-crt>$(enable-cross-crt)' is not valid for the GCC stage 1 build." ;
+    }
+  }
+  else {
+    # For stage 2 or 3.
+    if $(enable-cross-crt) = unspecified {
+      errors.error "ERROR: `<enable-cross-crt>' is not specified for the GCC stage 2 or 3 build." ;
+    }
   }
 
   return $(result) ;
