@@ -1,0 +1,422 @@
+project intro/gcc ;
+
+import alias ;
+import errors ;
+import feature ;
+import make ;
+
+
+rule assert-specified ( feature : properties * )
+{
+  local val = [ feature.get-values $(feature) : $(properties) ] ;
+  if $(val) = unspecified {
+    errors.error $(feature) is not specified for the GCC build. ;
+  }
+}
+
+rule assert-unspecified ( feature : properties * )
+{
+  local val = [ feature.get-values $(feature) : $(properties) ] ;
+  if $(val) != unspecified {
+    errors.error $(feature) is not valid for the GCC build. ;
+  }
+}
+
+
+make download : : @download-gcc ;
+explicit download ;
+
+rule download-gcc ( targets * : sources * : properties * )
+{
+  assert-unspecified <triplet>         : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-specified   <gcc>             : $(properties) ;
+  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  local version = [ feature.get-values <gcc> : $(properties) ] ;
+  URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/gcc/releases/gcc-$(version)/gcc-$(version).tar.bz2 ;
+  TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/gcc-$(version).tar.gz ;
+  TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/gcc-$(version).tar.bz2 ;
+}
+actions download-gcc
+{
+  rm -f "$(<)" || exit $?
+  if [ ! -f "$(TARBALL_GZ)" -a ! -f "$(TARBALL_BZ2)" ]; then
+    ( cd "$(TARBALL_BZ2:D)" && wget --quiet -- '$(URL)' ) \
+      || { echo "ERROR: failed to download the GCC tarball." 1>&2; exit 1; }
+    [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_BZ2)" ] || exit $?
+  fi
+  [ -e "$(<)" ] && exit 1
+  touch "$(<)"
+}
+
+
+make expand : download : @expand-gcc ;
+explicit expand ;
+
+rule expand-gcc ( targets * : sources * : properties * )
+{
+  assert-unspecified <triplet>         : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-specified   <gcc>             : $(properties) ;
+  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  if ! $(sources[1]) {
+    errors.error "ERROR: wrong number of sources." ;
+  }
+  if $(sources[2]) {
+    errors.error "ERROR: wrong number of sources." ;
+  }
+  local version = [ feature.get-values <gcc> : $(properties) ] ;
+  TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/gcc-$(version).tar.gz ;
+  TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/gcc-$(version).tar.bz2 ;
+  DEST_DIR on $(targets) = $(INTRO_ROOT_DIR)/gcc-$(version) ;
+}
+actions expand-gcc
+{
+  rm -f "$(<)" || exit $?
+  [ -f "$(>)" ] || exit $?
+  if [ ! -x "$(DEST_DIR)/configure" ]; then
+    rm -rf "$(DEST_DIR)" || exit $?
+    if [ -f "$(TARBALL_GZ)" ]; then
+      tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" \
+        || { echo "ERROR: failed to expand the tarball for the GCC build." 1>&2; exit 1; }
+    elif [ -f "$(TARBALL_BZ2)" ]; then
+      tar xjf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)" \
+        || { echo "ERROR: failed to expand the tarball for the GCC build." 1>&2; exit 1; }
+    else
+      exit 1
+    fi
+    [ -x "$(DEST_DIR)/configure" ] || exit $?
+  fi
+  [ -e "$(<)" ] && exit 1
+  touch "$(<)"
+}
+
+
+make configure
+  : ../gmp//expand/<triplet>unspecified/<multilib>unspecified/<mpfr>unspecified/<mpc>unspecified/<gcc>unspecified
+    ../mpfr//expand/<triplet>unspecified/<multilib>unspecified/<gmp>unspecified/<mpc>unspecified/<gcc>unspecified
+    ../mpc//expand/<triplet>unspecified/<multilib>unspecified/<gmp>unspecified/<mpfr>unspecified/<gcc>unspecified
+    expand/<triplet>unspecified/<multilib>unspecified/<gmp>unspecified/<mpfr>unspecified/<mpc>unspecified
+  : @configure-gcc
+  ;
+explicit configure ;
+
+rule configure-gcc ( targets * : sources * : properties * )
+{
+  assert-specified   <triplet>         : $(properties) ;
+  assert-specified   <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-specified   <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-specified   <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-specified   <gcc>             : $(properties) ;
+  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+
+  OPTIONS on $(targets) = ;
+
+  local version = [ feature.get-values <gcc> : $(properties) ] ;
+
+  # Set the path to the 'configure' file.
+  local configure = $(INTRO_ROOT_DIR)/gcc-$(version)/configure ;
+  CONFIGURE on $(targets) = $(configure) ;
+
+  # Set the '--build', '--host' and '--target' options for the 'configure' script.
+  local triplet = [ feature.get-values <triplet> : $(properties) ] ;
+  TRIPLET on $(targets) = $(triplet) ;
+  OPTIONS on $(targets) += --build=$(triplet) ;
+  OPTIONS on $(targets) += --host=$(triplet) ;
+  OPTIONS on $(targets) += --target=$(triplet) ;
+
+  # Set the '--prefix' option for the 'configure' script.
+  OPTIONS on $(targets) += --prefix=\"$(PREFIX)/$(version)\" ;
+
+  OPTIONS on $(targets) += --enable-static ;
+
+  OPTIONS on $(targets) += --enable-shared ;
+
+  local multilib = [ feature.get-values <multilib> : $(properties) ] ;
+  if $(multilib) = yes {
+    OPTIONS on $(targets) += --enable-multilib ;
+  }
+  else {
+    OPTIONS on $(targets) += --disable-multilib ;
+  }
+
+  if $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32 {
+    OPTIONS on $(targets) += --enable-threads=win32 ;
+  }
+  else {
+    OPTIONS on $(targets) += --enable-threads=posix ;
+  }
+
+  OPTIONS on $(targets) += --enable-tls ;
+
+  if $(triplet) = i686-pc-linux-gnu || $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 {
+    OPTIONS on $(targets) += --with-arch=i686 ;
+    OPTIONS on $(targets) += --with-tune=generic ;
+  }
+  else if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32 {
+    OPTIONS on $(targets) += --with-arch-32=i686 ;
+    OPTIONS on $(targets) += --with-tune=generic ;
+  }
+
+  if $(triplet) = i686-pc-cygwin {
+    OPTIONS on $(targets) += --disable-__cxa_atexit ;
+  }
+
+  OPTIONS on $(targets) += --enable-bootstrap ;
+
+  OPTIONS on $(targets) += --enable-languages=c,c++ ;
+
+  OPTIONS on $(targets) += --enable-libssp ;
+
+  if $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32 {
+    # The target is `*-w64-mingw32.'
+    # `--enable-libgomp' option requires `pthreads-w32' on the target.
+    # Currently, just disable this option.
+    OPTIONS on $(targets) += --disable-libgomp ;
+  }
+  else {
+    OPTIONS on $(targets) += --enable-libgomp ;
+  }
+
+  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 {
+    OPTIONS on $(targets) += --with-dwarf2 ;
+    OPTIONS on $(targets) += --disable-sjlj-exceptions ;
+  }
+  # `--with-dwarf2' is not supported on `x86_64-w64-mingw32' targets.
+
+  if $(multilib) = yes {
+    if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32 {
+      OPTIONS on $(targets) += --enable-targets=all ;
+    }
+  }
+
+  if $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32 {
+    OPTIONS on $(targets) += --disable-win32-registry ;
+  }
+
+  OPTIONS on $(targets) += --enable-nls ;
+
+  if $(triplet) = i686-pc-cygwin {
+    OPTIONS on $(targets) += --enable-graphite ;
+  }
+
+  OPTIONS on $(targets) += --enable-lto ;
+
+  OPTIONS on $(targets) += --enable-libstdcxx-debug ;
+
+  OPTIONS on $(targets) += --disable-libstdcxx-pch ;
+
+  SET_PREFIX_SYMLINK on $(targets) = ;
+  if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32 {
+    SET_PREFIX_SYMLINK on $(targets) = "{ mkdir -p \"$(PREFIX)/$(version)/lib\" && ( cd \"$(PREFIX)/$(version)\" && ln -sf lib lib64 ); } || exit $?" ;
+  }
+
+  local gmp = [ feature.get-values <gmp> : $(properties) ] ;
+  SET_GMP_SYMLINK on $(targets) = "( cd \"$(INTRO_ROOT_DIR)/gcc-$(version)\" && ln -sf ../gmp-$(gmp) gmp )" ;
+  UNSET_GMP_SYMLINK on $(targets) = "rm -f \"$(INTRO_ROOT_DIR)/gcc-$(version)/gmp\"" ;
+
+  local mpfr = [ feature.get-values <mpfr> : $(properties) ] ;
+  SET_MPFR_SYMLINK on $(targets) = "( cd \"$(INTRO_ROOT_DIR)/gcc-$(version)\" && ln -sf ../mpfr-$(mpfr) mpfr )" ;
+  UNSET_MPFR_SYMLINK on $(targets) = "rm -f \"$(INTRO_ROOT_DIR)/gcc-$(version)/mpfr\"" ;
+
+  local mpc = [ feature.get-values <mpc> : $(properties) ] ;
+  SET_MPC_SYMLINK on $(targets) = "( cd \"$(INTRO_ROOT_DIR)/gcc-$(version)\" && ln -sf ../mpc-$(mpc) mpc )" ;
+  UNSET_MPC_SYMLINK on $(targets) = "rm -f \"$(INTRO_ROOT_DIR)/gcc-$(version)/mpc\"" ;
+}
+actions configure-gcc
+{
+  rm -f "$(<)" || exit $?
+  [ -x "$(CONFIGURE)" ] || exit $?
+  $(SET_PREFIX_SYMLINK)
+  [ `$(CONFIGURE:D)/config.sub $(TRIPLET)` = $(TRIPLET) ] || $?
+  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
+  $(SET_GMP_SYMLINK)
+  [ -x "$(CONFIGURE:D)/gmp/configure" ] || { $(UNSET_GMP_SYMLINK); exit 1; }
+  $(SET_MPFR_SYMLINK) || { $(UNSET_GMP_SYMLINK); exit 1; }
+  [ -x "$(CONFIGURE:D)/mpfr/configure" ] || { $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
+  $(SET_MPC_SYMLINK) || { $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
+  [ -x "$(CONFIGURE:D)/mpc/configure" ] || { $(UNSET_MPC_SYMLINK); $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
+  ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
+  if [ $? -ne 0 ]; then
+    $(UNSET_MPC_SYMLINK)
+    $(UNSET_MPFR_SYMLINK)
+    $(UNSET_GMP_SYMLINK)
+    echo "ERROR: failed to 'configure' for the GCC build." 1>&2
+    exit 1
+  fi
+  $(UNSET_MPC_SYMLINK)
+  $(UNSET_MPFR_SYMLINK)
+  $(UNSET_GMP_SYMLINK)
+  [ -f "$(<:D)/build/Makefile" ] || exit $?
+  [ -e "$(<)" ] && exit 1
+  touch "$(<)"
+}
+
+
+make make : configure : @make-gcc ;
+explicit make ;
+
+rule make-gcc ( targets * : sources * : properties * )
+{
+  assert-specified   <triplet>         : $(properties) ;
+  assert-specified   <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-specified   <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-specified   <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-specified   <gcc>             : $(properties) ;
+  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+
+  local triplet = [ feature.get-values <triplet> : $(properties) ] ;
+  local version = [ feature.get-values <gcc> : $(properties) ] ;
+  SOURCE_DIR on $(targets) = "$(INTRO_ROOT_DIR)/gcc-$(version)" ;
+
+  local gmp = [ feature.get-values <gmp> : $(properties) ] ;
+  SET_GMP_SYMLINK on $(targets) = "( cd \"$(INTRO_ROOT_DIR)/gcc-$(version)\" && ln -sf ../gmp-$(gmp) gmp )" ;
+  UNSET_GMP_SYMLINK on $(targets) = "rm -f \"$(INTRO_ROOT_DIR)/gcc-$(version)/gmp\"" ;
+
+  local mpfr = [ feature.get-values <mpfr> : $(properties) ] ;
+  SET_MPFR_SYMLINK on $(targets) = "( cd \"$(INTRO_ROOT_DIR)/gcc-$(version)\" && ln -sf ../mpfr-$(mpfr) mpfr )" ;
+  UNSET_MPFR_SYMLINK on $(targets) = "rm -f \"$(INTRO_ROOT_DIR)/gcc-$(version)/mpfr\"" ;
+
+  local mpc = [ feature.get-values <mpc> : $(properties) ] ;
+  SET_MPC_SYMLINK on $(targets) = "( cd \"$(INTRO_ROOT_DIR)/gcc-$(version)\" && ln -sf ../mpc-$(mpc) mpc )" ;
+  UNSET_MPC_SYMLINK on $(targets) = "rm -f \"$(INTRO_ROOT_DIR)/gcc-$(version)/mpc\"" ;
+}
+actions make-gcc
+{
+  rm -f "$(<)" || exit $?
+  [ -f "$(<:D)/build/Makefile" ] || exit $?
+  $(SET_GMP_SYMLINK)
+  [ -x "$(SOURCE_DIR)/gmp/configure" ] || { $(UNSET_GMP_SYMLINK); exit 1; }
+  $(SET_MPFR_SYMLINK) || { $(UNSET_GMP_SYMLINK); exit 1; }
+  [ -x "$(SOURCE_DIR)/mpfr/configure" ] || { $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
+  $(SET_MPC_SYMLINK) || { $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
+  [ -x "$(SOURCE_DIR)/mpc/configure" ] || { $(UNSET_MPC_SYMLINK); $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
+  ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
+  if [ $? -ne 0 ]; then
+    $(UNSET_MPC_SYMLINK)
+    $(UNSET_MPFR_SYMLINK)
+    $(UNSET_GMP_SYMLINK)
+    echo "ERROR: failed to 'make' for the GCC build."
+    exit 1
+  fi
+  ( cd "$(<:D)/build" && make install )
+  if [ $? -ne 0 ]; then
+    $(UNSET_MPC_SYMLINK)
+    $(UNSET_MPFR_SYMLINK)
+    $(UNSET_GMP_SYMLINK)
+    echo "ERROR: failed to 'make install' for the GCC build."
+    exit 1
+  fi
+  ( cd "$(<:D)/build" && rm -rf * )
+  $(UNSET_MPC_SYMLINK)
+  $(UNSET_MPFR_SYMLINK)
+  $(UNSET_GMP_SYMLINK)
+  [ -e "$(<)" ] && exit 1
+  touch "$(<)"
+}
+
+
+rule install-req ( properties * )
+{
+  assert-specified   <triplet>         : $(properties) ;
+  assert-specified   <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-specified   <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-specified   <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-specified   <gcc>             : $(properties) ;
+  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+
+  local result ;
+
+  local tmp ;
+
+  local triplet = [ feature.get-values <triplet> : $(properties) ] ;
+
+  local multilib = [ feature.get-values <multilib> : $(properties) ] ;
+  if $(multilib) = yes {
+    if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32 {
+      # Do nothing.
+    }
+    else {
+      errors.error "ERROR: `<multilib>' is not supported on `$(triplet)'." ;
+    }
+  }
+
+  local gcc = [ feature.get-values <gcc> : $(properties) ] ;
+  if [ SHELL "{ ( LC_ALL=C gcc -v 2>&1 ) | grep -Eq '^gcc version $(gcc)'; } && /bin/echo -n 'yes'" ] = yes {
+    result = <build>no ;
+  }
+
+  return $(result) ;
+}
+
+alias install : make : <conditional>@install-req ;
+explicit install ;

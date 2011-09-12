@@ -1,34 +1,24 @@
 import errors ;
 import feature : feature ;
 import modules ;
-import path ;
 import regex ;
 
 path-constant INTRO_ROOT_DIR : . ;
 
 
-local host ;
-local host-runnable ;
+local triplet ;
 local prefix ;
-local cross-prefix ;
-local enable-cross-crt ;
 local multilib ;
-local enable-cross-binutils ;
+local mpi ;
 local concurrency ;
-local stdout ;
-local stderr ;
 for local argv in [ modules.peek : ARGV ] {
   local tmp = ;
-  tmp = [ regex.match "^--host=(.*)$" : $(argv) : 1 ] ;
+  tmp = [ regex.match "^--triplet=(.*)$" : $(argv) : 1 ] ;
   if $(tmp) {
-    if $(host) {
-      errors.error "ERROR: duplicate '--host' option." ;
+    if $(triplet) {
+      errors.error "ERROR: duplicate '--triplet' option." ;
     }
-    host = $(tmp) ;
-  }
-  tmp = [ regex.match "^(--host-runnable)$" : $(argv) : 1 ] ;
-  if $(tmp) {
-    host-runnable = yes ;
+    triplet = $(tmp) ;
   }
   tmp = [ regex.match "^--prefix=(/.*)$" : $(argv) : 1 ] ;
   if $(tmp) {
@@ -36,38 +26,6 @@ for local argv in [ modules.peek : ARGV ] {
       errors.error "ERROR: duplicate '--prefix' option." ;
     }
     prefix = $(tmp) ;
-  }
-  tmp = [ regex.match "^--cross-prefix=(/.*)$" : $(argv) : 1 ] ;
-  if $(tmp) {
-    if $(cross-prefix) {
-      errors.error "ERROR: duplicate '--cross-prefix' option." ;
-    }
-    cross-prefix = $(tmp) ;
-  }
-  tmp = [ regex.match "^(--enable-cross-crt(=((yes)|(no)))?)$" : $(argv) : 1 ] ;
-  if $(tmp) {
-    if $(enable-cross-crt) {
-      errors.error "ERROR: duplicate '--enable-cross-crt' or '--disable-cross-crt' options." ;
-    }
-    if $(tmp) = "--enable-cross-crt" {
-      enable-cross-crt = yes ;
-    }
-    else if $(tmp) = "--enable-cross-crt=yes" {
-      enable-cross-crt = yes ;
-    }
-    else if $(tmp) = "--enable-cross-crt=no" {
-      enable-cross-crt = no ;
-    }
-    else {
-      errors.error "ERROR: an internal error." ;
-    }
-  }
-  tmp = [ regex.match "^(--disable-cross-crt)$" : $(argv) : 1 ] ;
-  if $(tmp) {
-    if $(enable-cross-crt) {
-      errors.error "ERROR: duplicate '--enable-cross-crt' or '--disable-cross-crt' options." ;
-    }
-    enable-cross-crt = no ;
   }
   tmp = [ regex.match "^(--enable-multilib(=((yes)|(no)))?)$" : $(argv) : 1 ] ;
   if $(tmp) {
@@ -94,30 +52,20 @@ for local argv in [ modules.peek : ARGV ] {
     }
     multilib = no ;
   }
-  tmp = [ regex.match "^(--enable-cross-binutils(=((yes)|(no)))?)$" : $(argv) : 1 ] ;
+  tmp = [ regex.match "^(--with-mpi=((openmpi)|(mpich2)))$" : $(argv) : 1 ] ;
   if $(tmp) {
-    if $(enable-cross-binutils) {
-      errors.error "ERROR: duplicate '--enable-cross-binutils' or '--disable-cross-binutils' options." ;
+    if $(mpi) {
+      errors.error "ERROR: duplicate '--with-mpi' option." ;
     }
-    if $(tmp) = "--enable-cross-binutils" {
-      enable-cross-binutils = yes ;
+    if $(tmp) = "--with-mpi=openmpi" {
+      mpi = openmpi ;
     }
-    else if $(tmp) = "--enable-cross-binutils=yes" {
-      enable-cross-binutils = yes ;
-    }
-    else if $(tmp) = "--enable-cross-binutils=no" {
-      enable-cross-binutils = no ;
+    else if $(tmp) = "--with-mpi=mpich2" {
+      mpi = mpich2 ;
     }
     else {
       errors.error "ERROR: an internal error." ;
     }
-  }
-  tmp = [ regex.match "^(--disable-cross-binutils)$" : $(argv) : 1 ] ;
-  if $(tmp) {
-    if $(enable-cross-binutils) {
-      errors.error "ERROR: duplicate '--enable-cross-binutils' or '--disable-cross-binutils' options." ;
-    }
-    enable-cross-binutils = no ;
   }
   tmp = [ regex.match "^--concurrency=([123456789][0123456789]*)$" : $(argv) : 1 ] ;
   if $(tmp) {
@@ -126,102 +74,43 @@ for local argv in [ modules.peek : ARGV ] {
     }
     concurrency = $(tmp) ;
   }
-  tmp = [ regex.match "^--stdout=(/.*)$" : $(argv) : 1 ] ;
-  if $(tmp) {
-    if $(stdout) {
-      errors.error "ERROR: duplicate '--stdout' option." ;
-    }
-    stdout = $(tmp) ;
-  }
-  tmp = [ regex.match "^--stderr=(/.*)$" : $(argv) : 1 ] ;
-  if $(tmp) {
-    if $(stderr) {
-      errors.error "ERROR: duplicate '--stderr' option." ;
-    }
-    stderr = $(tmp) ;
-  }
 }
 
 
 {
-  local build = [ SHELL "\"$(INTRO_ROOT_DIR)/stage1/gcc/config.guess\" | tr --delete '\n'" ] ;
-  if $(host) = $(build) {
-    errors.error "ERROR: '--host' option is the same as the build system triplet '$(build)'." ;
+  if ! $(triplet) {
+    errors.error "ERROR: '--triplet' option not specified." ;
   }
-  if $(host) {
-    constant HOST : $(host) ;
-  }
-  else {
-    constant HOST : $(build) ; # Fake value.
-  }
+  constant TRIPLET : $(triplet) ;
+  ECHO --triplet... $(triplet) ;
 
-  prefix ?= /usr/local ;
+  if ! $(prefix) {
+    errors.error "ERROR: '--prefix' option not specified." ;
+  }
   path-constant PREFIX : "$(prefix)" ;
-
-  if "$(cross-prefix)" && ( ! $(host) ) {
-    errors.error "ERROR: '--cross-prefix' option is specified, but '--host' option not." ;
-  }
-  if $(cross-prefix) {
-    path-constant CROSS_PREFIX : "$(cross-prefix)" ;
-  }
-  else {
-    path-constant CROSS_PREFIX : "$(prefix)/cross-fake" ; # Fake value.
-  }
+  ECHO --prefix... $(prefix) ;
 
   if ! $(multilib) {
-    if ! $(host) {
-      # For stage 1.
-      if [ regex.match "^(x86_64-)" : $(build) : 1 ] {
-        multilib = yes ;
-      }
-      else {
-        multilib = no ;
-      }
+    if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32 {
+      multilib = yes ;
     }
     else {
-      # For stage 2 or 3.
-      if [ regex.match "^(x86_64-)" : $(host) : 1 ] {
-        multilib = yes ;
-      }
-      else {
-        multilib = no ;
-      }
+      multilib = no ;
     }
   }
+  ECHO multilib... $(multilib) ;
 
-  if $(build) = x86_64-unknown-linux-gnu && $(HOST) = i686-pc-linux-gnu {
-    constant STAGE2_SET_RUNTIME_SYMLINK : "{ mkdir -p \"$(PREFIX)/usr\" && ln -sf /usr/include \"$(PREFIX)/usr/include\" && ln -sf /usr/lib32 \"$(PREFIX)/usr/lib\"; } || exit $?" ;
-    constant STAGE2_UNSET_RUNTIME_SYMLINK : "rm \"$(PREFIX)/usr/include\"; rm \"$(PREFIX)/usr/lib\"; rmdir \"$(PREFIX)/usr\"" ;
-    constant STAGE3_SET_RUNTIME_SYMLINK : "{ mkdir -p \"$(CROSS_PREFIX)/usr\" && ln -sf /usr/include \"$(CROSS_PREFIX)/usr/include\" && ln -sf /usr/lib32 \"$(CROSS_PREFIX)/usr/lib\"; } || exit $?" ;
-    constant STAGE3_UNSET_RUNTIME_SYMLINK : "rm \"$(CROSS_PREFIX)/usr/include\"; rm \"$(CROSS_PREFIX)/usr/lib\"; rmdir \"$(CROSS_PREFIX)/usr\"" ;
+  if ! $(mpi) {
+    mpi = unspecified ;
   }
-  else if [ regex.match "(-w64-mingw32)$" : $(HOST) : 1 ] {
-    constant STAGE2_SET_RUNTIME_SYMLINK : "ln -sf \"$(PREFIX)/$(HOST)\" \"$(PREFIX)/mingw\" || exit $?" ;
-    constant STAGE2_UNSET_RUNTIME_SYMLINK : "rm \"$(PREFIX)/mingw\"" ;
-    constant STAGE3_SET_RUNTIME_SYMLINK : "ln -sf \"$(CROSS_PREFIX)/$(HOST)\" \"$(CROSS_PREFIX)/mingw\" || exit $?" ;
-    constant STAGE3_UNSET_RUNTIME_SYMLINK : "rm \"$(CROSS_PREFIX)/mingw\"" ;
-  }
-
-  if ! $(host) {
-    host-runnable ?= yes ;
-  }
-  host-runnable ?= no ;
-  constant HOST_RUNNABLE : $(host-runnable) ;
-
-  enable-cross-crt ?= unspecified ;
-
-  enable-cross-binutils ?= unspecified ;
+  ECHO mpi... $(mpi) ;
 
   if $(concurrency) {
     constant CONCURRENCY : $(concurrency) ;
+    ECHO concurrency... $(CONCURRENCY) ;
   }
-
-  if "$(stdout)" {
-    path-constant STDOUT_ : "$(stdout)" ;
-  }
-
-  if "$(stderr)" {
-    path-constant STDERR_ : "$(stderr)" ;
+  else {
+    ECHO concurrency... 1 ;
   }
 }
 
@@ -229,171 +118,156 @@ for local argv in [ modules.peek : ARGV ] {
 project intro : build-dir bin ;
 
 
-feature intro-stage : 1 2 3 : propagated incidental ;
+feature triplet : unspecified i686-pc-linux-gnu i686-pc-cygwin i686-w64-mingw32 x86_64-unknown-linux-gnu x86_64-w64-mingw32 : propagated ;
 
-feature intro-host : unspecified x86_64-w64-mingw32 i686-w64-mingw32 : propagated ;
-for local i in [ path.glob $(INTRO_ROOT_DIR) : stage1/*/config.guess ]
-{
-  local t = [ SHELL "\"$(i)\" | tr --delete '\n'" ] ;
-  if ! $(t) in [ feature.values <intro-host> ] {
-    feature.extend intro-host : $(t) ;
-  }
+feature multilib        : unspecified no yes            : propagated            ;
+feature multilib-hidden : [ feature.values <multilib> ] : propagated incidental ;
+
+ECHO "Extracting GMP latest version, patience..." ;
+local gmp = [ SHELL "\"$(INTRO_ROOT_DIR)/gmp-latest.sh\" || /bin/echo -n 'error'" ] ;
+if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(gmp) : 1 ] {
+  ECHO $(gmp) ;
+  feature gmp        : unspecified $(gmp)       : propagated            ;
+  feature gmp-hidden : [ feature.values <gmp> ] : propagated incidental ;
 }
-if ! $(host) in [ feature.values <intro-host> ] {
-  feature.extend intro-host : $(host) ;
-}
-
-feature intro-link : unspecified both shared static : propagated ;
-
-feature intro-multilib : unspecified no yes : propagated ;
-feature intro-multilib-hidden : [ feature.values <intro-multilib> ] : propagated incidental ;
-
-
-feature binutils-version : unspecified : propagated ;
-ECHO patience... ;
-for local i in [ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/binutils-versions.sh\" || /bin/echo -n 'error'" ] " +" ]
-{
-  if [ regex.match "^([0123456789]+\\.[0123456789]+(\\.[0123456789]+)?)$" : $(i) : 1 ] {
-    feature.extend binutils-version : $(i) ;
-  }
-  else {
-    errors.error "ERROR: failed to extract Binutils versions." ;
-  }
+else {
+  errors.error "ERROR: failed to extract GMP latest version." ;
 }
 
-feature binutils-version-hidden : [ feature.values <binutils-version> ] : propagated incidental ;
+ECHO "Extracting MPFR latest version, patience..." ;
+local mpfr = [ SHELL "\"$(INTRO_ROOT_DIR)/mpfr-latest.sh\" || /bin/echo -n 'error'" ] ;
+if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(mpfr) : 1 ] {
+  ECHO $(mpfr) ;
+  feature mpfr        : unspecified $(mpfr)       : propagated            ;
+  feature mpfr-hidden : [ feature.values <mpfr> ] : propagated incidental ;
+}
+else {
+  errors.error "ERROR: failed to extract MPFR latest version." ;
+}
 
+ECHO "Extracting MPC latest version, patience..." ;
+local mpc = [ SHELL "\"$(INTRO_ROOT_DIR)/mpc-latest.sh\" || /bin/echo -n 'error'" ] ;
+if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(mpc) : 1 ] {
+  ECHO $(mpc) ;
+  feature mpc        : unspecified $(mpc)       : propagated            ;
+  feature mpc-hidden : [ feature.values <mpc> ] : propagated incidental ;
+}
+else {
+  errors.error "ERROR: failed to extract MPC latest version." ;
+}
 
-feature gmp-version : unspecified : propagated ;
-ECHO patience... ;
-for local i in [ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/gmp-versions.sh\" || /bin/echo -n 'error'" ] " +" ]
-{
+ECHO "Extracting GCC latest version, patience..." ;
+local gcc-versions = [ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/gcc-versions.sh\" || /bin/echo -n 'error'" ] " +" ] ;
+for local i in $(gcc-versions) {
   if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(i) : 1 ] {
-    feature.extend gmp-version : $(i) ;
-  }
-  else {
-    errors.error "ERROR: failed to extract GMP versions." ;
-  }
-}
-
-feature gmp-version-hidden : [ feature.values <gmp-version> ] : propagated incidental ;
-
-
-feature mpfr-version : unspecified : propagated ;
-ECHO patience... ;
-for local i in [ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/mpfr-versions.sh\" || /bin/echo -n 'error'" ] " +" ]
-{
-  if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(i) : 1 ] {
-    feature.extend mpfr-version : $(i) ;
-  }
-  else {
-    errors.error "ERROR: failed to extract MPFR versions." ;
-  }
-}
-
-feature mpfr-version-hidden : [ feature.values <mpfr-version> ] : propagated incidental ;
-
-
-feature mpc-version : unspecified : propagated ;
-ECHO patience... ;
-for local i in [ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/mpc-versions.sh\" || /bin/echo -n 'error'" ] " +" ]
-{
-  if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(i) : 1 ] {
-    feature.extend mpc-version : $(i) ;
-  }
-  else {
-    errors.error "ERROR: failed to extract MPC versions." ;
-  }
-}
-
-feature mpc-version-hidden : [ feature.values <mpc-version> ] : propagated incidental ;
-
-
-feature gcc-version : unspecified : propagated ;
-ECHO patience... ;
-for local i in [ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/gcc-versions.sh\" || /bin/echo -n 'error'" ] " +" ]
-{
-  if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(i) : 1 ] {
-    feature.extend gcc-version : $(i) ;
+    # Do nothing.
   }
   else {
     errors.error "ERROR: failed to extract GCC versions." ;
   }
 }
+local gcc-current = $(gcc-versions[1]) ;
+ECHO GCC current... $(gcc-current) ;
+local gcc-previous = $(gcc-versions[2]) ;
+ECHO GCC previous... $(gcc-previous) ;
+local gcc-oldest = $(gcc-versions[3]) ;
+ECHO GCC oldest... $(gcc-oldest) ;
+feature gcc        : unspecified $(gcc-versions) : propagated            ;
+feature gcc-hidden : [ feature.values <gcc> ]    : propagated incidental ;
 
+ECHO "Extracting ICU4C latest version, patience..." ;
+local icu4c = [ SHELL "\"$(INTRO_ROOT_DIR)/icu4c-latest.sh\" || /bin/echo -n 'error'" ] ;
+if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(icu4c) : 1 ] {
+  ECHO $(icu4c) ;
+}
+else {
+  errors.error "ERROR: failed to extract ICU4C latest version." ;
+}
+feature icu4c        : unspecified $(icu4c)       : propagated            ;
+feature icu4c-hidden : [ feature.values <icu4c> ] : propagated incidental ;
 
-feature enable-cross-crt : unspecified no yes : propagated incidental ;
+feature mpi        : unspecified openmpi mpich2 : propagated            ;
+feature mpi-hidden : [ feature.values <mpi> ]   : propagated incidental ;
 
-
-feature enable-cross-binutils : unspecified no yes : propagated incidental ;
-
-
-
-local binutils-version-default = [ feature.values <binutils-version> ] ;
-if $(enable-cross-binutils) = no {
-  binutils-version-default = [ SHELL "$(PREFIX)/bin/$(host)-ld --version | grep -F \"GNU ld (GNU Binutils)\" | grep -Eo \"[[:digit:]]+(\\.[[:digit:]]+(\\.[[:digit:]]+)?)?\" | tr --delete '\n'" ] ;
-  if ! [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(binutils-version-default) : 1 ] {
-    errors.error "ERROR: Cannot extract the pre-installed binutils version." ;
+local openmpi = unspecified ;
+if $(mpi) = openmpi {
+  ECHO "Extracting OpenMPI latest version, patience..." ;
+  openmpi = [ SHELL "\"$(INTRO_ROOT_DIR)/openmpi-latest.sh\" || /bin/echo -n 'error'" ] ;
+  if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(openmpi) : 1 ] {
+    ECHO $(openmpi) ;
+    feature openmpi        : unspecified $(openmpi)       : propagated            ;
+    feature openmpi-hidden : [ feature.values <openmpi> ] : propagated incidental ;
+  }
+  else {
+    errors.error "ERROR: failed to extract OpenMPI latest version." ;
   }
 }
 else {
-  binutils-version-default = $(binutils-version-default[2]) ;
+  feature openmpi        : unspecified                  : propagated            ;
+  feature openmpi-hidden : [ feature.values <openmpi> ] : propagated incidental ;
 }
 
-local gmp-version-default = [ feature.values <gmp-version> ] ;
-gmp-version-default = $(gmp-version-default[2]) ;
-local mpfr-version-default = [ feature.values <mpfr-version> ] ;
-mpfr-version-default = $(mpfr-version-default[2]) ;
-local mpc-version-default = [ feature.values <mpc-version> ] ;
-mpc-version-default = $(mpc-version-default[2]) ;
-
-if ! $(host) {
-  if $(enable-cross-crt) != unspecified {
-    errors.error "ERROR: '--enable-cross-crt' is not valid for a cross build." ;
-  }
-  if $(enable-cross-binutils) != unspecified {
-    errors.error "ERROR: '--enable-cross-binutils' is not valid for a cross build." ;
-  }
-  alias install-gcc
-    : stage1/gcc//install/<intro-stage>1/<intro-multilib>$(multilib)/<enable-cross-crt>unspecified/<enable-cross-binutils>unspecified
-    :
-    : <gmp-version>$(gmp-version-default)
-      <mpfr-version>$(mpfr-version-default)
-      <mpc-version>$(mpc-version-default)
-    ;
-  explicit install-gcc ;
-}
-else if ! $(cross-prefix) {
-  if $(enable-cross-crt) = unspecified {
-    errors.error "ERROR: '--enable-cross-crt' is not specified for a cross build." ;
-  }
-  if $(enable-cross-binutils) = unspecified {
-    errors.error "ERROR: '--enable-cross-binutils' is not specified for a cross build." ;
-  }
-  alias install-gcc
-    : stage2/gcc//install/<intro-stage>2/<intro-host>$(host)/<intro-multilib>$(multilib)/<enable-cross-crt>$(enable-cross-crt)/<enable-cross-binutils>$(enable-cross-binutils)
-    :
-    : <binutils-version>$(binutils-version-default)
-      <gmp-version>$(gmp-version-default)
-      <mpfr-version>$(mpfr-version-default)
-      <mpc-version>$(mpc-version-default)
-    ;
-  explicit install-gcc ;
+ECHO "Extracting Boost latest version, patience..." ;
+local boost = [ SHELL "\"$(INTRO_ROOT_DIR)/boost-latest.sh\" || /bin/echo -n 'error'" ] ;
+if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(boost) : 1 ] {
+  ECHO $(boost) ;
 }
 else {
-  if $(enable-cross-crt) = unspecified {
-    errors.error "ERROR: '--enable-cross-crt' is not specified for a cross build." ;
-  }
-  if $(enable-cross-binutils) = unspecified {
-    errors.error "ERROR: '--enable-cross-binutils' is not specified for a cross build." ;
-  }
-  alias install-gcc
-    : stage3/gcc//install/<intro-stage>3/<intro-host>$(host)/<intro-multilib>$(multilib)/<enable-cross-crt>$(enable-cross-crt)/<enable-cross-binutils>$(enable-cross-binutils)
-    :
-    : <binutils-version>$(binutils-version-default)
-      <gmp-version>$(gmp-version-default)
-      <mpfr-version>$(mpfr-version-default)
-      <mpc-version>$(mpc-version-default)
-    ;
-  explicit install-gcc ;
+  errors.error "ERROR: failed to extract Boost latest version." ;
 }
+feature boost        : unspecified $(boost)       : propagated            ;
+feature boost-hidden : [ feature.values <boost> ] : propagated incidental ;
+
+
+alias current
+  : gcc//install
+    gmp//install/<mpfr>unspecified/<mpfr-hidden>$(mpfr)/<mpc>unspecified/<mpc-hidden>$(mpc)
+    mpfr//install/<mpc>unspecified/<mpc-hidden>$(mpc)
+    boost//install/<gmp>unspecified/<gmp-hidden>$(gmp)/<mpfr>unspecified/<mpfr-hidden>$(mpfr)/<mpc>unspecified/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
+  : <triplet>$(triplet)
+    <multilib>$(multilib)
+    <multilib-hidden>unspecified
+    <gmp>$(gmp)
+    <gmp-hidden>unspecified
+    <mpfr>$(mpfr)
+    <mpfr-hidden>unspecified
+    <mpc>$(mpc)
+    <mpc-hidden>unspecified
+    <gcc>$(gcc-current)
+    <gcc-hidden>unspecified
+    <icu4c>unspecified
+    <icu4c-hidden>unspecified
+    <mpi>unspecified
+    <mpi-hidden>unspecified
+    <openmpi>unspecified
+    <openmpi-hidden>unspecified
+  ;
+explicit current ;
+
+alias previous
+  : gcc//install
+    gmp//install/<mpfr>unspecified/<mpfr-hidden>$(mpfr)/<mpc>unspecified/<mpc-hidden>$(mpc)
+    mpfr//install/<mpc>unspecified/<mpc-hidden>$(mpc)
+    boost//install/<gmp>unspecified/<gmp-hidden>$(gmp)/<mpfr>unspecified/<mpfr-hidden>$(mpfr)/<mpc>unspecified/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
+  : <triplet>$(triplet)
+    <multilib>$(multilib)
+    <multilib-hidden>unspecified
+    <gmp>$(gmp)
+    <gmp-hidden>unspecified
+    <mpfr>$(mpfr)
+    <mpfr-hidden>unspecified
+    <mpc>$(mpc)
+    <mpc-hidden>unspecified
+    <gcc>$(gcc-previous)
+    <gcc-hidden>unspecified
+    <icu4c>unspecified
+    <icu4c-hidden>unspecified
+    <mpi>unspecified
+    <mpi-hidden>unspecified
+    <openmpi>unspecified
+    <openmpi-hidden>unspecified
+  ;
+explicit previous ;
+
+alias oldest ;
+explicit oldest ;

@@ -1,0 +1,219 @@
+project intro/boost ;
+
+import alias ;
+import errors ;
+import feature ;
+import make ;
+
+
+rule assert-specified ( feature : properties * )
+{
+  local val = [ feature.get-values $(feature) : $(properties) ] ;
+  if $(val) = unspecified {
+    errors.error $(feature) is not specified for the Boost build. ;
+  }
+}
+
+rule assert-unspecified ( feature : properties * )
+{
+  local val = [ feature.get-values $(feature) : $(properties) ] ;
+  if $(val) != unspecified {
+    errors.error $(feature) is not valid for the Boost build. ;
+  }
+}
+
+
+rule gcc-dep-req ( properties * )
+{
+  assert-specified   <triplet>         : $(properties) ;
+  assert-specified   <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-specified   <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-specified   <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-specified   <mpc-hidden>      : $(properties) ;
+  assert-specified   <gcc>             : $(properties) ;
+  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-specified   <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-specified   <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  #assert-specified   <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-specified   <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  local result = <source>../gcc//install ;
+  local gmp = [ feature.get-values <gmp-hidden> : $(properties) ] ;
+  result = $(result)/<gmp>$(gmp)/<gmp-hidden>unspecified ;
+  local mpfr = [ feature.get-values <mpfr-hidden> : $(properties) ] ;
+  result = $(result)/<mpfr>$(mpfr)/<mpfr-hidden>unspecified ;
+  local mpc = [ feature.get-values <mpc-hidden> : $(properties) ] ;
+  result = $(result)/<mpc>$(mpc)/<mpc-hidden>unspecified ;
+  result = $(result)/<icu4c>unspecified ;
+  result = $(result)/<mpi>unspecified ;
+  result = $(result)/<openmpi>unspecified ;
+  result = $(result)/<boost>unspecified ;
+  return $(result) ;
+}
+
+alias gcc-dep : : <conditional>@gcc-dep-req ;
+explicit gcc-dep ;
+
+
+rule icu4c-dep-req ( properties * )
+{
+  assert-specified   <triplet>         : $(properties) ;
+  assert-specified   <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-specified   <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-specified   <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-specified   <mpc-hidden>      : $(properties) ;
+  assert-specified   <gcc>             : $(properties) ;
+  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-specified   <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-specified   <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  #assert-specified   <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-specified   <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  local result = <source>../icu4c//install ;
+  result = $(result)/<mpi>unspecified ;
+  result = $(result)/<openmpi>unspecified ;
+  result = $(result)/<boost>unspecified ;
+  return $(result) ;
+}
+
+alias icu4c-dep : : <conditional>@icu4c-dep-req ;
+explicit icu4c-dep ;
+
+
+rule openmpi-dep-req ( properties * )
+{
+  assert-specified   <triplet>         : $(properties) ;
+  assert-specified   <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-specified   <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-specified   <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-specified   <mpc-hidden>      : $(properties) ;
+  assert-specified   <gcc>             : $(properties) ;
+  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-specified   <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-specified   <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  #assert-specified   <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-specified   <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  local result ;
+  local mpi = [ feature.get-values <mpi> : $(properties) ] ;
+  if $(mpi) = openmpi {
+    result = <source>../openmpi//install ;
+    result = $(result)/<icu4c>unspecified ;
+    result = $(result)/<boost>unspecified ;
+  }
+  return $(result) ;
+}
+
+alias openmpi-dep : : <conditional>@openmpi-dep-req ;
+explicit openmpi-dep ;
+
+
+make make
+  : gcc-dep
+    icu4c-dep
+    openmpi-dep
+  : @make-boost
+  ;
+explicit make ;
+
+rule make-boost ( targets * : sources * : properties * )
+{
+  assert-specified   <triplet>         : $(properties) ;
+  assert-specified   <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-specified   <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-specified   <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-specified   <mpc-hidden>      : $(properties) ;
+  assert-specified   <gcc>             : $(properties) ;
+  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-specified   <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-specified   <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  #assert-specified   <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-specified   <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+
+  OPTIONS on $(targets) = ;
+
+  # Set 'BOOST_ROOT'.
+  local version = [ feature.get-values <boost> : $(properties) ] ;
+  local boost-root = $(PREFIX)/boost/$(version) ;
+  BOOST_ROOT on $(targets) = $(boost-root) ;
+
+  local gcc = [ feature.get-values <gcc> : $(properties) ] ;
+  OPTIONS on $(targets) += -sICU_PATH=\"$(PREFIX)/$(gcc)\" ;
+
+  OPTIONS on $(targets) += --build-type=complete ;
+  OPTIONS on $(targets) += --layout=versioned ;
+
+  OPTIONS on $(targets) += --without-mpi ;
+
+  OPTIONS on $(targets) += toolset=gcc-$(gcc) ;
+
+  OPTIONS on $(targets) += stage ;
+}
+actions make-boost
+{
+  rm -f "$(<)" || exit $?
+  [ -x "$(BOOST_ROOT)/b2" ] || exit $?
+  ( cd "$(BOOST_ROOT)" && ./b2 -ad+2 -j$(CONCURRENCY) $(OPTIONS) )
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to build the Boost." 1>&2
+    exit 1
+  fi
+  [ -e "$(<)" ] && exit 1
+  touch "$(<)"
+}
+
+
+rule install-req ( properties * )
+{
+  assert-specified   <triplet>         : $(properties) ;
+  assert-specified   <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-specified   <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-specified   <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-specified   <mpc-hidden>      : $(properties) ;
+  assert-specified   <gcc>             : $(properties) ;
+  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-specified   <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-specified   <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  #assert-specified   <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-specified   <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+}
+
+alias install : make : <conditional>@install-req ;
+explicit install ;

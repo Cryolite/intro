@@ -1,0 +1,290 @@
+project intro/mpc ;
+
+import alias ;
+import errors ;
+import feature ;
+import make ;
+
+
+rule assert-specified ( feature : properties * )
+{
+  local val = [ feature.get-values $(feature) : $(properties) ] ;
+  if $(val) = unspecified {
+    errors.error $(feature) is not specified for the MPC build. ;
+  }
+}
+
+rule assert-unspecified ( feature : properties * )
+{
+  local val = [ feature.get-values $(feature) : $(properties) ] ;
+  if $(val) != unspecified {
+    errors.error $(feature) is not valid for the MPC build. ;
+  }
+}
+
+
+rule mpfr-dep-req ( properties * )
+{
+  assert-specified   <triplet>         : $(properties) ;
+  assert-specified   <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-specified   <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-specified   <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-specified   <gcc>             : $(properties) ;
+  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  local result = <source>../mpfr//install ;
+  local mpc = [ feature.get-values <mpc> : $(properties) ] ;
+  result = $(result)/<mpc>unspecified/<mpc-hidden>$(mpc) ;
+  return $(result) ;
+}
+
+alias mpfr-dep : : <conditional>@mpfr-dep-req ;
+explicit mpfr-dep ;
+
+
+make download : : @download-mpc ;
+explicit download ;
+
+rule download-mpc ( targets * : sources * : properties * )
+{
+  assert-unspecified <triplet>         : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-specified   <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <gcc>             : $(properties) ;
+  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  local version = [ feature.get-values <mpc> : $(properties) ] ;
+  URL on $(targets) = http://www.multiprecision.org/mpc/download/mpc-$(version).tar.gz ;
+  TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/mpc-$(version).tar.gz ;
+  TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/mpc-$(version).tar.bz2 ;
+}
+actions download-mpc
+{
+  rm -f "$(<)" || exit $?
+  if [ ! -f "$(TARBALL_GZ)" -a ! -f "$(TARBALL_BZ2)" ]; then
+    ( cd "$(TARBALL_BZ2:D)" && wget --quiet -- '$(URL)' ) \
+      || { echo "ERROR: failed to download the MPC tarball." 1>&2; exit 1; }
+    [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_BZ2)" ] || exit $?
+  fi
+  [ -e "$(<)" ] && exit 1
+  touch "$(<)"
+}
+
+
+make expand : download : @expand-mpc ;
+explicit expand ;
+
+rule expand-mpc ( targets * : sources * : properties * )
+{
+  if ! $(sources[1]) {
+    errors.error "ERROR: wrong number of sources." ;
+  }
+  if $(sources[2]) {
+    errors.error "ERROR: wrong number of sources." ;
+  }
+  assert-unspecified <triplet>         : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-specified   <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <gcc>             : $(properties) ;
+  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  local version = [ feature.get-values <mpc> : $(properties) ] ;
+  TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/mpc-$(version).tar.gz ;
+  TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/mpc-$(version).tar.bz2 ;
+  DEST_DIR on $(targets) = $(INTRO_ROOT_DIR)/mpc-$(version) ;
+}
+actions expand-mpc
+{
+  rm -f "$(<)" || exit $?
+  [ -f "$(>)" ] || exit $?
+  if [ ! -x "$(DEST_DIR)/configure" ]; then
+    rm -rf "$(DEST_DIR)" || exit $?
+    if [ -f "$(TARBALL_GZ)" ]; then
+      tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" \
+        || { echo "ERROR: failed to expand the MPC tarball." 1>&2; exit 1; }
+    elif [ -f "$(TARBALL_BZ2)" ]; then
+      tar xjf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)" \
+        || { echo "ERROR: failed to expand the MPC tarball." 1>&2; exit 1; }
+    else
+      exit 1
+    fi
+    [ -x "$(DEST_DIR)/configure" ] || exit $?
+  fi
+  [ -e "$(<)" ] && exit 1
+  touch "$(<)"
+}
+
+
+make make
+  : mpfr-dep
+    expand/<triplet>unspecified/<multilib>unspecified/<gmp>unspecified/<mpc-hidden>unspecified/<gcc>unspecified
+  : @make-mpc
+  ;
+explicit make ;
+
+rule make-mpc ( targets * : sources * : properties * )
+{
+  assert-specified   <triplet>         : $(properties) ;
+  assert-specified   <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-specified   <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-specified   <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-specified   <gcc>             : $(properties) ;
+  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+
+  OPTIONS on $(targets) = ;
+
+  local version = [ feature.get-values <mpc> : $(properties) ] ;
+
+  # Set the path to the 'configure' file.
+  local configure = $(INTRO_ROOT_DIR)/mpc-$(version)/configure ;
+  CONFIGURE on $(targets) = $(configure) ;
+
+  # Set the '--build' and '--host' options for the 'configure' script.
+  local triplet = [ feature.get-values <triplet> : $(properties) ] ;
+  TRIPLET on $(targets) = $(triplet) ;
+  OPTIONS on $(targets) += --build=$(triplet) ;
+  OPTIONS on $(targets) += --host=$(triplet) ;
+
+  # Set the '--prefix' option for the 'configure' script.
+  local gcc = [ feature.get-values <gcc> : $(properties) ] ;
+  OPTIONS on $(targets) += --prefix=\"$(PREFIX)/$(gcc)\" ;
+
+  # Set the link variants for the 'configure' script.
+  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32 {
+    OPTIONS on $(targets) += --disable-static ;
+    OPTIONS on $(targets) += --enable-shared  ;
+  }
+  else {
+    OPTIONS on $(targets) += --enable-static ;
+    OPTIONS on $(targets) += --enable-shared ;
+  }
+
+  OPTIONS on $(targets) += CC=\"$(PREFIX)/$(gcc)/bin/gcc\" ;
+  OPTIONS on $(targets) += CXX=\"$(PREFIX)/$(gcc)/bin/g++\" ;
+
+  SET_RUN_VARS on $(targets) = ;
+  UNSET_RUN_VARS on $(targets) = ;
+  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32 {
+    SET_RUN_VARS on $(targets) = "OLD_PATH=\"$PATH\"; PATH=\"$(PREFIX)/$(gcc)/bin:$PATH\"; export PATH" ;
+    UNSET_RUN_VARS on $(targets) = "PATH=\"$OLD_PATH\"; export PATH; unset OLD_PATH" ;
+  }
+  else {
+    SET_RUN_VARS on $(targets) = "OLD_LD_LIBRARY_PATH=\"$LD_LIBRARY_PATH\"; LD_LIBRARY_PATH=\"$(PREFIX)/$(gcc)/lib:$LD_LIBRARY_PATH\"; export LD_LIBRARY_PATH" ;
+    UNSET_RUN_VARS on $(targets) = "LD_LIBRARY_PATH=\"$OLD_LD_LIBRARY_PATH\"; export LD_LIBRARY_PATH; unset OLD_LD_LIBRARY_PATH" ;
+  }
+}
+actions make-mpc
+{
+  rm -f "$(<)" || exit $?
+  [ -x "$(CONFIGURE)" ] || exit $?
+  [ `"$(CONFIGURE:D)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit $?
+  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
+  $(SET_RUN_VARS)
+  ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
+  if [ $? -ne 0 ]; then
+    $(UNSET_RUN_VARS)
+    echo "ERROR: failed to 'configure' for the MPC build." 1>&2
+    exit 1
+  fi
+  [ -f "$(<:D)/build/Makefile" ] || { $(UNSET_RUN_VARS); exit 1; }
+  ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
+  if [ $? -ne 0 ]; then
+    $(UNSET_RUN_VARS)
+    echo "ERROR: failed to 'make' for the MPC build." 1>&2
+    exit 1
+  fi
+  ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check )
+  if [ $? -ne 0 ]; then
+    $(UNSET_RUN_VARS)
+    echo "ERROR: failed to 'make check' for the MPC build." 1>&2
+    exit 1
+  fi
+  ( cd "$(<:D)/build" && make install )
+  if [ $? -ne 0 ]; then
+    $(UNSET_RUN_VARS)
+    echo "ERROR: failed to 'make install' for the MPC build." 1>&2
+    exit 1
+  fi
+  ( cd "$(<:D)/build" && rm -rf * )
+  $(UNSET_RUN_VARS)
+  [ -e "$(<)" ] && exit 1
+  touch "$(<)"
+}
+
+
+rule install-req ( properties * )
+{
+  assert-specified   <triplet>         : $(properties) ;
+  assert-specified   <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-specified   <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-specified   <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-specified   <gcc>             : $(properties) ;
+  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+}
+
+alias install : make : <conditional>@install-req ;
+explicit install ;
