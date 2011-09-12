@@ -4,6 +4,7 @@ import alias ;
 import errors ;
 import feature ;
 import make ;
+import regex ;
 
 
 rule assert-specified ( feature : properties * )
@@ -167,6 +168,7 @@ rule make-boost ( targets * : sources * : properties * )
   BOOST_ROOT on $(targets) = $(boost-root) ;
 
   local gcc = [ feature.get-values <gcc> : $(properties) ] ;
+  gcc = [ regex.replace "$(gcc)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]" ".0" ] ;
   OPTIONS on $(targets) += -sICU_PATH=\"$(PREFIX)/$(gcc)\" ;
 
   OPTIONS on $(targets) += --build-type=complete ;

@@ -4,6 +4,7 @@ import alias ;
 import errors ;
 import feature ;
 import make ;
+import regex ;
 
 
 rule assert-specified ( feature : properties * )
@@ -48,7 +49,12 @@ rule download-gcc ( targets * : sources * : properties * )
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
   local version = [ feature.get-values <gcc> : $(properties) ] ;
-  URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/gcc/releases/gcc-$(version)/gcc-$(version).tar.bz2 ;
+  if [ regex.match "^([0123456789]+\\.[0123456789]+-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789])$" : $(version) : 1 ] {
+    URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/gcc/snapshots/$(version)/gcc-$(version).tar.bz2 ;
+  }
+  else {
+    URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/gcc/releases/gcc-$(version)/gcc-$(version).tar.bz2 ;
+  }
   TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/gcc-$(version).tar.gz ;
   TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/gcc-$(version).tar.bz2 ;
 }
@@ -156,9 +162,11 @@ rule configure-gcc ( targets * : sources * : properties * )
   OPTIONS on $(targets) = ;
 
   local version = [ feature.get-values <gcc> : $(properties) ] ;
+  local src-dir = $(INTRO_ROOT_DIR)/gcc-$(version) ;
+  version = [ regex.replace "$(version)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]" ".0" ] ;
 
   # Set the path to the 'configure' file.
-  local configure = $(INTRO_ROOT_DIR)/gcc-$(version)/configure ;
+  local configure = $(src-dir)/configure ;
   CONFIGURE on $(targets) = $(configure) ;
 
   # Set the '--build', '--host' and '--target' options for the 'configure' script.
@@ -255,16 +263,16 @@ rule configure-gcc ( targets * : sources * : properties * )
   }
 
   local gmp = [ feature.get-values <gmp> : $(properties) ] ;
-  SET_GMP_SYMLINK on $(targets) = "( cd \"$(INTRO_ROOT_DIR)/gcc-$(version)\" && ln -sf ../gmp-$(gmp) gmp )" ;
-  UNSET_GMP_SYMLINK on $(targets) = "rm -f \"$(INTRO_ROOT_DIR)/gcc-$(version)/gmp\"" ;
+  SET_GMP_SYMLINK on $(targets) = "( cd \"$(src-dir)\" && ln -sf ../gmp-$(gmp) gmp )" ;
+  UNSET_GMP_SYMLINK on $(targets) = "rm -f \"$(src-dir)/gmp\"" ;
 
   local mpfr = [ feature.get-values <mpfr> : $(properties) ] ;
-  SET_MPFR_SYMLINK on $(targets) = "( cd \"$(INTRO_ROOT_DIR)/gcc-$(version)\" && ln -sf ../mpfr-$(mpfr) mpfr )" ;
-  UNSET_MPFR_SYMLINK on $(targets) = "rm -f \"$(INTRO_ROOT_DIR)/gcc-$(version)/mpfr\"" ;
+  SET_MPFR_SYMLINK on $(targets) = "( cd \"$(src-dir)\" && ln -sf ../mpfr-$(mpfr) mpfr )" ;
+  UNSET_MPFR_SYMLINK on $(targets) = "rm -f \"$(src-dir)/mpfr\"" ;
 
   local mpc = [ feature.get-values <mpc> : $(properties) ] ;
-  SET_MPC_SYMLINK on $(targets) = "( cd \"$(INTRO_ROOT_DIR)/gcc-$(version)\" && ln -sf ../mpc-$(mpc) mpc )" ;
-  UNSET_MPC_SYMLINK on $(targets) = "rm -f \"$(INTRO_ROOT_DIR)/gcc-$(version)/mpc\"" ;
+  SET_MPC_SYMLINK on $(targets) = "( cd \"$(src-dir)\" && ln -sf ../mpc-$(mpc) mpc )" ;
+  UNSET_MPC_SYMLINK on $(targets) = "rm -f \"$(src-dir)/mpc\"" ;
 }
 actions configure-gcc
 {
@@ -323,30 +331,32 @@ rule make-gcc ( targets * : sources * : properties * )
 
   local triplet = [ feature.get-values <triplet> : $(properties) ] ;
   local version = [ feature.get-values <gcc> : $(properties) ] ;
-  SOURCE_DIR on $(targets) = "$(INTRO_ROOT_DIR)/gcc-$(version)" ;
+  local src-dir = "$(INTRO_ROOT_DIR)/gcc-$(version)" ;
+  SRC_DIR on $(targets) = "$(src-dir)" ;
+  version = [ regex.replace "$(version)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]" ".0" ] ;
 
   local gmp = [ feature.get-values <gmp> : $(properties) ] ;
-  SET_GMP_SYMLINK on $(targets) = "( cd \"$(INTRO_ROOT_DIR)/gcc-$(version)\" && ln -sf ../gmp-$(gmp) gmp )" ;
-  UNSET_GMP_SYMLINK on $(targets) = "rm -f \"$(INTRO_ROOT_DIR)/gcc-$(version)/gmp\"" ;
+  SET_GMP_SYMLINK on $(targets) = "( cd \"$(src-dir)\" && ln -sf ../gmp-$(gmp) gmp )" ;
+  UNSET_GMP_SYMLINK on $(targets) = "rm -f \"$(src-dir)/gmp\"" ;
 
   local mpfr = [ feature.get-values <mpfr> : $(properties) ] ;
-  SET_MPFR_SYMLINK on $(targets) = "( cd \"$(INTRO_ROOT_DIR)/gcc-$(version)\" && ln -sf ../mpfr-$(mpfr) mpfr )" ;
-  UNSET_MPFR_SYMLINK on $(targets) = "rm -f \"$(INTRO_ROOT_DIR)/gcc-$(version)/mpfr\"" ;
+  SET_MPFR_SYMLINK on $(targets) = "( cd \"$(src-dir)\" && ln -sf ../mpfr-$(mpfr) mpfr )" ;
+  UNSET_MPFR_SYMLINK on $(targets) = "rm -f \"$(src-dir)/mpfr\"" ;
 
   local mpc = [ feature.get-values <mpc> : $(properties) ] ;
-  SET_MPC_SYMLINK on $(targets) = "( cd \"$(INTRO_ROOT_DIR)/gcc-$(version)\" && ln -sf ../mpc-$(mpc) mpc )" ;
-  UNSET_MPC_SYMLINK on $(targets) = "rm -f \"$(INTRO_ROOT_DIR)/gcc-$(version)/mpc\"" ;
+  SET_MPC_SYMLINK on $(targets) = "( cd \"$(src-dir)\" && ln -sf ../mpc-$(mpc) mpc )" ;
+  UNSET_MPC_SYMLINK on $(targets) = "rm -f \"$(src-dir)/mpc\"" ;
 }
 actions make-gcc
 {
   rm -f "$(<)" || exit $?
   [ -f "$(<:D)/build/Makefile" ] || exit $?
   $(SET_GMP_SYMLINK)
-  [ -x "$(SOURCE_DIR)/gmp/configure" ] || { $(UNSET_GMP_SYMLINK); exit 1; }
+  [ -x "$(SRC_DIR)/gmp/configure" ] || { $(UNSET_GMP_SYMLINK); exit 1; }
   $(SET_MPFR_SYMLINK) || { $(UNSET_GMP_SYMLINK); exit 1; }
-  [ -x "$(SOURCE_DIR)/mpfr/configure" ] || { $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
+  [ -x "$(SRC_DIR)/mpfr/configure" ] || { $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
   $(SET_MPC_SYMLINK) || { $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
-  [ -x "$(SOURCE_DIR)/mpc/configure" ] || { $(UNSET_MPC_SYMLINK); $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
+  [ -x "$(SRC_DIR)/mpc/configure" ] || { $(UNSET_MPC_SYMLINK); $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
   ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
   if [ $? -ne 0 ]; then
     $(UNSET_MPC_SYMLINK)

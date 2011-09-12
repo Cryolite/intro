@@ -205,6 +205,7 @@ rule make-openmpi ( targets * : sources * : properties * )
 
   # Set the '--prefix' option for the 'configure' script.
   local gcc = [ feature.get-values <gcc> : $(properties) ] ;
+  gcc = [ regex.replace "$(gcc)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]" ".0" ] ;
   OPTIONS on $(targets) += --prefix=\"$(PREFIX)/$(gcc)\" ;
 
   OPTIONS on $(targets) += --disable-mpi-f77 ;

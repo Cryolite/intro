@@ -4,6 +4,7 @@ import alias ;
 import errors ;
 import feature ;
 import make ;
+import regex ;
 
 
 rule assert-specified ( feature : properties * )
@@ -198,6 +199,7 @@ rule make-mpc ( targets * : sources * : properties * )
 
   # Set the '--prefix' option for the 'configure' script.
   local gcc = [ feature.get-values <gcc> : $(properties) ] ;
+  gcc = [ regex.replace "$(gcc)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]" ".0" ] ;
   OPTIONS on $(targets) += --prefix=\"$(PREFIX)/$(gcc)\" ;
 
   # Set the link variants for the 'configure' script.
