@@ -265,6 +265,15 @@ rule configure-gcc ( targets * : sources * : properties * )
   local mpc = [ feature.get-values <mpc> : $(properties) ] ;
   SET_MPC_SYMLINK on $(targets) = "( cd \"$(INTRO_ROOT_DIR)/gcc-$(version)\" && ln -sf ../mpc-$(mpc) mpc )" ;
   UNSET_MPC_SYMLINK on $(targets) = "rm -f \"$(INTRO_ROOT_DIR)/gcc-$(version)/mpc\"" ;
+
+  SET_C_INCLUDE_PATH on $(targets) = "OLD_C_INCLUDE_PATH=\"$C_INCLUDE_PATH\"; C_INCLUDE_PATH=\"$(PREFIX)/include${C_INCLUDE_PATH:+:$C_INCLUDE_PATH}\"; export C_INCLUDE_PATH" ;
+  UNSET_C_INCLUDE_PATH on $(targets) = "C_INCLUDE_PATH=\"$OLD_C_INCLUDE_PATH\"; export C_INCLUDE_PATH; if [ ! -n \"$C_INCLUDE_PATH\" ]; then unset C_INCLUDE_PATH; fi; unset OLD_C_INCLUDE_PATH" ;
+
+  SET_CPLUS_INCLUDE_PATH on $(targets) = "OLD_CPLUS_INCLUDE_PATH=\"$CPLUS_INCLUDE_PATH\"; CPLUS_INCLUDE_PATH=\"$(PREFIX)/include${CPLUS_INCLUDE_PATH:+:$CPLUS_INCLUDE_PATH}\"; export CPLUS_INCLUDE_PATH" ;
+  UNSET_CPLUS_INCLUDE_PATH on $(targets) = "CPLUS_INCLUDE_PATH=\"$OLD_CPLUS_INCLUDE_PATH\"; export CPLUS_INCLUDE_PATH; if [ ! -n \"$CPLUS_INCLUDE_PATH\" ]; then unset CPLUS_INCLUDE_PATH; fi; unset OLD_CPLUS_INCLUDE_PATH" ;
+
+  SET_LIBRARY_PATH on $(targets) = "OLD_LIBRARY_PATH=\"$LIBRARY_PATH\"; LIBRARY_PATH=\"$(PREFIX)/lib${LIBRARY_PATH:+:$LIBRARY_PATH}\"; export LIBRARY_PATH" ;
+  UNSET_LIBRARY_PATH on $(targets) = "LIBRARY_PATH=\"$OLD_LIBRARY_PATH\"; export LIBRARY_PATH; if [ ! -n \"$LIBRARY_PATH\" ]; then unset LIBRARY_PATH; fi; unset OLD_LIBRARY_PATH" ;
 }
 actions configure-gcc
 {
@@ -279,14 +288,23 @@ actions configure-gcc
   [ -x "$(CONFIGURE:D)/mpfr/configure" ] || { $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
   $(SET_MPC_SYMLINK) || { $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
   [ -x "$(CONFIGURE:D)/mpc/configure" ] || { $(UNSET_MPC_SYMLINK); $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
+  $(SET_C_INCLUDE_PATH)
+  $(SET_CPLUS_INCLUDE_PATH)
+  $(SET_LIBRARY_PATH)
   ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
   if [ $? -ne 0 ]; then
+    $(UNSET_LIBRARY_PATH)
+    $(UNSET_CPLUS_INCLUDE_PATH)
+    $(UNSET_C_INCLUDE_PATH)
     $(UNSET_MPC_SYMLINK)
     $(UNSET_MPFR_SYMLINK)
     $(UNSET_GMP_SYMLINK)
     echo "ERROR: failed to 'configure' for the GCC build." 1>&2
     exit 1
   fi
+  $(UNSET_LIBRARY_PATH)
+  $(UNSET_CPLUS_INCLUDE_PATH)
+  $(UNSET_C_INCLUDE_PATH)
   $(UNSET_MPC_SYMLINK)
   $(UNSET_MPFR_SYMLINK)
   $(UNSET_GMP_SYMLINK)
@@ -336,6 +354,15 @@ rule make-gcc ( targets * : sources * : properties * )
   local mpc = [ feature.get-values <mpc> : $(properties) ] ;
   SET_MPC_SYMLINK on $(targets) = "( cd \"$(INTRO_ROOT_DIR)/gcc-$(version)\" && ln -sf ../mpc-$(mpc) mpc )" ;
   UNSET_MPC_SYMLINK on $(targets) = "rm -f \"$(INTRO_ROOT_DIR)/gcc-$(version)/mpc\"" ;
+
+  SET_C_INCLUDE_PATH on $(targets) = "OLD_C_INCLUDE_PATH=\"$C_INCLUDE_PATH\"; C_INCLUDE_PATH=\"$(PREFIX)/include${C_INCLUDE_PATH:+:$C_INCLUDE_PATH}\"; export C_INCLUDE_PATH" ;
+  UNSET_C_INCLUDE_PATH on $(targets) = "C_INCLUDE_PATH=\"$OLD_C_INCLUDE_PATH\"; export C_INCLUDE_PATH; if [ ! -n \"$C_INCLUDE_PATH\" ]; then unset C_INCLUDE_PATH; fi; unset OLD_C_INCLUDE_PATH" ;
+
+  SET_CPLUS_INCLUDE_PATH on $(targets) = "OLD_CPLUS_INCLUDE_PATH=\"$CPLUS_INCLUDE_PATH\"; CPLUS_INCLUDE_PATH=\"$(PREFIX)/include${CPLUS_INCLUDE_PATH:+:$CPLUS_INCLUDE_PATH}\"; export CPLUS_INCLUDE_PATH" ;
+  UNSET_CPLUS_INCLUDE_PATH on $(targets) = "CPLUS_INCLUDE_PATH=\"$OLD_CPLUS_INCLUDE_PATH\"; export CPLUS_INCLUDE_PATH; if [ ! -n \"$CPLUS_INCLUDE_PATH\" ]; then unset CPLUS_INCLUDE_PATH; fi; unset OLD_CPLUS_INCLUDE_PATH" ;
+
+  SET_LIBRARY_PATH on $(targets) = "OLD_LIBRARY_PATH=\"$LIBRARY_PATH\"; LIBRARY_PATH=\"$(PREFIX)/lib${LIBRARY_PATH:+:$LIBRARY_PATH}\"; export LIBRARY_PATH" ;
+  UNSET_LIBRARY_PATH on $(targets) = "LIBRARY_PATH=\"$OLD_LIBRARY_PATH\"; export LIBRARY_PATH; if [ ! -n \"$LIBRARY_PATH\" ]; then unset LIBRARY_PATH; fi; unset OLD_LIBRARY_PATH" ;
 }
 actions make-gcc
 {
@@ -347,8 +374,14 @@ actions make-gcc
   [ -x "$(SOURCE_DIR)/mpfr/configure" ] || { $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
   $(SET_MPC_SYMLINK) || { $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
   [ -x "$(SOURCE_DIR)/mpc/configure" ] || { $(UNSET_MPC_SYMLINK); $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
+  $(SET_C_INCLUDE_PATH)
+  $(SET_CPLUS_INCLUDE_PATH)
+  $(SET_LIBRARY_PATH)
   ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
   if [ $? -ne 0 ]; then
+    $(UNSET_LIBRARY_PATH)
+    $(UNSET_CPLUS_INCLUDE_PATH)
+    $(UNSET_C_INCLUDE_PATH)
     $(UNSET_MPC_SYMLINK)
     $(UNSET_MPFR_SYMLINK)
     $(UNSET_GMP_SYMLINK)
@@ -357,6 +390,9 @@ actions make-gcc
   fi
   ( cd "$(<:D)/build" && make install )
   if [ $? -ne 0 ]; then
+    $(UNSET_LIBRARY_PATH)
+    $(UNSET_CPLUS_INCLUDE_PATH)
+    $(UNSET_C_INCLUDE_PATH)
     $(UNSET_MPC_SYMLINK)
     $(UNSET_MPFR_SYMLINK)
     $(UNSET_GMP_SYMLINK)
@@ -364,6 +400,9 @@ actions make-gcc
     exit 1
   fi
   ( cd "$(<:D)/build" && rm -rf * )
+  $(UNSET_LIBRARY_PATH)
+  $(UNSET_CPLUS_INCLUDE_PATH)
+  $(UNSET_C_INCLUDE_PATH)
   $(UNSET_MPC_SYMLINK)
   $(UNSET_MPFR_SYMLINK)
   $(UNSET_GMP_SYMLINK)
