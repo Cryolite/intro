@@ -1,0 +1,68 @@
+import errors ;
+import feature ;
+import make ;
+import modules ;
+import path ;
+import regex ;
+
+project awacs/gcc-snapshot : requirements <cxxflags>-std=c++0x <linkflags>-Wl,--no-allow-shlib-undefined <hardcode-dll-paths>false ;
+
+path-constant AWACS_GCC_SNAPSHOT_ROOT : . ;
+
+local version ;
+
+for local argv in [ modules.peek : ARGV ] {
+  local tmp ;
+  tmp = [ regex.match "^--version=(.*)$" : $(argv) : 1 ] ;
+  if $(tmp) {
+    if $(version) {
+      errors.error "ERROR: duplicate '--version' option." ;
+    }
+    version = $(tmp) ;
+  }
+}
+
+if ! $(version) {
+  errors.error "ERROR: no '--version' option." ;
+}
+
+local canonical-path = /<variant>debug/<link>shared/<runtime-link>shared/<threading>single ;
+
+for local i in [ regex.split [ SHELL "cat ideone.txt | tr --delete '\n' | tr '\n' ' '" ] " +" ] {
+  make ideone-$(i).cpp : ideone.txt : @download-ideone : <location>. ;
+  explicit ideone-$(i).cpp ;
+  obj ideone-$(i).obj : ideone-$(i).cpp$(canonical-path) ;
+  explicit ideone-$(i).obj ;
+  exe ideone-$(i).exe : ideone-$(i).obj ;
+  explicit ideone-$(i).exe ;
+  run ideone-$(i).exe : : : : ideone-$(i).run ;
+  explicit ideone-$(i).run ;
+  make $(i).awacs-ideone : ideone-$(i).run : @awacs-ideone : <version>$(version) ;
+}
+
+actions download-ideone
+{
+  rm -f "$(<)" || exit 1
+  suffix=`/bin/echo -n "$(<)" | sed -e 's/ideone-\([^.]\{1,\}\)\.cpp$/\1/'`
+  wget --quiet --output-document "$(<)" "http://ideone.com/plain/$suffix"
+  if [ $? -ne 0 ]; then
+    /bin/echo -n "failed to download '$(<)'." | "$(AWACS_GCC_SNAPSHOT_ROOT)/../twitter.rb" ;
+    exit 1
+  fi
+  touch "$(<)"
+}
+
+rule awacs-ideone ( targets * : sources * : properties * )
+{
+  local version = [ feature.get-values <version> : $(properties) ] ;
+  VERSION on $(targets) = $(version) ;
+}
+actions awacs-ideone
+{
+  rm -f "$(<)" || exit 1
+  /bin/echo -n "http://ideone.com/$(<:B) is passed on GCC $(VERSION)." | "$(AWACS_GCC_SNAPSHOT_ROOT)/../twitter.rb" ;
+  /bin/echo $(<:B) >> ideone.2.txt
+  grep -Ev ^$(<:B)$ ideone.txt > ideone.txt.tmp
+  mv -f ideone.txt.tmp ideone.txt
+  touch "$(<)"
+}
