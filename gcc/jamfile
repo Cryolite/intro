@@ -351,6 +351,7 @@ rule make-gcc ( targets * : sources * : properties * )
   local version = [ feature.get-values <gcc> : $(properties) ] ;
   local src-dir = "$(INTRO_ROOT_DIR)/gcc-$(version)" ;
   SRC_DIR on $(targets) = "$(src-dir)" ;
+  local ver-raw = $(version) ;
   version = [ regex.replace "$(version)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]" ".0" ] ;
 
   local gmp = [ feature.get-values <gmp> : $(properties) ] ;
@@ -373,6 +374,14 @@ rule make-gcc ( targets * : sources * : properties * )
 
   SET_LIBRARY_PATH on $(targets) = "OLD_LIBRARY_PATH=\"$LIBRARY_PATH\"; LIBRARY_PATH=\"$(PREFIX)/lib${LIBRARY_PATH:+:$LIBRARY_PATH}\"; export LIBRARY_PATH" ;
   UNSET_LIBRARY_PATH on $(targets) = "LIBRARY_PATH=\"$OLD_LIBRARY_PATH\"; export LIBRARY_PATH; if [ ! -n \"$LIBRARY_PATH\" ]; then unset LIBRARY_PATH; fi; unset OLD_LIBRARY_PATH" ;
+
+  local awacs = [ feature.get-values <awacs> : $(properties) ] ;
+  AWACS_ON_SUCCESS on $(targets) = ;
+  AWACS_ON_FAILURE on $(targets) = ;
+  if $(awacs) = yes {
+    AWACS_ON_SUCCESS on $(targets) = "/bin/echo -n \"GCC $(ver-raw) ($(triplet)) was successfully built.\" | \"$(INTRO_ROOT_DIR)/awacs/twitter.rb\"" ;
+    AWACS_ON_FAILURE on $(targets) = "/bin/echo -n \"GCC $(ver-raw) ($(triplet)) failed to build.\" | \"$(INTRO_ROOT_DIR)/awacs/twitter.rb\"" ;
+  }
 }
 actions make-gcc
 {
@@ -396,6 +405,7 @@ actions make-gcc
     $(UNSET_MPFR_SYMLINK)
     $(UNSET_GMP_SYMLINK)
     echo "ERROR: failed to 'make' for the GCC build."
+    $(AWACS_ON_FAILURE)
     exit 1
   fi
   ( cd "$(<:D)/build" && make install )
@@ -407,6 +417,7 @@ actions make-gcc
     $(UNSET_MPFR_SYMLINK)
     $(UNSET_GMP_SYMLINK)
     echo "ERROR: failed to 'make install' for the GCC build."
+    $(AWACS_ON_FAILURE)
     exit 1
   fi
   ( cd "$(<:D)/build" && rm -rf * )
@@ -417,6 +428,7 @@ actions make-gcc
   $(UNSET_MPFR_SYMLINK)
   $(UNSET_GMP_SYMLINK)
   [ -e "$(<)" ] && exit 1
+  $(AWACS_ON_SUCCESS)
   touch "$(<)"
 }
 

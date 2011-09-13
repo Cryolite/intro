@@ -225,6 +225,8 @@ else {
 feature boost        : unspecified $(boost)       : propagated            ;
 feature boost-hidden : [ feature.values <boost> ] : propagated incidental ;
 
+feature awacs : no yes : propagated incidental ;
+
 
 alias current
   : gcc//install
@@ -248,6 +250,7 @@ alias current
     <mpi-hidden>unspecified
     <openmpi>unspecified
     <openmpi-hidden>unspecified
+  : <awacs>no
   ;
 explicit current ;
 
@@ -273,6 +276,7 @@ alias previous
     <mpi-hidden>unspecified
     <openmpi>unspecified
     <openmpi-hidden>unspecified
+  : <awacs>no
   ;
 explicit previous ;
 
@@ -298,6 +302,7 @@ alias oldest
     <mpi-hidden>unspecified
     <openmpi>unspecified
     <openmpi-hidden>unspecified
+  : <awacs>no
   ;
 explicit oldest ;
 
@@ -323,5 +328,6 @@ alias snapshot
     <mpi-hidden>unspecified
     <openmpi>unspecified
     <openmpi-hidden>unspecified
+  : <awacs>no
   ;
 explicit snapshot ;

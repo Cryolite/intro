@@ -222,8 +222,8 @@ rule make-icu4c ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --host=$(triplet) ;
 
   # Set the '--prefix' option for the 'configure' script.
-  local gcc = [ feature.get-values <gcc> : $(properties) ] ;
-  gcc = [ regex.replace "$(gcc)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]" ".0" ] ;
+  local gcc-raw = [ feature.get-values <gcc> : $(properties) ] ;
+  local gcc = [ regex.replace "$(gcc-raw)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]" ".0" ] ;
   OPTIONS on $(targets) += --prefix=\"$(PREFIX)/$(gcc)\" ;
 
   OPTIONS on $(targets) += --enable-release ;
@@ -254,6 +254,14 @@ rule make-icu4c ( targets * : sources * : properties * )
     SET_RUN_VARS on $(targets) = "OLD_LD_LIBRARY_PATH=\"$LD_LIBRARY_PATH\"; LD_LIBRARY_PATH=\"$(PREFIX)/$(gcc)/lib:$LD_LIBRARY_PATH\"; export LD_LIBRARY_PATH" ;
     UNSET_RUN_VARS on $(targets) = "LD_LIBRARY_PATH=\"$OLD_LD_LIBRARY_PATH\"; export LD_LIBRARY_PATH; unset OLD_LD_LIBRARY_PATH" ;
   }
+
+  local awacs = [ feature.get-values <awacs> : $(properties) ] ;
+  AWACS_ON_SUCCESS on $(targets) = ;
+  AWACS_ON_FAILURE on $(targets) = ;
+  if $(awacs) = yes {
+    AWACS_ON_SUCCESS on $(targets) = "/bin/echo -n \"ICU4C $(version) ($(triplet)-gcc-$(gcc-raw)) was successfully built.\" | \"$(INTRO_ROOT_DIR)/awacs/twitter.rb\"" ;
+    AWACS_ON_FAILURE on $(targets) = "/bin/echo -n \"ICU4C $(version) ($(triplet)-gcc-$(gcc-raw)) failed to build.\" | \"$(INTRO_ROOT_DIR)/awacs/twitter.rb\"" ;
+  }
 }
 actions make-icu4c
 {
@@ -267,6 +275,7 @@ actions make-icu4c
   if [ $? -ne 0 ]; then
     $(UNSET_RUN_VARS)
     echo "ERROR: failed to 'runConfigureICU' for the ICU4C build." 1>&2
+    $(AWACS_ON_FAILURE)
     exit 1
   fi
   [ -f "$(<:D)/build/Makefile" ] || { $(UNSET_RUN_VARS); exit 1; }
@@ -274,23 +283,27 @@ actions make-icu4c
   if [ $? -ne 0 ]; then
     $(UNSET_RUN_VARS)
     echo "ERROR: failed to 'make' for the ICU4C build." 1>&2
+    $(AWACS_ON_FAILURE)
     exit 1
   fi
   ( cd "$(<:D)/build" && make check )
   if [ $? -ne 0 ]; then
     $(UNSET_RUN_VARS)
     echo "ERROR: failed to 'make check' for the ICU4C build." 1>&2
+    $(AWACS_ON_FAILURE)
     exit 1
   fi
   ( cd "$(<:D)/build" && make install )
   if [ $? -ne 0 ]; then
     $(UNSET_RUN_VARS)
     echo "ERROR: failed to 'make install' for the ICU4C build." 1>&2
+    $(AWACS_ON_FAILURE)
     exit 1
   fi
   ( cd "$(<:D)/build" && rm -rf * )
   $(UNSET_RUN_VARS)
   [ -e "$(<)" ] && exit 1
+  $(AWACS_ON_SUCCESS)
   touch "$(<)"
 }
 

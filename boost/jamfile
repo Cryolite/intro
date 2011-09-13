@@ -160,6 +160,8 @@ rule make-boost ( targets * : sources * : properties * )
   assert-specified   <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
 
+  local triplet = [ feature.get-values <triplet> : $(properties) ] ;
+
   OPTIONS on $(targets) = ;
 
   # Set 'BOOST_ROOT'.
@@ -167,8 +169,8 @@ rule make-boost ( targets * : sources * : properties * )
   local boost-root = $(PREFIX)/boost/$(version) ;
   BOOST_ROOT on $(targets) = $(boost-root) ;
 
-  local gcc = [ feature.get-values <gcc> : $(properties) ] ;
-  gcc = [ regex.replace "$(gcc)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]" ".0" ] ;
+  local gcc-raw = [ feature.get-values <gcc> : $(properties) ] ;
+  local gcc = [ regex.replace "$(gcc-raw)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]" ".0" ] ;
   OPTIONS on $(targets) += -sICU_PATH=\"$(PREFIX)/$(gcc)\" ;
 
   OPTIONS on $(targets) += --build-type=complete ;
@@ -179,17 +181,30 @@ rule make-boost ( targets * : sources * : properties * )
   OPTIONS on $(targets) += toolset=gcc-$(gcc) ;
 
   OPTIONS on $(targets) += stage ;
+
+  CLEAN_UP_BIN_DIR on $(targets) = "( cd $(boost-root)/bin.v2 && rm -rf libs/*/build/gcc-$(gcc) )" ;
+
+  local awacs = [ feature.get-values <awacs> : $(properties) ] ;
+  AWACS_ON_SUCCESS on $(targets) = ;
+  AWACS_ON_FAILURE on $(targets) = ;
+  if $(awacs) = yes {
+    AWACS_ON_SUCCESS on $(targets) = "/bin/echo -n \"Boost $(version) ($(triplet)-gcc-$(gcc-raw)) was successfully built.\" | \"$(INTRO_ROOT_DIR)/awacs/twitter.rb\"" ;
+    AWACS_ON_FAILURE on $(targets) = "/bin/echo -n \"Boost $(version) ($(triplet)-gcc-$(gcc-raw)) failed to build.\" | \"$(INTRO_ROOT_DIR)/awacs/twitter.rb\"" ;
+  }
 }
 actions make-boost
 {
   rm -f "$(<)" || exit $?
   [ -x "$(BOOST_ROOT)/b2" ] || exit $?
-  ( cd "$(BOOST_ROOT)" && ./b2 -ad+2 -j$(CONCURRENCY) $(OPTIONS) )
+  ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) $(OPTIONS) )
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to build the Boost." 1>&2
+    $(AWACS_ON_FAILURE)
     exit 1
   fi
+  $(CLEAN_UP_BIN_DIR)
   [ -e "$(<)" ] && exit 1
+  $(AWACS_ON_SUCCESS)
   touch "$(<)"
 }
 
