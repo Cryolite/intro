@@ -14,8 +14,12 @@
 
 project site-config ;
 
+import modules ;
+
+local home = [ modules.peek : HOME ] ;
+
 # Modify the following lines.
-local prefix = /home/cryolite/local ;
+local prefix = "$(home)/local" ;
 local gcc-builtin = 4.4.5 ;
 local gcc-current = 4.6.1 ;
 local gcc-previous = 4.5.3 ;

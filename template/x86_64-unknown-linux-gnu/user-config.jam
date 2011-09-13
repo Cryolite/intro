@@ -38,8 +38,10 @@ import errors ;
 import path ;
 import regex ;
 
+local home = [ modules.peek : HOME ] ;
+
 # Modify the following lines.
-local prefix = /home/cryolite/local ;
+local prefix = "$(home)/local" ;
 local boost-version = 1.47 ;
 
 
@@ -56,7 +58,7 @@ for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
   if $(ver) {
     local result = [ SHELL "which \"$(ph)/bin/g++\" >/dev/null 2>/dev/null; if [ \"$?\" -eq \"0\" ]; then echo INUMIMI; fi" ] ;
     if [ MATCH ".*(INUMIMI).*" : "$(result)" ] {
-      ECHO "using gcc : $(ver) : \"$(ph)/bin/g++\"" ;
+      ECHO "using gcc : $(ver) : \"$(ph)/bin/g++\" ;" ;
       using gcc : $(ver) : "$(ph)/bin/g++" ;
     }
   }

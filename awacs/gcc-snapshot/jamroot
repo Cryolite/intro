@@ -26,30 +26,19 @@ if ! $(version) {
   errors.error "ERROR: no '--version' option." ;
 }
 
-local canonical-path = /<variant>debug/<link>shared/<runtime-link>shared/<threading>single ;
-
-for local i in [ regex.split [ SHELL "cat ideone.txt | tr --delete '\n' | tr '\n' ' '" ] " +" ] {
-  make ideone-$(i).cpp : ideone.txt : @download-ideone : <location>. ;
-  explicit ideone-$(i).cpp ;
-  obj ideone-$(i).obj : ideone-$(i).cpp$(canonical-path) ;
-  explicit ideone-$(i).obj ;
-  exe ideone-$(i).exe : ideone-$(i).obj ;
-  explicit ideone-$(i).exe ;
-  run ideone-$(i).exe : : : : ideone-$(i).run ;
-  explicit ideone-$(i).run ;
-  make $(i).awacs-ideone : ideone-$(i).run : @awacs-ideone : <version>$(version) ;
-}
-
-actions download-ideone
-{
-  rm -f "$(<)" || exit 1
-  suffix=`/bin/echo -n "$(<)" | sed -e 's/ideone-\([^.]\{1,\}\)\.cpp$/\1/'`
-  wget --quiet --output-document "$(<)" "http://ideone.com/plain/$suffix"
-  if [ $? -ne 0 ]; then
-    /bin/echo -n "failed to download '$(<)'." | "$(AWACS_GCC_SNAPSHOT_ROOT)/../twitter.rb" ;
-    exit 1
-  fi
-  touch "$(<)"
+for local i in [ regex.split [ SHELL "cat ideone.txt | tr '\n' ' '" ] " +" ] {
+  if ! [ path.exists "ideone-$(i).cpp" ] {
+    # Do nothing.
+  }
+  else {
+    obj ideone-$(i).obj : ideone-$(i).cpp ;
+    explicit ideone-$(i).obj ;
+    exe ideone-$(i).exe : ideone-$(i).obj ;
+    explicit ideone-$(i).exe ;
+    run ideone-$(i).exe : : : : ideone-$(i).run ;
+    explicit ideone-$(i).run ;
+    make $(i).awacs-ideone : ideone-$(i).run : @awacs-ideone : <version>$(version) ;
+  }
 }
 
 rule awacs-ideone ( targets * : sources * : properties * )
@@ -60,8 +49,13 @@ rule awacs-ideone ( targets * : sources * : properties * )
 actions awacs-ideone
 {
   rm -f "$(<)" || exit 1
+  { curl --silent "http://ideone.com/plain/$(<:B)" || exit 1; } | diff - "ideone-$(<:B).cpp"
+  if [ $? -ne 0 ]; then
+    /bin/echo -n "http://ideone.com/$(<:B) failed to check." | "$(AWACS_GCC_SNAPSHOT_ROOT)/../twitter.rb" ;
+    exit 1
+  fi
   /bin/echo -n "http://ideone.com/$(<:B) is passed on GCC $(VERSION)." | "$(AWACS_GCC_SNAPSHOT_ROOT)/../twitter.rb" ;
-  /bin/echo $(<:B) >> ideone.2.txt
+  /bin/echo $(<:B) >> ideone-passed.txt
   grep -Ev ^$(<:B)$ ideone.txt > ideone.txt.tmp
   mv -f ideone.txt.tmp ideone.txt
   touch "$(<)"
