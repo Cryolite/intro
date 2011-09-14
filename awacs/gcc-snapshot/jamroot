@@ -10,6 +10,7 @@ project awacs/gcc-snapshot : requirements <cxxflags>-std=c++0x <linkflags>-Wl,--
 path-constant AWACS_GCC_SNAPSHOT_ROOT : . ;
 
 local version ;
+local awacs ;
 
 for local argv in [ modules.peek : ARGV ] {
   local tmp ;
@@ -20,11 +21,23 @@ for local argv in [ modules.peek : ARGV ] {
     }
     version = $(tmp) ;
   }
+  tmp = [ regex.match "^--enable-awacs=(.*)$" : $(argv) : 1 ] ;
+  if $(tmp) {
+    if $(awacs) {
+      errors.error "ERROR: duplicate '--enable-awacs' option." ;
+    }
+    awacs = $(tmp) ;
+  }
 }
 
 if ! $(version) {
   errors.error "ERROR: no '--version' option." ;
 }
+
+if ! $(awacs) {
+  errors.error "ERROR: no '--enable-awacs' option." ;
+}
+constant AWACS : $(awacs) ;
 
 for local i in [ regex.split [ SHELL "cat ideone.txt | tr '\n' ' '" ] " +" ] {
   if ! [ path.exists "ideone-$(i).cpp" ] {
@@ -51,10 +64,10 @@ actions awacs-ideone
   rm -f "$(<)" || exit 1
   { curl --silent "http://ideone.com/plain/$(<:B)" || exit 1; } | diff - "ideone-$(<:B).cpp"
   if [ $? -ne 0 ]; then
-    /bin/echo -n "http://ideone.com/$(<:B) failed to check." | "$(AWACS_GCC_SNAPSHOT_ROOT)/../twitter.rb" ;
+    /bin/echo -n "http://ideone.com/$(<:B) failed to check." | $(AWACS) ;
     exit 1
   fi
-  /bin/echo -n "http://ideone.com/$(<:B) is passed on GCC $(VERSION)." | "$(AWACS_GCC_SNAPSHOT_ROOT)/../twitter.rb" ;
+  /bin/echo -n "http://ideone.com/$(<:B) is passed on GCC $(VERSION)." | $(AWACS) ;
   /bin/echo $(<:B) >> ideone-passed.txt
   grep -Ev ^$(<:B)$ ideone.txt > ideone.txt.tmp
   mv -f ideone.txt.tmp ideone.txt

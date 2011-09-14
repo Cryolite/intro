@@ -375,12 +375,11 @@ rule make-gcc ( targets * : sources * : properties * )
   SET_LIBRARY_PATH on $(targets) = "OLD_LIBRARY_PATH=\"$LIBRARY_PATH\"; LIBRARY_PATH=\"$(PREFIX)/lib${LIBRARY_PATH:+:$LIBRARY_PATH}\"; export LIBRARY_PATH" ;
   UNSET_LIBRARY_PATH on $(targets) = "LIBRARY_PATH=\"$OLD_LIBRARY_PATH\"; export LIBRARY_PATH; if [ ! -n \"$LIBRARY_PATH\" ]; then unset LIBRARY_PATH; fi; unset OLD_LIBRARY_PATH" ;
 
-  local awacs = [ feature.get-values <awacs> : $(properties) ] ;
   AWACS_ON_SUCCESS on $(targets) = ;
   AWACS_ON_FAILURE on $(targets) = ;
-  if $(awacs) = yes {
-    AWACS_ON_SUCCESS on $(targets) = "/bin/echo -n \"GCC $(ver-raw) ($(triplet)) was successfully built.\" | \"$(INTRO_ROOT_DIR)/awacs/twitter.rb\"" ;
-    AWACS_ON_FAILURE on $(targets) = "/bin/echo -n \"GCC $(ver-raw) ($(triplet)) failed to build.\" | \"$(INTRO_ROOT_DIR)/awacs/twitter.rb\"" ;
+  if $(AWACS) {
+    AWACS_ON_SUCCESS on $(targets) = "/bin/echo -n \"GCC $(ver-raw) ($(triplet)) was successfully built.\" | $(AWACS)" ;
+    AWACS_ON_FAILURE on $(targets) = "/bin/echo -n \"GCC $(ver-raw) ($(triplet)) failed to build.\" | $(AWACS)" ;
   }
 }
 actions make-gcc

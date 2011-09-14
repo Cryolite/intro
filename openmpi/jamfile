@@ -232,12 +232,11 @@ rule make-openmpi ( targets * : sources * : properties * )
     UNSET_RUN_VARS on $(targets) = "LD_LIBRARY_PATH=\"$OLD_LD_LIBRARY_PATH\"; export LD_LIBRARY_PATH; unset OLD_LD_LIBRARY_PATH" ;
   }
 
-  local awacs = [ feature.get-values <awacs> : $(properties) ] ;
   AWACS_ON_SUCCESS on $(targets) = ;
   AWACS_ON_FAILURE on $(targets) = ;
-  if $(awacs) = yes {
-    AWACS_ON_SUCCESS on $(targets) = "/bin/echo -n \"Open MPI $(version) ($(triplet)-gcc-$(gcc-raw)) was successfully built.\" | \"$(INTRO_ROOT_DIR)/awacs/twitter.rb\"" ;
-    AWACS_ON_FAILURE on $(targets) = "/bin/echo -n \"Open MPI $(version) ($(triplet)-gcc-$(gcc-raw)) failed to build.\" | \"$(INTRO_ROOT_DIR)/awacs/twitter.rb\"" ;
+  if $(AWACS) {
+    AWACS_ON_SUCCESS on $(targets) = "/bin/echo -n \"Open MPI $(version) ($(triplet)-gcc-$(gcc-raw)) was successfully built.\" | $(AWACS)" ;
+    AWACS_ON_FAILURE on $(targets) = "/bin/echo -n \"Open MPI $(version) ($(triplet)-gcc-$(gcc-raw)) failed to build.\" | $(AWACS)" ;
   }
 }
 actions make-openmpi

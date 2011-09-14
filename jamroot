@@ -11,6 +11,7 @@ local prefix ;
 local multilib ;
 local mpi ;
 local concurrency ;
+local awacs ;
 for local argv in [ modules.peek : ARGV ] {
   local tmp = ;
   tmp = [ regex.match "^--triplet=(.*)$" : $(argv) : 1 ] ;
@@ -74,6 +75,13 @@ for local argv in [ modules.peek : ARGV ] {
     }
     concurrency = $(tmp) ;
   }
+  tmp = [ regex.match "^--enable-awacs=(.*)$" : $(argv) : 1 ] ;
+  if $(tmp) {
+    if $(awacs) {
+      errors.error "ERROR: duplicate '--enable-awacs' option." ;
+    }
+    awacs = $(tmp) ;
+  }
 }
 
 
@@ -111,6 +119,14 @@ for local argv in [ modules.peek : ARGV ] {
   }
   else {
     ECHO concurrency... 1 ;
+  }
+
+  if $(awacs) {
+    constant AWACS : $(awacs) ;
+    ECHO awacs... $(AWACS) ;
+  }
+  else {
+    ECHO awacs... N/A ;
   }
 }
 
@@ -225,8 +241,6 @@ else {
 feature boost        : unspecified $(boost)       : propagated            ;
 feature boost-hidden : [ feature.values <boost> ] : propagated incidental ;
 
-feature awacs : no yes : propagated incidental ;
-
 
 alias current
   : gcc//install
@@ -250,7 +264,6 @@ alias current
     <mpi-hidden>unspecified
     <openmpi>unspecified
     <openmpi-hidden>unspecified
-  : <awacs>no
   ;
 explicit current ;
 
@@ -276,7 +289,6 @@ alias previous
     <mpi-hidden>unspecified
     <openmpi>unspecified
     <openmpi-hidden>unspecified
-  : <awacs>no
   ;
 explicit previous ;
 
@@ -302,7 +314,6 @@ alias oldest
     <mpi-hidden>unspecified
     <openmpi>unspecified
     <openmpi-hidden>unspecified
-  : <awacs>no
   ;
 explicit oldest ;
 
@@ -328,6 +339,5 @@ alias snapshot
     <mpi-hidden>unspecified
     <openmpi>unspecified
     <openmpi-hidden>unspecified
-  : <awacs>no
   ;
 explicit snapshot ;
