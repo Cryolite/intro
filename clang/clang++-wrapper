@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+
+prefix=to_be_modified
+
+OLD_LD_LIBRARY_PATH=\"$LD_LIBRARY_PATH\"
+LD_LIBRARY_PATH=\"${prefix}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"
+export LD_LIBRARY_PATH
+
+"${prefix}/bin/clang++" "$@"
+
+LD_LIBRARY_PATH=\"$OLD_C_INCLUDE_PATH\"
+export LD_LIBRARY_PATH
+if [ ! -n \"$LD_LIBRARY_PATH\" ]; then
+  unset LD_LIBRARY_PATH
+fi
+unset OLD_LD_LIBRARY_PATH

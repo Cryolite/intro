@@ -1,0 +1,265 @@
+project intro/clang ;
+
+import alias ;
+import errors ;
+import feature ;
+import make ;
+import regex ;
+
+
+rule assert-specified ( feature : properties * )
+{
+  local val = [ feature.get-values $(feature) : $(properties) ] ;
+  if $(val) = unspecified {
+    errors.error "$(feature) is not specified for the LLVM & Clang build." ;
+  }
+}
+
+rule assert-unspecified ( feature : properties * )
+{
+  local val = [ feature.get-values $(feature) : $(properties) ] ;
+  if $(val) != unspecified {
+    errors.error "$(feature) is not valid for the LLVM & Clang build." ;
+  }
+}
+
+
+rule gcc-dep-req ( properties * )
+{
+  assert-specified   <triplet>         : $(properties) ;
+  assert-specified   <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-specified   <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-specified   <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-specified   <mpc-hidden>      : $(properties) ;
+  assert-specified   <gcc>             : $(properties) ;
+  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  local result = <source>../gcc//install ;
+  local gmp = [ feature.get-values <gmp-hidden> : $(properties) ] ;
+  result = $(result)/<gmp>$(gmp)/<gmp-hidden>unspecified ;
+  local mpfr = [ feature.get-values <mpfr-hidden> : $(properties) ] ;
+  result = $(result)/<mpfr>$(mpfr)/<mpfr-hidden>unspecified ;
+  local mpc = [ feature.get-values <mpc-hidden> : $(properties) ] ;
+  result = $(result)/<mpc>$(mpc)/<mpc-hidden>unspecified ;
+  return $(result) ;
+}
+
+alias gcc-dep : : <conditional>@gcc-dep-req ;
+explicit gcc-dep ;
+
+
+make make
+  : gcc-dep
+  : @make-clang
+  ;
+explicit make ;
+always make ;
+
+rule make-clang ( targets * : sources * : properties * )
+{
+  assert-specified   <triplet>         : $(properties) ;
+  assert-specified   <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-specified   <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-specified   <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-specified   <mpc-hidden>      : $(properties) ;
+  assert-specified   <gcc>             : $(properties) ;
+  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+
+  local llvm-dir = "$(INTRO_ROOT_DIR)/llvm" ;
+  LLVM_DIR on $(targets) = "$(llvm-dir)" ;
+
+  local clang-dir = "$(llvm-dir)/tools/clang" ;
+  CLANG_DIR on $(targets) = "$(clang-dir)" ;
+
+  local configure = "$(llvm-dir)/configure" ;
+  CONFIGURE on $(targets) = "$(configure)" ;
+
+  local config-sub = "$(llvm-dir)/autoconf/config.sub" ;
+  CONFIG_SUB on $(targets) = "$(configure:D)/autoconf/config.sub" ;
+
+  local triplet = [ feature.get-values <triplet> : $(properties) ] ;
+  TRIPLET on $(targets) = $(triplet) ;
+
+  OPTIONS on $(targets) = ;
+
+  # Set the '--build', '--host' and '--target' options for the 'configure' script.
+  OPTIONS on $(targets) += --build=$(triplet) ;
+  OPTIONS on $(targets) += --host=$(triplet) ;
+  OPTIONS on $(targets) += --target=$(triplet) ;
+
+  # Set the '--prefix' option for the 'configure' script.
+  local gcc-raw = [ feature.get-values <gcc> : $(properties) ] ;
+  local gcc = [ regex.replace "$(gcc-raw)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]" ".0" ] ;
+  OPTIONS on $(targets) += --prefix=\"$(PREFIX)/$(gcc)\" ;
+
+  if $(gcc) != $(GCC_BUILTIN) {
+    OPTIONS on $(targets) += --with-cxx-include-root="\"$(PREFIX)/$(gcc)/include/c++/$(gcc)\"" ;
+    OPTIONS on $(targets) += --with-cxx-include-arch=$(triplet) ;
+    OPTIONS on $(targets) += --with-cxx-include-32bit-dir=32 ;
+  }
+
+  OPTIONS on $(targets) += CC="\"$(PREFIX)/$(gcc)/bin/gcc\"" ;
+
+  OPTIONS on $(targets) += CXX="\"$(PREFIX)/$(gcc)/bin/g++\"" ;
+
+  SET_RUN_VARS on $(targets) = ;
+  UNSET_RUN_VARS on $(targets) = ;
+  if $(gcc) != $(GCC_BUILTIN) {
+    if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32 {
+      SET_RUN_VARS on $(targets) = "OLD_PATH=\"$PATH\"; PATH=\"$(PREFIX)/$(gcc)/bin:$PATH\"; export PATH" ;
+      UNSET_RUN_VARS on $(targets) = "PATH=\"$OLD_PATH\"; export PATH; unset OLD_PATH" ;
+    }
+    else {
+      SET_RUN_VARS on $(targets) = "OLD_LD_LIBRARY_PATH=\"$LD_LIBRARY_PATH\"; LD_LIBRARY_PATH=\"$(PREFIX)/$(gcc)/lib:$LD_LIBRARY_PATH\"; export LD_LIBRARY_PATH" ;
+      UNSET_RUN_VARS on $(targets) = "LD_LIBRARY_PATH=\"$OLD_LD_LIBRARY_PATH\"; export LD_LIBRARY_PATH; unset OLD_LD_LIBRARY_PATH" ;
+    }
+  }
+
+  GCC_RAW on $(targets) = ;
+  if $(gcc) = $(GCC_BUILTIN) {
+    GCC_RAW on $(targets) = [ feature.get-values <toolset-gcc:version> : $(properties) ] ;
+  }
+  else {
+    GCC_RAW on $(targets) = $(gcc-raw) ;
+  }
+
+  local version-prefix = "$(PREFIX)/$(gcc)" ;
+  VERSION_PREFIX on $(targets) = $(version-prefix) ;
+  local escaped-version-prefix = [ regex.escape "$(version-prefix)" : "/" : "\\" ] ;
+  ESCAPED_VERSION_PREFIX on $(targets) = $(escaped-version-prefix) ;
+}
+actions make-clang
+{
+  rm -f "$(<)" || exit $?
+  if [ ! -d "$(LLVM_DIR)" ]; then
+    ( cd "$(INTRO_ROOT_DIR)" && svn checkout http://llvm.org/svn/llvm-project/llvm/trunk llvm )
+    if [ $? -ne 0 ]; then
+      ( cd "$(INTRO_ROOT_DIR)" && rm -rf llvm )
+      echo "ERROR: failed to 'svn checkout' the LLVM repository." 1>&2
+      /bin/echo -n "ERROR: failed to 'svn checkout' the LLVM repository." | $(AWACS)
+      exit 1
+    fi
+    [ -d "$(LLVM_DIR)" ] || exit $?
+  fi
+  [ -x "$(CONFIG_SUB)" ] || exit $?
+  [ `"$(CONFIG_SUB)" $(TRIPLET)` = $(TRIPLET) ] || exit $?
+  [ -x "$(CONFIGURE)" ] || exit $?
+  if [ ! -d "$(CLANG_DIR)" ]; then
+    ( cd "$(INTRO_ROOT_DIR)/llvm/tools" && svn checkout http://llvm.org/svn/llvm-project/cfe/trunk clang )
+    if [ $? -ne 0 ]; then
+      ( cd "$(INTRO_ROOT_DIR)/llvm/tools" && rm -rf clang )
+      echo "ERROR: failed to 'svn checkout' the Clang repository." 1>&2
+      /bin/echo -n "ERROR: failed to 'svn checkout' the Clang repository." | $(AWACS)
+      exit 1
+    fi
+    [ -d "$(CLANG_DIR)" ] || exit $?
+  fi
+  ( cd "$(LLVM_DIR)" && svn update )
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to 'svn update' the LLVM repository." 1>&2
+    /bin/echo -n "ERROR: failed to 'svn update' the LLVM repository." | $(AWACS)
+    exit 1
+  fi
+  ( cd "$(CLANG_DIR)" && svn update )
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to 'svn update' the Clang repository." 1>&2
+    /bin/echo -n "ERROR: failed to 'svn update' the Clang repository." | $(AWACS)
+    exit 1
+  fi
+  llvm_rev=`( cd "$(LLVM_DIR)" && { LANG=C svn info || exit 1; } | { grep -E '^Revision: [[:digit:]]+$' || exit 1; } | { grep -oE '[[:digit:]]+$' || exit 1; } )`
+  [ $? -eq 0 ] || $?
+  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
+  $(SET_RUN_VARS)
+  ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
+  if [ $? -ne 0 ]; then
+    $(UNSET_RUN_VARS)
+    echo "ERROR: failed to 'configure' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
+    /bin/echo -n "ERROR: failed to 'configure' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
+    exit 1
+  fi
+  [ -f "$(<:D)/build/Makefile" ] || { $(UNSET_RUN_VARS); exit 1; }
+  ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
+  if [ $? -ne 0 ]; then
+    $(UNSET_RUN_VARS)
+    echo "ERROR: failed to 'make' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
+    /bin/echo -n "ERROR: failed to 'make' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
+    exit 1
+  fi
+  ( cd "$(<:D)/build" && make check )
+  if [ $? -ne 0 ]; then
+    $(UNSET_RUN_VARS)
+    echo "ERROR: failed to 'make check' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
+    /bin/echo -n "ERROR: failed to 'make check' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
+    exit 1
+  fi
+  ( cd "$(<:D)/build" && make install )
+  if [ $? -ne 0 ]; then
+    $(UNSET_RUN_VARS)
+    echo "ERROR: failed to 'make install' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
+    /bin/echo -n "ERROR: failed to 'make install' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
+    exit 1
+  fi
+  ( cd "$(<:D)/build" && rm -rf * )
+  $(UNSET_RUN_VARS)
+  sed -e 's/^prefix=to_be_modified$/prefix=\"$(ESCAPED_VERSION_PREFIX)\"/' clang++-wrapper > clang++-wrapper.tmp && mv -f clang++-wrapper "$(VERSION_PREFIX)/bin"
+  if [ $? -ne 0 ]; then
+    rm -f clang++wrapper.tmp
+    echo "ERROR: failed to create the wrapper script for Clang." 1>&2
+    /bin/echo -n "ERROR: failed to create the wrapper script for Clang." | $(AWACS)
+    exit 1
+  fi
+  chmod +x "$(VERSION_PREFIX)/bin/clang++-wrapper" || exit 1
+  [ -e "$(<)" ] && exit 1
+  /bin/echo -n "LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW)) was successfully built." | $(AWACS)
+  touch "$(<)"
+}
+
+
+rule install-req ( properties * )
+{
+  assert-specified   <triplet>         : $(properties) ;
+  assert-specified   <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-specified   <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-specified   <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-specified   <mpc-hidden>      : $(properties) ;
+  assert-specified   <gcc>             : $(properties) ;
+  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+}
+
+alias install : make : <conditional>@install-req ;
+explicit install ;

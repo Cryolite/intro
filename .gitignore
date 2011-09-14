@@ -17,3 +17,4 @@
 /openmpi-*.tar.gz
 /openmpi-*.tar.bz2
 /openmpi-*/
+/llvm/
