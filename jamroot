@@ -313,7 +313,6 @@ alias previous
     gmp//install/<mpfr>unspecified/<mpfr-hidden>$(mpfr)/<mpc>unspecified/<mpc-hidden>$(mpc)
     mpfr//install/<mpc>unspecified/<mpc-hidden>$(mpc)
     boost//install/<gmp>unspecified/<gmp-hidden>$(gmp)/<mpfr>unspecified/<mpfr-hidden>$(mpfr)/<mpc>unspecified/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
-    $(clang)
   : <triplet>$(triplet)
     <multilib>$(multilib)
     <multilib-hidden>unspecified
@@ -339,7 +338,6 @@ alias oldest
     gmp//install/<mpfr>unspecified/<mpfr-hidden>$(mpfr)/<mpc>unspecified/<mpc-hidden>$(mpc)
     mpfr//install/<mpc>unspecified/<mpc-hidden>$(mpc)
     boost//install/<gmp>unspecified/<gmp-hidden>$(gmp)/<mpfr>unspecified/<mpfr-hidden>$(mpfr)/<mpc>unspecified/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
-    $(clang)
   : <triplet>$(triplet)
     <multilib>$(multilib)
     <multilib-hidden>unspecified
@@ -365,7 +363,6 @@ alias snapshot
     gmp//install/<mpfr>unspecified/<mpfr-hidden>$(mpfr)/<mpc>unspecified/<mpc-hidden>$(mpc)
     mpfr//install/<mpc>unspecified/<mpc-hidden>$(mpc)
     boost//install/<gmp>unspecified/<gmp-hidden>$(gmp)/<mpfr>unspecified/<mpfr-hidden>$(mpfr)/<mpc>unspecified/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
-    $(clang)
   : <triplet>$(triplet)
     <multilib>$(multilib)
     <multilib-hidden>unspecified

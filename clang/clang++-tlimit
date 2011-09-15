@@ -15,8 +15,10 @@ OLD_LD_LIBRARY_PATH="$LD_LIBRARY_PATH"
 LD_LIBRARY_PATH="${prefix}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export LD_LIBRARY_PATH
 
+ulimit -S -t 60
 "${dir}/clang++" "$@"
 result=$?
+ulimit -t unlimited
 
 LD_LIBRARY_PATH="$OLD_LD_LIBRARY_PATH"
 export LD_LIBRARY_PATH

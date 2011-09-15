@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+dir="${0%/*}"
+if [ "$dir" != "." ]; then
+    dir="$(dirname "$0")"
+    if [ "$dir" = "." ]; then
+	echo "ERROR: this script should be called by the command containing '/'." 1>&2
+	exit 1
+    fi
+fi
+dir="$(cd "$dir"; pwd)"
+
+ulimit -S -t 60
+"${dir}/g++" "$@"
+result=$?
+ulimit -t unlimited
+
+exit $result

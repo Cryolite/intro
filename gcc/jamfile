@@ -348,10 +348,12 @@ rule make-gcc ( targets * : sources * : properties * )
   assert-unspecified <boost-hidden>    : $(properties) ;
 
   local triplet = [ feature.get-values <triplet> : $(properties) ] ;
+  TRIPLET on $(targets) = $(triplet) ;
   local version = [ feature.get-values <gcc> : $(properties) ] ;
   local src-dir = "$(INTRO_ROOT_DIR)/gcc-$(version)" ;
   SRC_DIR on $(targets) = "$(src-dir)" ;
   local ver-raw = $(version) ;
+  VER_RAW on $(targets) = $(ver-raw) ;
   version = [ regex.replace "$(version)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]" ".0" ] ;
 
   local gmp = [ feature.get-values <gmp> : $(properties) ] ;
@@ -374,6 +376,12 @@ rule make-gcc ( targets * : sources * : properties * )
 
   SET_LIBRARY_PATH on $(targets) = "OLD_LIBRARY_PATH=\"$LIBRARY_PATH\"; LIBRARY_PATH=\"$(PREFIX)/lib${LIBRARY_PATH:+:$LIBRARY_PATH}\"; export LIBRARY_PATH" ;
   UNSET_LIBRARY_PATH on $(targets) = "LIBRARY_PATH=\"$OLD_LIBRARY_PATH\"; export LIBRARY_PATH; if [ ! -n \"$LIBRARY_PATH\" ]; then unset LIBRARY_PATH; fi; unset OLD_LIBRARY_PATH" ;
+
+  local gpp-tlimit = "$(INTRO_ROOT_DIR)/gcc/g++-tlimit" ;
+  GPP_TLIMIT on $(targets) = "$(gpp-tlimit)" ;
+
+  local version-prefix = "$(PREFIX)/$(version)" ;
+  VERSION_PREFIX on $(targets) = $(version-prefix) ;
 
   AWACS_ON_SUCCESS on $(targets) = ;
   AWACS_ON_FAILURE on $(targets) = ;
@@ -426,6 +434,13 @@ actions make-gcc
   $(UNSET_MPC_SYMLINK)
   $(UNSET_MPFR_SYMLINK)
   $(UNSET_GMP_SYMLINK)
+  cp -f "$(GPP_TLIMIT)" "$(VERSION_PREFIX)/bin"
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to create the wrapper script for GCC $(VER_RAW) ($(TRIPLET))." 1>&2
+    /bin/echo -n "ERROR: failed to create the wrapper script for GCC $(VER_RAW) ($(TRIPLET))." | $(AWACS)
+    exit 1
+  fi
+  chmod +x "$(VERSION_PREFIX)/bin/g++-tlimit" || exit $?
   [ -e "$(<)" ] && exit 1
   $(AWACS_ON_SUCCESS)
   touch "$(<)"

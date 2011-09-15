@@ -116,7 +116,8 @@ rule make-clang ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --prefix=\"$(PREFIX)/$(gcc)\" ;
 
   if $(gcc) != $(GCC_BUILTIN) {
-    OPTIONS on $(targets) += --with-cxx-include-root="\"$(PREFIX)/$(gcc)/include/c++/$(gcc)\"" ;
+    OPTIONS on $(targets) += "--with-c-include-dirs=\"$(PREFIX)/$(gcc)/lib/gcc/$(triplet)/$(gcc)/include:/usr/local/include:$(PREFIX)/$(gcc)/include:$(PREFIX)/$(gcc)/lib/gcc/$(triplet)/$(gcc)/include-fixed:/usr/include\"" ;
+    OPTIONS on $(targets) += "--with-cxx-include-root=\"$(PREFIX)/$(gcc)/include/c++/$(gcc)\"" ;
     OPTIONS on $(targets) += --with-cxx-include-arch=$(triplet) ;
     OPTIONS on $(targets) += --with-cxx-include-32bit-dir=32 ;
   }
@@ -146,10 +147,13 @@ rule make-clang ( targets * : sources * : properties * )
     GCC_RAW on $(targets) = $(gcc-raw) ;
   }
 
+  local clangpp-wrapper = "$(INTRO_ROOT_DIR)/clang/clang++-wrapper" ;
+  CLANGPP_WRAPPER on $(targets) = "$(clangpp-wrapper)" ;
+  local clangpp-tlimit = "$(INTRO_ROOT_DIR)/clang/clang++-tlimit" ;
+  CLANGPP_TLIMIT on $(targets) = "$(clangpp-tlimit)" ;
+
   local version-prefix = "$(PREFIX)/$(gcc)" ;
   VERSION_PREFIX on $(targets) = $(version-prefix) ;
-  local escaped-version-prefix = [ regex.escape "$(version-prefix)" : "/" : "\\" ] ;
-  ESCAPED_VERSION_PREFIX on $(targets) = $(escaped-version-prefix) ;
 }
 actions make-clang
 {
@@ -211,9 +215,8 @@ actions make-clang
   ( cd "$(<:D)/build" && make check )
   if [ $? -ne 0 ]; then
     $(UNSET_RUN_VARS)
-    echo "ERROR: failed to 'make check' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
-    /bin/echo -n "ERROR: failed to 'make check' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
-    exit 1
+    echo "WARNING: failed to 'make check' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
+    /bin/echo -n "WARNING: failed to 'make check' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
   fi
   ( cd "$(<:D)/build" && make install )
   if [ $? -ne 0 ]; then
@@ -224,14 +227,14 @@ actions make-clang
   fi
   ( cd "$(<:D)/build" && rm -rf * )
   $(UNSET_RUN_VARS)
-  sed -e 's/^prefix=to_be_modified$/prefix=\"$(ESCAPED_VERSION_PREFIX)\"/' clang++-wrapper > clang++-wrapper.tmp && mv -f clang++-wrapper "$(VERSION_PREFIX)/bin"
+  cp -f "$(CLANGPP_WRAPPER)" "$(CLANGPP_TLIMIT)" "$(VERSION_PREFIX)/bin"
   if [ $? -ne 0 ]; then
-    rm -f clang++wrapper.tmp
-    echo "ERROR: failed to create the wrapper script for Clang." 1>&2
-    /bin/echo -n "ERROR: failed to create the wrapper script for Clang." | $(AWACS)
+    echo "ERROR: failed to create the wrapper script for LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
+    /bin/echo -n "ERROR: failed to create the wrapper script for LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
-  chmod +x "$(VERSION_PREFIX)/bin/clang++-wrapper" || exit 1
+  chmod +x "$(VERSION_PREFIX)/bin/clang++-wrapper" || exit $?
+  chmod +x "$(VERSION_PREFIX)/bin/clang++-tlimit" || exit $?
   [ -e "$(<)" ] && exit 1
   /bin/echo -n "LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW)) was successfully built." | $(AWACS)
   touch "$(<)"
