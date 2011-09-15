@@ -5,9 +5,9 @@ import modules ;
 import path ;
 import regex ;
 
-project awacs/gcc-snapshot : requirements <cxxflags>-std=c++0x <linkflags>-Wl,--no-allow-shlib-undefined <hardcode-dll-paths>false ;
+project awacs/clang-trunk : requirements <cxxflags>-std=c++0x <linkflags>-Wl,--no-allow-shlib-undefined <hardcode-dll-paths>false ;
 
-path-constant AWACS_GCC_SNAPSHOT : . ;
+path-constant AWACS_CLANG_TRUNK : . ;
 
 local version ;
 local awacs ;
@@ -39,12 +39,12 @@ if ! $(awacs) {
 }
 constant AWACS : $(awacs) ;
 
-for local i in [ regex.split [ SHELL "cat $(AWACS_GCC_SNAPSHOT)/ideone.txt | tr '\n' ' '" ] " +" ] {
-  if ! [ path.exists "$(AWACS_GCC_SNAPSHOT)/../src/ideone/$(i).cpp" ] {
+for local i in [ regex.split [ SHELL "cat $(AWACS_CLANG_TRUNK)/ideone.txt | tr '\n' ' '" ] " +" ] {
+  if ! [ path.exists "$(AWACS_CLANG_TRUNK)/../src/ideone/$(i).cpp" ] {
     # Do nothing.
   }
   else {
-    obj ideone-$(i).obj : "$(AWACS_GCC_SNAPSHOT)/../src/ideone/$(i).cpp" ;
+    obj ideone-$(i).obj : "$(AWACS_CLANG_TRUNK)/../src/ideone/$(i).cpp" ;
     explicit ideone-$(i).obj ;
     exe ideone-$(i).exe : ideone-$(i).obj ;
     explicit ideone-$(i).exe ;
@@ -62,12 +62,12 @@ rule awacs-ideone ( targets * : sources * : properties * )
 actions awacs-ideone
 {
   rm -f "$(<)" || exit 1
-  { curl --silent "http://ideone.com/plain/$(<:B)" || exit 1; } | diff - "$(AWACS_GCC_SNAPSHOT)/../src/ideone/$(<:B).cpp"
+  { curl --silent "http://ideone.com/plain/$(<:B)" || exit 1; } | diff - "$(AWACS_CLANG_TRUNK)/../src/ideone/$(<:B).cpp"
   if [ $? -ne 0 ]; then
     /bin/echo -n "http://ideone.com/$(<:B) failed to check." | $(AWACS) ;
     exit 1
   fi
-  /bin/echo -n "http://ideone.com/$(<:B) is passed on GCC $(VERSION)." | $(AWACS) ;
+  /bin/echo -n "http://ideone.com/$(<:B) is passed on Clang $(VERSION)." | $(AWACS) ;
   /bin/echo $(<:B) >> ideone-passed.txt
   grep -Ev ^$(<:B)$ ideone.txt > ideone.txt.tmp
   mv -f ideone.txt.tmp ideone.txt
