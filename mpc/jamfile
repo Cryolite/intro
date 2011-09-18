@@ -222,10 +222,10 @@ rule make-mpc ( targets * : sources * : properties * )
 
   SET_RUN_VARS on $(targets) = ;
   if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32 {
-    SET_RUN_VARS on $(targets) = "OLD_PATH=\"$PATH\"; PATH=\"$(PREFIX)/$(gcc)/bin${PATH:+:$PATH}\"; export PATH" ;
+    SET_RUN_VARS on $(targets) = "PATH=\"$(PREFIX)/$(gcc)/bin${PATH:+:$PATH}\"; export PATH" ;
   }
   else {
-    SET_RUN_VARS on $(targets) = "OLD_LD_LIBRARY_PATH=\"$LD_LIBRARY_PATH\"; LD_LIBRARY_PATH=\"$(PREFIX)/$(gcc)/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"; export LD_LIBRARY_PATH" ;
+    SET_RUN_VARS on $(targets) = "LD_LIBRARY_PATH=\"$(PREFIX)/$(gcc)/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"; export LD_LIBRARY_PATH" ;
   }
 }
 actions make-mpc

@@ -35,6 +35,7 @@
 #
 
 import errors ;
+import modules ;
 import path ;
 import regex ;
 
@@ -50,7 +51,7 @@ local boost-version = 1.47 ;
 # ------------------
 
 # Configure gcc (default version).
-using gcc :       : /usr/bin/g++ ;
+using gcc : : /usr/bin/g++ ;
 
 # Configure specific gcc version, giving alternative name to use.
 for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
@@ -58,8 +59,8 @@ for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
   if $(ver) {
     local result = [ SHELL "which \"$(ph)/bin/g++\" >/dev/null 2>/dev/null; if [ $? -eq 0 ]; then echo INUMIMI; fi" ] ;
     if [ MATCH ".*(INUMIMI).*" : "$(result)" ] {
-      ECHO "using gcc : $(ver) : \"$(ph)/bin/g++\" ;" ;
-      using gcc : $(ver) : "$(ph)/bin/g++" ;
+      ECHO "using gcc   : $(ver) : \"$(ph)/bin/g++-tlimit\" ;" ;
+      using gcc : $(ver) : "$(ph)/bin/g++-tlimit" ;
     }
   }
 }
@@ -74,8 +75,8 @@ for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
   if $(ver) {
     local result = [ SHELL "which \"$(ph)/bin/clang++-wrapper\" >/dev/null 2>/dev/null; if [ $? -eq 0 ]; then echo INUMIMI; fi" ] ;
     if [ MATCH ".*(INUMIMI).*" : "$(result)" ] {
-      ECHO "using clang : : \"$(ph)/bin/clang++-wrapper\" ;" ;
-      using clang : : "$(ph)/bin/clang++-wrapper" ;
+      ECHO "using clang :       : \"$(ph)/bin/clang++-tlimit\" ;" ;
+      using clang : : "$(ph)/bin/clang++-tlimit" ;
     }
   }
 }

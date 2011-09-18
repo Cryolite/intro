@@ -116,7 +116,7 @@ rule make-clang ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --prefix=\"$(PREFIX)/$(gcc)\" ;
 
   if $(gcc) != $(GCC_BUILTIN) {
-    OPTIONS on $(targets) += "--with-c-include-dirs=\"$(PREFIX)/$(gcc)/lib/gcc/$(triplet)/$(gcc)/include:/usr/local/include:$(PREFIX)/$(gcc)/include:$(PREFIX)/$(gcc)/lib/gcc/$(triplet)/$(gcc)/include-fixed:/usr/include\"" ;
+    OPTIONS on $(targets) += "--with-c-include-dirs=\"$(PREFIX)/$(gcc)/include:/usr/include\"" ;
     OPTIONS on $(targets) += "--with-cxx-include-root=\"$(PREFIX)/$(gcc)/include/c++/$(gcc)\"" ;
     OPTIONS on $(targets) += --with-cxx-include-arch=$(triplet) ;
     if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32 {
@@ -131,10 +131,10 @@ rule make-clang ( targets * : sources * : properties * )
   SET_RUN_VARS on $(targets) = ;
   if $(gcc) != $(GCC_BUILTIN) {
     if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32 {
-      SET_RUN_VARS on $(targets) = "OLD_PATH=\"$PATH\"; PATH=\"$(PREFIX)/$(gcc)/bin${PATH:+:$PATH}\"; export PATH" ;
+      SET_RUN_VARS on $(targets) = "PATH=\"$(PREFIX)/$(gcc)/bin${PATH:+:$PATH}\"; export PATH" ;
     }
     else {
-      SET_RUN_VARS on $(targets) = "OLD_LD_LIBRARY_PATH=\"$LD_LIBRARY_PATH\"; LD_LIBRARY_PATH=\"$(PREFIX)/$(gcc)/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"; export LD_LIBRARY_PATH" ;
+      SET_RUN_VARS on $(targets) = "LD_LIBRARY_PATH=\"$(PREFIX)/$(gcc)/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"; export LD_LIBRARY_PATH" ;
     }
   }
 

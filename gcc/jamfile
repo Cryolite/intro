@@ -278,9 +278,9 @@ rule configure-gcc ( targets * : sources * : properties * )
   SET_MPC_SYMLINK on $(targets) = "( cd \"$(src-dir)\" && ln -sf ../mpc-$(mpc) mpc )" ;
   UNSET_MPC_SYMLINK on $(targets) = "rm -f \"$(src-dir)/mpc\"" ;
 
-  SET_C_INCLUDE_PATH on $(targets) = "OLD_C_INCLUDE_PATH=\"$C_INCLUDE_PATH\"; C_INCLUDE_PATH=\"$(PREFIX)/include${C_INCLUDE_PATH:+:$C_INCLUDE_PATH}\"; export C_INCLUDE_PATH" ;
-  SET_CPLUS_INCLUDE_PATH on $(targets) = "OLD_CPLUS_INCLUDE_PATH=\"$CPLUS_INCLUDE_PATH\"; CPLUS_INCLUDE_PATH=\"$(PREFIX)/include${CPLUS_INCLUDE_PATH:+:$CPLUS_INCLUDE_PATH}\"; export CPLUS_INCLUDE_PATH" ;
-  SET_LIBRARY_PATH on $(targets) = "OLD_LIBRARY_PATH=\"$LIBRARY_PATH\"; LIBRARY_PATH=\"$(PREFIX)/lib${LIBRARY_PATH:+:$LIBRARY_PATH}\"; export LIBRARY_PATH" ;
+  SET_C_INCLUDE_PATH on $(targets) = "C_INCLUDE_PATH=\"$(PREFIX)/include${C_INCLUDE_PATH:+:$C_INCLUDE_PATH}\"; export C_INCLUDE_PATH" ;
+  SET_CPLUS_INCLUDE_PATH on $(targets) = "CPLUS_INCLUDE_PATH=\"$(PREFIX)/include${CPLUS_INCLUDE_PATH:+:$CPLUS_INCLUDE_PATH}\"; export CPLUS_INCLUDE_PATH" ;
+  SET_LIBRARY_PATH on $(targets) = "LIBRARY_PATH=\"$(PREFIX)/lib${LIBRARY_PATH:+:$LIBRARY_PATH}\"; export LIBRARY_PATH" ;
 }
 actions configure-gcc
 {
@@ -362,9 +362,9 @@ rule make-gcc ( targets * : sources * : properties * )
   SET_MPC_SYMLINK on $(targets) = "( cd \"$(src-dir)\" && ln -sf ../mpc-$(mpc) mpc )" ;
   UNSET_MPC_SYMLINK on $(targets) = "rm -f \"$(src-dir)/mpc\"" ;
 
-  SET_C_INCLUDE_PATH on $(targets) = "OLD_C_INCLUDE_PATH=\"$C_INCLUDE_PATH\"; C_INCLUDE_PATH=\"$(PREFIX)/include${C_INCLUDE_PATH:+:$C_INCLUDE_PATH}\"; export C_INCLUDE_PATH" ;
-  SET_CPLUS_INCLUDE_PATH on $(targets) = "OLD_CPLUS_INCLUDE_PATH=\"$CPLUS_INCLUDE_PATH\"; CPLUS_INCLUDE_PATH=\"$(PREFIX)/include${CPLUS_INCLUDE_PATH:+:$CPLUS_INCLUDE_PATH}\"; export CPLUS_INCLUDE_PATH" ;
-  SET_LIBRARY_PATH on $(targets) = "OLD_LIBRARY_PATH=\"$LIBRARY_PATH\"; LIBRARY_PATH=\"$(PREFIX)/lib${LIBRARY_PATH:+:$LIBRARY_PATH}\"; export LIBRARY_PATH" ;
+  SET_C_INCLUDE_PATH on $(targets) = "C_INCLUDE_PATH=\"$(PREFIX)/include${C_INCLUDE_PATH:+:$C_INCLUDE_PATH}\"; export C_INCLUDE_PATH" ;
+  SET_CPLUS_INCLUDE_PATH on $(targets) = "CPLUS_INCLUDE_PATH=\"$(PREFIX)/include${CPLUS_INCLUDE_PATH:+:$CPLUS_INCLUDE_PATH}\"; export CPLUS_INCLUDE_PATH" ;
+  SET_LIBRARY_PATH on $(targets) = "LIBRARY_PATH=\"$(PREFIX)/lib${LIBRARY_PATH:+:$LIBRARY_PATH}\"; export LIBRARY_PATH" ;
 
   local gpp-tlimit = "$(INTRO_ROOT_DIR)/gcc/g++-tlimit" ;
   GPP_TLIMIT on $(targets) = "$(gpp-tlimit)" ;
