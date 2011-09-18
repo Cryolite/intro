@@ -11,7 +11,7 @@ rule assert-specified ( feature : properties * )
 {
   local val = [ feature.get-values $(feature) : $(properties) ] ;
   if $(val) = unspecified {
-    errors.error $(feature) is not specified for the MPC build. ;
+    errors.error $(feature) is not specified for MPC build. ;
   }
 }
 
@@ -19,7 +19,7 @@ rule assert-unspecified ( feature : properties * )
 {
   local val = [ feature.get-values $(feature) : $(properties) ] ;
   if $(val) != unspecified {
-    errors.error $(feature) is not valid for the MPC build. ;
+    errors.error $(feature) is not valid for MPC build. ;
   }
 }
 
@@ -90,8 +90,8 @@ actions download-mpc
   if [ ! -f "$(TARBALL_GZ)" -a ! -f "$(TARBALL_BZ2)" ]; then
     ( cd "$(TARBALL_BZ2:D)" && wget --quiet -- '$(URL)' )
     if [ $? -ne 0 ]; then
-      echo "ERROR: failed to download the MPC tarball." 1>&2
-      /bin/echo -n "ERROR: failed to download the MPC tarball." | $(AWACS)
+      echo "ERROR: failed to download MPC tarball." 1>&2
+      /bin/echo -n "ERROR: failed to download MPC tarball." | $(AWACS)
       exit 1
     fi
     [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_BZ2)" ] || exit $?
@@ -132,6 +132,7 @@ rule expand-mpc ( targets * : sources * : properties * )
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
   local version = [ feature.get-values <mpc> : $(properties) ] ;
+  VERSION on $(targets) = $(version) ;
   TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/mpc-$(version).tar.gz ;
   TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/mpc-$(version).tar.bz2 ;
   DEST_DIR on $(targets) = $(INTRO_ROOT_DIR)/mpc-$(version) ;
@@ -140,24 +141,17 @@ actions expand-mpc
 {
   rm -f "$(<)" || exit $?
   [ -f "$(>)" ] || exit $?
-  if [ ! -x "$(DEST_DIR)/configure" ]; then
-    if [ -f "$(DEST_DIR)" ]; then
-      rm -f "$(DEST_DIR)" || exit $?
-    elif [ -d "$(DEST_DIR)" ]; then
-      ( cd "$(DEST_DIR)" && rm -rf * ) || exit $?
-      rmdir "$(DEST_DIR)" || exit $?
-    fi
-    if [ -f "$(TARBALL_GZ)" ]; then
-      tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" \
-        || { echo "ERROR: failed to expand the MPC tarball." 1>&2; exit 1; }
-    elif [ -f "$(TARBALL_BZ2)" ]; then
-      tar xjf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)" \
-        || { echo "ERROR: failed to expand the MPC tarball." 1>&2; exit 1; }
-    else
-      exit 1
-    fi
-    [ -x "$(DEST_DIR)/configure" ] || exit $?
+  ( rm -rf "$(INTRO_ROOT_DIR)" && rm -rf mpc-$(VERSION) ) || exit $?
+  [ -e "$(INTRO_ROOT_DIR)/mpc-$(VERSION)" ] && exit 1
+  if [ -f "$(TARBALL_GZ)" ]; then
+    tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" || { echo "ERROR: failed to expand MPC tarball." 1>&2; exit 1; }
+  elif [ -f "$(TARBALL_BZ2)" ]; then
+    tar xjf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)" || { echo "ERROR: failed to expand MPC tarball." 1>&2; exit 1; }
+  else
+    exit 1
   fi
+  [ -d "$(DEST_DIR)" ] || exit $?
+  [ -x "$(DEST_DIR)/configure" ] || exit $?
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
@@ -266,7 +260,7 @@ actions make-mpc
     /bin/echo -n "ERROR: failed to 'make install' MPC $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
-  ( cd "$(<:D)/build" && rm -rf * )
+  ( cd "$(<:D)" && rm -rf build )
   /bin/echo -n "MPC $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW)) was successfully built." | $(AWACS)
   [ -e "$(<)" ] && exit 1
   touch "$(<)"

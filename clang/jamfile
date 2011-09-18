@@ -160,12 +160,9 @@ actions make-clang
   if [ ! -d "$(LLVM_DIR)" ]; then
     ( cd "$(INTRO_ROOT_DIR)" && svn checkout http://llvm.org/svn/llvm-project/llvm/trunk llvm )
     if [ $? -ne 0 ]; then
-      if [ -d "$(LLVM_DIR)" ]; then
-        ( cd "$(LLVM_DIR)" && rm -rf * ) || exit $?
-        rmdir "$(LLVM_DIR)" || exit $?
-      fi
-      echo "ERROR: failed to 'svn checkout' the LLVM repository." 1>&2
-      /bin/echo -n "ERROR: failed to 'svn checkout' the LLVM repository." | $(AWACS)
+      ( cd "$(INTRO_ROOT_DIR)" && rm -rf llvm )
+      echo "ERROR: failed to 'svn checkout' LLVM repository." 1>&2
+      /bin/echo -n "ERROR: failed to 'svn checkout' LLVM repository." | $(AWACS)
       exit 1
     fi
     [ -d "$(LLVM_DIR)" ] || exit $?
@@ -176,26 +173,23 @@ actions make-clang
   if [ ! -d "$(CLANG_DIR)" ]; then
     ( cd "$(INTRO_ROOT_DIR)/llvm/tools" && svn checkout http://llvm.org/svn/llvm-project/cfe/trunk clang )
     if [ $? -ne 0 ]; then
-      if [ -d "$(CLANG_DIR)" ]; then
-        ( cd "$(CLANG_DIR)" && rm -rf * )
-        rmdir "$(CLANG_DIR)"
-      fi
-      echo "ERROR: failed to 'svn checkout' the Clang repository." 1>&2
-      /bin/echo -n "ERROR: failed to 'svn checkout' the Clang repository." | $(AWACS)
+      ( cd "$(INTRO_ROOT_DIR)/llvm/tools" && rm -rf clang )
+      echo "ERROR: failed to 'svn checkout' Clang repository." 1>&2
+      /bin/echo -n "ERROR: failed to 'svn checkout' Clang repository." | $(AWACS)
       exit 1
     fi
     [ -d "$(CLANG_DIR)" ] || exit $?
   fi
   ( cd "$(LLVM_DIR)" && svn update )
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'svn update' the LLVM repository." 1>&2
-    /bin/echo -n "ERROR: failed to 'svn update' the LLVM repository." | $(AWACS)
+    echo "ERROR: failed to 'svn update' LLVM repository." 1>&2
+    /bin/echo -n "ERROR: failed to 'svn update' LLVM repository." | $(AWACS)
     exit 1
   fi
   ( cd "$(CLANG_DIR)" && svn update )
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'svn update' the Clang repository." 1>&2
-    /bin/echo -n "ERROR: failed to 'svn update' the Clang repository." | $(AWACS)
+    echo "ERROR: failed to 'svn update' Clang repository." 1>&2
+    /bin/echo -n "ERROR: failed to 'svn update' Clang repository." | $(AWACS)
     exit 1
   fi
   llvm_rev=`( cd "$(LLVM_DIR)" && { LANG=C svn info || exit 1; } | { grep -E '^Revision: [[:digit:]]+$' || exit 1; } | { grep -oE '[[:digit:]]+$' || exit 1; } )`
@@ -226,7 +220,7 @@ actions make-clang
     /bin/echo -n "ERROR: failed to 'make install' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
-  ( cd "$(<:D)/build" && rm -rf * )
+  ( cd "$(<:D)" && rm -rf build )
   cp -f "$(CLANGPP_WRAPPER)" "$(CLANGPP_TLIMIT)" "$(VERSION_PREFIX)/bin"
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to create wrapper scripts for LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
@@ -234,8 +228,8 @@ actions make-clang
     exit 1
   fi
   chmod +x "$(VERSION_PREFIX)/bin/clang++-wrapper" "$(VERSION_PREFIX)/bin/clang++-tlimit" || exit $?
-  [ -e "$(<)" ] && exit 1
   /bin/echo -n "LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW)) was successfully built." | $(AWACS)
+  [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
 

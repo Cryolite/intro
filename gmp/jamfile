@@ -11,7 +11,7 @@ rule assert-specified ( feature : properties * )
 {
   local val = [ feature.get-values $(feature) : $(properties) ] ;
   if $(val) = unspecified {
-    errors.error $(feature) is not specified for the GMP build. ;
+    errors.error $(feature) is not specified for GMP build. ;
   }
 }
 
@@ -19,7 +19,7 @@ rule assert-unspecified ( feature : properties * )
 {
   local val = [ feature.get-values $(feature) : $(properties) ] ;
   if $(val) != unspecified {
-    errors.error $(feature) is not valid for the GMP build. ;
+    errors.error $(feature) is not valid for GMP build. ;
   }
 }
 
@@ -92,8 +92,8 @@ actions download-gmp
   if [ ! -f "$(TARBALL_GZ)" -a ! -f "$(TARBALL_BZ2)" ]; then
     ( cd "$(TARBALL_BZ2:D)" && wget --quiet -- '$(URL)' )
     if [ $? -ne 0 ]; then
-      echo "ERROR: failed to download the GMP tarball." 1>&2
-      /bin/echo -n "ERROR: failed to download the GMP tarball." | $(AWACS)
+      echo "ERROR: failed to download GMP tarball." 1>&2
+      /bin/echo -n "ERROR: failed to download GMP tarball." | $(AWACS)
       exit 1
     fi
     [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_BZ2)" ] || exit $?
@@ -134,6 +134,7 @@ rule expand-gmp ( targets * : sources * : properties * )
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
   local version = [ feature.get-values <gmp> : $(properties) ] ;
+  VERSION on $(targets) = $(version) ;
   TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/gmp-$(version).tar.gz ;
   TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/gmp-$(version).tar.bz2 ;
   DEST_DIR on $(targets) = $(INTRO_ROOT_DIR)/gmp-$(version) ;
@@ -142,24 +143,17 @@ actions expand-gmp
 {
   rm -f "$(<)" || exit $?
   [ -f "$(>)" ] || exit $?
-  if [ ! -x "$(DEST_DIR)/configure" ]; then
-    if [ -f "$(DEST_DIR)" ]; then
-      rm -f "$(DEST_DIR)" || exit $?
-    elif [ -d "$(DEST_DIR)" ]; then
-      ( cd "$(DEST_DIR)" && rm -rf * ) || exit $?
-      rmdir "$(DEST_DIR)" || exit $?
-    fi
-    if [ -f "$(TARBALL_GZ)" ]; then
-      tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" \
-        || { echo "ERROR: failed to expand the GMP tarball." 1>&2; exit 1; }
-    elif [ -f "$(TARBALL_BZ2)" ]; then
-      tar xjf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)" \
-        || { echo "ERROR: failed to expand the GMP tarball." 1>&2; exit 1; }
-    else
-      exit 1
-    fi
-    [ -x "$(DEST_DIR)/configure" ] || exit $?
+  ( cd "$(INTRO_ROOT_DIR)" && rm -rf gmp-$(VERSION) ) || exit $?
+  [ -e "$(INTRO_ROOT_DIR)/gmp-$(VERSION)" ] && exit 1
+  if [ -f "$(TARBALL_GZ)" ]; then
+    tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" || { echo "ERROR: failed to expand GMP tarball." 1>&2; exit 1; }
+  elif [ -f "$(TARBALL_BZ2)" ]; then
+    tar xjf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)" || { echo "ERROR: failed to expand GMP tarball." 1>&2; exit 1; }
+  else
+    exit 1
   fi
+  [ -d "$(DEST_DIR)" ] || exit $?
+  [ -x "$(DEST_DIR)/configure" ] || exit $?
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
@@ -268,7 +262,7 @@ actions make-gmp
     /bin/echo -n "ERROR: failed to 'make install' GMP $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
-  ( cd "$(<:D)/build" && rm -rf * )
+  ( cd "$(<:D)" && rm -rf build )
   /bin/echo -n "GMP $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW)) was successfully built." | $(AWACS)
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
