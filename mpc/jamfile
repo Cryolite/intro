@@ -141,7 +141,7 @@ actions expand-mpc
 {
   rm -f "$(<)" || exit $?
   [ -f "$(>)" ] || exit $?
-  ( rm -rf "$(INTRO_ROOT_DIR)" && rm -rf mpc-$(VERSION) ) || exit $?
+  ( cd "$(INTRO_ROOT_DIR)" && rm -rf mpc-$(VERSION) ) || exit $?
   [ -e "$(INTRO_ROOT_DIR)/mpc-$(VERSION)" ] && exit 1
   if [ -f "$(TARBALL_GZ)" ]; then
     tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" || { echo "ERROR: failed to expand MPC tarball." 1>&2; exit 1; }
