@@ -90,8 +90,12 @@ actions download-gmp
 {
   rm -f "$(<)" || exit $?
   if [ ! -f "$(TARBALL_GZ)" -a ! -f "$(TARBALL_BZ2)" ]; then
-    ( cd "$(TARBALL_BZ2:D)" && wget --quiet -- '$(URL)' ) \
-      || { echo "ERROR: failed to download the GMP tarball." 1>&2; exit 1; }
+    ( cd "$(TARBALL_BZ2:D)" && wget --quiet -- '$(URL)' )
+    if [ $? -ne 0 ]; then
+      echo "ERROR: failed to download the GMP tarball." 1>&2
+      /bin/echo -n "ERROR: failed to download the GMP tarball." | $(AWACS)
+      exit 1
+    fi
     [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_BZ2)" ] || exit $?
   fi
   [ -e "$(<)" ] && exit 1
@@ -139,7 +143,12 @@ actions expand-gmp
   rm -f "$(<)" || exit $?
   [ -f "$(>)" ] || exit $?
   if [ ! -x "$(DEST_DIR)/configure" ]; then
-    rm -rf "$(DEST_DIR)" || exit $?
+    if [ -f "$(DEST_DIR)" ]; then
+      rm -f "$(DEST_DIR)" || exit $?
+    elif [ -d "$(DEST_DIR)" ]; then
+      ( cd "$(DEST_DIR)" && rm -rf * ) || exit $?
+      rmdir "$(DEST_DIR)" || exit $?
+    fi
     if [ -f "$(TARBALL_GZ)" ]; then
       tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" \
         || { echo "ERROR: failed to expand the GMP tarball." 1>&2; exit 1; }
@@ -188,6 +197,7 @@ rule make-gmp ( targets * : sources * : properties * )
   OPTIONS on $(targets) = ;
 
   local version = [ feature.get-values <gmp> : $(properties) ] ;
+  VERSION on $(targets) = $(version) ;
 
   # Set the path to the 'configure' file.
   local configure = $(INTRO_ROOT_DIR)/gmp-$(version)/configure ;
@@ -201,6 +211,7 @@ rule make-gmp ( targets * : sources * : properties * )
 
   # Set the '--prefix' option for the 'configure' script.
   local gcc-raw = [ feature.get-values <gcc> : $(properties) ] ;
+  GCC_RAW on $(targets) = $(gcc-raw) ;
   local gcc = [ regex.replace "$(gcc-raw)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]" ".0" ] ;
   OPTIONS on $(targets) += --prefix=\"$(PREFIX)/$(gcc)\" ;
 
@@ -218,21 +229,11 @@ rule make-gmp ( targets * : sources * : properties * )
   OPTIONS on $(targets) += CXX=\"$(PREFIX)/$(gcc)/bin/g++\" ;
 
   SET_RUN_VARS on $(targets) = ;
-  UNSET_RUN_VARS on $(targets) = ;
   if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32 {
-    SET_RUN_VARS on $(targets) = "OLD_PATH=\"$PATH\"; PATH=\"$(PREFIX)/$(gcc)/bin:$PATH\"; export PATH" ;
-    UNSET_RUN_VARS on $(targets) = "PATH=\"$OLD_PATH\"; export PATH; unset OLD_PATH" ;
+    SET_RUN_VARS on $(targets) = "OLD_PATH=\"$PATH\"; PATH=\"$(PREFIX)/$(gcc)/bin${PATH:+:$PATH}\"; export PATH" ;
   }
   else {
-    SET_RUN_VARS on $(targets) = "OLD_LD_LIBRARY_PATH=\"$LD_LIBRARY_PATH\"; LD_LIBRARY_PATH=\"$(PREFIX)/$(gcc)/lib:$LD_LIBRARY_PATH\"; export LD_LIBRARY_PATH" ;
-    UNSET_RUN_VARS on $(targets) = "LD_LIBRARY_PATH=\"$OLD_LD_LIBRARY_PATH\"; export LD_LIBRARY_PATH; unset OLD_LD_LIBRARY_PATH" ;
-  }
-
-  AWACS_ON_SUCCESS on $(targets) = ;
-  AWACS_ON_FAILURE on $(targets) = ;
-  if $(AWACS) {
-    AWACS_ON_SUCCESS on $(targets) = "/bin/echo -n \"GMP $(version) ($(triplet)-gcc-$(gcc-raw)) was successfully built.\" | $(AWACS)" ;
-    AWACS_ON_FAILURE on $(targets) = "/bin/echo -n \"GMP $(version) ($(triplet)-gcc-$(gcc-raw)) failed to build.\" | $(AWACS)" ;
+    SET_RUN_VARS on $(targets) = "OLD_LD_LIBRARY_PATH=\"$LD_LIBRARY_PATH\"; LD_LIBRARY_PATH=\"$(PREFIX)/$(gcc)/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"; export LD_LIBRARY_PATH" ;
   }
 }
 actions make-gmp
@@ -244,37 +245,32 @@ actions make-gmp
   $(SET_RUN_VARS)
   ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
   if [ $? -ne 0 ]; then
-    $(UNSET_RUN_VARS)
-    echo "ERROR: failed to 'configure' for the GMP build." 1>&2
-    $(AWACS_ON_FAILURE)
+    echo "ERROR: failed to 'configure' GMP $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
+    /bin/echo -n "ERROR: failed to 'configure' GMP $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
-  [ -f "$(<:D)/build/Makefile" ] || { $(UNSET_RUN_VARS); exit 1; }
+  [ -f "$(<:D)/build/Makefile" ] || exit $?
   ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
   if [ $? -ne 0 ]; then
-    $(UNSET_RUN_VARS)
-    echo "ERROR: failed to 'make' for the GMP build." 1>&2
-    $(AWACS_ON_FAILURE)
+    echo "ERROR: failed to 'make' GMP $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
+    /bin/echo -n "ERROR: failed to 'make' GMP $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
   ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check )
   if [ $? -ne 0 ]; then
-    $(UNSET_RUN_VARS)
-    echo "ERROR: failed to 'make check' for the GMP build." 1>&2
-    $(AWACS_ON_FAILURE)
+    echo "ERROR: failed to 'make check' GMP $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
+    /bin/echo -n "ERROR: failed to 'make check' GMP $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
   ( cd "$(<:D)/build" && make install )
   if [ $? -ne 0 ]; then
-    $(UNSET_RUN_VARS)
-    echo "ERROR: failed to 'make install' for the GMP build." 1>&2
-    $(AWACS_ON_FAILURE)
+    echo "ERROR: failed to 'make install' GMP $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
+    /bin/echo -n "ERROR: failed to 'make install' GMP $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
   ( cd "$(<:D)/build" && rm -rf * )
-  $(UNSET_RUN_VARS)
+  /bin/echo -n "GMP $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW)) was successfully built." | $(AWACS)
   [ -e "$(<)" ] && exit 1
-  $(AWACS_ON_SUCCESS)
   touch "$(<)"
 }
 

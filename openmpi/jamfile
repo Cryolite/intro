@@ -11,7 +11,7 @@ rule assert-specified ( feature : properties * )
 {
   local val = [ feature.get-values $(feature) : $(properties) ] ;
   if $(val) = unspecified {
-    errors.error $(feature) is not specified for the OpenMPI build. ;
+    errors.error $(feature) is not specified for the Open MPI build. ;
   }
 }
 
@@ -19,7 +19,7 @@ rule assert-unspecified ( feature : properties * )
 {
   local val = [ feature.get-values $(feature) : $(properties) ] ;
   if $(val) != unspecified {
-    errors.error $(feature) is not valid for the OpenMPI build. ;
+    errors.error $(feature) is not valid for the Open MPI build. ;
   }
 }
 
@@ -94,8 +94,12 @@ actions download-openmpi
 {
   rm -f "$(<)" || exit $?
   if [ ! -f "$(TARBALL_GZ)" -a ! -f "$(TARBALL_BZ2)" ]; then
-    ( cd "$(TARBALL_BZ2:D)" && wget --quiet -- '$(URL)' ) \
-      || { echo "ERROR: failed to download the OpenMPI tarball." 1>&2; exit 1; }
+    ( cd "$(TARBALL_BZ2:D)" && wget --quiet -- '$(URL)' )
+    if [ $? -ne 0 ]; then
+      echo "ERROR: failed to download the Open MPI tarball." 1>&2
+      /bin/echo -n "ERROR: failed to download the Open MPI tarball." | $(AWACS)
+      exit 1
+    fi
     [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_BZ2)" ] || exit $?
   fi
   [ -e "$(<)" ] && exit 1
@@ -143,13 +147,18 @@ actions expand-openmpi
   rm -f "$(<)" || exit $?
   [ -f "$(>)" ] || exit $?
   if [ ! -x "$(DEST_DIR)/configure" ]; then
-    rm -rf "$(DEST_DIR)" || exit $?
+    if [ -f "$(DEST_DIR)" ]; then
+      rm -f "$(DEST_DIR)" || exit $?
+    elif [ -d "$(DEST_DIR)" ]; then
+      ( cd "$(DEST_DIR)" && rm -rf * ) || exit $?
+      rmdir "$(DEST_DIR)" || exit $?
+    fi
     if [ -f "$(TARBALL_GZ)" ]; then
       tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" \
-        || { echo "ERROR: failed to expand the OpenMPI tarball." 1>&2; exit 1; }
+        || { echo "ERROR: failed to expand the Open MPI tarball." 1>&2; exit 1; }
     elif [ -f "$(TARBALL_BZ2)" ]; then
       tar xjf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)" \
-        || { echo "ERROR: failed to expand the OpenMPI tarball." 1>&2; exit 1; }
+        || { echo "ERROR: failed to expand the Open MPI tarball." 1>&2; exit 1; }
     else
       exit 1
     fi
@@ -192,6 +201,7 @@ rule make-openmpi ( targets * : sources * : properties * )
   OPTIONS on $(targets) = ;
 
   local version = [ feature.get-values <openmpi> : $(properties) ] ;
+  VERSION on $(targets) = $(version) ;
 
   # Set the path to the 'configure' file.
   local configure = $(INTRO_ROOT_DIR)/openmpi-$(version)/configure ;
@@ -205,6 +215,7 @@ rule make-openmpi ( targets * : sources * : properties * )
 
   # Set the '--prefix' option for the 'configure' script.
   local gcc-raw = [ feature.get-values <gcc> : $(properties) ] ;
+  GCC_RAW on $(targets) = $(gcc-raw) ;
   local gcc = [ regex.replace "$(gcc-raw)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]" ".0" ] ;
   OPTIONS on $(targets) += --prefix=\"$(PREFIX)/$(gcc)\" ;
 
@@ -222,21 +233,11 @@ rule make-openmpi ( targets * : sources * : properties * )
   OPTIONS on $(targets) += CXX=\"$(PREFIX)/$(gcc)/bin/g++\" ;
 
   SET_RUN_VARS on $(targets) = ;
-  UNSET_RUN_VARS on $(targets) = ;
   if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32 {
-    SET_RUN_VARS on $(targets) = "OLD_PATH=\"$PATH\"; PATH=\"$(PREFIX)/$(gcc)/bin:$PATH\"; export PATH" ;
-    UNSET_RUN_VARS on $(targets) = "PATH=\"$OLD_PATH\"; export PATH; unset OLD_PATH" ;
+    SET_RUN_VARS on $(targets) = "OLD_PATH=\"$PATH\"; PATH=\"$(PREFIX)/$(gcc)/bin${PATH:+:$PATH}\"; export PATH" ;
   }
   else {
-    SET_RUN_VARS on $(targets) = "OLD_LD_LIBRARY_PATH=\"$LD_LIBRARY_PATH\"; LD_LIBRARY_PATH=\"$(PREFIX)/$(gcc)/lib:$LD_LIBRARY_PATH\"; export LD_LIBRARY_PATH" ;
-    UNSET_RUN_VARS on $(targets) = "LD_LIBRARY_PATH=\"$OLD_LD_LIBRARY_PATH\"; export LD_LIBRARY_PATH; unset OLD_LD_LIBRARY_PATH" ;
-  }
-
-  AWACS_ON_SUCCESS on $(targets) = ;
-  AWACS_ON_FAILURE on $(targets) = ;
-  if $(AWACS) {
-    AWACS_ON_SUCCESS on $(targets) = "/bin/echo -n \"Open MPI $(version) ($(triplet)-gcc-$(gcc-raw)) was successfully built.\" | $(AWACS)" ;
-    AWACS_ON_FAILURE on $(targets) = "/bin/echo -n \"Open MPI $(version) ($(triplet)-gcc-$(gcc-raw)) failed to build.\" | $(AWACS)" ;
+    SET_RUN_VARS on $(targets) = "OLD_LD_LIBRARY_PATH=\"$LD_LIBRARY_PATH\"; LD_LIBRARY_PATH=\"$(PREFIX)/$(gcc)/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"; export LD_LIBRARY_PATH" ;
   }
 }
 actions make-openmpi
@@ -248,37 +249,32 @@ actions make-openmpi
   $(SET_RUN_VARS)
   ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
   if [ $? -ne 0 ]; then
-    $(UNSET_RUN_VARS)
-    echo "ERROR: failed to 'configure' for the OpenMPI build." 1>&2
-    $(AWACS_ON_FAILURE)
+    echo "ERROR: failed to 'configure' Open MPI $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
+    /bin/echo -n "ERROR: failed to 'configure' Open MPI $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
-  [ -f "$(<:D)/build/Makefile" ] || { $(UNSET_RUN_VARS); exit 1; }
+  [ -f "$(<:D)/build/Makefile" ] || exit $?
   ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
   if [ $? -ne 0 ]; then
-    $(UNSET_RUN_VARS)
-    echo "ERROR: failed to 'make' for the OpenMPI build." 1>&2
-    $(AWACS_ON_FAILURE)
+    echo "ERROR: failed to 'make' Open MPI $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
+    /bin/echo -n "ERROR: failed to 'make' Open MPI $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
   ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check )
   if [ $? -ne 0 ]; then
-    $(UNSET_RUN_VARS)
-    echo "ERROR: failed to 'make check' for the OpenMPI build." 1>&2
-    $(AWACS_ON_FAILURE)
+    echo "ERROR: failed to 'make check' Open MPI $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
+    /bin/echo -n "ERROR: failed to 'make check' Open MPI $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
   ( cd "$(<:D)/build" && make install )
   if [ $? -ne 0 ]; then
-    $(UNSET_RUN_VARS)
-    echo "ERROR: failed to 'make install' for the OpenMPI build." 1>&2
-    $(AWACS_ON_FAILURE)
+    echo "ERROR: failed to 'make install' Open MPI $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
+    /bin/echo -n "ERROR: failed to 'make install' Open MPI $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
   ( cd "$(<:D)/build" && rm -rf * )
-  $(UNSET_RUN_VARS)
+  /bin/echo -n "Open MPI $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW)) was successfully built." | $(AWACS)
   [ -e "$(<)" ] && exit 1
-  $(AWACS_ON_SUCCESS)
   touch "$(<)"
 }
 

@@ -119,7 +119,9 @@ rule make-clang ( targets * : sources * : properties * )
     OPTIONS on $(targets) += "--with-c-include-dirs=\"$(PREFIX)/$(gcc)/lib/gcc/$(triplet)/$(gcc)/include:/usr/local/include:$(PREFIX)/$(gcc)/include:$(PREFIX)/$(gcc)/lib/gcc/$(triplet)/$(gcc)/include-fixed:/usr/include\"" ;
     OPTIONS on $(targets) += "--with-cxx-include-root=\"$(PREFIX)/$(gcc)/include/c++/$(gcc)\"" ;
     OPTIONS on $(targets) += --with-cxx-include-arch=$(triplet) ;
-    OPTIONS on $(targets) += --with-cxx-include-32bit-dir=32 ;
+    if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32 {
+      OPTIONS on $(targets) += --with-cxx-include-32bit-dir=32 ;
+    }
   }
 
   OPTIONS on $(targets) += CC="\"$(PREFIX)/$(gcc)/bin/gcc\"" ;
@@ -127,15 +129,12 @@ rule make-clang ( targets * : sources * : properties * )
   OPTIONS on $(targets) += CXX="\"$(PREFIX)/$(gcc)/bin/g++\"" ;
 
   SET_RUN_VARS on $(targets) = ;
-  UNSET_RUN_VARS on $(targets) = ;
   if $(gcc) != $(GCC_BUILTIN) {
     if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32 {
-      SET_RUN_VARS on $(targets) = "OLD_PATH=\"$PATH\"; PATH=\"$(PREFIX)/$(gcc)/bin:$PATH\"; export PATH" ;
-      UNSET_RUN_VARS on $(targets) = "PATH=\"$OLD_PATH\"; export PATH; unset OLD_PATH" ;
+      SET_RUN_VARS on $(targets) = "OLD_PATH=\"$PATH\"; PATH=\"$(PREFIX)/$(gcc)/bin${PATH:+:$PATH}\"; export PATH" ;
     }
     else {
-      SET_RUN_VARS on $(targets) = "OLD_LD_LIBRARY_PATH=\"$LD_LIBRARY_PATH\"; LD_LIBRARY_PATH=\"$(PREFIX)/$(gcc)/lib:$LD_LIBRARY_PATH\"; export LD_LIBRARY_PATH" ;
-      UNSET_RUN_VARS on $(targets) = "LD_LIBRARY_PATH=\"$OLD_LD_LIBRARY_PATH\"; export LD_LIBRARY_PATH; unset OLD_LD_LIBRARY_PATH" ;
+      SET_RUN_VARS on $(targets) = "OLD_LD_LIBRARY_PATH=\"$LD_LIBRARY_PATH\"; LD_LIBRARY_PATH=\"$(PREFIX)/$(gcc)/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"; export LD_LIBRARY_PATH" ;
     }
   }
 
@@ -161,7 +160,10 @@ actions make-clang
   if [ ! -d "$(LLVM_DIR)" ]; then
     ( cd "$(INTRO_ROOT_DIR)" && svn checkout http://llvm.org/svn/llvm-project/llvm/trunk llvm )
     if [ $? -ne 0 ]; then
-      ( cd "$(INTRO_ROOT_DIR)" && rm -rf llvm )
+      if [ -d "$(LLVM_DIR)" ]; then
+        ( cd "$(LLVM_DIR)" && rm -rf * ) || exit $?
+        rmdir "$(LLVM_DIR)" || exit $?
+      fi
       echo "ERROR: failed to 'svn checkout' the LLVM repository." 1>&2
       /bin/echo -n "ERROR: failed to 'svn checkout' the LLVM repository." | $(AWACS)
       exit 1
@@ -174,7 +176,10 @@ actions make-clang
   if [ ! -d "$(CLANG_DIR)" ]; then
     ( cd "$(INTRO_ROOT_DIR)/llvm/tools" && svn checkout http://llvm.org/svn/llvm-project/cfe/trunk clang )
     if [ $? -ne 0 ]; then
-      ( cd "$(INTRO_ROOT_DIR)/llvm/tools" && rm -rf clang )
+      if [ -d "$(CLANG_DIR)" ]; then
+        ( cd "$(CLANG_DIR)" && rm -rf * )
+        rmdir "$(CLANG_DIR)"
+      fi
       echo "ERROR: failed to 'svn checkout' the Clang repository." 1>&2
       /bin/echo -n "ERROR: failed to 'svn checkout' the Clang repository." | $(AWACS)
       exit 1
@@ -199,42 +204,36 @@ actions make-clang
   $(SET_RUN_VARS)
   ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
   if [ $? -ne 0 ]; then
-    $(UNSET_RUN_VARS)
     echo "ERROR: failed to 'configure' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
     /bin/echo -n "ERROR: failed to 'configure' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
-  [ -f "$(<:D)/build/Makefile" ] || { $(UNSET_RUN_VARS); exit 1; }
+  [ -f "$(<:D)/build/Makefile" ] || exit $?
   ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
   if [ $? -ne 0 ]; then
-    $(UNSET_RUN_VARS)
     echo "ERROR: failed to 'make' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
     /bin/echo -n "ERROR: failed to 'make' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
   ( cd "$(<:D)/build" && make check )
   if [ $? -ne 0 ]; then
-    $(UNSET_RUN_VARS)
     echo "WARNING: failed to 'make check' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
     /bin/echo -n "WARNING: failed to 'make check' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
   fi
   ( cd "$(<:D)/build" && make install )
   if [ $? -ne 0 ]; then
-    $(UNSET_RUN_VARS)
     echo "ERROR: failed to 'make install' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
     /bin/echo -n "ERROR: failed to 'make install' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
   ( cd "$(<:D)/build" && rm -rf * )
-  $(UNSET_RUN_VARS)
   cp -f "$(CLANGPP_WRAPPER)" "$(CLANGPP_TLIMIT)" "$(VERSION_PREFIX)/bin"
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to create the wrapper script for LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
-    /bin/echo -n "ERROR: failed to create the wrapper script for LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
+    echo "ERROR: failed to create wrapper scripts for LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
+    /bin/echo -n "ERROR: failed to create wrapper scripts for LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
-  chmod +x "$(VERSION_PREFIX)/bin/clang++-wrapper" || exit $?
-  chmod +x "$(VERSION_PREFIX)/bin/clang++-tlimit" || exit $?
+  chmod +x "$(VERSION_PREFIX)/bin/clang++-wrapper" "$(VERSION_PREFIX)/bin/clang++-tlimit" || exit $?
   [ -e "$(<)" ] && exit 1
   /bin/echo -n "LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW)) was successfully built." | $(AWACS)
   touch "$(<)"
