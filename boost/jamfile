@@ -166,10 +166,12 @@ rule make-boost ( targets * : sources * : properties * )
 
   # Set 'BOOST_ROOT'.
   local version = [ feature.get-values <boost> : $(properties) ] ;
+  VERSION on $(targets) = $(version) ;
   local boost-root = $(PREFIX)/boost/$(version) ;
   BOOST_ROOT on $(targets) = $(boost-root) ;
 
   local gcc-raw = [ feature.get-values <gcc> : $(properties) ] ;
+  GCC_RAW on $(targets) = $(gcc-raw) ;
   local gcc = [ regex.replace "$(gcc-raw)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]" ".0" ] ;
   OPTIONS on $(targets) += -sICU_PATH=\"$(PREFIX)/$(gcc)\" ;
 
@@ -183,13 +185,6 @@ rule make-boost ( targets * : sources * : properties * )
   OPTIONS on $(targets) += stage ;
 
   CLEAN_UP_BIN_DIR on $(targets) = "( cd $(boost-root)/bin.v2 && rm -rf libs/*/build/gcc-$(gcc) )" ;
-
-  AWACS_ON_SUCCESS on $(targets) = ;
-  AWACS_ON_FAILURE on $(targets) = ;
-  if $(AWACS) {
-    AWACS_ON_SUCCESS on $(targets) = "/bin/echo -n \"Boost $(version) ($(triplet)-gcc-$(gcc-raw)) was successfully built.\" | $(AWACS)" ;
-    AWACS_ON_FAILURE on $(targets) = "/bin/echo -n \"Boost $(version) ($(triplet)-gcc-$(gcc-raw)) failed to build.\" | $(AWACS)" ;
-  }
 }
 actions make-boost
 {
@@ -197,13 +192,13 @@ actions make-boost
   [ -x "$(BOOST_ROOT)/b2" ] || exit $?
   ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) $(OPTIONS) )
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to build the Boost." 1>&2
-    $(AWACS_ON_FAILURE)
+    echo "ERROR: failed to build Boost $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
+    /bin/echo -n "ERROR: failed to build Boost $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
   $(CLEAN_UP_BIN_DIR)
+  /bin/echo -n "Boost $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW)) was successfully built." | $(AWACS)
   [ -e "$(<)" ] && exit 1
-  $(AWACS_ON_SUCCESS)
   touch "$(<)"
 }
 

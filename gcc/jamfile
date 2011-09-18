@@ -62,8 +62,12 @@ actions download-gcc
 {
   rm -f "$(<)" || exit $?
   if [ ! -f "$(TARBALL_GZ)" -a ! -f "$(TARBALL_BZ2)" ]; then
-    ( cd "$(TARBALL_BZ2:D)" && wget --quiet -- '$(URL)' ) \
-      || { echo "ERROR: failed to download the GCC tarball." 1>&2; exit 1; }
+    ( cd "$(TARBALL_BZ2:D)" && wget --quiet -- '$(URL)' )
+    if [ $? -ne 0 ]; then
+      echo "ERROR: failed to download the GCC tarball." 1>&2
+      /bin/echo -n "ERROR: failed to download the GCC tarball." | $(AWACS)
+      exit 1
+    fi
     [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_BZ2)" ] || exit $?
   fi
   [ -e "$(<)" ] && exit 1
@@ -111,7 +115,12 @@ actions expand-gcc
   rm -f "$(<)" || exit $?
   [ -f "$(>)" ] || exit $?
   if [ ! -x "$(DEST_DIR)/configure" ]; then
-    rm -rf "$(DEST_DIR)" || exit $?
+    if [ -f "$(DEST_DIR)" ]; then
+      rm -f "$(DEST_DIR)" || exit $?
+    elif [ -d "$(DEST_DIR)" ]; then
+      ( cd "$(DEST_DIR)" && rm -rf * ) || exit $?
+      rmdir "$(DEST_DIR)" || exit $?
+    fi
     if [ -f "$(TARBALL_GZ)" ]; then
       tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" \
         || { echo "ERROR: failed to expand the tarball for the GCC build." 1>&2; exit 1; }
@@ -161,9 +170,10 @@ rule configure-gcc ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) = ;
 
-  local version = [ feature.get-values <gcc> : $(properties) ] ;
-  local src-dir = $(INTRO_ROOT_DIR)/gcc-$(version) ;
-  version = [ regex.replace "$(version)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]" ".0" ] ;
+  local ver-raw = [ feature.get-values <gcc> : $(properties) ] ;
+  VER_RAW on $(targets) = $(ver-raw) ;
+  local src-dir = $(INTRO_ROOT_DIR)/gcc-$(ver-raw) ;
+  local version = [ regex.replace "$(ver-raw)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]" ".0" ] ;
 
   # Set the path to the 'configure' file.
   local configure = $(src-dir)/configure ;
@@ -275,20 +285,15 @@ rule configure-gcc ( targets * : sources * : properties * )
   UNSET_MPC_SYMLINK on $(targets) = "rm -f \"$(src-dir)/mpc\"" ;
 
   SET_C_INCLUDE_PATH on $(targets) = "OLD_C_INCLUDE_PATH=\"$C_INCLUDE_PATH\"; C_INCLUDE_PATH=\"$(PREFIX)/include${C_INCLUDE_PATH:+:$C_INCLUDE_PATH}\"; export C_INCLUDE_PATH" ;
-  UNSET_C_INCLUDE_PATH on $(targets) = "C_INCLUDE_PATH=\"$OLD_C_INCLUDE_PATH\"; export C_INCLUDE_PATH; if [ ! -n \"$C_INCLUDE_PATH\" ]; then unset C_INCLUDE_PATH; fi; unset OLD_C_INCLUDE_PATH" ;
-
   SET_CPLUS_INCLUDE_PATH on $(targets) = "OLD_CPLUS_INCLUDE_PATH=\"$CPLUS_INCLUDE_PATH\"; CPLUS_INCLUDE_PATH=\"$(PREFIX)/include${CPLUS_INCLUDE_PATH:+:$CPLUS_INCLUDE_PATH}\"; export CPLUS_INCLUDE_PATH" ;
-  UNSET_CPLUS_INCLUDE_PATH on $(targets) = "CPLUS_INCLUDE_PATH=\"$OLD_CPLUS_INCLUDE_PATH\"; export CPLUS_INCLUDE_PATH; if [ ! -n \"$CPLUS_INCLUDE_PATH\" ]; then unset CPLUS_INCLUDE_PATH; fi; unset OLD_CPLUS_INCLUDE_PATH" ;
-
   SET_LIBRARY_PATH on $(targets) = "OLD_LIBRARY_PATH=\"$LIBRARY_PATH\"; LIBRARY_PATH=\"$(PREFIX)/lib${LIBRARY_PATH:+:$LIBRARY_PATH}\"; export LIBRARY_PATH" ;
-  UNSET_LIBRARY_PATH on $(targets) = "LIBRARY_PATH=\"$OLD_LIBRARY_PATH\"; export LIBRARY_PATH; if [ ! -n \"$LIBRARY_PATH\" ]; then unset LIBRARY_PATH; fi; unset OLD_LIBRARY_PATH" ;
 }
 actions configure-gcc
 {
   rm -f "$(<)" || exit $?
   [ -x "$(CONFIGURE)" ] || exit $?
   $(SET_PREFIX_SYMLINK)
-  [ `$(CONFIGURE:D)/config.sub $(TRIPLET)` = $(TRIPLET) ] || $?
+  [ `$(CONFIGURE:D)/config.sub $(TRIPLET)` = $(TRIPLET) ] || exit $?
   { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
   $(SET_GMP_SYMLINK)
   [ -x "$(CONFIGURE:D)/gmp/configure" ] || { $(UNSET_GMP_SYMLINK); exit 1; }
@@ -301,18 +306,13 @@ actions configure-gcc
   $(SET_LIBRARY_PATH)
   ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
   if [ $? -ne 0 ]; then
-    $(UNSET_LIBRARY_PATH)
-    $(UNSET_CPLUS_INCLUDE_PATH)
-    $(UNSET_C_INCLUDE_PATH)
     $(UNSET_MPC_SYMLINK)
     $(UNSET_MPFR_SYMLINK)
     $(UNSET_GMP_SYMLINK)
-    echo "ERROR: failed to 'configure' for the GCC build." 1>&2
+    echo "ERROR: failed to 'configure' GCC $(VER_RAW) ($(TRIPLET))." 1>&2
+    /bin/echo -n "ERROR: failed to 'configure' GCC $(VER_RAW) ($(TRIPLET))." | $(AWACS)
     exit 1
   fi
-  $(UNSET_LIBRARY_PATH)
-  $(UNSET_CPLUS_INCLUDE_PATH)
-  $(UNSET_C_INCLUDE_PATH)
   $(UNSET_MPC_SYMLINK)
   $(UNSET_MPFR_SYMLINK)
   $(UNSET_GMP_SYMLINK)
@@ -369,26 +369,14 @@ rule make-gcc ( targets * : sources * : properties * )
   UNSET_MPC_SYMLINK on $(targets) = "rm -f \"$(src-dir)/mpc\"" ;
 
   SET_C_INCLUDE_PATH on $(targets) = "OLD_C_INCLUDE_PATH=\"$C_INCLUDE_PATH\"; C_INCLUDE_PATH=\"$(PREFIX)/include${C_INCLUDE_PATH:+:$C_INCLUDE_PATH}\"; export C_INCLUDE_PATH" ;
-  UNSET_C_INCLUDE_PATH on $(targets) = "C_INCLUDE_PATH=\"$OLD_C_INCLUDE_PATH\"; export C_INCLUDE_PATH; if [ ! -n \"$C_INCLUDE_PATH\" ]; then unset C_INCLUDE_PATH; fi; unset OLD_C_INCLUDE_PATH" ;
-
   SET_CPLUS_INCLUDE_PATH on $(targets) = "OLD_CPLUS_INCLUDE_PATH=\"$CPLUS_INCLUDE_PATH\"; CPLUS_INCLUDE_PATH=\"$(PREFIX)/include${CPLUS_INCLUDE_PATH:+:$CPLUS_INCLUDE_PATH}\"; export CPLUS_INCLUDE_PATH" ;
-  UNSET_CPLUS_INCLUDE_PATH on $(targets) = "CPLUS_INCLUDE_PATH=\"$OLD_CPLUS_INCLUDE_PATH\"; export CPLUS_INCLUDE_PATH; if [ ! -n \"$CPLUS_INCLUDE_PATH\" ]; then unset CPLUS_INCLUDE_PATH; fi; unset OLD_CPLUS_INCLUDE_PATH" ;
-
   SET_LIBRARY_PATH on $(targets) = "OLD_LIBRARY_PATH=\"$LIBRARY_PATH\"; LIBRARY_PATH=\"$(PREFIX)/lib${LIBRARY_PATH:+:$LIBRARY_PATH}\"; export LIBRARY_PATH" ;
-  UNSET_LIBRARY_PATH on $(targets) = "LIBRARY_PATH=\"$OLD_LIBRARY_PATH\"; export LIBRARY_PATH; if [ ! -n \"$LIBRARY_PATH\" ]; then unset LIBRARY_PATH; fi; unset OLD_LIBRARY_PATH" ;
 
   local gpp-tlimit = "$(INTRO_ROOT_DIR)/gcc/g++-tlimit" ;
   GPP_TLIMIT on $(targets) = "$(gpp-tlimit)" ;
 
   local version-prefix = "$(PREFIX)/$(version)" ;
   VERSION_PREFIX on $(targets) = $(version-prefix) ;
-
-  AWACS_ON_SUCCESS on $(targets) = ;
-  AWACS_ON_FAILURE on $(targets) = ;
-  if $(AWACS) {
-    AWACS_ON_SUCCESS on $(targets) = "/bin/echo -n \"GCC $(ver-raw) ($(triplet)) was successfully built.\" | $(AWACS)" ;
-    AWACS_ON_FAILURE on $(targets) = "/bin/echo -n \"GCC $(ver-raw) ($(triplet)) failed to build.\" | $(AWACS)" ;
-  }
 }
 actions make-gcc
 {
@@ -405,32 +393,23 @@ actions make-gcc
   $(SET_LIBRARY_PATH)
   ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
   if [ $? -ne 0 ]; then
-    $(UNSET_LIBRARY_PATH)
-    $(UNSET_CPLUS_INCLUDE_PATH)
-    $(UNSET_C_INCLUDE_PATH)
     $(UNSET_MPC_SYMLINK)
     $(UNSET_MPFR_SYMLINK)
     $(UNSET_GMP_SYMLINK)
-    echo "ERROR: failed to 'make' for the GCC build."
-    $(AWACS_ON_FAILURE)
+    echo "ERROR: failed to 'make' GCC $(VER_RAW) ($(TRIPLET))." 1>&2
+    /bin/echo -n "ERROR: failed to 'make' GCC $(VER_RAW) ($(TRIPLET))." | $(AWACS)
     exit 1
   fi
   ( cd "$(<:D)/build" && make install )
   if [ $? -ne 0 ]; then
-    $(UNSET_LIBRARY_PATH)
-    $(UNSET_CPLUS_INCLUDE_PATH)
-    $(UNSET_C_INCLUDE_PATH)
     $(UNSET_MPC_SYMLINK)
     $(UNSET_MPFR_SYMLINK)
     $(UNSET_GMP_SYMLINK)
-    echo "ERROR: failed to 'make install' for the GCC build."
-    $(AWACS_ON_FAILURE)
+    echo "ERROR: failed to 'make install' GCC $(VER_RAW) ($(TRIPLET))." 1>&2
+    /bin/echo -n "ERROR: failed to 'make install' GCC $(VER_RAW) ($(TRIPLET))." | $(AWACS)
     exit 1
   fi
   ( cd "$(<:D)/build" && rm -rf * )
-  $(UNSET_LIBRARY_PATH)
-  $(UNSET_CPLUS_INCLUDE_PATH)
-  $(UNSET_C_INCLUDE_PATH)
   $(UNSET_MPC_SYMLINK)
   $(UNSET_MPFR_SYMLINK)
   $(UNSET_GMP_SYMLINK)
@@ -441,8 +420,8 @@ actions make-gcc
     exit 1
   fi
   chmod +x "$(VERSION_PREFIX)/bin/g++-tlimit" || exit $?
+  /bin/echo -n "GCC $(VER_RAW) ($(TRIPLET)) was successfully built." | $(AWACS)
   [ -e "$(<)" ] && exit 1
-  $(AWACS_ON_SUCCESS)
   touch "$(<)"
 }
 
