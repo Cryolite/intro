@@ -95,7 +95,11 @@ actions download-icu4c
 {
   rm -f "$(<)" || exit $?
   if [ ! -f "$(TARBALL_GZ)" -a ! -f "$(TARBALL_TGZ)" -a ! -f "$(TARBALL_BZ2)" ]; then
-    ( cd "$(TARBALL_TGZ:D)" && wget --quiet -- '$(URL)' )
+    if [ -n "$(STREAM)" ]; then
+      ( cd "$(TARBALL_TGZ:D)" && wget -- '$(URL)' >> "$(STREAM)" 2>&1 )
+    else
+      ( cd "$(TARBALL_TGZ:D)" && wget --quiet -- '$(URL)' )
+    fi
     if [ $? -ne 0 ]; then
       echo "ERROR: failed to download ICU4C tarball." 1>&2
       /bin/echo -n "ERROR: failed to download ICU4C tarball." | $(AWACS)
@@ -152,14 +156,27 @@ actions expand-icu4c
   ( cd "$(INTRO_ROOT_DIR)" && rm -rf icu ) || exit $?
   [ -e "$(INTRO_ROOT_DIR)/icu" ] && exit 1
   if [ -f "$(TARBALL_GZ)" ]; then
-    tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" || { echo "ERROR: failed to expand ICU4C tarball." 1>&2; exit 1; }
+    if [ -n "$(STREAM)" ]; then
+      tar xzvf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" >> "$(STREAM)" 2>&1
+    else
+      tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)"
+    fi
   elif [ -f "$(TARBALL_TGZ)" ]; then
-    tar xzf "$(TARBALL_TGZ)" -C "$(TARBALL_TGZ:D)" || { echo "ERROR: failed to expand ICU4C tarball." 1>&2; exit 1; }
+    if [ -n "$(STREAM)" ]; then
+      tar xzvf "$(TARBALL_TGZ)" -C "$(TARBALL_TGZ:D)" >> "$(STREAM)" 2>&1
+    else
+      tar xzf "$(TARBALL_TGZ)" -C "$(TARBALL_TGZ:D)"
+    fi
   elif [ -f "$(TARBALL_BZ2)" ]; then
-    tar xjf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)" || { echo "ERROR: failed to expand ICU4C tarball." 1>&2; exit 1; }
+    if [ -n "$(STREAM)" ]; then
+      tar xjvf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)" >> "$(STREAM)" 2>&1
+    else
+      tar xjf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)"
+    fi
   else
     exit 1
   fi
+  [ $? -ne 0 ] && { echo "ERROR: failed to expand ICU4C tarball." 1>&2; exit 1; }
   [ -d "$(DEST_DIR)" ] || exit $?
   [ -x "$(DEST_DIR)/source/runConfigureICU" ] || exit $?
   [ -e "$(<)" ] && exit 1
@@ -263,26 +280,42 @@ actions make-icu4c
   [ `"$(CONFIGURE:D)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit $?
   { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
   $(SET_RUN_VARS)
-  ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
+  fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'runConfigureICU' ICU4C $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
     /bin/echo -n "ERROR: failed to 'runConfigureICU' ICU4C $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
   [ -f "$(<:D)/build/Makefile" ] || exit $?
-  ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
+  fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make' ICU4C $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
     /bin/echo -n "ERROR: failed to 'make' ICU4C $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
-  ( cd "$(<:D)/build" && make check )
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)/build" && make check >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)/build" && make check )
+  fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make check' ICU4C $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
     /bin/echo -n "ERROR: failed to 'make check' ICU4C $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
-  ( cd "$(<:D)/build" && make install )
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)/build" && make install >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)/build" && make install )
+  fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make install' ICU4C $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
     /bin/echo -n "ERROR: failed to 'make install' ICU4C $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)

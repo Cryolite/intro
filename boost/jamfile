@@ -190,7 +190,11 @@ actions make-boost
 {
   rm -f "$(<)" || exit $?
   [ -x "$(BOOST_ROOT)/b2" ] || exit $?
-  ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) $(OPTIONS) )
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(BOOST_ROOT)" && ./b2 -j$(CONCURRENCY) $(OPTIONS) >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) $(OPTIONS) )
+  fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to build Boost $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
     /bin/echo -n "ERROR: failed to build Boost $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)

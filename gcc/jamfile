@@ -62,7 +62,11 @@ actions download-gcc
 {
   rm -f "$(<)" || exit $?
   if [ ! -f "$(TARBALL_GZ)" -a ! -f "$(TARBALL_BZ2)" ]; then
-    ( cd "$(TARBALL_BZ2:D)" && wget --quiet -- '$(URL)' )
+    if [ -n "$(STREAM)" ]; then
+      ( cd "$(TARBALL_BZ2:D)" && wget -- '$(URL)' >> "$(STREAM)" 2>&1 )
+    else
+      ( cd "$(TARBALL_BZ2:D)" && wget --quiet -- '$(URL)' )
+    fi
     if [ $? -ne 0 ]; then
       echo "ERROR: failed to download GCC tarball." 1>&2
       /bin/echo -n "ERROR: failed to download GCC tarball." | $(AWACS)
@@ -118,12 +122,21 @@ actions expand-gcc
   ( cd "$(INTRO_ROOT_DIR)" && rm -rf gcc-$(VERSION) ) || exit $?
   [ -e "$(INTRO_ROOT_DIR)/gcc-$(VERSION)" ] && exit 1
   if [ -f "$(TARBALL_GZ)" ]; then
-    tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" || { echo "ERROR: failed to expand GCC tarball." 1>&2; exit 1; }
+    if [ -n "$(STREAM)" ]; then
+      tar xzvf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" >> "$(STREAM)" 2>&1
+    else
+      tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)"
+    fi
   elif [ -f "$(TARBALL_BZ2)" ]; then
-    tar xjf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)" || { echo "ERROR: failed to expand GCC tarball." 1>&2; exit 1; }
+    if [ -n "$(STREAM)" ]; then
+      tar xjvf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)" >> "$(STREAM)" 2>&1
+    else
+      tar xjf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)"
+    fi
   else
     exit 1
   fi
+  [ $? -ne 0 ] && { echo "ERROR: failed to expand GCC tarball." 1>&2; exit 1; }
   [ -d "$(DEST_DIR)" ] || exit $?
   [ -x "$(DEST_DIR)/configure" ] || exit $?
   [ -e "$(<)" ] && exit 1
@@ -298,7 +311,11 @@ actions configure-gcc
   $(SET_C_INCLUDE_PATH)
   $(SET_CPLUS_INCLUDE_PATH)
   $(SET_LIBRARY_PATH)
-  ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
+  fi
   if [ $? -ne 0 ]; then
     $(UNSET_MPC_SYMLINK)
     $(UNSET_MPFR_SYMLINK)
@@ -385,7 +402,11 @@ actions make-gcc
   $(SET_C_INCLUDE_PATH)
   $(SET_CPLUS_INCLUDE_PATH)
   $(SET_LIBRARY_PATH)
-  ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
+  fi
   if [ $? -ne 0 ]; then
     $(UNSET_MPC_SYMLINK)
     $(UNSET_MPFR_SYMLINK)
@@ -394,7 +415,11 @@ actions make-gcc
     /bin/echo -n "ERROR: failed to 'make' GCC $(VER_RAW) ($(TRIPLET))." | $(AWACS)
     exit 1
   fi
-  ( cd "$(<:D)/build" && make install )
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)/build" && make install >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)/build" && make install )
+  fi
   if [ $? -ne 0 ]; then
     $(UNSET_MPC_SYMLINK)
     $(UNSET_MPFR_SYMLINK)
