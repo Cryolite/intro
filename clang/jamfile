@@ -158,7 +158,11 @@ actions make-clang
 {
   rm -f "$(<)" || exit $?
   if [ ! -d "$(LLVM_DIR)" ]; then
-    ( cd "$(INTRO_ROOT_DIR)" && svn checkout http://llvm.org/svn/llvm-project/llvm/trunk llvm )
+    if [ -n "$(STREAM)" ]; then
+      ( cd "$(INTRO_ROOT_DIR)" && svn checkout http://llvm.org/svn/llvm-project/llvm/trunk llvm >> "$(STREAM)" 2>&1 )
+    else
+      ( cd "$(INTRO_ROOT_DIR)" && svn checkout http://llvm.org/svn/llvm-project/llvm/trunk llvm )
+    fi
     if [ $? -ne 0 ]; then
       ( cd "$(INTRO_ROOT_DIR)" && rm -rf llvm )
       echo "ERROR: failed to 'svn checkout' LLVM repository." 1>&2
@@ -171,7 +175,11 @@ actions make-clang
   [ `"$(CONFIG_SUB)" $(TRIPLET)` = $(TRIPLET) ] || exit $?
   [ -x "$(CONFIGURE)" ] || exit $?
   if [ ! -d "$(CLANG_DIR)" ]; then
-    ( cd "$(INTRO_ROOT_DIR)/llvm/tools" && svn checkout http://llvm.org/svn/llvm-project/cfe/trunk clang )
+    if [ -n "$(STREAM)" ]; then
+      ( cd "$(INTRO_ROOT_DIR)/llvm/tools" && svn checkout http://llvm.org/svn/llvm-project/cfe/trunk clang >> "$(STREAM)" 2>&1 )
+    else
+      ( cd "$(INTRO_ROOT_DIR)/llvm/tools" && svn checkout http://llvm.org/svn/llvm-project/cfe/trunk clang )
+    fi
     if [ $? -ne 0 ]; then
       ( cd "$(INTRO_ROOT_DIR)/llvm/tools" && rm -rf clang )
       echo "ERROR: failed to 'svn checkout' Clang repository." 1>&2
@@ -180,13 +188,21 @@ actions make-clang
     fi
     [ -d "$(CLANG_DIR)" ] || exit $?
   fi
-  ( cd "$(LLVM_DIR)" && svn update )
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(LLVM_DIR)" && svn update >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(LLVM_DIR)" && svn update )
+  fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'svn update' LLVM repository." 1>&2
     /bin/echo -n "ERROR: failed to 'svn update' LLVM repository." | $(AWACS)
     exit 1
   fi
-  ( cd "$(CLANG_DIR)" && svn update )
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(CLANG_DIR)" && svn update >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(CLANG_DIR)" && svn update )
+  fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'svn update' Clang repository." 1>&2
     /bin/echo -n "ERROR: failed to 'svn update' Clang repository." | $(AWACS)
@@ -196,25 +212,41 @@ actions make-clang
   [ $? -eq 0 ] || $?
   { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
   $(SET_RUN_VARS)
-  ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
+  fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'configure' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
     /bin/echo -n "ERROR: failed to 'configure' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
   [ -f "$(<:D)/build/Makefile" ] || exit $?
-  ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
+  fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
     /bin/echo -n "ERROR: failed to 'make' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
-  ( cd "$(<:D)/build" && make check )
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)/build" && make check >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)/build" && make check )
+  fi
   if [ $? -ne 0 ]; then
     echo "WARNING: failed to 'make check' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
     /bin/echo -n "WARNING: failed to 'make check' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
   fi
-  ( cd "$(<:D)/build" && make install )
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)/build" && make install >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)/build" && make install )
+  fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make install' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
     /bin/echo -n "ERROR: failed to 'make install' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)

@@ -51,7 +51,8 @@ local boost-version = 1.47 ;
 # ------------------
 
 # Configure gcc (default version).
-using gcc : : /usr/bin/g++ ;
+#ECHO "using gcc   :       : /usr/bin/g++ ;" ;
+#using gcc : : /usr/bin/g++ ;
 
 # Configure specific gcc version, giving alternative name to use.
 for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
@@ -138,7 +139,7 @@ for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
 
 local mpi-options ;
 for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
-  local ver = [ regex.match "^$(prefix)/([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : $(ph) : 1 ] ;
+  local ver = [ regex.match "^$(prefix)/([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : "$(ph)" : 1 ] ;
   if $(ver) {
     local result = [ SHELL "which \"$(ph)/bin/mpic++\" >/dev/null 2>/dev/null; if [ $? -eq 0 ]; then echo INUMIMI; fi" ] ;
     if [ MATCH ".*(INUMIMI).*" : "$(result)" ] {

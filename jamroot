@@ -13,6 +13,7 @@ local mpi ;
 local clang ;
 local concurrency ;
 local awacs ;
+local stream ;
 for local argv in [ modules.peek : ARGV ] {
   local tmp = ;
   tmp = [ regex.match "^--triplet=(.*)$" : $(argv) : 1 ] ;
@@ -108,6 +109,13 @@ for local argv in [ modules.peek : ARGV ] {
     }
     awacs = $(tmp) ;
   }
+  tmp = [ regex.match "^--enable-stream=(.*)$" : $(argv) : 1 ] ;
+  if $(tmp) {
+    if $(stream) {
+      errors.error "ERROR: duplicate '--enable-stream' option." ;
+    }
+    stream = $(tmp) ;
+  }
 }
 
 
@@ -159,6 +167,15 @@ for local argv in [ modules.peek : ARGV ] {
   else {
     constant AWACS : "cat > /dev/null" ;
     ECHO awacs... N/A ;
+  }
+
+  if $(stream) {
+    constant STREAM : $(stream) ;
+    ECHO stream... $(stream) ;
+  }
+  else {
+    constant STREAM : "" ;
+    ECHO stream... N/A ;
   }
 }
 
@@ -217,84 +234,18 @@ for local i in $(gcc-versions) {
     errors.error "ERROR: failed to extract GCC versions." ;
   }
 }
-local gcc-builtin = $(gcc-versions[1]) ;
-constant GCC_BUILTIN : $(gcc-builtin) ;
+#local gcc-builtin = $(gcc-versions[1]) ;
+#constant GCC_BUILTIN : $(gcc-builtin) ;
 local gcc-current = $(gcc-versions[2]) ;
 local gcc-previous = $(gcc-versions[3]) ;
 local gcc-oldest = $(gcc-versions[4]) ;
 local gcc-snapshot = $(gcc-versions[5]) ;
-gcc-versions = ;
-local gcc-builtin-minor = [ regex.match "^([0123456789]+\\.[0123456789]+)(\\.[0123456789]+)?$" : $(gcc-builtin) : 1 ] ;
-local gcc-current-minor = [ regex.match "^([0123456789]+\\.[0123456789]+)(\\.[0123456789]+)?$" : $(gcc-current) : 1 ] ;
-if $(gcc-current-minor) = $(gcc-builtin-minor) {
-  if $(gcc-current) = $(gcc-builtin) {
-    gcc-current = ;
-  }
-  else {
-    gcc-builtin = ;
-    gcc-versions += $(gcc-current) ;
-  }
-}
-else {
-  gcc-versions += $(gcc-current) ;
-}
-local gcc-previous-minor = [ regex.match "^([0123456789]+\\.[0123456789]+)(\\.[0123456789]+)?$" : $(gcc-previous) : 1 ] ;
-if $(gcc-previous-minor) = $(gcc-builtin-minor) {
-  if $(gcc-previous) = $(gcc-builtin) {
-    gcc-previous = ;
-  }
-  else {
-    gcc-builtin = ;
-    gcc-versions += $(gcc-previous) ;
-  }
-}
-else {
-  gcc-versions += $(gcc-previous) ;
-}
-local gcc-oldest-minor = [ regex.match "^([0123456789]+\\.[0123456789]+)(\\.[0123456789]+)?$" : $(gcc-oldest) : 1 ] ;
-if $(gcc-oldest-minor) = $(gcc-builtin-minor) {
-  if $(gcc-oldest) = $(gcc-builtin) {
-    gcc-oldest = ;
-  }
-  else {
-    gcc-builtin = ;
-    gcc-versions += $(gcc-oldest) ;
-  }
-}
-else {
-  gcc-versions += $(gcc-oldest) ;
-}
-gcc-versions += $(gcc-snapshot) ;
-if $(gcc-builtin) {
-  gcc-versions += $(gcc-builtin) ;
-}
-if $(gcc-builtin) {
-  ECHO GCC builtin... $(gcc-builtin) ;
-}
-else {
-  ECHO GCC builtin... (duplicate) ;
-}
-if $(gcc-current) {
-  ECHO GCC current... $(gcc-current) ;
-}
-else {
-  ECHO GCC current... (the same as the built-in one) ;
-}
-if $(gcc-previous) {
-  ECHO GCC previous... $(gcc-previous) ;
-}
-else {
-  ECHO GCC previous... (the same as the built-in one) ;
-}
-if $(gcc-oldest) {
-  ECHO GCC oldest... $(gcc-oldest) ;
-}
-else {
-  ECHO GCC oldest... (the same as the built-in one) ;
-}
+ECHO GCC current... $(gcc-current) ;
+ECHO GCC previous... $(gcc-previous) ;
+ECHO GCC oldest... $(gcc-oldest) ;
 ECHO GCC snapshot... $(gcc-snapshot) ;
-feature gcc        : unspecified $(gcc-versions) : propagated            ;
-feature gcc-hidden : [ feature.values <gcc> ]    : propagated incidental ;
+feature gcc        : unspecified $(gcc-current) $(gcc-previous) $(gcc-oldest) $(gcc-snapshot) : propagated            ;
+feature gcc-hidden : [ feature.values <gcc> ]                                                 : propagated incidental ;
 
 ECHO "Extracting ICU4C latest version, patience..." ;
 local icu4c = [ SHELL "\"$(INTRO_ROOT_DIR)/icu4c-latest.sh\" || /bin/echo -n 'error'" ] ;
@@ -347,71 +298,41 @@ else {
 }
 
 
-if $(gcc-builtin) {
-  alias builtin
-    : gmp//install/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)
-      mpfr//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)
-      boost//install/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
-    : <triplet>$(triplet)
-      <multilib>$(multilib)
-      <gcc>$(gcc-builtin)
-    ;
+if $(triplet) = i686-pc-cygwin && $(clang) {
+  errors.error "Sorry, but there is a problem in building Clang by the GCC current release on i686-pc-cygwin." ;
 }
-else {
-  alias builtin ;
-}
-explicit builtin ;
-
-if $(gcc-current) {
-  if $(triplet) = i686-pc-cygwin && $(clang) {
-    errors.error "Sorry, but there is a problem in building Clang by the GCC current release on i686-pc-cygwin." ;
-  }
-  alias current
-    : gcc//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
-      gmp//install/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)
-      mpfr//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)
-      boost//install/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
-      $(clang)
-    : <triplet>$(triplet)
-      <multilib>$(multilib)
-      <gcc>$(gcc-current)
-    ;
-}
-else {
-  alias current : builtin ;
-}
+alias current
+  : gcc//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
+    gmp//install/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)
+    mpfr//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)
+    boost//install/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
+    $(clang)
+  : <triplet>$(triplet)
+    <multilib>$(multilib)
+    <gcc>$(gcc-current)
+  ;
 explicit current ;
 
-if $(gcc-previous) {
-  alias previous
-    : gcc//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
-      gmp//install/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)
-      mpfr//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)
-      boost//install/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
-    : <triplet>$(triplet)
-      <multilib>$(multilib)
-      <gcc>$(gcc-previous)
-    ;
-}
-else {
-  alias previous : builtin ;
-}
+alias previous
+  : gcc//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
+    gmp//install/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)
+    mpfr//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)
+    boost//install/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
+  : <triplet>$(triplet)
+    <multilib>$(multilib)
+    <gcc>$(gcc-previous)
+  ;
 explicit previous ;
 
-if $(gcc-oldest) {
-  alias oldest
-    : gcc//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
-      gmp//install/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)
-      mpfr//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)
-      boost//install/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
-    : <triplet>$(triplet)
-      <multilib>$(multilib)
-      <gcc>$(gcc-oldest)
-    ;
-}
-else {
-  alias oldest : builtin ;
-}
+alias oldest
+  : gcc//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
+    gmp//install/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)
+    mpfr//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)
+    boost//install/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
+  : <triplet>$(triplet)
+    <multilib>$(multilib)
+    <gcc>$(gcc-oldest)
+  ;
 explicit oldest ;
 
 alias snapshot
