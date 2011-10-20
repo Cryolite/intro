@@ -14,7 +14,18 @@
 
 project site-config ;
 
+import errors ;
+#import mpi ;
 import modules ;
+import python ;
+
+if ! $(mpi.configured) {
+  #errors.error "ERROR: MPI is not configured." ;
+}
+
+if ! $(python.configure) {
+  #errors.error "ERROR: Python is not configured." ;
+}
 
 local home = [ modules.peek : HOME ] ;
 
@@ -153,7 +164,7 @@ for local gcc-version in $(gcc-current) $(gcc-previous) $(gcc-oldest) $(gcc-snap
 
 alias boost_headers : /boost//headers ;
 
-for local lib-name in date_time math_c99 math_c99f math_c99l math_tr1 math_tr1f math_tr1l prg_exec_monitor program_options python random serialization signals test_exec_monitor unit_test_framework
+for local lib-name in date_time exception math_c99 math_c99f math_c99l math_tr1 math_tr1f math_tr1l prg_exec_monitor program_options random serialization signals test_exec_monitor unit_test_framework
 {
   alias boost_$(lib-name)
     : /boost//$(lib-name)
@@ -228,13 +239,24 @@ alias boost_iostreams
 alias boost_mpi
   : /boost//mpi
   : <use>boost_headers
-    <use>/mpi//mpi
     <use>stdc++
+    <use>/mpi//mpi
     <use>boost_serialization
   :
   : <link>static:<library>stdc++
+    <library>/mpi//mpi
     <link>static:<library>boost_serialization
     <link>shared:<xdll-path>"$(prefix)/boost/latest/stage/lib"
+  ;
+
+alias boost_python
+  : /boost//python
+  : <use>boost_headers
+    <use>stdc++
+    <use>/python//python
+  :
+  : <link>static:<library>stdc++
+    <library>/python//python
   ;
 
 alias boost_regex
@@ -244,13 +266,11 @@ alias boost_regex
     <use>icudt
     <use>icuuc
     <use>icuin
-    <use>icutu
   :
   : <link>static:<library>stdc++
     <link>static:<library>icudt
     <link>static:<library>icuuc
     <link>static:<library>icuin
-    <link>static:<library>icutu
     <link>shared:<xdll-path>"$(prefix)/boost/latest/stage/lib"
   ;
 
