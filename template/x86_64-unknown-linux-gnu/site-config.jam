@@ -25,7 +25,7 @@ local gcc-current = 4.6.1 ;
 local gcc-previous = 4.5.3 ;
 local gcc-oldest = 4.4.5 ;
 local gcc-snapshot = 4.7.0 ;
-local clang-gcc-version = 4.5.3 ;
+local clang-gcc-version = $(gcc-current) ;
 
 
 alias gcc_s : : <toolset>gcc <toolset-gcc:version>$(gcc-builtin) ;
