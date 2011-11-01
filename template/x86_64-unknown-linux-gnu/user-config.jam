@@ -51,8 +51,8 @@ local boost-version = 1.47 ;
 # ------------------
 
 # Configure gcc (default version).
-#ECHO "using gcc   :       : /usr/bin/g++ ;" ;
-#using gcc : : /usr/bin/g++ ;
+ECHO "using gcc   :       : /usr/bin/g++ ;" ;
+using gcc : : /usr/bin/g++ ;
 
 # Configure specific gcc version, giving alternative name to use.
 for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
@@ -71,14 +71,26 @@ for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
 # Clang configuration.
 # --------------------
 
-for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
-  local ver = [ regex.match "^$(prefix)/([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : "$(ph)" : 1 ] ;
-  if $(ver) {
-    local result = [ SHELL "which \"$(ph)/bin/clang++-wrapper\" >/dev/null 2>/dev/null; if [ $? -eq 0 ]; then echo INUMIMI; fi" ] ;
-    if [ MATCH ".*(INUMIMI).*" : "$(result)" ] {
-      ECHO "using clang :       : \"$(ph)/bin/clang++-tlimit\" ;" ;
-      using clang : : "$(ph)/bin/clang++-tlimit" ;
+{
+  local vers = "" ;
+  for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
+    local ver = [ regex.match "^$(prefix)/([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : "$(ph)" : 1 ] ;
+    if "$(ver)" {
+      local result = [ SHELL "which \"$(ph)/bin/clang++-wrapper\" >/dev/null 2>/dev/null; if [ $? -eq 0 ]; then echo INUMIMI; fi" ] ;
+      if [ MATCH ".*(INUMIMI).*" : "$(result)" ] {
+        vers = "$(vers)$(ver)\n" ;
+      }
     }
+  }
+  if "$(vers)" {
+    local ver = [ SHELL "/bin/echo -n '$(vers)' | sort --version-sort | tail -n 1" ] ;
+    ver = [ regex.match "^([0123456789]+\\.[0123456789]+\\.[0123456789]+)" : "$(ver)" : 1 ] ;
+    local result = [ SHELL "which \"$(prefix)/$(ver)/bin/clang++-wrapper\" >/dev/null 2>/dev/null; if [ $? -eq 0 ]; then echo INUMIMI; fi" ] ;
+    if ! [ MATCH ".*(INUMIMI).*" : "$(result)" ] {
+      errors.error "A logic error." ;
+    }
+    ECHO "using clang :       : \"$(prefix)/$(ver)/bin/clang++-tlimit\" ;" ;
+    using clang : : "$(prefix)/$(ver)/bin/clang++-tlimit" ;
   }
 }
 
