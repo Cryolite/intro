@@ -1,15 +1,15 @@
 # GCC 4.4.5 (default)
 # GCC 4.5.3
-# GCC 4.6.1
-# GCC 4.7.0 (20110820)
-# Clang 3.0 (SVN) on GCC 4.5.3
+# GCC 4.6.2
+# GCC 4.7.0 (20111029)
+# Clang 3.1 (SVN) on GCC 4.6.2
 # GMP 5.0.2
-# MPFR 3.0.1
+# MPFR 3.1.0
 # zlib 1.2.5
 # bzip2 1.0.6
 # ICU4C 4.8.1
 # OpenSSL 1.0.0d
-# OpenMPI 1.4.3
+# OpenMPI 1.4.4
 # Boost 1.47.0
 
 project site-config ;
@@ -17,7 +17,9 @@ project site-config ;
 import errors ;
 #import mpi ;
 import modules ;
+import path ;
 import python ;
+import regex ;
 
 if ! $(mpi.configured) {
   #errors.error "ERROR: MPI is not configured." ;
@@ -32,11 +34,7 @@ local home = [ modules.peek : HOME ] ;
 # Modify the following lines.
 local prefix = "$(home)/local" ;
 local gcc-builtin = 4.4.5 ;
-local gcc-current = 4.6.1 ;
-local gcc-previous = 4.5.3 ;
-local gcc-oldest = 4.4.5 ;
-local gcc-snapshot = 4.7.0 ;
-local clang-gcc-version = $(gcc-current) ;
+local clang-gcc-version = 4.6.2 ;
 
 
 alias gcc_s : : <toolset>gcc <toolset-gcc:version>$(gcc-builtin) ;
@@ -130,36 +128,48 @@ local rule declare5 ( target-name : sources * : gcc-version : lib-name )
   lib $(target-name) :            : <toolset>gcc <toolset-gcc:version>$(gcc-version) <link>shared <runtime-link>shared <address-model>64 <name>$(lib-name) <search>"$(prefix)/$(gcc-version)/lib64" <use>$(sources) ;
 }
 
-for local gcc-version in $(gcc-current) $(gcc-previous) $(gcc-oldest) $(gcc-snapshot) {
-  alias gcc_s : : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>static                   ;
-  alias gcc_s : : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>static <address-model>32 ;
-  alias gcc_s : : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>static <address-model>64 ;
-  alias gcc_s : : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>shared                   : : <xdll-path>"$(prefix)/$(gcc-version)/lib"   ;
-  alias gcc_s : : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>shared <address-model>32 : : <xdll-path>"$(prefix)/$(gcc-version)/lib32" ;
-  alias gcc_s : : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>shared <address-model>64 : : <xdll-path>"$(prefix)/$(gcc-version)/lib64" ;
+{
+  local gcc-vers ;
+  for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
+    local gcc-ver = [ regex.match "^$(prefix)/([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : "$(ph)" : 1 ] ;
+    if $(gcc-ver) {
+      local result = [ SHELL "which \"$(ph)/bin/g++\" >/dev/null 2>/dev/null; if [ $? -eq 0 ]; then echo INUMIMI; fi" ] ;
+      if [ MATCH ".*(INUMIMI).*" : "$(result)" ] {
+        gcc-vers += $(gcc-ver) ;
+      }
+    }
+  }
+  for local gcc-version in $(gcc-vers) {
+    alias gcc_s : : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>static                   ;
+    alias gcc_s : : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>static <address-model>32 ;
+    alias gcc_s : : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>static <address-model>64 ;
+    alias gcc_s : : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>shared                   : : <xdll-path>"$(prefix)/$(gcc-version)/lib"   ;
+    alias gcc_s : : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>shared <address-model>32 : : <xdll-path>"$(prefix)/$(gcc-version)/lib32" ;
+    alias gcc_s : : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>shared <address-model>64 : : <xdll-path>"$(prefix)/$(gcc-version)/lib64" ;
 
-  alias stdc++ : gcc_s : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>static                   ;
-  alias stdc++ : gcc_s : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>static <address-model>32 ;
-  alias stdc++ : gcc_s : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>static <address-model>64 ;
-  alias stdc++ :       : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>shared                   <use>gcc_s : : <xdll-path>"$(prefix)/$(gcc-version)/lib"   ;
-  alias stdc++ :       : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>shared <address-model>32 <use>gcc_s : : <xdll-path>"$(prefix)/$(gcc-version)/lib32" ;
-  alias stdc++ :       : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>shared <address-model>64 <use>gcc_s : : <xdll-path>"$(prefix)/$(gcc-version)/lib64" ;
+    alias stdc++ : gcc_s : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>static                   ;
+    alias stdc++ : gcc_s : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>static <address-model>32 ;
+    alias stdc++ : gcc_s : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>static <address-model>64 ;
+    alias stdc++ :       : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>shared                   <use>gcc_s : : <xdll-path>"$(prefix)/$(gcc-version)/lib"   ;
+    alias stdc++ :       : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>shared <address-model>32 <use>gcc_s : : <xdll-path>"$(prefix)/$(gcc-version)/lib32" ;
+    alias stdc++ :       : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>shared <address-model>64 <use>gcc_s : : <xdll-path>"$(prefix)/$(gcc-version)/lib64" ;
 
-  declare4 gmp  :     : $(gcc-version) : gmp  ;
-  declare4 mpfr : gmp : $(gcc-version) : mpfr ;
-  declare4 z    :     : $(gcc-version) : z    ;
-  declare4 bz2  :     : $(gcc-version) : bz2  ;
+    declare4 gmp  :     : $(gcc-version) : gmp  ;
+    declare4 mpfr : gmp : $(gcc-version) : mpfr ;
+    declare4 z    :     : $(gcc-version) : z    ;
+    declare4 bz2  :     : $(gcc-version) : bz2  ;
 
-  declare5 icudt :                          : $(gcc-version) : icudata ;
-  declare5 icuuc : stdc++ icudt             : $(gcc-version) : icuuc   ;
-  declare5 icuin : stdc++ icudt icuuc       : $(gcc-version) : icui18n ;
-  declare5 icuio : stdc++ icudt icuuc icuin : $(gcc-version) : icuio   ;
-  declare5 icule : stdc++ icudt icuuc       : $(gcc-version) : icule   ;
-  declare5 iculx : stdc++ icudt icuuc icule : $(gcc-version) : iculx   ;
-  declare5 icutu : stdc++ icudt icuuc icuin : $(gcc-version) : icutu   ;
+    declare5 icudt :                          : $(gcc-version) : icudata ;
+    declare5 icuuc : stdc++ icudt             : $(gcc-version) : icuuc   ;
+    declare5 icuin : stdc++ icudt icuuc       : $(gcc-version) : icui18n ;
+    declare5 icuio : stdc++ icudt icuuc icuin : $(gcc-version) : icuio   ;
+    declare5 icule : stdc++ icudt icuuc       : $(gcc-version) : icule   ;
+    declare5 iculx : stdc++ icudt icuuc icule : $(gcc-version) : iculx   ;
+    declare5 icutu : stdc++ icudt icuuc icuin : $(gcc-version) : icutu   ;
 
-  declare4 crypto :        : $(gcc-version) : crypto ;
-  declare4 ssl    : crypto : $(gcc-version) : ssl    ;
+    declare4 crypto :        : $(gcc-version) : crypto ;
+    declare4 ssl    : crypto : $(gcc-version) : ssl    ;
+  }
 }
 
 alias boost_headers : /boost//headers ;
