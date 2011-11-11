@@ -234,18 +234,24 @@ for local i in $(gcc-versions) {
     errors.error "ERROR: failed to extract GCC versions." ;
   }
 }
-#local gcc-builtin = $(gcc-versions[1]) ;
-#constant GCC_BUILTIN : $(gcc-builtin) ;
+local gcc-builtin = $(gcc-versions[1]) ;
+constant GCC_BUILTIN : $(gcc-builtin) ;
 local gcc-current = $(gcc-versions[2]) ;
 local gcc-previous = $(gcc-versions[3]) ;
 local gcc-oldest = $(gcc-versions[4]) ;
 local gcc-snapshot = $(gcc-versions[5]) ;
+ECHO GCC builtin... $(gcc-builtin) ;
 ECHO GCC current... $(gcc-current) ;
 ECHO GCC previous... $(gcc-previous) ;
 ECHO GCC oldest... $(gcc-oldest) ;
 ECHO GCC snapshot... $(gcc-snapshot) ;
-feature gcc        : unspecified $(gcc-current) $(gcc-previous) $(gcc-oldest) $(gcc-snapshot) : propagated            ;
-feature gcc-hidden : [ feature.values <gcc> ]                                                 : propagated incidental ;
+if $(gcc-builtin) in $(gcc-current) $(gcc-previous) $(gcc-oldest) $(gcc-snapshot) {
+  feature gcc      : unspecified                $(gcc-current) $(gcc-previous) $(gcc-oldest) $(gcc-snapshot) : propagated            ;
+}
+else {
+  feature gcc      : unspecified $(gcc-builtin) $(gcc-current) $(gcc-previous) $(gcc-oldest) $(gcc-snapshot) : propagated            ;
+}
+feature gcc-hidden : [ feature.values <gcc> ]                                                                : propagated incidental ;
 
 ECHO "Extracting ICU4C latest version, patience..." ;
 local icu4c = [ SHELL "\"$(INTRO_ROOT_DIR)/icu4c-latest.sh\" || /bin/echo -n 'error'" ] ;
@@ -301,47 +307,98 @@ else {
 if $(triplet) = i686-pc-cygwin && $(clang) {
   errors.error "Sorry, but there is a problem in building Clang by the GCC current release on i686-pc-cygwin." ;
 }
-alias current
-  : gcc//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
-    gmp//install/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)
-    mpfr//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)
-    boost//install/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
-    $(clang)
-  : <triplet>$(triplet)
-    <multilib>$(multilib)
-    <gcc>$(gcc-current)
-  ;
-explicit current ;
 
-alias previous
-  : gcc//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
-    gmp//install/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)
+alias builtin
+  : gmp//install/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)
     mpfr//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)
     boost//install/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
   : <triplet>$(triplet)
     <multilib>$(multilib)
-    <gcc>$(gcc-previous)
+    <gcc>$(gcc-builtin)
   ;
-explicit previous ;
+explicit builtin ;
 
-alias oldest
-  : gcc//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
-    gmp//install/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)
-    mpfr//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)
-    boost//install/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
-  : <triplet>$(triplet)
-    <multilib>$(multilib)
-    <gcc>$(gcc-oldest)
-  ;
-explicit oldest ;
+if $(gcc-current) = $(gcc-builtin) {
+  notfile current : @warning-current ;
+  actions warning-current
+  {
+    echo "WARNING: the build of GCC current will be skipped because GCC current version is equal to the version of built-in GCC." 1>&2
+  }
+  explicit current ;
+}
+else {
+  alias current
+    : gcc//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
+      gmp//install/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)
+      mpfr//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)
+      boost//install/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
+      $(clang)
+    : <triplet>$(triplet)
+      <multilib>$(multilib)
+      <gcc>$(gcc-current)
+    ;
+  explicit current ;
+}
 
-alias snapshot
-  : gcc//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
-    gmp//install/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)
-    mpfr//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)
-    boost//install/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
-  : <triplet>$(triplet)
-    <multilib>$(multilib)
-    <gcc>$(gcc-snapshot)
-  ;
-explicit snapshot ;
+if $(gcc-previous) = $(gcc-builtin) {
+  notfile previous : @warning-previous ;
+  actions warning-previous
+  {
+    echo "WARNING: the build of GCC previous will be skipped because GCC previous version is equal to the version of built-in GCC." 1>&2
+  }
+  explicit previous ;
+}
+else {
+  alias previous
+    : gcc//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
+      gmp//install/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)
+      mpfr//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)
+      boost//install/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
+    : <triplet>$(triplet)
+      <multilib>$(multilib)
+      <gcc>$(gcc-previous)
+    ;
+  explicit previous ;
+}
+
+if $(gcc-oldest) = $(gcc-builtin) {
+  notfile oldest : @warning-oldest ;
+  actions warning-oldest
+  {
+    echo "WARNING: the build of GCC oldest will be skipped because GCC oldest version is equal to the version of built-in GCC." 1>&2
+  }
+  explicit oldest ;
+}
+else {
+  alias oldest
+    : gcc//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
+      gmp//install/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)
+      mpfr//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)
+      boost//install/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
+    : <triplet>$(triplet)
+      <multilib>$(multilib)
+      <gcc>$(gcc-oldest)
+    ;
+  explicit oldest ;
+}
+
+if $(gcc-snapshot) = $(gcc-builtin) {
+  notfile snapshot : @warning-snapshot ;
+  actions warning-snapshot
+  {
+    echo "WARNING: the build of GCC snapshot will be skipped because GCC snapshot version is equal to the version of built-in GCC." 1>&2
+  }
+  explicit snapshot ;
+}
+else {
+  alias snapshot
+    : gcc//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
+      gmp//install/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)
+      mpfr//install/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)
+      boost//install/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
+    : <triplet>$(triplet)
+      <multilib>$(multilib)
+      <gcc>$(gcc-snapshot)
+    ;
+  explicit snapshot ;
+}

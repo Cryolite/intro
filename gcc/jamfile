@@ -484,7 +484,7 @@ rule install-req ( properties * )
   }
 
   local gcc = [ feature.get-values <gcc> : $(properties) ] ;
-  if [ SHELL "{ ( LC_ALL=C gcc -v 2>&1 ) | grep -Eq '^gcc version $(gcc)'; } && /bin/echo -n 'yes'" ] = yes {
+  if [ SHELL "{ ( LC_ALL=C gcc -v 2>&1 ) | grep -Eq '^gcc version $(gcc)'; } && /bin/echo -n 'INUMIMI'" ] = INUMIMI {
     result = <build>no ;
   }
 

@@ -232,8 +232,10 @@ rule make-gmp ( targets * : sources * : properties * )
     OPTIONS on $(targets) += --enable-shared ;
   }
 
-  OPTIONS on $(targets) += CC=\"$(PREFIX)/$(gcc)/bin/gcc\" ;
-  OPTIONS on $(targets) += CXX=\"$(PREFIX)/$(gcc)/bin/g++\" ;
+  if $(gcc) != $(GCC_BUILTIN) {
+    OPTIONS on $(targets) += CC=\"$(PREFIX)/$(gcc)/bin/gcc\" ;
+    OPTIONS on $(targets) += CXX=\"$(PREFIX)/$(gcc)/bin/g++\" ;
+  }
 
   SET_RUN_VARS on $(targets) = ;
   if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32 {
