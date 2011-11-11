@@ -58,7 +58,7 @@ local boost-version = 1.47 ;
 for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
   local ver = [ regex.match "^$(prefix)/([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : "$(ph)" : 1 ] ;
   if $(ver) {
-    local result = [ SHELL "which \"$(ph)/bin/g++\" >/dev/null 2>/dev/null; if [ $? -eq 0 ]; then echo INUMIMI; fi" ] ;
+    local result = [ SHELL "which \"$(ph)/bin/g++\" >/dev/null 2>/dev/null; if [ $? -eq 0 ]; then /bin/echo -n \"INUMIMI\"; fi" ] ;
     if [ MATCH ".*(INUMIMI).*" : "$(result)" ] {
       ECHO "using gcc   : $(ver) : \"$(ph)/bin/g++-tlimit\" ;" ;
       using gcc : $(ver) : "$(ph)/bin/g++-tlimit" ;
@@ -74,7 +74,7 @@ for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
 for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
   local ver = [ regex.match "^$(prefix)/([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : "$(ph)" : 1 ] ;
   if $(ver) {
-    local result = [ SHELL "which \"$(ph)/bin/clang++-wrapper\" >/dev/null 2>/dev/null; if [ $? -eq 0 ]; then echo INUMIMI; fi" ] ;
+    local result = [ SHELL "which \"$(ph)/bin/clang++-wrapper\" >/dev/null 2>/dev/null; if [ $? -eq 0 ]; then /bin/echo -n \"INUMIMI\"; fi" ] ;
     if [ MATCH ".*(INUMIMI).*" : "$(result)" ] {
       ECHO "using clang :       : \"$(ph)/bin/clang++-tlimit\" ;" ;
       using clang : : "$(ph)/bin/clang++-tlimit" ;
@@ -141,7 +141,7 @@ local mpi-options ;
 for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
   local ver = [ regex.match "^$(prefix)/([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : "$(ph)" : 1 ] ;
   if $(ver) {
-    local result = [ SHELL "which \"$(ph)/bin/mpic++\" >/dev/null 2>/dev/null; if [ $? -eq 0 ]; then echo INUMIMI; fi" ] ;
+    local result = [ SHELL "which \"$(ph)/bin/mpic++\" >/dev/null 2>/dev/null; if [ $? -eq 0 ]; then /bin/echo -n \"INUMIMI\"; fi" ] ;
     if [ MATCH ".*(INUMIMI).*" : "$(result)" ] {
       local cxxflags = [ SHELL "\"$(ph)/bin/mpic++\" -showme:compile | tr --delete '\n'" ] ;
       cxxflags = [ regex.split "$(cxxflags)" " +" ] ;
