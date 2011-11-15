@@ -255,7 +255,7 @@ feature gcc-hidden : [ feature.values <gcc> ]                                   
 
 ECHO "Extracting ICU4C latest version, patience..." ;
 local icu4c = [ SHELL "\"$(INTRO_ROOT_DIR)/icu4c-latest.sh\" || /bin/echo -n 'error'" ] ;
-if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(icu4c) : 1 ] {
+if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)?)$" : $(icu4c) : 1 ] {
   ECHO $(icu4c) ;
 }
 else {
