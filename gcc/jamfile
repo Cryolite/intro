@@ -49,11 +49,18 @@ rule download-gcc ( targets * : sources * : properties * )
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
   local version = [ feature.get-values <gcc> : $(properties) ] ;
+  #local url_prefix = "http://gcc.igor.onlinedirect.bg" ;            # Bulgaria
+  #local url_prefix = "http://gcc.parentingamerica.com" ;            # Canada
+  #local url_prefix = "http://gcc.skazkaforyou.com" ;                # Canada
+  #local url_prefix = "http://fileboar.com/gcc" ;                    # US
+  #local url_prefix = "http://gcc.petsads.us" ;                      # US +
+  #local url_prefix = "http://mirrors-us.seosue.com/gcc" ;           # US
+  local url_prefix = "http://ftp.tsukuba.wide.ad.jp/software/gcc" ; # Japan +++
   if [ regex.match "^([0123456789]+\\.[0123456789]+-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789])$" : $(version) : 1 ] {
-    URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/gcc/snapshots/$(version)/gcc-$(version).tar.bz2 ;
+    URL on $(targets) = "$(url_prefix)/snapshots/$(version)/gcc-$(version).tar.bz2" ;
   }
   else {
-    URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/gcc/releases/gcc-$(version)/gcc-$(version).tar.bz2 ;
+    URL on $(targets) = "$(url_prefix)/releases/gcc-$(version)/gcc-$(version).tar.bz2" ;
   }
   TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/gcc-$(version).tar.gz ;
   TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/gcc-$(version).tar.bz2 ;

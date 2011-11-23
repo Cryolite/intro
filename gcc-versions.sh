@@ -1,7 +1,12 @@
 #!/usr/bin/env sh
 
-#url='http://core.ring.gr.jp/pub/GNU/gcc/'
-url_prefix='http://ftp.tsukuba.wide.ad.jp/software/gcc'
+#url_prefix='http://gcc.igor.onlinedirect.bg'            # Bulgaria
+#url_prefix='http://gcc.parentingamerica.com'            # Canada
+#url_prefix='http://gcc.skazkaforyou.com'                # Canada
+#url_prefix='http://fileboar.com/gcc'                    # US
+#url_prefix='http://gcc.petsads.us'                      # US +
+#url_prefix='http://mirrors-us.seosue.com/gcc'           # US
+url_prefix='http://ftp.tsukuba.wide.ad.jp/software/gcc' # Japan +++
 
 versions=`{ curl --silent "${url_prefix}/releases/" || exit 1; } \
     | { grep -oE "gcc-[[:digit:]]+(\\.[[:digit:]]+){0,2}/" || exit 1; } \
