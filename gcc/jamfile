@@ -270,6 +270,8 @@ rule configure-gcc ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) += --enable-lto ;
 
+  OPTIONS on $(targets) += --enable-libstdcxx-time=yes ;
+
   OPTIONS on $(targets) += --enable-libstdcxx-debug ;
 
   OPTIONS on $(targets) += --disable-libstdcxx-pch ;
@@ -302,12 +304,12 @@ actions configure-gcc
   $(SET_PREFIX_SYMLINK)
   [ `$(CONFIGURE:D)/config.sub $(TRIPLET)` = $(TRIPLET) ] || exit $?
   { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
-  $(SET_GMP_SYMLINK)
-  [ -x "$(CONFIGURE:D)/gmp/configure" ] || { $(UNSET_GMP_SYMLINK); exit 1; }
-  $(SET_MPFR_SYMLINK) || { $(UNSET_GMP_SYMLINK); exit 1; }
-  [ -x "$(CONFIGURE:D)/mpfr/configure" ] || { $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
-  $(SET_MPC_SYMLINK) || { $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
-  [ -x "$(CONFIGURE:D)/mpc/configure" ] || { $(UNSET_MPC_SYMLINK); $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
+  #$(SET_GMP_SYMLINK)
+  #[ -x "$(CONFIGURE:D)/gmp/configure" ] || { $(UNSET_GMP_SYMLINK); exit 1; }
+  #$(SET_MPFR_SYMLINK) || { $(UNSET_GMP_SYMLINK); exit 1; }
+  #[ -x "$(CONFIGURE:D)/mpfr/configure" ] || { $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
+  #$(SET_MPC_SYMLINK) || { $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
+  #[ -x "$(CONFIGURE:D)/mpc/configure" ] || { $(UNSET_MPC_SYMLINK); $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
   $(SET_C_INCLUDE_PATH)
   $(SET_CPLUS_INCLUDE_PATH)
   $(SET_LIBRARY_PATH)
@@ -317,16 +319,16 @@ actions configure-gcc
     ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    $(UNSET_MPC_SYMLINK)
-    $(UNSET_MPFR_SYMLINK)
-    $(UNSET_GMP_SYMLINK)
+    #$(UNSET_MPC_SYMLINK)
+    #$(UNSET_MPFR_SYMLINK)
+    #$(UNSET_GMP_SYMLINK)
     echo "ERROR: failed to 'configure' GCC $(VER_RAW) ($(TRIPLET))." 1>&2
     /bin/echo -n "ERROR: failed to 'configure' GCC $(VER_RAW) ($(TRIPLET))." | $(AWACS)
     exit 1
   fi
-  $(UNSET_MPC_SYMLINK)
-  $(UNSET_MPFR_SYMLINK)
-  $(UNSET_GMP_SYMLINK)
+  #$(UNSET_MPC_SYMLINK)
+  #$(UNSET_MPFR_SYMLINK)
+  #$(UNSET_GMP_SYMLINK)
   [ -f "$(<:D)/build/Makefile" ] || exit $?
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
@@ -393,12 +395,12 @@ actions make-gcc
 {
   rm -f "$(<)" || exit $?
   [ -f "$(<:D)/build/Makefile" ] || exit $?
-  $(SET_GMP_SYMLINK)
-  [ -x "$(SRC_DIR)/gmp/configure" ] || { $(UNSET_GMP_SYMLINK); exit 1; }
-  $(SET_MPFR_SYMLINK) || { $(UNSET_GMP_SYMLINK); exit 1; }
-  [ -x "$(SRC_DIR)/mpfr/configure" ] || { $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
-  $(SET_MPC_SYMLINK) || { $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
-  [ -x "$(SRC_DIR)/mpc/configure" ] || { $(UNSET_MPC_SYMLINK); $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
+  #$(SET_GMP_SYMLINK)
+  #[ -x "$(SRC_DIR)/gmp/configure" ] || { $(UNSET_GMP_SYMLINK); exit 1; }
+  #$(SET_MPFR_SYMLINK) || { $(UNSET_GMP_SYMLINK); exit 1; }
+  #[ -x "$(SRC_DIR)/mpfr/configure" ] || { $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
+  #$(SET_MPC_SYMLINK) || { $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
+  #[ -x "$(SRC_DIR)/mpc/configure" ] || { $(UNSET_MPC_SYMLINK); $(UNSET_MPFR_SYMLINK); $(UNSET_GMP_SYMLINK); exit 1; }
   $(SET_C_INCLUDE_PATH)
   $(SET_CPLUS_INCLUDE_PATH)
   $(SET_LIBRARY_PATH)
@@ -408,9 +410,9 @@ actions make-gcc
     ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
-    $(UNSET_MPC_SYMLINK)
-    $(UNSET_MPFR_SYMLINK)
-    $(UNSET_GMP_SYMLINK)
+    #$(UNSET_MPC_SYMLINK)
+    #$(UNSET_MPFR_SYMLINK)
+    #$(UNSET_GMP_SYMLINK)
     echo "ERROR: failed to 'make' GCC $(VER_RAW) ($(TRIPLET))." 1>&2
     /bin/echo -n "ERROR: failed to 'make' GCC $(VER_RAW) ($(TRIPLET))." | $(AWACS)
     exit 1
@@ -421,17 +423,17 @@ actions make-gcc
     ( cd "$(<:D)/build" && make install )
   fi
   if [ $? -ne 0 ]; then
-    $(UNSET_MPC_SYMLINK)
-    $(UNSET_MPFR_SYMLINK)
-    $(UNSET_GMP_SYMLINK)
+    #$(UNSET_MPC_SYMLINK)
+    #$(UNSET_MPFR_SYMLINK)
+    #$(UNSET_GMP_SYMLINK)
     echo "ERROR: failed to 'make install' GCC $(VER_RAW) ($(TRIPLET))." 1>&2
     /bin/echo -n "ERROR: failed to 'make install' GCC $(VER_RAW) ($(TRIPLET))." | $(AWACS)
     exit 1
   fi
   ( cd "$(<:D)" && rm -rf build )
-  $(UNSET_MPC_SYMLINK)
-  $(UNSET_MPFR_SYMLINK)
-  $(UNSET_GMP_SYMLINK)
+  #$(UNSET_MPC_SYMLINK)
+  #$(UNSET_MPFR_SYMLINK)
+  #$(UNSET_GMP_SYMLINK)
   cp -f "$(GPP_TLIMIT)" "$(VERSION_PREFIX)/bin"
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to create the wrapper script for GCC $(VER_RAW) ($(TRIPLET))." 1>&2

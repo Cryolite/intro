@@ -1,5 +1,8 @@
 *~
 /bin/
+/libelf-*.tar.gz
+/libelf-*.tar.bz2
+/libelf-*/
 /gmp-*.tar.gz
 /gmp-*.tar.bz2
 /gmp-*/
@@ -17,4 +20,6 @@
 /openmpi-*.tar.gz
 /openmpi-*.tar.bz2
 /openmpi-*/
+/boost_*.tar.gz
+/boost_*.tar.bz2
 /llvm/
