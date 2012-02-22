@@ -1,4 +1,4 @@
-B0;136;0c# Copyright 2003, 2005 Douglas Gregor
+# Copyright 2003, 2005 Douglas Gregor
 # Copyright 2004 John Maddock
 # Copyright 2002, 2003, 2004, 2007 Vladimir Prus
 # Distributed under the Boost Software License, Version 1.0.
@@ -46,6 +46,21 @@ local prefix = "$(home)/local" ;
 local boost-version = 1.48 ;
 
 
+local gcc-builtin = [ SHELL "g++ -dumpversion" ] ;
+gcc-builtin = [ regex.match "^([0123456789]+\\.[0123456789]+\\.[0123456789]+)" : $(gcc-builtin) : 1 ] ;
+
+local gcc-vers ;
+for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
+  local ver = [ regex.match "^$(prefix)/([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : "$(ph)" : 1 ] ;
+  if $(ver) {
+    local result = [ SHELL "which \"$(ph)/bin/g++\" >/dev/null 2>/dev/null; if [ $? -eq 0 ]; then /bin/echo -n \"INUMIMI\"; fi" ] ;
+    if [ MATCH ".*(INUMIMI).*" : "$(result)" ] {
+      gcc-vers += $(ver) ;
+    }
+  }
+}
+
+
 # ------------------
 # GCC configuration.
 # ------------------
@@ -55,15 +70,9 @@ ECHO "using gcc   :       : /usr/bin/g++ ;" ;
 using gcc : : /usr/bin/g++ ;
 
 # Configure specific gcc version, giving alternative name to use.
-for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
-  local ver = [ regex.match "^$(prefix)/([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : "$(ph)" : 1 ] ;
-  if $(ver) {
-    local result = [ SHELL "which \"$(ph)/bin/g++\" >/dev/null 2>/dev/null; if [ $? -eq 0 ]; then /bin/echo -n \"INUMIMI\"; fi" ] ;
-    if [ MATCH ".*(INUMIMI).*" : "$(result)" ] {
-      ECHO "using gcc   : $(ver) : \"$(ph)/bin/g++-tlimit\" ;" ;
-      using gcc : $(ver) : "$(ph)/bin/g++-tlimit" ;
-    }
-  }
+for local ver in $(gcc-vers) {
+  ECHO "using gcc   : $(ver) : \"$(prefix)/$(ver)/bin/g++-tlimit\" ;" ;
+  using gcc : $(ver) : "$(prefix)/$(ver)/bin/g++-tlimit" ;
 }
 
 
@@ -73,13 +82,10 @@ for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
 
 {
   local vers = "" ;
-  for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
-    local ver = [ regex.match "^$(prefix)/([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : "$(ph)" : 1 ] ;
-    if "$(ver)" {
-      local result = [ SHELL "which \"$(ph)/bin/clang++-wrapper\" >/dev/null 2>/dev/null; if [ $? -eq 0 ]; then /bin/echo -n \"INUMIMI\"; fi" ] ;
-      if [ MATCH ".*(INUMIMI).*" : "$(result)" ] {
-        vers = "$(vers)$(ver)\n" ;
-      }
+  for local ver in $(gcc-vers) {
+    local result = [ SHELL "which \"$(prefix)/$(ver)/bin/clang++-wrapper\" >/dev/null 2>/dev/null; if [ $? -eq 0 ]; then /bin/echo -n \"INUMIMI\"; fi" ] ;
+    if [ MATCH ".*(INUMIMI).*" : "$(result)" ] {
+      vers = "$(vers)$(ver)\n" ;
     }
   }
   if "$(vers)" {
@@ -150,20 +156,25 @@ for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
 # ------------------
 
 local mpi-options ;
-for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
-  local ver = [ regex.match "^$(prefix)/([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : "$(ph)" : 1 ] ;
-  if $(ver) {
-    local result = [ SHELL "which \"$(ph)/bin/mpic++\" >/dev/null 2>/dev/null; if [ $? -eq 0 ]; then /bin/echo -n \"INUMIMI\"; fi" ] ;
-    if [ MATCH ".*(INUMIMI).*" : "$(result)" ] {
-      local cxxflags = [ SHELL "\"$(ph)/bin/mpic++\" -showme:compile | tr --delete '\n'" ] ;
-      cxxflags = [ regex.split "$(cxxflags)" " +" ] ;
-      mpi-options += <toolset-gcc:version>$(ver):<cxxflags>$(cxxflags) ;
-      local linkflags = [ SHELL "\"$(ph)/bin/mpic++\" -showme:link | tr --delete '\n'" ] ;
-      linkflags = [ regex.split "$(linkflags)" " +" ] ;
-      mpi-options += <toolset-gcc:version>$(ver):<linkflags>$(linkflags) ;
-    }
-  }
+
+{
+  local cxxflags = [ SHELL "\"$(prefix)/bin/mpic++\" -showme:compile | tr --delete '\n'" ] ;
+  cxxflags = [ regex.split "$(cxxflags)" " +" ] ;
+  mpi-options += <toolset-gcc:version>$(gcc-builtin):<cxxflags>$(cxxflags) ;
+  local linkflags = [ SHELL "\"$(prefix)/bin/mpic++\" -showme:link | tr --delete '\n'" ] ;
+  linkflags = [ regex.split "$(linkflags)" " +" ] ;
+  mpi-options += <toolset-gcc:version>$(gcc-builtin):<linkflags>$(linkflags) ;
 }
+
+for local ver in $(gcc-vers) {
+  local cxxflags = [ SHELL "\"$(prefix)/$(ver)/bin/mpic++\" -showme:compile | tr --delete '\n'" ] ;
+  cxxflags = [ regex.split "$(cxxflags)" " +" ] ;
+  mpi-options += <toolset-gcc:version>$(ver):<cxxflags>$(cxxflags) ;
+  local linkflags = [ SHELL "\"$(prefix)/$(ver)/bin/mpic++\" -showme:link | tr --delete '\n'" ] ;
+  linkflags = [ regex.split "$(linkflags)" " +" ] ;
+  mpi-options += <toolset-gcc:version>$(ver):<linkflags>$(linkflags) ;
+}
+
 using mpi : : $(mpi-options) ;
 
 

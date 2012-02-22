@@ -1,0 +1,369 @@
+project intro/gcc-prerequisites ;
+
+import alias ;
+import errors ;
+import feature ;
+import make ;
+
+
+rule assert-specified ( feature : properties * )
+{
+  local val = [ feature.get-values $(feature) : $(properties) ] ;
+  if $(val) = unspecified {
+    errors.error $(feature) is not specified for GCC build. ;
+  }
+}
+
+rule assert-unspecified ( feature : properties * )
+{
+  local val = [ feature.get-values $(feature) : $(properties) ] ;
+  if $(val) != unspecified {
+    errors.error $(feature) is not valid for GCC build. ;
+  }
+}
+
+
+make static-gmp
+  : ../gmp//expand/<triplet>unspecified
+  : @make-static-gmp
+  ;
+explicit static-gmp ;
+
+rule make-static-gmp ( targets * : sources * : properties * )
+{
+  assert-specified   <triplet>         : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <gcc>             : $(properties) ;
+  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+
+  OPTIONS on $(targets) = ;
+
+  local version = [ feature.get-values <gmp> : $(properties) ] ;
+  VERSION on $(targets) = $(version) ;
+
+  # Set the path to the 'configure' file.
+  local configure = $(INTRO_ROOT_DIR)/gmp-$(version)/configure ;
+  CONFIGURE on $(targets) = $(configure) ;
+
+  # Set the '--build' and '--host' options for the 'configure' script.
+  local triplet = [ feature.get-values <triplet> : $(properties) ] ;
+  TRIPLET on $(targets) = $(triplet) ;
+  OPTIONS on $(targets) += --build=$(triplet) ;
+  OPTIONS on $(targets) += --host=$(triplet) ;
+
+  # Set the '--prefix' option for the 'configure' script.
+  OPTIONS on $(targets) += --prefix=\"$(INTRO_ROOT_DIR)/gcc-prerequisites\" ;
+
+  # Set the link variants for the 'configure' script.
+  OPTIONS on $(targets) += --enable-static ;
+  OPTIONS on $(targets) += --disable-shared ;
+}
+actions make-static-gmp
+{
+  rm -f "$(<)" || exit $?
+  [ -x "$(CONFIGURE)" ] || exit $?
+  [ `"$(CONFIGURE:D)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit $?
+  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to 'configure' GMP $(VERSION) (as GCC prerequisites)." 1>&2
+    /bin/echo -n "ERROR: failed to 'configure' GMP $(VERSION) (as GCC prerequisites)." | $(AWACS)
+    exit 1
+  fi
+  [ -f "$(<:D)/build/Makefile" ] || exit $?
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to 'make' GMP $(VERSION) (as GCC prerequisites)." 1>&2
+    /bin/echo -n "ERROR: failed to 'make' GMP $(VERSION) (as GCC prerequisites)." | $(AWACS)
+    exit 1
+  fi
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check )
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to 'make check' GMP $(VERSION) (as GCC prerequisites)." 1>&2
+    /bin/echo -n "ERROR: failed to 'make check' GMP $(VERSION) (as GCC prerequisites)." | $(AWACS)
+    exit 1
+  fi
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)/build" && make install >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)/build" && make install )
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to 'make install' GMP $(VERSION) (as GCC prerequisites)." 1>&2
+    /bin/echo -n "ERROR: failed to 'make install' GMP $(VERSION) (as GCC prerequisites)." | $(AWACS)
+    exit 1
+  fi
+  ( cd "$(<:D)" && rm -rf build )
+  /bin/echo -n "GMP $(VERSION) (as GCC prerequisites) was successfully built." | $(AWACS)
+  [ -e "$(<)" ] && exit 1
+  touch "$(<)"
+}
+
+
+make static-mpfr
+  : static-gmp/<mpfr>unspecified
+    ../mpfr//expand/<triplet>unspecified/<gmp>unspecified
+  : @make-static-mpfr
+  ;
+explicit static-mpfr ;
+
+rule make-static-mpfr ( targets * : sources * : properties * )
+{
+  assert-specified   <triplet>         : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-specified   <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <gcc>             : $(properties) ;
+  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+
+  OPTIONS on $(targets) = ;
+
+  local version = [ feature.get-values <mpfr> : $(properties) ] ;
+  VERSION on $(targets) = $(version) ;
+
+  # Set the path to the 'configure' file.
+  local configure = $(INTRO_ROOT_DIR)/mpfr-$(version)/configure ;
+  CONFIGURE on $(targets) = $(configure) ;
+
+  # Set the '--build' and '--host' options for the 'configure' script.
+  local triplet = [ feature.get-values <triplet> : $(properties) ] ;
+  TRIPLET on $(targets) = $(triplet) ;
+  OPTIONS on $(targets) += --build=$(triplet) ;
+  OPTIONS on $(targets) += --host=$(triplet) ;
+
+  # Set the '--prefix' option for the 'configure' script.
+  OPTIONS on $(targets) += --prefix=\"$(INTRO_ROOT_DIR)/gcc-prerequisites\" ;
+
+  # Set the link variants for the 'configure' script.
+  OPTIONS on $(targets) += --enable-static ;
+  OPTIONS on $(targets) += --disable-shared ;
+
+  OPTIONS on $(targets) += --with-gmp=\"$(INTRO_ROOT_DIR)/gcc-prerequisites\" ;
+}
+actions make-static-mpfr
+{
+  rm -f "$(<)" || exit $?
+  [ -x "$(CONFIGURE)" ] || exit $?
+  [ `"$(CONFIGURE:D)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit $?
+  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to 'configure' MPFR $(VERSION) (as GCC prerequisites)." 1>&2
+    /bin/echo -n "ERROR: failed to 'configure' MPFR $(VERSION) (as GCC prerequisites)." | $(AWACS)
+    exit 1
+  fi
+  [ -f "$(<:D)/build/Makefile" ] || exit $?
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to 'make' MPFR $(VERSION) (as GCC prerequisites)." 1>&2
+    /bin/echo -n "ERROR: failed to 'make' MPFR $(VERSION) (as GCC prerequisites)." | $(AWACS)
+    exit 1
+  fi
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check )
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to 'make check' MPFR $(VERSION) (as GCC prerequisites)." 1>&2
+    /bin/echo -n "ERROR: failed to 'make check' MPFR $(VERSION) (as GCC prerequisites)." | $(AWACS)
+    exit 1
+  fi
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)/build" && make install >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)/build" && make install )
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to 'make install' MPFR $(VERSION) (as GCC prerequisites)." 1>&2
+    /bin/echo -n "ERROR: failed to 'make install' MPFR $(VERSION) (as GCC prerequisites)." | $(AWACS)
+    exit 1
+  fi
+  ( cd "$(<:D)" && rm -rf build )
+  /bin/echo -n "MPFR $(VERSION) (as GCC prerequisites) was successfully built." | $(AWACS)
+  [ -e "$(<)" ] && exit 1
+  touch "$(<)"
+}
+
+
+make static-mpc
+  : static-mpfr/<mpc>unspecified
+    ../mpc//expand/<triplet>unspecified/<gmp>unspecified/<mpfr>unspecified
+  : @make-static-mpc
+  ;
+explicit static-mpc ;
+
+rule make-static-mpc ( targets * : sources * : properties * )
+{
+  assert-specified   <triplet>         : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-specified   <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-specified   <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <gcc>             : $(properties) ;
+  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+
+  OPTIONS on $(targets) = ;
+
+  local version = [ feature.get-values <mpc> : $(properties) ] ;
+  VERSION on $(targets) = $(version) ;
+
+  # Set the path to the 'configure' file.
+  local configure = $(INTRO_ROOT_DIR)/mpc-$(version)/configure ;
+  CONFIGURE on $(targets) = $(configure) ;
+
+  # Set the '--build' and '--host' options for the 'configure' script.
+  local triplet = [ feature.get-values <triplet> : $(properties) ] ;
+  TRIPLET on $(targets) = $(triplet) ;
+  OPTIONS on $(targets) += --build=$(triplet) ;
+  OPTIONS on $(targets) += --host=$(triplet) ;
+
+  # Set the '--prefix' option for the 'configure' script.
+  OPTIONS on $(targets) += --prefix=\"$(INTRO_ROOT_DIR)/gcc-prerequisites\" ;
+
+  # Set the link variants for the 'configure' script.
+  OPTIONS on $(targets) += --enable-static ;
+  OPTIONS on $(targets) += --disable-shared ;
+
+  OPTIONS on $(targets) += --with-gmp=\"$(INTRO_ROOT_DIR)/gcc-prerequisites\" ;
+  OPTIONS on $(targets) += --with-mpfr=\"$(INTRO_ROOT_DIR)/gcc-prerequisites\" ;
+}
+actions make-static-mpc
+{
+  rm -f "$(<)" || exit $?
+  [ -x "$(CONFIGURE)" ] || exit $?
+  [ `"$(CONFIGURE:D)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit $?
+  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to 'configure' MPC $(VERSION) (as GCC prerequisites)." 1>&2
+    /bin/echo -n "ERROR: failed to 'configure' MPC $(VERSION) (as GCC prerequisites)." | $(AWACS)
+    exit 1
+  fi
+  [ -f "$(<:D)/build/Makefile" ] || exit $?
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to 'make' MPC $(VERSION) (as GCC prerequisites)." 1>&2
+    /bin/echo -n "ERROR: failed to 'make' MPC $(VERSION) (as GCC prerequisites)." | $(AWACS)
+    exit 1
+  fi
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check )
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to 'make check' MPC $(VERSION) (as GCC prerequisites)." 1>&2
+    /bin/echo -n "ERROR: failed to 'make check' MPC $(VERSION) (as GCC prerequisites)." | $(AWACS)
+    exit 1
+  fi
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)/build" && make install >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)/build" && make install )
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to 'make install' MPC $(VERSION) (as GCC prerequisites)." 1>&2
+    /bin/echo -n "ERROR: failed to 'make install' MPC $(VERSION) (as GCC prerequisites)." | $(AWACS)
+    exit 1
+  fi
+  ( cd "$(<:D)" && rm -rf build )
+  /bin/echo -n "MPC $(VERSION) (as GCC prerequisites) was successfully built." | $(AWACS)
+  [ -e "$(<)" ] && exit 1
+  touch "$(<)"
+}
+
+
+rule install-req ( properties * )
+{
+  assert-specified   <triplet>         : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-specified   <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-specified   <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <gcc>             : $(properties) ;
+  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+}
+
+alias install : static-mpc : <conditional>@install-req ;
+explicit install ;

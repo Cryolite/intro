@@ -14,7 +14,7 @@
 /mpc-*/
 /gcc-*.tar.gz
 /gcc-*.tar.bz2
-/gcc-*/
+/gcc-*.*/
 /icu4c-*.tgz
 /icu/
 /openmpi-*.tar.gz
@@ -23,3 +23,4 @@
 /boost_*.tar.gz
 /boost_*.tar.bz2
 /llvm/
+*.log

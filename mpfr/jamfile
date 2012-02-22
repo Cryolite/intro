@@ -218,7 +218,12 @@ rule make-mpfr ( targets * : sources * : properties * )
   local gcc-raw = [ feature.get-values <gcc> : $(properties) ] ;
   GCC_RAW on $(targets) = $(gcc-raw) ;
   local gcc = [ regex.replace "$(gcc-raw)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]" ".0" ] ;
-  OPTIONS on $(targets) += --prefix=\"$(PREFIX)/$(gcc)\" ;
+  if $(gcc) = $(GCC_BUILTIN) {
+    OPTIONS on $(targets) += --prefix=\"$(PREFIX)\" ;
+  }
+  else {
+    OPTIONS on $(targets) += --prefix=\"$(PREFIX)/$(gcc)\" ;
+  }
 
   # Set the link variants for the 'configure' script.
   if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32 {
@@ -230,6 +235,13 @@ rule make-mpfr ( targets * : sources * : properties * )
     OPTIONS on $(targets) += --enable-shared ;
   }
 
+  if $(gcc) = $(GCC_BUILTIN) {
+    OPTIONS on $(targets) += --with-gmp=\"$(PREFIX)\" ;
+  }
+  else {
+    OPTIONS on $(targets) += --with-gmp=\"$(PREFIX)/$(gcc)\" ;
+  }
+
   if $(gcc) != $(GCC_BUILTIN) {
     OPTIONS on $(targets) += CC=\"$(PREFIX)/$(gcc)/bin/gcc\" ;
     OPTIONS on $(targets) += CXX=\"$(PREFIX)/$(gcc)/bin/g++\" ;
@@ -237,10 +249,20 @@ rule make-mpfr ( targets * : sources * : properties * )
 
   SET_RUN_VARS on $(targets) = ;
   if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32 {
-    SET_RUN_VARS on $(targets) = "PATH=\"$(PREFIX)/$(gcc)/bin${PATH:+:$PATH}\"; export PATH" ;
+    if $(gcc) = $(GCC_BUILTIN) {
+      SET_RUN_VARS on $(targets) = "PATH=\"$(PREFIX)/bin${PATH:+:$PATH}\"; export PATH" ;
+    }
+    else {
+      SET_RUN_VARS on $(targets) = "PATH=\"$(PREFIX)/$(gcc)/bin${PATH:+:$PATH}\"; export PATH" ;
+    }
   }
   else {
-    SET_RUN_VARS on $(targets) = "LD_LIBRARY_PATH=\"$(PREFIX)/$(gcc)/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"; export LD_LIBRARY_PATH" ;
+    if $(gcc) = $(GCC_BUILTIN) {
+      SET_RUN_VARS on $(targets) = "LD_LIBRARY_PATH=\"$(PREFIX)/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"; export LD_LIBRARY_PATH" ;
+    }
+    else {
+      SET_RUN_VARS on $(targets) = "LD_LIBRARY_PATH=\"$(PREFIX)/$(gcc)/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"; export LD_LIBRARY_PATH" ;
+    }
   }
 }
 actions make-mpfr

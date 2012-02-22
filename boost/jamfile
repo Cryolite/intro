@@ -189,14 +189,18 @@ rule make-boost ( targets * : sources * : properties * )
 actions make-boost
 {
   rm -f "$(<)" || exit $?
-  [ -x "$(BOOST_ROOT)/b2" ] || exit $?
+  if [ ! -x "$(BOOST_ROOT)/b2" ]; then
+    /bin/echo "ERROR: Boost $(VERSION) not found ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
+    /bin/echo -n "ERROR: Boost $(VERSION) not found ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
+    exit 1
+  fi
   if [ -n "$(STREAM)" ]; then
     ( cd "$(BOOST_ROOT)" && ./b2 -j$(CONCURRENCY) $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
     ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to build Boost $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
+    /bin/echo "ERROR: failed to build Boost $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
     /bin/echo -n "ERROR: failed to build Boost $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
