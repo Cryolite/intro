@@ -43,7 +43,7 @@ local home = [ modules.peek : HOME ] ;
 
 # Modify the following lines.
 local prefix = "$(home)/local" ;
-local boost-version = 1.48 ;
+local boost-version = 1.49 ;
 
 
 local gcc-builtin = [ SHELL "g++ -dumpversion" ] ;
