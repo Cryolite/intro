@@ -211,7 +211,8 @@ actions make-clang
   fi
   llvm_rev=`( cd "$(LLVM_DIR)" && { LANG=C svn info || exit 1; } | { grep -E '^Revision: [[:digit:]]+$' || exit 1; } | { grep -oE '[[:digit:]]+$' || exit 1; } )`
   [ $? -eq 0 ] || $?
-  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
+  #{ mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
+  mkdir -p "$(<:D)/build" || exit $?
   $(SET_RUN_VARS)
   if [ -n "$(STREAM)" ]; then
     ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) >> "$(STREAM)" 2>&1 )
@@ -253,7 +254,7 @@ actions make-clang
     /bin/echo -n "ERROR: failed to 'make install' LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
-  ( cd "$(<:D)" && rm -rf build )
+  #( cd "$(<:D)" && rm -rf build )
   cp -f "$(CLANGPP_WRAPPER)" "$(CLANGPP_TLIMIT)" "$(VERSION_PREFIX)/bin"
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to create wrapper scripts for LLVM & Clang Rev.${llvm_rev} ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
