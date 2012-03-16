@@ -32,6 +32,8 @@ rule download-gcc ( targets * : sources * : properties * )
   assert-unspecified <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
   assert-unspecified <gmp-hidden>      : $(properties) ;
   assert-unspecified <mpfr>            : $(properties) ;
@@ -94,6 +96,8 @@ rule expand-gcc ( targets * : sources * : properties * )
   assert-unspecified <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
   assert-unspecified <gmp-hidden>      : $(properties) ;
   assert-unspecified <mpfr>            : $(properties) ;
@@ -151,9 +155,42 @@ actions expand-gcc
 }
 
 
+rule gcc-prerequisites-dep-req ( properties * )
+{
+  assert-specified   <triplet>         : $(properties) ;
+  assert-specified   <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
+  assert-specified   <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-specified   <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-specified   <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <gcc>             : $(properties) ;
+  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  local result = <source>../gcc-prerequisites//install ;
+  local multilib = [ feature.get-values <multilib> : $(properties) ] ;
+  result = $(result)/<multilib>unspecified/<multilib-hidden>$(multilib) ;
+  return $(result) ;
+}
+
+alias gcc-prerequisites-dep : : <conditional>@gcc-prerequisites-dep-req ;
+explicit gcc-prerequisites-dep ;
+
+
 make configure
-  : ../gcc-prerequisites//install/<multilib>unspecified/<gcc>unspecified
-    expand/<triplet>unspecified/<multilib>unspecified/<gmp>unspecified/<mpfr>unspecified/<mpc>unspecified
+  : gcc-prerequisites-dep/<gcc>unspecified
+    expand/<triplet>unspecified/<multilib>unspecified/<binutils>unspecified/<gmp>unspecified/<mpfr>unspecified/<mpc>unspecified
   : @configure-gcc
   ;
 explicit configure ;
@@ -163,6 +200,8 @@ rule configure-gcc ( targets * : sources * : properties * )
   assert-specified   <triplet>         : $(properties) ;
   assert-specified   <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
   assert-specified   <gmp>             : $(properties) ;
   assert-unspecified <gmp-hidden>      : $(properties) ;
   assert-specified   <mpfr>            : $(properties) ;
@@ -204,6 +243,10 @@ rule configure-gcc ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --enable-static ;
 
   OPTIONS on $(targets) += --enable-shared ;
+
+  OPTIONS on $(targets) += --enable-ld=default ;
+
+  OPTIONS on $(targets) += --enable-gold ;
 
   local multilib = [ feature.get-values <multilib> : $(properties) ] ;
   if $(multilib) = yes {
@@ -277,7 +320,14 @@ rule configure-gcc ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --with-mpfr=\"$(INTRO_ROOT_DIR)/gcc-prerequisites\" ;
   OPTIONS on $(targets) += --with-mpc=\"$(INTRO_ROOT_DIR)/gcc-prerequisites\" ;
 
+  OPTIONS on $(targets) += --with-stage1-ldflags=-L/usr/lib/x86_64-linux-gnu ;
+  OPTIONS on $(targets) += --with-boot-ldflags=-L/usr/lib/x86_64-linux-gnu ;
+
+  OPTIONS on $(targets) += --enable-linker-build-id ;
+
   OPTIONS on $(targets) += --enable-lto ;
+
+  OPTIONS on $(targets) += --enable-plugin ;
 
   OPTIONS on $(targets) += --enable-libstdcxx-time=yes ;
 
@@ -321,6 +371,8 @@ rule make-gcc ( targets * : sources * : properties * )
   assert-specified   <triplet>         : $(properties) ;
   assert-specified   <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
   assert-specified   <gmp>             : $(properties) ;
   assert-unspecified <gmp-hidden>      : $(properties) ;
   assert-specified   <mpfr>            : $(properties) ;
@@ -396,6 +448,8 @@ rule install-req ( properties * )
   assert-specified   <triplet>         : $(properties) ;
   assert-specified   <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
   assert-specified   <gmp>             : $(properties) ;
   assert-unspecified <gmp-hidden>      : $(properties) ;
   assert-specified   <mpfr>            : $(properties) ;
@@ -415,27 +469,29 @@ rule install-req ( properties * )
 
   local result ;
 
-  local tmp ;
-
-  local triplet = [ feature.get-values <triplet> : $(properties) ] ;
-
-  local multilib = [ feature.get-values <multilib> : $(properties) ] ;
-  if $(multilib) = yes {
-    if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32 {
-      # Do nothing.
-    }
-    else {
-      errors.error "ERROR: `<multilib>' is not supported on `$(triplet)'." ;
-    }
-  }
-
   local gcc = [ feature.get-values <gcc> : $(properties) ] ;
-  if [ SHELL "{ ( LC_ALL=C gcc -v 2>&1 ) | grep -Eq '^gcc version $(gcc)'; } && /bin/echo -n 'INUMIMI'" ] = INUMIMI {
-    result = <build>no ;
+  if $(gcc) = $(GCC_BUILTIN) {
+    # Skips the build of GCC.
+    result = <source>gcc-prerequisites-dep/<gcc>unspecified ;
+  }
+  else {
+    local triplet = [ feature.get-values <triplet> : $(properties) ] ;
+
+    local multilib = [ feature.get-values <multilib> : $(properties) ] ;
+    if $(multilib) = yes {
+      if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32 {
+        # Do nothing.
+      }
+      else {
+        errors.error "ERROR: `<multilib>' is not supported on `$(triplet)'." ;
+      }
+    }
+
+    result = <source>make ;
   }
 
   return $(result) ;
 }
 
-alias install : make : <conditional>@install-req ;
+alias install : : <conditional>@install-req ;
 explicit install ;

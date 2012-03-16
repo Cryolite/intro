@@ -29,6 +29,8 @@ rule gcc-dep-req ( properties * )
   assert-specified   <triplet>         : $(properties) ;
   assert-specified   <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
   assert-specified   <gmp-hidden>      : $(properties) ;
   assert-unspecified <mpfr>            : $(properties) ;
@@ -68,6 +70,8 @@ rule download-icu4c ( targets * : sources * : properties * )
   assert-unspecified <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
   assert-unspecified <gmp-hidden>      : $(properties) ;
   assert-unspecified <mpfr>            : $(properties) ;
@@ -126,6 +130,8 @@ rule expand-icu4c ( targets * : sources * : properties * )
   assert-unspecified <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
   assert-unspecified <gmp-hidden>      : $(properties) ;
   assert-unspecified <mpfr>            : $(properties) ;
@@ -186,7 +192,7 @@ actions expand-icu4c
 
 make make
   : gcc-dep
-    expand/<triplet>unspecified/<multilib>unspecified/<gmp-hidden>unspecified/<mpfr-hidden>unspecified/<mpc-hidden>unspecified/<gcc>unspecified
+    expand/<triplet>unspecified/<multilib>unspecified/<binutils>unspecified/<gmp-hidden>unspecified/<mpfr-hidden>unspecified/<mpc-hidden>unspecified/<gcc>unspecified
   : @make-icu4c
   ;
 explicit make ;
@@ -196,6 +202,8 @@ rule make-icu4c ( targets * : sources * : properties * )
   assert-specified   <triplet>         : $(properties) ;
   assert-specified   <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
   assert-specified   <gmp-hidden>      : $(properties) ;
   assert-unspecified <mpfr>            : $(properties) ;
@@ -349,6 +357,8 @@ rule install-req ( properties * )
   assert-specified   <triplet>         : $(properties) ;
   assert-specified   <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
   assert-specified   <gmp-hidden>      : $(properties) ;
   assert-unspecified <mpfr>            : $(properties) ;

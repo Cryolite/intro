@@ -29,6 +29,8 @@ rule gcc-dep-req ( properties * )
   assert-specified   <triplet>         : $(properties) ;
   assert-specified   <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
   assert-specified   <gmp-hidden>      : $(properties) ;
   assert-unspecified <mpfr>            : $(properties) ;
@@ -68,6 +70,8 @@ rule icu4c-dep-req ( properties * )
   assert-specified   <triplet>         : $(properties) ;
   assert-specified   <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
   assert-specified   <gmp-hidden>      : $(properties) ;
   assert-unspecified <mpfr>            : $(properties) ;
@@ -100,6 +104,8 @@ rule openmpi-dep-req ( properties * )
   assert-specified   <triplet>         : $(properties) ;
   assert-specified   <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
   assert-specified   <gmp-hidden>      : $(properties) ;
   assert-unspecified <mpfr>            : $(properties) ;
@@ -143,6 +149,8 @@ rule make-boost ( targets * : sources * : properties * )
   assert-specified   <triplet>         : $(properties) ;
   assert-specified   <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
   assert-specified   <gmp-hidden>      : $(properties) ;
   assert-unspecified <mpfr>            : $(properties) ;
@@ -216,6 +224,8 @@ rule install-req ( properties * )
   assert-specified   <triplet>         : $(properties) ;
   assert-specified   <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
   assert-specified   <gmp-hidden>      : $(properties) ;
   assert-unspecified <mpfr>            : $(properties) ;

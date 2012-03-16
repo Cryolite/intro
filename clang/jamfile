@@ -29,6 +29,8 @@ rule gcc-dep-req ( properties * )
   assert-specified   <triplet>         : $(properties) ;
   assert-specified   <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
   assert-specified   <gmp-hidden>      : $(properties) ;
   assert-unspecified <mpfr>            : $(properties) ;
@@ -71,6 +73,8 @@ rule make-clang ( targets * : sources * : properties * )
   assert-specified   <triplet>         : $(properties) ;
   assert-specified   <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
   assert-specified   <gmp-hidden>      : $(properties) ;
   assert-unspecified <mpfr>            : $(properties) ;
@@ -273,6 +277,8 @@ rule install-req ( properties * )
   assert-specified   <triplet>         : $(properties) ;
   assert-specified   <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
   assert-specified   <gmp-hidden>      : $(properties) ;
   assert-unspecified <mpfr>            : $(properties) ;

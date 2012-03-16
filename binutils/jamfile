@@ -1,17 +1,16 @@
-project intro/mpfr ;
+project intro/binutils ;
 
 import alias ;
 import errors ;
 import feature ;
 import make ;
-import regex ;
 
 
 rule assert-specified ( feature : properties * )
 {
   local val = [ feature.get-values $(feature) : $(properties) ] ;
   if $(val) = unspecified {
-    errors.error $(feature) is not specified for MPFR build. ;
+    errors.error $(feature) is not specified for binutils build. ;
   }
 }
 
@@ -19,57 +18,24 @@ rule assert-unspecified ( feature : properties * )
 {
   local val = [ feature.get-values $(feature) : $(properties) ] ;
   if $(val) != unspecified {
-    errors.error $(feature) is not valid for MPFR build. ;
+    errors.error $(feature) is not valid for binutils build. ;
   }
 }
 
 
-rule gmp-dep-req ( properties * )
-{
-  assert-specified   <triplet>         : $(properties) ;
-  assert-specified   <multilib>        : $(properties) ;
-  assert-unspecified <multilib-hidden> : $(properties) ;
-  assert-specified   <binutils>        : $(properties) ;
-  assert-unspecified <binutils-hidden> : $(properties) ;
-  assert-specified   <gmp>             : $(properties) ;
-  assert-unspecified <gmp-hidden>      : $(properties) ;
-  assert-specified   <mpfr>            : $(properties) ;
-  assert-unspecified <mpfr-hidden>     : $(properties) ;
-  assert-unspecified <mpc>             : $(properties) ;
-  assert-specified   <mpc-hidden>      : $(properties) ;
-  assert-specified   <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
-  assert-unspecified <icu4c>           : $(properties) ;
-  assert-unspecified <icu4c-hidden>    : $(properties) ;
-  assert-unspecified <mpi>             : $(properties) ;
-  assert-unspecified <mpi-hidden>      : $(properties) ;
-  assert-unspecified <openmpi>         : $(properties) ;
-  assert-unspecified <openmpi-hidden>  : $(properties) ;
-  assert-unspecified <boost>           : $(properties) ;
-  assert-unspecified <boost-hidden>    : $(properties) ;
-  local result = <source>../gmp//install ;
-  local mpfr = [ feature.get-values <mpfr> : $(properties) ] ;
-  result = $(result)/<mpfr>unspecified/<mpfr-hidden>$(mpfr) ;
-  return $(result) ;
-}
-
-alias gmp-dep : : <conditional>@gmp-dep-req ;
-explicit gmp-dep ;
-
-
-make download : : @download-mpfr ;
+make download : : @download-binutils ;
 explicit download ;
 
-rule download-mpfr ( targets * : sources * : properties * )
+rule download-binutils ( targets * : sources * : properties * )
 {
   assert-unspecified <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
-  assert-unspecified <binutils>        : $(properties) ;
+  assert-specified   <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
   assert-unspecified <gmp-hidden>      : $(properties) ;
-  assert-specified   <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
   assert-unspecified <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
   assert-unspecified <mpc-hidden>      : $(properties) ;
@@ -83,13 +49,13 @@ rule download-mpfr ( targets * : sources * : properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
-  local version = [ feature.get-values <mpfr> : $(properties) ] ;
-  URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/mpfr/mpfr-$(version).tar.bz2 ;
-  #URL on $(targets) = http://core.ring.gr.jp/pub/GNU/mpfr/mpfr-$(version).tar.bz2 ;
-  TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/mpfr-$(version).tar.gz ;
-  TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/mpfr-$(version).tar.bz2 ;
+  local version = [ feature.get-values <binutils> : $(properties) ] ;
+  URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/binutils/binutils-$(version).tar.bz2 ;
+  #URL on $(targets) = http://core.ring.gr.jp/pub/GNU/binutils/binutils-$(version).tar.bz2 ;
+  TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/binutils-$(version).tar.gz ;
+  TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/binutils-$(version).tar.bz2 ;
 }
-actions download-mpfr
+actions download-binutils
 {
   rm -f "$(<)" || exit $?
   if [ ! -f "$(TARBALL_GZ)" -a ! -f "$(TARBALL_BZ2)" ]; then
@@ -99,8 +65,8 @@ actions download-mpfr
       ( cd "$(TARBALL_BZ2:D)" && wget --quiet -- '$(URL)' )
     fi
     if [ $? -ne 0 ]; then
-      echo "ERROR: failed to download MPFR tarball." 1>&2
-      /bin/echo -n "ERROR: failed to download MPFR tarball." | $(AWACS)
+      echo "ERROR: failed to download binutils tarball." 1>&2
+      /bin/echo -n "ERROR: failed to download binutils tarball." | $(AWACS)
       exit 1
     fi
     [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_BZ2)" ] || exit $?
@@ -110,10 +76,10 @@ actions download-mpfr
 }
 
 
-make expand : download : @expand-mpfr ;
+make expand : download : @expand-binutils ;
 explicit expand ;
 
-rule expand-mpfr ( targets * : sources * : properties * )
+rule expand-binutils ( targets * : sources * : properties * )
 {
   if ! $(sources[1]) {
     errors.error "ERROR: wrong number of sources." ;
@@ -124,11 +90,11 @@ rule expand-mpfr ( targets * : sources * : properties * )
   assert-unspecified <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
-  assert-unspecified <binutils>        : $(properties) ;
+  assert-specified   <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
   assert-unspecified <gmp-hidden>      : $(properties) ;
-  assert-specified   <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
   assert-unspecified <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
   assert-unspecified <mpc-hidden>      : $(properties) ;
@@ -142,18 +108,18 @@ rule expand-mpfr ( targets * : sources * : properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
-  local version = [ feature.get-values <mpfr> : $(properties) ] ;
+  local version = [ feature.get-values <binutils> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
-  TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/mpfr-$(version).tar.gz ;
-  TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/mpfr-$(version).tar.bz2 ;
-  DEST_DIR on $(targets) = $(INTRO_ROOT_DIR)/mpfr-$(version) ;
+  TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/binutils-$(version).tar.gz ;
+  TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/binutils-$(version).tar.bz2 ;
+  DEST_DIR on $(targets) = $(INTRO_ROOT_DIR)/binutils-$(version) ;
 }
-actions expand-mpfr
+actions expand-binutils
 {
   rm -f "$(<)" || exit $?
   [ -f "$(>)" ] || exit $?
-  ( cd "$(INTRO_ROOT_DIR)" && rm -rf mpfr-$(VERSION) ) || exit $?
-  [ -e "$(INTRO_ROOT_DIR)/mpfr-$(VERSION)" ] && exit 1
+  ( cd "$(INTRO_ROOT_DIR)" && rm -rf binutils-$(VERSION) ) || exit $?
+  [ -e "$(INTRO_ROOT_DIR)/binutils-$(VERSION)" ] && exit 1
   if [ -f "$(TARBALL_GZ)" ]; then
     if [ -n "$(STREAM)" ]; then
       tar xzvf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" >> "$(STREAM)" 2>&1
@@ -169,7 +135,7 @@ actions expand-mpfr
   else
     exit 1
   fi
-  [ $? -ne 0 ] && { echo "ERROR: failed to expand MPFR tarball." 1>&2; exit 1; }
+  [ $? -ne 0 ] && { echo "ERROR: failed to expand binutils tarball." 1>&2; exit 1; }
   [ -d "$(DEST_DIR)" ] || exit $?
   [ -x "$(DEST_DIR)/configure" ] || exit $?
   [ -e "$(<)" ] && exit 1
@@ -178,26 +144,25 @@ actions expand-mpfr
 
 
 make make
-  : gmp-dep
-    expand/<triplet>unspecified/<multilib>unspecified/<binutils>unspecified/<gmp>unspecified/<mpc-hidden>unspecified/<gcc>unspecified
-  : @make-mpfr
+  : expand/<triplet>unspecified/<multilib>unspecified
+  : @make-binutils
   ;
 explicit make ;
 
-rule make-mpfr ( targets * : sources * : properties * )
+rule make-binutils ( targets * : sources * : properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
   assert-specified   <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
   assert-specified   <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
-  assert-specified   <gmp>             : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
   assert-unspecified <gmp-hidden>      : $(properties) ;
-  assert-specified   <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
   assert-unspecified <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
-  assert-specified   <mpc-hidden>      : $(properties) ;
-  assert-specified   <gcc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
@@ -210,85 +175,55 @@ rule make-mpfr ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) = ;
 
-  local version = [ feature.get-values <mpfr> : $(properties) ] ;
+  local version = [ feature.get-values <binutils> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
 
   # Set the path to the 'configure' file.
-  local configure = $(INTRO_ROOT_DIR)/mpfr-$(version)/configure ;
+  local configure = $(INTRO_ROOT_DIR)/binutils-$(version)/configure ;
   CONFIGURE on $(targets) = $(configure) ;
 
-  # Set the '--build' and '--host' options for the 'configure' script.
+  # Set the '--build', '--host' and '--target' options for the 'configure' script.
   local triplet = [ feature.get-values <triplet> : $(properties) ] ;
   TRIPLET on $(targets) = $(triplet) ;
   OPTIONS on $(targets) += --build=$(triplet) ;
   OPTIONS on $(targets) += --host=$(triplet) ;
+  OPTIONS on $(targets) += --target=$(triplet) ;
 
   # Set the '--prefix' option for the 'configure' script.
-  local gcc-raw = [ feature.get-values <gcc> : $(properties) ] ;
-  GCC_RAW on $(targets) = $(gcc-raw) ;
-  local gcc = [ regex.replace "$(gcc-raw)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]" ".0" ] ;
-  if $(gcc) = $(GCC_BUILTIN) {
-    OPTIONS on $(targets) += --prefix=\"$(PREFIX)\" ;
+  OPTIONS on $(targets) += --prefix=\"$(PREFIX)\" ;
+
+  OPTIONS on $(targets) += --enable-ld=default ;
+
+  OPTIONS on $(targets) += --enable-gold ;
+
+  OPTIONS on $(targets) += --enable-libssp ;
+
+  OPTIONS on $(targets) += --enable-lto ;
+
+  OPTIONS on $(targets) += --enable-plugins ;
+
+  local multilib = [ feature.get-values <multilib> : $(properties) ] ;
+  if $(multilib) = yes {
+    OPTIONS on $(targets) += --enable-multilib ;
   }
   else {
-    OPTIONS on $(targets) += --prefix=\"$(PREFIX)/$(gcc)\" ;
-  }
-
-  # Set the link variants for the 'configure' script.
-  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32 {
-    OPTIONS on $(targets) += --disable-static ;
-    OPTIONS on $(targets) += --enable-shared  ;
-  }
-  else {
-    OPTIONS on $(targets) += --enable-static ;
-    OPTIONS on $(targets) += --enable-shared ;
-  }
-
-  if $(gcc) = $(GCC_BUILTIN) {
-    OPTIONS on $(targets) += --with-gmp=\"$(PREFIX)\" ;
-  }
-  else {
-    OPTIONS on $(targets) += --with-gmp=\"$(PREFIX)/$(gcc)\" ;
-  }
-
-  if $(gcc) != $(GCC_BUILTIN) {
-    OPTIONS on $(targets) += CC=\"$(PREFIX)/$(gcc)/bin/gcc\" ;
-    OPTIONS on $(targets) += CXX=\"$(PREFIX)/$(gcc)/bin/g++\" ;
-  }
-
-  SET_RUN_VARS on $(targets) = ;
-  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32 {
-    if $(gcc) = $(GCC_BUILTIN) {
-      SET_RUN_VARS on $(targets) = "PATH=\"$(PREFIX)/bin${PATH:+:$PATH}\"; export PATH" ;
-    }
-    else {
-      SET_RUN_VARS on $(targets) = "PATH=\"$(PREFIX)/$(gcc)/bin${PATH:+:$PATH}\"; export PATH" ;
-    }
-  }
-  else {
-    if $(gcc) = $(GCC_BUILTIN) {
-      SET_RUN_VARS on $(targets) = "LD_LIBRARY_PATH=\"$(PREFIX)/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"; export LD_LIBRARY_PATH" ;
-    }
-    else {
-      SET_RUN_VARS on $(targets) = "LD_LIBRARY_PATH=\"$(PREFIX)/$(gcc)/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"; export LD_LIBRARY_PATH" ;
-    }
+    OPTIONS on $(targets) += --disable-multilib ;
   }
 }
-actions make-mpfr
+actions make-binutils
 {
   rm -f "$(<)" || exit $?
   [ -x "$(CONFIGURE)" ] || exit $?
   [ `"$(CONFIGURE:D)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit $?
   { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
-  $(SET_RUN_VARS)
   if [ -n "$(STREAM)" ]; then
     ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
     ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'configure' MPFR $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
-    /bin/echo -n "ERROR: failed to 'configure' MPFR $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
+    echo "ERROR: failed to 'configure' binutils $(VERSION) ($(TRIPLET)-gcc)." 1>&2
+    /bin/echo -n "ERROR: failed to 'configure' binutils $(VERSION) ($(TRIPLET)-gcc)." | $(AWACS)
     exit 1
   fi
   [ -f "$(<:D)/build/Makefile" ] || exit $?
@@ -298,8 +233,8 @@ actions make-mpfr
     ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make' MPFR $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
-    /bin/echo -n "ERROR: failed to 'make' MPFR $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
+    echo "ERROR: failed to 'make' binutils $(VERSION) ($(TRIPLET)-gcc)." 1>&2
+    /bin/echo -n "ERROR: failed to 'make' binutils $(VERSION) ($(TRIPLET)-gcc)." | $(AWACS)
     exit 1
   fi
   if [ -n "$(STREAM)" ]; then
@@ -308,8 +243,8 @@ actions make-mpfr
     ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make check' MPFR $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
-    /bin/echo -n "ERROR: failed to 'make check' MPFR $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
+    echo "ERROR: failed to 'make check' binutils $(VERSION) ($(TRIPLET)-gcc)." 1>&2
+    /bin/echo -n "ERROR: failed to 'make check' binutils $(VERSION) ($(TRIPLET)-gcc)." | $(AWACS)
     exit 1
   fi
   if [ -n "$(STREAM)" ]; then
@@ -318,12 +253,12 @@ actions make-mpfr
     ( cd "$(<:D)/build" && make install )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make install' MPFR $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
-    /bin/echo -n "ERROR: failed to 'make install' MPFR $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
+    echo "ERROR: failed to 'make install' binutils $(VERSION) ($(TRIPLET)-gcc)." 1>&2
+    /bin/echo -n "ERROR: failed to 'make install' binutils $(VERSION) ($(TRIPLET)-gcc)." | $(AWACS)
     exit 1
   fi
   ( cd "$(<:D)" && rm -rf build )
-  /bin/echo -n "MPFR $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW)) was successfully built." | $(AWACS)
+  /bin/echo -n "binutils $(VERSION) ($(TRIPLET)-gcc) was successfully built." | $(AWACS)
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
@@ -336,13 +271,13 @@ rule install-req ( properties * )
   assert-unspecified <multilib-hidden> : $(properties) ;
   assert-specified   <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
-  assert-specified   <gmp>             : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
   assert-unspecified <gmp-hidden>      : $(properties) ;
-  assert-specified   <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
   assert-unspecified <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
-  assert-specified   <mpc-hidden>      : $(properties) ;
-  assert-specified   <gcc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
