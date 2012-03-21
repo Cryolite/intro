@@ -320,9 +320,6 @@ rule configure-gcc ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --with-mpfr=\"$(INTRO_ROOT_DIR)/gcc-prerequisites\" ;
   OPTIONS on $(targets) += --with-mpc=\"$(INTRO_ROOT_DIR)/gcc-prerequisites\" ;
 
-  OPTIONS on $(targets) += --with-stage1-ldflags=-L/usr/lib/x86_64-linux-gnu ;
-  OPTIONS on $(targets) += --with-boot-ldflags=-L/usr/lib/x86_64-linux-gnu ;
-
   OPTIONS on $(targets) += --enable-linker-build-id ;
 
   OPTIONS on $(targets) += --enable-lto ;
