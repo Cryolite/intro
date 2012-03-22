@@ -226,7 +226,19 @@ rule make-mpfr ( targets * : sources * : properties * )
   # Set the '--prefix' option for the 'configure' script.
   local gcc-raw = [ feature.get-values <gcc> : $(properties) ] ;
   GCC_RAW on $(targets) = $(gcc-raw) ;
-  local gcc = [ regex.replace "$(gcc-raw)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]" ".0" ] ;
+  local gcc ;
+  if [ regex.match "^([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : $(gcc-raw) : 1 ] {
+    gcc = $(gcc-raw) ;
+  }
+  else if [ regex.match "^([0123456789]+\\.[0123456789]+-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789])$" : $(gcc-raw) : 1 ] {
+    gcc = [ regex.replace "$(gcc-raw)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]$" ".0" ] ;
+  }
+  else if [ regex.match "^([0123456789]+\\.[0123456789]+.0-RC-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789])$" : $(gcc-raw) : 1 ] {
+    gcc = [ regex.replace "$(gcc-raw)" "-RC-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]$" "" ] ;
+  }
+  else {
+    errors.error "ERROR: an invalid GCC version." ;
+  }
   if $(gcc) = $(GCC_BUILTIN) {
     OPTIONS on $(targets) += --prefix=\"$(PREFIX)\" ;
   }

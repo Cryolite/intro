@@ -58,11 +58,17 @@ rule download-gcc ( targets * : sources * : properties * )
   #local url_prefix = "http://gcc.petsads.us" ;                      # US +
   #local url_prefix = "http://mirrors-us.seosue.com/gcc" ;           # US
   local url_prefix = "http://ftp.tsukuba.wide.ad.jp/software/gcc" ; # Japan +++
-  if [ regex.match "^([0123456789]+\\.[0123456789]+-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789])$" : $(version) : 1 ] {
+  if [ regex.match "^([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : $(version) : 1 ] {
+    URL on $(targets) = "$(url_prefix)/releases/gcc-$(version)/gcc-$(version).tar.bz2" ;
+  }
+  else if [ regex.match "^([0123456789]+\\.[0123456789]+-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789])$" : $(version) : 1 ] {
+    URL on $(targets) = "$(url_prefix)/snapshots/$(version)/gcc-$(version).tar.bz2" ;
+  }
+  else if [ regex.match "^([0123456789]+\\.[0123456789]+\\.0-RC-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789])$" : $(version) : 1 ] {
     URL on $(targets) = "$(url_prefix)/snapshots/$(version)/gcc-$(version).tar.bz2" ;
   }
   else {
-    URL on $(targets) = "$(url_prefix)/releases/gcc-$(version)/gcc-$(version).tar.bz2" ;
+    errors.error "ERROR: an invalid GCC version." ;
   }
   TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/gcc-$(version).tar.gz ;
   TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/gcc-$(version).tar.bz2 ;
@@ -224,7 +230,19 @@ rule configure-gcc ( targets * : sources * : properties * )
   local ver-raw = [ feature.get-values <gcc> : $(properties) ] ;
   VER_RAW on $(targets) = $(ver-raw) ;
   local src-dir = $(INTRO_ROOT_DIR)/gcc-$(ver-raw) ;
-  local version = [ regex.replace "$(ver-raw)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]" ".0" ] ;
+  local version ;
+  if [ regex.match "^([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : $(ver-raw) : 1 ] {
+    version = $(ver-raw) ;
+  }
+  else if [ regex.match "^([0123456789]+\\.[0123456789]+-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789])$" : $(ver-raw) : 1 ] {
+    version = [ regex.replace "$(ver-raw)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]$" ".0" ] ;
+  }
+  else if [ regex.match "^([0123456789]+\\.[0123456789]+.0-RC-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789])$" : $(ver-raw) : 1 ] {
+    version = [ regex.replace "$(ver-raw)" "-RC-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]$" "" ] ;
+  }
+  else {
+    errors.error "ERROR: an invalid GCC version." ;
+  }
 
   # Set the path to the 'configure' file.
   local configure = $(src-dir)/configure ;
@@ -394,7 +412,19 @@ rule make-gcc ( targets * : sources * : properties * )
   SRC_DIR on $(targets) = "$(src-dir)" ;
   local ver-raw = $(version) ;
   VER_RAW on $(targets) = $(ver-raw) ;
-  version = [ regex.replace "$(version)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]" ".0" ] ;
+  local version ;
+  if [ regex.match "^([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : $(ver-raw) : 1 ] {
+    version = $(ver-raw) ;
+  }
+  else if [ regex.match "^([0123456789]+\\.[0123456789]+-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789])$" : $(ver-raw) : 1 ] {
+    version = [ regex.replace "$(ver-raw)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]$" ".0" ] ;
+  }
+  else if [ regex.match "^([0123456789]+\\.[0123456789]+.0-RC-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789])$" : $(ver-raw) : 1 ] {
+    version = [ regex.replace "$(ver-raw)" "-RC-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]$" "" ] ;
+  }
+  else {
+    errors.error "ERROR: an invalid GCC version." ;
+  }
 
   local gpp-tlimit = "$(INTRO_ROOT_DIR)/gcc/g++-tlimit" ;
   GPP_TLIMIT on $(targets) = "$(gpp-tlimit)" ;
