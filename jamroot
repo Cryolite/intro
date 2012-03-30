@@ -250,10 +250,10 @@ for local i in $(gcc-versions) {
 }
 local gcc-builtin = $(gcc-versions[1]) ;
 constant GCC_BUILTIN : $(gcc-builtin) ;
-local gcc-snapshot = $(gcc-versions[2]) ;
-local gcc-current = $(gcc-versions[3]) ;
-local gcc-previous = $(gcc-versions[4]) ;
-local gcc-oldest = $(gcc-versions[5]) ;
+local gcc-oldest = $(gcc-versions[2]) ;
+local gcc-previous = $(gcc-versions[3]) ;
+local gcc-current = $(gcc-versions[4]) ;
+local gcc-snapshot = $(gcc-versions[5]) ;
 ECHO GCC builtin... $(gcc-builtin) ;
 ECHO GCC current... $(gcc-current) ;
 ECHO GCC previous... $(gcc-previous) ;

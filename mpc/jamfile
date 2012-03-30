@@ -84,7 +84,7 @@ rule download-mpc ( targets * : sources * : properties * )
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
   local version = [ feature.get-values <mpc> : $(properties) ] ;
-  URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/mpc/mpc-$(version).tar.bz2 ;
+  URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/mpc/mpc-$(version).tar.gz ;
   #URL on $(targets) = http://www.multiprecision.org/mpc/download/mpc-$(version).tar.gz ;
   TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/mpc-$(version).tar.gz ;
   TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/mpc-$(version).tar.bz2 ;
