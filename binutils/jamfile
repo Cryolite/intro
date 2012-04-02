@@ -69,7 +69,7 @@ actions download-binutils
       /bin/echo -n "ERROR: failed to download binutils tarball." | $(AWACS)
       exit 1
     fi
-    [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_BZ2)" ] || exit $?
+    [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_BZ2)" ] || exit 1
   fi
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
@@ -117,8 +117,8 @@ rule expand-binutils ( targets * : sources * : properties * )
 actions expand-binutils
 {
   rm -f "$(<)" || exit $?
-  [ -f "$(>)" ] || exit $?
-  ( cd "$(INTRO_ROOT_DIR)" && rm -rf binutils-$(VERSION) ) || exit $?
+  [ -f "$(>)" ] || exit 1
+  ( cd "$(INTRO_ROOT_DIR)" && rm -rf binutils-$(VERSION) ) || exit 1
   [ -e "$(INTRO_ROOT_DIR)/binutils-$(VERSION)" ] && exit 1
   if [ -f "$(TARBALL_GZ)" ]; then
     if [ -n "$(STREAM)" ]; then
@@ -135,9 +135,13 @@ actions expand-binutils
   else
     exit 1
   fi
-  [ $? -ne 0 ] && { echo "ERROR: failed to expand binutils tarball." 1>&2; exit 1; }
-  [ -d "$(DEST_DIR)" ] || exit $?
-  [ -x "$(DEST_DIR)/configure" ] || exit $?
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to expand binutils tarball." 1>&2
+    /bin/echo -n "ERROR: failed to expand binutils tarball." | $(AWACS)
+    exit 1
+  fi
+  [ -d "$(DEST_DIR)" ] || exit 1
+  [ -x "$(DEST_DIR)/configure" ] || exit 1
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
@@ -205,9 +209,9 @@ rule make-binutils ( targets * : sources * : properties * )
 actions make-binutils
 {
   rm -f "$(<)" || exit $?
-  [ -x "$(CONFIGURE)" ] || exit $?
-  [ `"$(CONFIGURE:D)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit $?
-  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
+  [ -x "$(CONFIGURE)" ] || exit 1
+  [ `"$(CONFIGURE:D)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit 1
+  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit 1
   if [ -n "$(STREAM)" ]; then
     ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
@@ -218,7 +222,7 @@ actions make-binutils
     /bin/echo -n "ERROR: failed to 'configure' binutils $(VERSION) ($(TRIPLET)-gcc)." | $(AWACS)
     exit 1
   fi
-  [ -f "$(<:D)/build/Makefile" ] || exit $?
+  [ -f "$(<:D)/build/Makefile" ] || exit 1
   if [ -n "$(STREAM)" ]; then
     ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
   else

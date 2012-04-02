@@ -105,7 +105,7 @@ actions download-gmp
       /bin/echo -n "ERROR: failed to download GMP tarball." | $(AWACS)
       exit 1
     fi
-    [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_BZ2)" ] || exit $?
+    [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_BZ2)" ] || exit 1
   fi
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
@@ -153,8 +153,8 @@ rule expand-gmp ( targets * : sources * : properties * )
 actions expand-gmp
 {
   rm -f "$(<)" || exit $?
-  [ -f "$(>)" ] || exit $?
-  ( cd "$(INTRO_ROOT_DIR)" && rm -rf gmp-$(VERSION) ) || exit $?
+  [ -f "$(>)" ] || exit 1
+  ( cd "$(INTRO_ROOT_DIR)" && rm -rf gmp-$(VERSION) ) || exit 1
   [ -e "$(INTRO_ROOT_DIR)/gmp-$(VERSION)" ] && exit 1
   if [ -f "$(TARBALL_GZ)" ]; then
     if [ -n "$(STREAM)" ]; then
@@ -171,9 +171,13 @@ actions expand-gmp
   else
     exit 1
   fi
-  [ $? -ne 0 ] && { echo "ERROR: failed to expand GMP tarball." 1>&2; exit 1; }
-  [ -d "$(DEST_DIR)" ] || exit $?
-  [ -x "$(DEST_DIR)/configure" ] || exit $?
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to expand GMP tarball." 1>&2
+    /bin/echo -n "ERROR: failed to expand GMP tarball." | $(AWACS)
+    exit 1
+  fi
+  [ -d "$(DEST_DIR)" ] || exit 1
+  [ -x "$(DEST_DIR)/configure" ] || exit 1
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
@@ -284,9 +288,9 @@ rule make-gmp ( targets * : sources * : properties * )
 actions make-gmp
 {
   rm -f "$(<)" || exit $?
-  [ -x "$(CONFIGURE)" ] || exit $?
-  [ `"$(CONFIGURE:D)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit $?
-  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
+  [ -x "$(CONFIGURE)" ] || exit 1
+  [ `"$(CONFIGURE:D)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit 1
+  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit 1
   $(SET_RUN_VARS)
   if [ -n "$(STREAM)" ]; then
     ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) >> "$(STREAM)" 2>&1 )
@@ -298,7 +302,7 @@ actions make-gmp
     /bin/echo -n "ERROR: failed to 'configure' GMP $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
-  [ -f "$(<:D)/build/Makefile" ] || exit $?
+  [ -f "$(<:D)/build/Makefile" ] || exit 1
   if [ -n "$(STREAM)" ]; then
     ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
   else

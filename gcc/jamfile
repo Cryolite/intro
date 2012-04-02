@@ -87,7 +87,7 @@ actions download-gcc
       /bin/echo -n "ERROR: failed to download GCC tarball." | $(AWACS)
       exit 1
     fi
-    [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_BZ2)" ] || exit $?
+    [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_BZ2)" ] || exit 1
   fi
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
@@ -135,8 +135,8 @@ rule expand-gcc ( targets * : sources * : properties * )
 actions expand-gcc
 {
   rm -f "$(<)" || exit $?
-  [ -f "$(>)" ] || exit $?
-  ( cd "$(INTRO_ROOT_DIR)" && rm -rf gcc-$(VERSION) ) || exit $?
+  [ -f "$(>)" ] || exit 1
+  ( cd "$(INTRO_ROOT_DIR)" && rm -rf gcc-$(VERSION) ) || exit 1
   [ -e "$(INTRO_ROOT_DIR)/gcc-$(VERSION)" ] && exit 1
   if [ -f "$(TARBALL_GZ)" ]; then
     if [ -n "$(STREAM)" ]; then
@@ -153,9 +153,13 @@ actions expand-gcc
   else
     exit 1
   fi
-  [ $? -ne 0 ] && { echo "ERROR: failed to expand GCC tarball." 1>&2; exit 1; }
-  [ -d "$(DEST_DIR)" ] || exit $?
-  [ -x "$(DEST_DIR)/configure" ] || exit $?
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to expand GCC tarball." 1>&2
+    /bin/echo -n "ERROR: failed to expand GCC tarball." | $(AWACS)
+    exit 1
+  fi
+  [ -d "$(DEST_DIR)" ] || exit 1
+  [ -x "$(DEST_DIR)/configure" ] || exit 1
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
@@ -321,16 +325,16 @@ rule configure-gcc ( targets * : sources * : properties * )
 
   SET_PREFIX_SYMLINK on $(targets) = ;
   if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32 {
-    SET_PREFIX_SYMLINK on $(targets) = "{ mkdir -p \"$(PREFIX)/$(version)/lib\" && ( cd \"$(PREFIX)/$(version)\" && ln -sf lib lib64 ); } || exit $?" ;
+    SET_PREFIX_SYMLINK on $(targets) = "{ mkdir -p \"$(PREFIX)/$(version)/lib\" && ( cd \"$(PREFIX)/$(version)\" && ln -sf lib lib64 ); } || exit 1" ;
   }
 }
 actions configure-gcc
 {
   rm -f "$(<)" || exit $?
-  [ -x "$(CONFIGURE)" ] || exit $?
+  [ -x "$(CONFIGURE)" ] || exit 1
   $(SET_PREFIX_SYMLINK)
-  [ `$(CONFIGURE:D)/config.sub $(TRIPLET)` = $(TRIPLET) ] || exit $?
-  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
+  [ `$(CONFIGURE:D)/config.sub $(TRIPLET)` = $(TRIPLET) ] || exit 1
+  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit 1
   if [ -n "$(STREAM)" ]; then
     ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
@@ -341,7 +345,7 @@ actions configure-gcc
     /bin/echo -n "ERROR: failed to 'configure' GCC $(VER_RAW) ($(TRIPLET))." | $(AWACS)
     exit 1
   fi
-  [ -f "$(<:D)/build/Makefile" ] || exit $?
+  [ -f "$(<:D)/build/Makefile" ] || exit 1
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
@@ -404,7 +408,7 @@ rule make-gcc ( targets * : sources * : properties * )
 actions make-gcc
 {
   rm -f "$(<)" || exit $?
-  [ -f "$(<:D)/build/Makefile" ] || exit $?
+  [ -f "$(<:D)/build/Makefile" ] || exit 1
   if [ -n "$(STREAM)" ]; then
     ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
   else

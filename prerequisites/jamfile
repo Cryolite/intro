@@ -79,9 +79,9 @@ rule make-static-gmp ( targets * : sources * : properties * )
 actions make-static-gmp
 {
   rm -f "$(<)" || exit $?
-  [ -x "$(CONFIGURE)" ] || exit $?
-  [ `"$(CONFIGURE:D)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit $?
-  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
+  [ -x "$(CONFIGURE)" ] || exit 1
+  [ `"$(CONFIGURE:D)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit 1
+  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit 1
   if [ -n "$(STREAM)" ]; then
     ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
@@ -92,7 +92,7 @@ actions make-static-gmp
     /bin/echo -n "ERROR: failed to 'configure' GMP $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
-  [ -f "$(<:D)/build/Makefile" ] || exit $?
+  [ -f "$(<:D)/build/Makefile" ] || exit 1
   if [ -n "$(STREAM)" ]; then
     ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
   else
@@ -188,9 +188,9 @@ rule make-static-mpfr ( targets * : sources * : properties * )
 actions make-static-mpfr
 {
   rm -f "$(<)" || exit $?
-  [ -x "$(CONFIGURE)" ] || exit $?
-  [ `"$(CONFIGURE:D)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit $?
-  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
+  [ -x "$(CONFIGURE)" ] || exit 1
+  [ `"$(CONFIGURE:D)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit 1
+  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit 1
   if [ -n "$(STREAM)" ]; then
     ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
@@ -201,7 +201,7 @@ actions make-static-mpfr
     /bin/echo -n "ERROR: failed to 'configure' MPFR $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
-  [ -f "$(<:D)/build/Makefile" ] || exit $?
+  [ -f "$(<:D)/build/Makefile" ] || exit 1
   if [ -n "$(STREAM)" ]; then
     ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
   else
@@ -298,9 +298,9 @@ rule make-static-mpc ( targets * : sources * : properties * )
 actions make-static-mpc
 {
   rm -f "$(<)" || exit $?
-  [ -x "$(CONFIGURE)" ] || exit $?
-  [ `"$(CONFIGURE:D)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit $?
-  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
+  [ -x "$(CONFIGURE)" ] || exit 1
+  [ `"$(CONFIGURE:D)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit 1
+  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit 1
   if [ -n "$(STREAM)" ]; then
     ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
@@ -311,7 +311,7 @@ actions make-static-mpc
     /bin/echo -n "ERROR: failed to 'configure' MPC $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
-  [ -f "$(<:D)/build/Makefile" ] || exit $?
+  [ -f "$(<:D)/build/Makefile" ] || exit 1
   if [ -n "$(STREAM)" ]; then
     ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
   else

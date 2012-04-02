@@ -108,7 +108,7 @@ actions download-openmpi
       /bin/echo -n "ERROR: failed to download Open MPI tarball." | $(AWACS)
       exit 1
     fi
-    [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_BZ2)" ] || exit $?
+    [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_BZ2)" ] || exit 1
   fi
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
@@ -156,8 +156,8 @@ rule expand-openmpi ( targets * : sources * : properties * )
 actions expand-openmpi
 {
   rm -f "$(<)" || exit $?
-  [ -f "$(>)" ] || exit $?
-  ( cd "$(INTRO_ROOT_DIR)" && rm -rf openmpi-$(VERSION) ) || exit $?
+  [ -f "$(>)" ] || exit 1
+  ( cd "$(INTRO_ROOT_DIR)" && rm -rf openmpi-$(VERSION) ) || exit 1
   [ -e "$(INTRO_ROOT_DIR)/openmpi-$(VERSION)" ] && exit 1
   if [ -f "$(TARBALL_GZ)" ]; then
     if [ -n "$(STREAM)" ]; then
@@ -174,9 +174,13 @@ actions expand-openmpi
   else
     exit 1
   fi
-  [ $? -ne 0 ] && { echo "ERROR: failed to expand Open MPI tarball." 1>&2; exit 1; }
-  [ -d "$(DEST_DIR)" ] || exit $?
-  [ -x "$(DEST_DIR)/configure" ] || exit $?
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to expand Open MPI tarball." 1>&2
+    /bin/echo -n "ERROR: failed to expand Open MPI tarball." | $(AWACS)
+    exit 1
+  fi
+  [ -d "$(DEST_DIR)" ] || exit 1
+  [ -x "$(DEST_DIR)/configure" ] || exit 1
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
@@ -286,9 +290,9 @@ rule make-openmpi ( targets * : sources * : properties * )
 actions make-openmpi
 {
   rm -f "$(<)" || exit $?
-  [ -x "$(CONFIGURE)" ] || exit $?
-  [ `"$(CONFIGURE:D)/config/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit $?
-  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit $?
+  [ -x "$(CONFIGURE)" ] || exit 1
+  [ `"$(CONFIGURE:D)/config/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit 1
+  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit 1
   $(SET_RUN_VARS)
   if [ -n "$(STREAM)" ]; then
     ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) >> "$(STREAM)" 2>&1 )
@@ -300,7 +304,7 @@ actions make-openmpi
     /bin/echo -n "ERROR: failed to 'configure' Open MPI $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
     exit 1
   fi
-  [ -f "$(<:D)/build/Makefile" ] || exit $?
+  [ -f "$(<:D)/build/Makefile" ] || exit 1
   if [ -n "$(STREAM)" ]; then
     ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
   else
