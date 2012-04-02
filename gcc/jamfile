@@ -161,41 +161,10 @@ actions expand-gcc
 }
 
 
-rule gcc-prerequisites-dep-req ( properties * )
-{
-  assert-specified   <triplet>         : $(properties) ;
-  assert-specified   <multilib>        : $(properties) ;
-  assert-unspecified <multilib-hidden> : $(properties) ;
-  assert-specified   <binutils>        : $(properties) ;
-  assert-unspecified <binutils-hidden> : $(properties) ;
-  assert-specified   <gmp>             : $(properties) ;
-  assert-unspecified <gmp-hidden>      : $(properties) ;
-  assert-specified   <mpfr>            : $(properties) ;
-  assert-unspecified <mpfr-hidden>     : $(properties) ;
-  assert-specified   <mpc>             : $(properties) ;
-  assert-unspecified <mpc-hidden>      : $(properties) ;
-  assert-unspecified <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
-  assert-unspecified <icu4c>           : $(properties) ;
-  assert-unspecified <icu4c-hidden>    : $(properties) ;
-  assert-unspecified <mpi>             : $(properties) ;
-  assert-unspecified <mpi-hidden>      : $(properties) ;
-  assert-unspecified <openmpi>         : $(properties) ;
-  assert-unspecified <openmpi-hidden>  : $(properties) ;
-  assert-unspecified <boost>           : $(properties) ;
-  assert-unspecified <boost-hidden>    : $(properties) ;
-  local result = <source>../gcc-prerequisites//install ;
-  local multilib = [ feature.get-values <multilib> : $(properties) ] ;
-  result = $(result)/<multilib>unspecified/<multilib-hidden>$(multilib) ;
-  return $(result) ;
-}
-
-alias gcc-prerequisites-dep : : <conditional>@gcc-prerequisites-dep-req ;
-explicit gcc-prerequisites-dep ;
-
-
 make configure
-  : gcc-prerequisites-dep/<gcc>unspecified
+  : ../binutils//install/<multilib>unspecified/<gmp>unspecified/<mpfr>unspecified/<mpc>unspecified/<gcc>unspecified
+    # `../prerequisites//static-mpc' depends on `../prerequisites//static-gmp' and `../prerequisites//static-mpfr'.
+    ../prerequisites//static-mpc/<multilib>unspecified/<gcc>unspecified
     expand/<triplet>unspecified/<multilib>unspecified/<binutils>unspecified/<gmp>unspecified/<mpfr>unspecified/<mpc>unspecified
   : @configure-gcc
   ;
@@ -334,9 +303,9 @@ rule configure-gcc ( targets * : sources * : properties * )
     OPTIONS on $(targets) += --enable-graphite ;
   }
 
-  OPTIONS on $(targets) += --with-gmp=\"$(INTRO_ROOT_DIR)/gcc-prerequisites\" ;
-  OPTIONS on $(targets) += --with-mpfr=\"$(INTRO_ROOT_DIR)/gcc-prerequisites\" ;
-  OPTIONS on $(targets) += --with-mpc=\"$(INTRO_ROOT_DIR)/gcc-prerequisites\" ;
+  OPTIONS on $(targets) += --with-gmp=\"$(INTRO_ROOT_DIR)/prerequisites\" ;
+  OPTIONS on $(targets) += --with-mpfr=\"$(INTRO_ROOT_DIR)/prerequisites\" ;
+  OPTIONS on $(targets) += --with-mpc=\"$(INTRO_ROOT_DIR)/prerequisites\" ;
 
   OPTIONS on $(targets) += --enable-linker-build-id ;
 
@@ -499,7 +468,9 @@ rule install-req ( properties * )
   local gcc = [ feature.get-values <gcc> : $(properties) ] ;
   if $(gcc) = $(GCC_BUILTIN) {
     # Skips the build of GCC.
-    result = <source>gcc-prerequisites-dep/<gcc>unspecified ;
+    result = <source>../binutils//install/<multilib>unspecified/<gmp>unspecified/<mpfr>unspecified/<mpc>unspecified/<gcc>unspecified ;
+    # `../prerequisites//static-mpc' depends on `../prerequisites//static-gmp' and `../prerequisites//static-mpfr'.
+    result += <source>../prerequisites//static-mpc/<multilib>unspecified/<gcc>unspecified ;
   }
   else {
     local triplet = [ feature.get-values <triplet> : $(properties) ] ;

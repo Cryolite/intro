@@ -1,4 +1,4 @@
-project intro/gcc-prerequisites ;
+project intro/prerequisites ;
 
 import alias ;
 import errors ;
@@ -10,7 +10,7 @@ rule assert-specified ( feature : properties * )
 {
   local val = [ feature.get-values $(feature) : $(properties) ] ;
   if $(val) = unspecified {
-    errors.error $(feature) is not specified for GCC prerequisites build. ;
+    errors.error $(feature) is not specified for prerequisites build. ;
   }
 }
 
@@ -18,46 +18,13 @@ rule assert-unspecified ( feature : properties * )
 {
   local val = [ feature.get-values $(feature) : $(properties) ] ;
   if $(val) != unspecified {
-    errors.error $(feature) is not valid for GCC prerequisites build. ;
+    errors.error $(feature) is not valid for prerequisites build. ;
   }
 }
 
 
-rule binutils-dep-req ( properties * )
-{
-  assert-specified   <triplet>         : $(properties) ;
-  assert-unspecified <multilib>        : $(properties) ;
-  assert-specified   <multilib-hidden> : $(properties) ;
-  assert-specified   <binutils>        : $(properties) ;
-  assert-unspecified <binutils-hidden> : $(properties) ;
-  assert-unspecified <gmp>             : $(properties) ;
-  assert-unspecified <gmp-hidden>      : $(properties) ;
-  assert-unspecified <mpfr>            : $(properties) ;
-  assert-unspecified <mpfr-hidden>     : $(properties) ;
-  assert-unspecified <mpc>             : $(properties) ;
-  assert-unspecified <mpc-hidden>      : $(properties) ;
-  assert-unspecified <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
-  assert-unspecified <icu4c>           : $(properties) ;
-  assert-unspecified <icu4c-hidden>    : $(properties) ;
-  assert-unspecified <mpi>             : $(properties) ;
-  assert-unspecified <mpi-hidden>      : $(properties) ;
-  assert-unspecified <openmpi>         : $(properties) ;
-  assert-unspecified <openmpi-hidden>  : $(properties) ;
-  assert-unspecified <boost>           : $(properties) ;
-  assert-unspecified <boost-hidden>    : $(properties) ;
-  local result = <source>../binutils//install ;
-  local multilib = [ feature.get-values <multilib-hidden> : $(properties) ] ;
-  result = $(result)/<multilib>$(multilib)/<multilib-hidden>unspecified ;
-  return $(result) ;
-}
-
-alias binutils-dep : : <conditional>@binutils-dep-req ;
-explicit binutils-dep ;
-
-
 make static-gmp
-  : binutils-dep/<gmp>unspecified
+  : ../binutils//install/<gmp>unspecified
     ../gmp//expand/<triplet>unspecified/<multilib-hidden>unspecified/<binutils>unspecified
   : @make-static-gmp
   ;
@@ -67,7 +34,7 @@ rule make-static-gmp ( targets * : sources * : properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
-  assert-specified   <multilib-hidden> : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
   assert-specified   <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
   assert-specified   <gmp>             : $(properties) ;
@@ -103,7 +70,7 @@ rule make-static-gmp ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --host=$(triplet) ;
 
   # Set the '--prefix' option for the 'configure' script.
-  OPTIONS on $(targets) += --prefix=\"$(INTRO_ROOT_DIR)/gcc-prerequisites\" ;
+  OPTIONS on $(targets) += --prefix=\"$(INTRO_ROOT_DIR)/prerequisites\" ;
 
   # Set the link variants for the 'configure' script.
   OPTIONS on $(targets) += --enable-static ;
@@ -121,8 +88,8 @@ actions make-static-gmp
     ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'configure' GMP $(VERSION) (as GCC prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'configure' GMP $(VERSION) (as GCC prerequisites)." | $(AWACS)
+    echo "ERROR: failed to 'configure' GMP $(VERSION) (as prerequisites)." 1>&2
+    /bin/echo -n "ERROR: failed to 'configure' GMP $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   [ -f "$(<:D)/build/Makefile" ] || exit $?
@@ -132,8 +99,8 @@ actions make-static-gmp
     ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make' GMP $(VERSION) (as GCC prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make' GMP $(VERSION) (as GCC prerequisites)." | $(AWACS)
+    echo "ERROR: failed to 'make' GMP $(VERSION) (as prerequisites)." 1>&2
+    /bin/echo -n "ERROR: failed to 'make' GMP $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   if [ -n "$(STREAM)" ]; then
@@ -142,8 +109,8 @@ actions make-static-gmp
     ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make check' GMP $(VERSION) (as GCC prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make check' GMP $(VERSION) (as GCC prerequisites)." | $(AWACS)
+    echo "ERROR: failed to 'make check' GMP $(VERSION) (as prerequisites)." 1>&2
+    /bin/echo -n "ERROR: failed to 'make check' GMP $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   if [ -n "$(STREAM)" ]; then
@@ -152,12 +119,12 @@ actions make-static-gmp
     ( cd "$(<:D)/build" && make install )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make install' GMP $(VERSION) (as GCC prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make install' GMP $(VERSION) (as GCC prerequisites)." | $(AWACS)
+    echo "ERROR: failed to 'make install' GMP $(VERSION) (as prerequisites)." 1>&2
+    /bin/echo -n "ERROR: failed to 'make install' GMP $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   ( cd "$(<:D)" && rm -rf build )
-  /bin/echo -n "GMP $(VERSION) (as GCC prerequisites) was successfully built." | $(AWACS)
+  /bin/echo -n "GMP $(VERSION) (as prerequisites) was successfully built." | $(AWACS)
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
@@ -174,7 +141,7 @@ rule make-static-mpfr ( targets * : sources * : properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
-  assert-specified   <multilib-hidden> : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
   assert-specified   <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
   assert-specified   <gmp>             : $(properties) ;
@@ -210,13 +177,13 @@ rule make-static-mpfr ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --host=$(triplet) ;
 
   # Set the '--prefix' option for the 'configure' script.
-  OPTIONS on $(targets) += --prefix=\"$(INTRO_ROOT_DIR)/gcc-prerequisites\" ;
+  OPTIONS on $(targets) += --prefix=\"$(INTRO_ROOT_DIR)/prerequisites\" ;
 
   # Set the link variants for the 'configure' script.
   OPTIONS on $(targets) += --enable-static ;
   OPTIONS on $(targets) += --disable-shared ;
 
-  OPTIONS on $(targets) += --with-gmp=\"$(INTRO_ROOT_DIR)/gcc-prerequisites\" ;
+  OPTIONS on $(targets) += --with-gmp=\"$(INTRO_ROOT_DIR)/prerequisites\" ;
 }
 actions make-static-mpfr
 {
@@ -230,8 +197,8 @@ actions make-static-mpfr
     ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'configure' MPFR $(VERSION) (as GCC prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'configure' MPFR $(VERSION) (as GCC prerequisites)." | $(AWACS)
+    echo "ERROR: failed to 'configure' MPFR $(VERSION) (as prerequisites)." 1>&2
+    /bin/echo -n "ERROR: failed to 'configure' MPFR $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   [ -f "$(<:D)/build/Makefile" ] || exit $?
@@ -241,8 +208,8 @@ actions make-static-mpfr
     ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make' MPFR $(VERSION) (as GCC prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make' MPFR $(VERSION) (as GCC prerequisites)." | $(AWACS)
+    echo "ERROR: failed to 'make' MPFR $(VERSION) (as prerequisites)." 1>&2
+    /bin/echo -n "ERROR: failed to 'make' MPFR $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   if [ -n "$(STREAM)" ]; then
@@ -251,8 +218,8 @@ actions make-static-mpfr
     ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make check' MPFR $(VERSION) (as GCC prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make check' MPFR $(VERSION) (as GCC prerequisites)." | $(AWACS)
+    echo "ERROR: failed to 'make check' MPFR $(VERSION) (as prerequisites)." 1>&2
+    /bin/echo -n "ERROR: failed to 'make check' MPFR $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   if [ -n "$(STREAM)" ]; then
@@ -261,12 +228,12 @@ actions make-static-mpfr
     ( cd "$(<:D)/build" && make install )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make install' MPFR $(VERSION) (as GCC prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make install' MPFR $(VERSION) (as GCC prerequisites)." | $(AWACS)
+    echo "ERROR: failed to 'make install' MPFR $(VERSION) (as prerequisites)." 1>&2
+    /bin/echo -n "ERROR: failed to 'make install' MPFR $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   ( cd "$(<:D)" && rm -rf build )
-  /bin/echo -n "MPFR $(VERSION) (as GCC prerequisites) was successfully built." | $(AWACS)
+  /bin/echo -n "MPFR $(VERSION) (as prerequisites) was successfully built." | $(AWACS)
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
@@ -283,7 +250,7 @@ rule make-static-mpc ( targets * : sources * : properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
-  assert-specified   <multilib-hidden> : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
   assert-specified   <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
   assert-specified   <gmp>             : $(properties) ;
@@ -319,14 +286,14 @@ rule make-static-mpc ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --host=$(triplet) ;
 
   # Set the '--prefix' option for the 'configure' script.
-  OPTIONS on $(targets) += --prefix=\"$(INTRO_ROOT_DIR)/gcc-prerequisites\" ;
+  OPTIONS on $(targets) += --prefix=\"$(INTRO_ROOT_DIR)/prerequisites\" ;
 
   # Set the link variants for the 'configure' script.
   OPTIONS on $(targets) += --enable-static ;
   OPTIONS on $(targets) += --disable-shared ;
 
-  OPTIONS on $(targets) += --with-gmp=\"$(INTRO_ROOT_DIR)/gcc-prerequisites\" ;
-  OPTIONS on $(targets) += --with-mpfr=\"$(INTRO_ROOT_DIR)/gcc-prerequisites\" ;
+  OPTIONS on $(targets) += --with-gmp=\"$(INTRO_ROOT_DIR)/prerequisites\" ;
+  OPTIONS on $(targets) += --with-mpfr=\"$(INTRO_ROOT_DIR)/prerequisites\" ;
 }
 actions make-static-mpc
 {
@@ -340,8 +307,8 @@ actions make-static-mpc
     ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'configure' MPC $(VERSION) (as GCC prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'configure' MPC $(VERSION) (as GCC prerequisites)." | $(AWACS)
+    echo "ERROR: failed to 'configure' MPC $(VERSION) (as prerequisites)." 1>&2
+    /bin/echo -n "ERROR: failed to 'configure' MPC $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   [ -f "$(<:D)/build/Makefile" ] || exit $?
@@ -351,8 +318,8 @@ actions make-static-mpc
     ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make' MPC $(VERSION) (as GCC prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make' MPC $(VERSION) (as GCC prerequisites)." | $(AWACS)
+    echo "ERROR: failed to 'make' MPC $(VERSION) (as prerequisites)." 1>&2
+    /bin/echo -n "ERROR: failed to 'make' MPC $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   if [ -n "$(STREAM)" ]; then
@@ -361,8 +328,8 @@ actions make-static-mpc
     ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make check' MPC $(VERSION) (as GCC prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make check' MPC $(VERSION) (as GCC prerequisites)." | $(AWACS)
+    echo "ERROR: failed to 'make check' MPC $(VERSION) (as prerequisites)." 1>&2
+    /bin/echo -n "ERROR: failed to 'make check' MPC $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   if [ -n "$(STREAM)" ]; then
@@ -371,41 +338,12 @@ actions make-static-mpc
     ( cd "$(<:D)/build" && make install )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make install' MPC $(VERSION) (as GCC prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make install' MPC $(VERSION) (as GCC prerequisites)." | $(AWACS)
+    echo "ERROR: failed to 'make install' MPC $(VERSION) (as prerequisites)." 1>&2
+    /bin/echo -n "ERROR: failed to 'make install' MPC $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   ( cd "$(<:D)" && rm -rf build )
-  /bin/echo -n "MPC $(VERSION) (as GCC prerequisites) was successfully built." | $(AWACS)
+  /bin/echo -n "MPC $(VERSION) (as prerequisites) was successfully built." | $(AWACS)
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
-
-
-rule install-req ( properties * )
-{
-  assert-specified   <triplet>         : $(properties) ;
-  assert-unspecified <multilib>        : $(properties) ;
-  assert-specified   <multilib-hidden> : $(properties) ;
-  assert-specified   <binutils>        : $(properties) ;
-  assert-unspecified <binutils-hidden> : $(properties) ;
-  assert-specified   <gmp>             : $(properties) ;
-  assert-unspecified <gmp-hidden>      : $(properties) ;
-  assert-specified   <mpfr>            : $(properties) ;
-  assert-unspecified <mpfr-hidden>     : $(properties) ;
-  assert-specified   <mpc>             : $(properties) ;
-  assert-unspecified <mpc-hidden>      : $(properties) ;
-  assert-unspecified <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
-  assert-unspecified <icu4c>           : $(properties) ;
-  assert-unspecified <icu4c-hidden>    : $(properties) ;
-  assert-unspecified <mpi>             : $(properties) ;
-  assert-unspecified <mpi-hidden>      : $(properties) ;
-  assert-unspecified <openmpi>         : $(properties) ;
-  assert-unspecified <openmpi-hidden>  : $(properties) ;
-  assert-unspecified <boost>           : $(properties) ;
-  assert-unspecified <boost-hidden>    : $(properties) ;
-}
-
-alias install : static-mpc : <conditional>@install-req ;
-explicit install ;

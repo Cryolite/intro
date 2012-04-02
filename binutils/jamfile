@@ -144,7 +144,7 @@ actions expand-binutils
 
 
 make make
-  : expand/<triplet>unspecified/<multilib>unspecified
+  : expand/<triplet>unspecified
   : @make-binutils
   ;
 explicit make ;
@@ -152,7 +152,7 @@ explicit make ;
 rule make-binutils ( targets * : sources * : properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
-  assert-specified   <multilib>        : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
   assert-specified   <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
@@ -201,14 +201,6 @@ rule make-binutils ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --enable-lto ;
 
   OPTIONS on $(targets) += --enable-plugins ;
-
-  local multilib = [ feature.get-values <multilib> : $(properties) ] ;
-  if $(multilib) = yes {
-    OPTIONS on $(targets) += --enable-multilib ;
-  }
-  else {
-    OPTIONS on $(targets) += --disable-multilib ;
-  }
 }
 actions make-binutils
 {
@@ -267,7 +259,7 @@ actions make-binutils
 rule install-req ( properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
-  assert-specified   <multilib>        : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
   assert-specified   <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
