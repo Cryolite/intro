@@ -27,8 +27,8 @@ rule assert-unspecified ( feature : properties * )
 rule gcc-dep-req ( properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
-  assert-specified   <multilib>        : $(properties) ;
-  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-specified   <multilib-hidden> : $(properties) ;
   assert-specified   <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
@@ -37,6 +37,10 @@ rule gcc-dep-req ( properties * )
   assert-specified   <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
   assert-specified   <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-specified   <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-specified   <cloog-hidden>    : $(properties) ;
   assert-specified   <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
@@ -48,12 +52,18 @@ rule gcc-dep-req ( properties * )
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
   local result = <source>../gcc//install ;
+  local multilib = [ feature.get-values <multilib-hidden> : $(properties) ] ;
+  result = $(result)/<multilib>$(multilib)/<multilib-hidden>unspecified ;
   local gmp = [ feature.get-values <gmp-hidden> : $(properties) ] ;
   result = $(result)/<gmp>$(gmp)/<gmp-hidden>unspecified ;
   local mpfr = [ feature.get-values <mpfr-hidden> : $(properties) ] ;
   result = $(result)/<mpfr>$(mpfr)/<mpfr-hidden>unspecified ;
   local mpc = [ feature.get-values <mpc-hidden> : $(properties) ] ;
   result = $(result)/<mpc>$(mpc)/<mpc-hidden>unspecified ;
+  local ppl = [ feature.get-values <ppl-hidden> : $(properties) ] ;
+  result = $(result)/<ppl>$(ppl)/<ppl-hidden>unspecified ;
+  local cloog = [ feature.get-values <cloog-hidden> : $(properties) ] ;
+  result = $(result)/<cloog>$(cloog)/<cloog-hidden>unspecified ;
   result = $(result)/<mpi>unspecified/<openmpi>unspecified ;
   return $(result) ;
 }
@@ -78,6 +88,10 @@ rule download-openmpi ( targets * : sources * : properties * )
   assert-unspecified <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
   assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-unspecified <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
@@ -137,6 +151,10 @@ rule expand-openmpi ( targets * : sources * : properties * )
   assert-unspecified <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
   assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-unspecified <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
@@ -188,7 +206,7 @@ actions expand-openmpi
 
 make make
   : gcc-dep
-    expand/<triplet>unspecified/<multilib>unspecified/<binutils>unspecified/<gmp-hidden>unspecified/<mpfr-hidden>unspecified/<mpc-hidden>unspecified/<gcc>unspecified/<mpi>unspecified
+    expand/<triplet>unspecified/<multilib-hidden>unspecified/<binutils>unspecified/<gmp-hidden>unspecified/<mpfr-hidden>unspecified/<mpc-hidden>unspecified/<ppl-hidden>unspecified/<cloog-hidden>unspecified/<gcc>unspecified/<mpi>unspecified
   : @make-openmpi
   ;
 explicit make ;
@@ -196,8 +214,8 @@ explicit make ;
 rule make-openmpi ( targets * : sources * : properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
-  assert-specified   <multilib>        : $(properties) ;
-  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-specified   <multilib-hidden> : $(properties) ;
   assert-specified   <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
@@ -206,6 +224,10 @@ rule make-openmpi ( targets * : sources * : properties * )
   assert-specified   <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
   assert-specified   <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-specified   <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-specified   <cloog-hidden>    : $(properties) ;
   assert-specified   <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
@@ -265,8 +287,8 @@ rule make-openmpi ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --enable-mpi-threads ;
 
   if $(gcc) != $(GCC_BUILTIN) {
-    OPTIONS on $(targets) += CC=\"$(PREFIX)/$(gcc)/bin/gcc\" ;
-    OPTIONS on $(targets) += CXX=\"$(PREFIX)/$(gcc)/bin/g++\" ;
+    OPTIONS on $(targets) += CC=\"$(PREFIX)/$(gcc)/bin/gcc-wrapper\" ;
+    OPTIONS on $(targets) += CXX=\"$(PREFIX)/$(gcc)/bin/g++-wrapper\" ;
   }
 
   SET_RUN_VARS on $(targets) = ;
@@ -293,7 +315,6 @@ actions make-openmpi
   [ -x "$(CONFIGURE)" ] || exit 1
   [ `"$(CONFIGURE:D)/config/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit 1
   { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit 1
-  $(SET_RUN_VARS)
   if [ -n "$(STREAM)" ]; then
     ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
@@ -345,8 +366,8 @@ actions make-openmpi
 rule install-req ( properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
-  assert-specified   <multilib>        : $(properties) ;
-  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-specified   <multilib-hidden> : $(properties) ;
   assert-specified   <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
@@ -355,6 +376,10 @@ rule install-req ( properties * )
   assert-specified   <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
   assert-specified   <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-specified   <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-specified   <cloog-hidden>    : $(properties) ;
   assert-specified   <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;

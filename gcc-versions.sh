@@ -6,7 +6,8 @@
 #url_prefix='http://fileboar.com/gcc'                    # US
 #url_prefix='http://gcc.petsads.us'                      # US +
 #url_prefix='http://mirrors-us.seosue.com/gcc'           # US
-url_prefix='http://ftp.tsukuba.wide.ad.jp/software/gcc' # Japan +++
+url_prefix='http://ftp.dti.ad.jp/pub/lang/gcc/'         # Japan ++
+#url_prefix='http://ftp.tsukuba.wide.ad.jp/software/gcc' # Japan +++
 
 builtin=`{ (LANG=C g++ -dumpversion) || exit 1; }`
 

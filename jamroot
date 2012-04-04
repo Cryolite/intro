@@ -232,6 +232,28 @@ else {
   errors.error "ERROR: failed to extract MPC latest version." ;
 }
 
+ECHO "Extracting PPL latest version, patience..." ;
+local ppl = [ SHELL "\"$(INTRO_ROOT_DIR)/ppl-latest.sh\" || /bin/echo -n 'error'" ] ;
+if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(ppl) : 1 ] {
+  ECHO $(ppl) ;
+  feature ppl        : unspecified $(ppl)       : propagated            ;
+  feature ppl-hidden : [ feature.values <ppl> ] : propagated incidental ;
+}
+else {
+  errors.error "ERROR: failed to extract PPL latest version." ;
+}
+
+ECHO "Extracting CLooG latest version, patience..." ;
+local cloog = [ SHELL "\"$(INTRO_ROOT_DIR)/cloog-latest.sh\" || /bin/echo -n 'error'" ] ;
+if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(cloog) : 1 ] {
+  ECHO $(cloog) ;
+  feature cloog        : unspecified $(cloog)       : propagated            ;
+  feature cloog-hidden : [ feature.values <cloog> ] : propagated incidental ;
+}
+else {
+  errors.error "ERROR: failed to extract CLooG latest version." ;
+}
+
 ECHO "Extracting GCC versions, patience..." ;
 local gcc-versions = [ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/gcc-versions.sh\" || /bin/echo -n 'error'" ] " +" ] ;
 for local i in $(gcc-versions) {
@@ -311,7 +333,7 @@ feature boost        : unspecified $(boost)       : propagated            ;
 feature boost-hidden : [ feature.values <boost> ] : propagated incidental ;
 
 if $(clang) = yes {
-  clang = "clang//install/<binutils>$(binutils)/<gmp>unspecified/<gmp-hidden>$(gmp)/<mpfr>unspecified/<mpfr-hidden>$(mpfr)/<mpc>unspecified/<mpc-hidden>$(mpc)" ;
+  clang = "clang//install/<multilib-hidden>$(multilib)/<binutils>$(binutils)/<gmp>unspecified/<gmp-hidden>$(gmp)/<mpfr>unspecified/<mpfr-hidden>$(mpfr)/<mpc>unspecified/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)" ;
 }
 else {
   clang = ;
@@ -323,11 +345,12 @@ if $(triplet) = i686-pc-cygwin && $(clang) {
 }
 
 alias builtin
-  : gmp//install/<binutils>$(binutils)/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)
-    mpfr//install/<binutils>$(binutils)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)
-    boost//install/<binutils>$(binutils)/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
+  : gcc//install/<multilib>$(multilib)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)/<ppl>$(ppl)/<cloog>$(cloog)
+    gmp//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)
+    mpfr//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)
+    boost//install/<multilib-hidden>$(multilib)/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
   : <triplet>$(triplet)
-    <multilib>$(multilib)
+    <binutils>$(binutils)
     <gcc>$(gcc-builtin)
   ;
 explicit builtin ;
@@ -342,13 +365,13 @@ if $(gcc-current) = $(gcc-builtin) {
 }
 else {
   alias current
-    : gcc//install/<binutils>$(binutils)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
-      gmp//install/<binutils>$(binutils)/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)
-      mpfr//install/<binutils>$(binutils)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)
-      boost//install/<binutils>$(binutils)/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
+    : gcc//install/<multilib>$(multilib)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)/<ppl>$(ppl)/<cloog>$(cloog)
+      gmp//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)
+      mpfr//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)
+      boost//install/<multilib-hidden>$(multilib)/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
       $(clang)
     : <triplet>$(triplet)
-      <multilib>$(multilib)
+      <binutils>$(binutils)
       <gcc>$(gcc-current)
     ;
   explicit current ;
@@ -364,12 +387,12 @@ if $(gcc-previous) = $(gcc-builtin) {
 }
 else {
   alias previous
-    : gcc//install/<binutils>$(binutils)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
-      gmp//install/<binutils>$(binutils)/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)
-      mpfr//install/<binutils>$(binutils)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)
-      boost//install/<binutils>$(binutils)/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
+    : gcc//install/<multilib>$(multilib)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)/<ppl>$(ppl)/<cloog>$(cloog)
+      gmp//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)
+      mpfr//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)
+      boost//install/<multilib-hidden>$(multilib)/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
     : <triplet>$(triplet)
-      <multilib>$(multilib)
+      <binutils>$(binutils)
       <gcc>$(gcc-previous)
     ;
   explicit previous ;
@@ -385,12 +408,12 @@ if $(gcc-oldest) = $(gcc-builtin) {
 }
 else {
   alias oldest
-    : gcc//install/<binutils>$(binutils)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
-      gmp//install/<binutils>$(binutils)/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)
-      mpfr//install/<binutils>$(binutils)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)
-      boost//install/<binutils>$(binutils)/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
+    : gcc//install/<multilib>$(multilib)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)/<ppl>$(ppl)/<cloog>$(cloog)
+      gmp//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)
+      mpfr//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)
+      boost//install/<multilib-hidden>$(multilib)/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
     : <triplet>$(triplet)
-      <multilib>$(multilib)
+      <binutils>$(binutils)
       <gcc>$(gcc-oldest)
     ;
   explicit oldest ;
@@ -406,12 +429,12 @@ if $(gcc-snapshot) = $(gcc-builtin) {
 }
 else {
   alias snapshot
-    : gcc//install/<binutils>$(binutils)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
-      gmp//install/<binutils>$(binutils)/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)
-      mpfr//install/<binutils>$(binutils)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)
-      boost//install/<binutils>$(binutils)/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
+    : gcc//install/<multilib>$(multilib)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)/<ppl>$(ppl)/<cloog>$(cloog)
+      gmp//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)
+      mpfr//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)
+      boost//install/<multilib-hidden>$(multilib)/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
     : <triplet>$(triplet)
-      <multilib>$(multilib)
+      <binutils>$(binutils)
       <gcc>$(gcc-snapshot)
     ;
   explicit snapshot ;

@@ -27,8 +27,8 @@ rule assert-unspecified ( feature : properties * )
 rule gmp-dep-req ( properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
-  assert-specified   <multilib>        : $(properties) ;
-  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-specified   <multilib-hidden> : $(properties) ;
   assert-specified   <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
   assert-specified   <gmp>             : $(properties) ;
@@ -37,6 +37,10 @@ rule gmp-dep-req ( properties * )
   assert-unspecified <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
   assert-specified   <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-specified   <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-specified   <cloog-hidden>    : $(properties) ;
   assert-specified   <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
@@ -73,6 +77,10 @@ rule download-mpfr ( targets * : sources * : properties * )
   assert-unspecified <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
   assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-unspecified <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
@@ -132,6 +140,10 @@ rule expand-mpfr ( targets * : sources * : properties * )
   assert-unspecified <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
   assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-unspecified <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
@@ -183,7 +195,7 @@ actions expand-mpfr
 
 make make
   : gmp-dep
-    expand/<triplet>unspecified/<multilib>unspecified/<binutils>unspecified/<gmp>unspecified/<mpc-hidden>unspecified/<gcc>unspecified
+    expand/<triplet>unspecified/<multilib-hidden>unspecified/<binutils>unspecified/<gmp>unspecified/<mpc-hidden>unspecified/<ppl-hidden>unspecified/<cloog-hidden>unspecified/<gcc>unspecified
   : @make-mpfr
   ;
 explicit make ;
@@ -191,8 +203,8 @@ explicit make ;
 rule make-mpfr ( targets * : sources * : properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
-  assert-specified   <multilib>        : $(properties) ;
-  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-specified   <multilib-hidden> : $(properties) ;
   assert-specified   <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
   assert-specified   <gmp>             : $(properties) ;
@@ -201,6 +213,10 @@ rule make-mpfr ( targets * : sources * : properties * )
   assert-unspecified <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
   assert-specified   <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-specified   <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-specified   <cloog-hidden>    : $(properties) ;
   assert-specified   <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
@@ -268,8 +284,8 @@ rule make-mpfr ( targets * : sources * : properties * )
   }
 
   if $(gcc) != $(GCC_BUILTIN) {
-    OPTIONS on $(targets) += CC=\"$(PREFIX)/$(gcc)/bin/gcc\" ;
-    OPTIONS on $(targets) += CXX=\"$(PREFIX)/$(gcc)/bin/g++\" ;
+    OPTIONS on $(targets) += CC=\"$(PREFIX)/$(gcc)/bin/gcc-wrapper\" ;
+    OPTIONS on $(targets) += CXX=\"$(PREFIX)/$(gcc)/bin/g++-wrapper\" ;
   }
 
   SET_RUN_VARS on $(targets) = ;
@@ -296,7 +312,6 @@ actions make-mpfr
   [ -x "$(CONFIGURE)" ] || exit 1
   [ `"$(CONFIGURE:D)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit 1
   { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit 1
-  $(SET_RUN_VARS)
   if [ -n "$(STREAM)" ]; then
     ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
@@ -348,8 +363,8 @@ actions make-mpfr
 rule install-req ( properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
-  assert-specified   <multilib>        : $(properties) ;
-  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-specified   <multilib-hidden> : $(properties) ;
   assert-specified   <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
   assert-specified   <gmp>             : $(properties) ;
@@ -358,6 +373,10 @@ rule install-req ( properties * )
   assert-unspecified <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
   assert-specified   <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-specified   <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-specified   <cloog-hidden>    : $(properties) ;
   assert-specified   <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;

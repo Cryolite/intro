@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 
-uri_prefix='http://ftp.tsukuba.wide.ad.jp/software/mpc/'
-#uri_prefix='http://www.multiprecision.org/index.php?prog=mpc&page=download'
+#uri_prefix='http://ftp.tsukuba.wide.ad.jp/software/mpc/'                    # Tsukuba Univ, Tsukuba, Ibaraki, Japan
+uri_prefix='http://www.multiprecision.org/index.php?prog=mpc&page=download' #
 
 { curl --silent "$uri_prefix" || exit 1; }                                                             \
     | { grep -oE 'mpc-[[:digit:]]+(\.[[:digit:]]+){0,2}\.tar\.((gz)|(bz2))' || exit 1; }               \

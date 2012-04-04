@@ -11,8 +11,6 @@ fi
 dir="$(cd "$dir"; pwd)"
 
 prefix="${HOME}/local"
-export PATH="${prefix}/bin${PATH:+:$PATH}"
-export BOOST_ROOT="${prefix}/boost/latest"
 cd "$dir" && bjam -d+2 --triplet=x86_64-unknown-linux-gnu --prefix="$prefix" --enable-multilib --with-mpi=openmpi --enable-clang --concurrency=3 --enable-awacs=\"${prefix}/sbin/twitter.rb\" builtin current previous oldest snapshot > $(date +%Y%m%d%H%M%S).log 2>&1
 if [ $? -ne 0 ]; then
     cd "$dir" && bjam -d+2 --triplet=x86_64-unknown-linux-gnu --prefix="$prefix" --enable-multilib --with-mpi=openmpi --enable-clang --concurrency=3 --enable-awacs=\"${prefix}/sbin/twitter.rb\" builtin current previous oldest snapshot > $(date +%Y%m%d%H%M%S).log 2>&1

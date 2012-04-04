@@ -71,8 +71,8 @@ using gcc : : /usr/bin/g++ ;
 
 # Configure specific gcc version, giving alternative name to use.
 for local ver in $(gcc-vers) {
-  ECHO "using gcc   : $(ver) : \"$(prefix)/$(ver)/bin/g++-tlimit\" ;" ;
-  using gcc : $(ver) : "$(prefix)/$(ver)/bin/g++-tlimit" ;
+  ECHO "using gcc   : $(ver) : \"$(prefix)/$(ver)/bin/g++-wrapper\" ;" ;
+  using gcc : $(ver) : "$(prefix)/$(ver)/bin/g++-wrapper" ;
 }
 
 
@@ -95,8 +95,8 @@ for local ver in $(gcc-vers) {
     if ! [ MATCH ".*(INUMIMI).*" : "$(result)" ] {
       errors.error "A logic error." ;
     }
-    ECHO "using clang :       : \"$(prefix)/$(ver)/bin/clang++-tlimit\" ;" ;
-    using clang : : "$(prefix)/$(ver)/bin/clang++-tlimit" ;
+    ECHO "using clang :       : \"$(prefix)/$(ver)/bin/clang++-wrapper\" ;" ;
+    using clang : : "$(prefix)/$(ver)/bin/clang++-wrapper" ;
   }
 }
 

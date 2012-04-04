@@ -15,6 +15,12 @@
 /mpc-*.tar.gz
 /mpc-*.tar.bz2
 /mpc-*/
+/ppl-*.tar.gz
+/ppl-*.tar.bz2
+/ppl-*/
+/cloog-*.tar.gz
+/cloog-*.tar.bz2
+/cloog-*/
 /gcc-*.tar.gz
 /gcc-*.tar.bz2
 /gcc-*.*/

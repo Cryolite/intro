@@ -10,7 +10,7 @@ if [ "$dir" != "." ]; then
 fi
 dir="$(cd "$dir"; pwd)"
 
-/usr/bin/env LD_LIBRARY_PATH=${dir}/../lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH} "${dir}/clang++" "$@"
+/usr/bin/env LD_LIBRARY_PATH=${dir}/../../lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH} "${dir}/gcc" "$@"
 result=$?
 
 exit $result

@@ -1,7 +1,8 @@
 #!/usr/bin/env sh
 
-uri_prefix='http://ftp.tsukuba.wide.ad.jp/software/mpfr/'
-#uri_prefix='http://core.ring.gr.jp/pub/GNU/mpfr/'
+uri_prefix='http://ftp.nara.wide.ad.jp/pub/GNU/gnu/mpfr/' # NAIST, Ikoma, Nara, Japan
+#uri_prefix='http://ftp.tsukuba.wide.ad.jp/software/mpfr/' # Tsukuba Univ, Tsukuba, Ibaraki, Japan
+#uri_prefix='http://core.ring.gr.jp/pub/GNU/mpfr/'         #
 
 { curl --silent "$uri_prefix" || exit 1; }                                                              \
     | { grep -oE "mpfr-[[:digit:]]+(\\.[[:digit:]]+){0,2}\\.tar\\.((gz)|(bz2))" || exit 1; }            \

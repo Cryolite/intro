@@ -23,14 +23,14 @@ rule assert-unspecified ( feature : properties * )
 }
 
 
-make static-gmp
+make gmp
   : ../binutils//install/<gmp>unspecified
     ../gmp//expand/<triplet>unspecified/<multilib-hidden>unspecified/<binutils>unspecified
-  : @make-static-gmp
+  : @make-gmp
   ;
-explicit static-gmp ;
+explicit gmp ;
 
-rule make-static-gmp ( targets * : sources * : properties * )
+rule make-gmp ( targets * : sources * : properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
@@ -43,6 +43,10 @@ rule make-static-gmp ( targets * : sources * : properties * )
   assert-unspecified <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
   assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-unspecified <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
@@ -70,13 +74,16 @@ rule make-static-gmp ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --host=$(triplet) ;
 
   # Set the '--prefix' option for the 'configure' script.
-  OPTIONS on $(targets) += --prefix=\"$(INTRO_ROOT_DIR)/prerequisites\" ;
+  OPTIONS on $(targets) += --prefix=\"$(PREFIX)\" ;
+
+  # Enable C++ support (required by PPL build).
+  OPTIONS on $(targets) += --enable-cxx ;
 
   # Set the link variants for the 'configure' script.
   OPTIONS on $(targets) += --enable-static ;
-  OPTIONS on $(targets) += --disable-shared ;
+  OPTIONS on $(targets) += --enable-shared ;
 }
-actions make-static-gmp
+actions make-gmp
 {
   rm -f "$(<)" || exit $?
   [ -x "$(CONFIGURE)" ] || exit 1
@@ -130,14 +137,14 @@ actions make-static-gmp
 }
 
 
-make static-mpfr
-  : static-gmp/<mpfr>unspecified
+make mpfr
+  : gmp/<mpfr>unspecified
     ../mpfr//expand/<triplet>unspecified/<multilib-hidden>unspecified/<binutils>unspecified/<gmp>unspecified
-  : @make-static-mpfr
+  : @make-mpfr
   ;
-explicit static-mpfr ;
+explicit mpfr ;
 
-rule make-static-mpfr ( targets * : sources * : properties * )
+rule make-mpfr ( targets * : sources * : properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
@@ -150,6 +157,10 @@ rule make-static-mpfr ( targets * : sources * : properties * )
   assert-unspecified <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
   assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-unspecified <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
@@ -177,15 +188,15 @@ rule make-static-mpfr ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --host=$(triplet) ;
 
   # Set the '--prefix' option for the 'configure' script.
-  OPTIONS on $(targets) += --prefix=\"$(INTRO_ROOT_DIR)/prerequisites\" ;
+  OPTIONS on $(targets) += --prefix=\"$(PREFIX)\" ;
 
   # Set the link variants for the 'configure' script.
   OPTIONS on $(targets) += --enable-static ;
-  OPTIONS on $(targets) += --disable-shared ;
+  OPTIONS on $(targets) += --enable-shared ;
 
-  OPTIONS on $(targets) += --with-gmp=\"$(INTRO_ROOT_DIR)/prerequisites\" ;
+  OPTIONS on $(targets) += --with-gmp=\"$(PREFIX)\" ;
 }
-actions make-static-mpfr
+actions make-mpfr
 {
   rm -f "$(<)" || exit $?
   [ -x "$(CONFIGURE)" ] || exit 1
@@ -239,14 +250,14 @@ actions make-static-mpfr
 }
 
 
-make static-mpc
-  : static-mpfr/<mpc>unspecified
+make mpc
+  : mpfr/<mpc>unspecified
     ../mpc//expand/<triplet>unspecified/<multilib-hidden>unspecified/<binutils>unspecified/<gmp>unspecified/<mpfr>unspecified
-  : @make-static-mpc
+  : @make-mpc
   ;
-explicit static-mpc ;
+explicit mpc ;
 
-rule make-static-mpc ( targets * : sources * : properties * )
+rule make-mpc ( targets * : sources * : properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
@@ -259,6 +270,10 @@ rule make-static-mpc ( targets * : sources * : properties * )
   assert-unspecified <mpfr-hidden>     : $(properties) ;
   assert-specified   <mpc>             : $(properties) ;
   assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-unspecified <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
@@ -286,16 +301,16 @@ rule make-static-mpc ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --host=$(triplet) ;
 
   # Set the '--prefix' option for the 'configure' script.
-  OPTIONS on $(targets) += --prefix=\"$(INTRO_ROOT_DIR)/prerequisites\" ;
+  OPTIONS on $(targets) += --prefix=\"$(PREFIX)\" ;
 
   # Set the link variants for the 'configure' script.
   OPTIONS on $(targets) += --enable-static ;
-  OPTIONS on $(targets) += --disable-shared ;
+  OPTIONS on $(targets) += --enable-shared ;
 
-  OPTIONS on $(targets) += --with-gmp=\"$(INTRO_ROOT_DIR)/prerequisites\" ;
-  OPTIONS on $(targets) += --with-mpfr=\"$(INTRO_ROOT_DIR)/prerequisites\" ;
+  OPTIONS on $(targets) += --with-gmp=\"$(PREFIX)\" ;
+  OPTIONS on $(targets) += --with-mpfr=\"$(PREFIX)\" ;
 }
-actions make-static-mpc
+actions make-mpc
 {
   rm -f "$(<)" || exit $?
   [ -x "$(CONFIGURE)" ] || exit 1

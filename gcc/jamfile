@@ -40,6 +40,10 @@ rule download-gcc ( targets * : sources * : properties * )
   assert-unspecified <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
   assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-specified   <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
@@ -110,6 +114,10 @@ rule expand-gcc ( targets * : sources * : properties * )
   assert-unspecified <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
   assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-specified   <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
@@ -166,10 +174,12 @@ actions expand-gcc
 
 
 make configure
-  : ../binutils//install/<multilib>unspecified/<gmp>unspecified/<mpfr>unspecified/<mpc>unspecified/<gcc>unspecified
-    # `../prerequisites//static-mpc' depends on `../prerequisites//static-gmp' and `../prerequisites//static-mpfr'.
-    ../prerequisites//static-mpc/<multilib>unspecified/<gcc>unspecified
-    expand/<triplet>unspecified/<multilib>unspecified/<binutils>unspecified/<gmp>unspecified/<mpfr>unspecified/<mpc>unspecified
+  : ../binutils//install/<multilib>unspecified/<gmp>unspecified/<mpfr>unspecified/<mpc>unspecified/<ppl>unspecified/<cloog>unspecified/<gcc>unspecified
+    # `../prerequisites//mpc' depends on `../prerequisites//gmp' and `../prerequisites//mpfr'.
+    ../prerequisites//mpc/<multilib>unspecified/<ppl>unspecified/<cloog>unspecified/<gcc>unspecified
+    ../prerequisites/ppl//install/<multilib>unspecified/<mpfr>unspecified/<mpc>unspecified/<cloog>unspecified/<gcc>unspecified
+    ../prerequisites/cloog//install/<multilib>unspecified/<mpfr>unspecified/<mpc>unspecified/<ppl>unspecified/<gcc>unspecified
+    expand/<triplet>unspecified/<multilib>unspecified/<binutils>unspecified/<gmp>unspecified/<mpfr>unspecified/<mpc>unspecified/<ppl>unspecified/<cloog>unspecified
   : @configure-gcc
   ;
 explicit configure ;
@@ -187,6 +197,10 @@ rule configure-gcc ( targets * : sources * : properties * )
   assert-unspecified <mpfr-hidden>     : $(properties) ;
   assert-specified   <mpc>             : $(properties) ;
   assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-specified   <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-specified   <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-specified   <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
@@ -301,15 +315,19 @@ rule configure-gcc ( targets * : sources * : properties * )
     OPTIONS on $(targets) += --disable-win32-registry ;
   }
 
-  OPTIONS on $(targets) += --enable-nls ;
+  OPTIONS on $(targets) += --disable-nls ;
 
   if $(triplet) = i686-pc-cygwin {
     OPTIONS on $(targets) += --enable-graphite ;
   }
 
-  OPTIONS on $(targets) += --with-gmp=\"$(INTRO_ROOT_DIR)/prerequisites\" ;
-  OPTIONS on $(targets) += --with-mpfr=\"$(INTRO_ROOT_DIR)/prerequisites\" ;
-  OPTIONS on $(targets) += --with-mpc=\"$(INTRO_ROOT_DIR)/prerequisites\" ;
+  OPTIONS on $(targets) += --with-gmp=\"$(PREFIX)\" ;
+  OPTIONS on $(targets) += --with-mpfr=\"$(PREFIX)\" ;
+  OPTIONS on $(targets) += --with-mpc=\"$(PREFIX)\" ;
+  OPTIONS on $(targets) += --with-ppl=\"$(PREFIX)\" ;
+  OPTIONS on $(targets) += --with-cloog=\"$(PREFIX)\" ;
+
+  OPTIONS on $(targets) += --enable-cloog-backend=isl ;
 
   OPTIONS on $(targets) += --enable-linker-build-id ;
 
@@ -320,8 +338,6 @@ rule configure-gcc ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --enable-libstdcxx-time=yes ;
 
   OPTIONS on $(targets) += --enable-libstdcxx-debug ;
-
-  OPTIONS on $(targets) += --disable-libstdcxx-pch ;
 
   SET_PREFIX_SYMLINK on $(targets) = ;
   if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32 {
@@ -367,6 +383,10 @@ rule make-gcc ( targets * : sources * : properties * )
   assert-unspecified <mpfr-hidden>     : $(properties) ;
   assert-specified   <mpc>             : $(properties) ;
   assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-specified   <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-specified   <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-specified   <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
@@ -399,20 +419,31 @@ rule make-gcc ( targets * : sources * : properties * )
     errors.error "ERROR: an invalid GCC version." ;
   }
 
-  local gpp-tlimit = "$(INTRO_ROOT_DIR)/gcc/g++-tlimit" ;
-  GPP_TLIMIT on $(targets) = "$(gpp-tlimit)" ;
-
   local version-prefix = "$(PREFIX)/$(version)" ;
   VERSION_PREFIX on $(targets) = $(version-prefix) ;
+
+  ENV_DYN_LINK_VARS on $(targets) = ;
+  if $(gmp) != system || $(mpfr) != system || $(mpc) != system || $(ppl) != system || $(cloog) != system {
+    if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32 {
+      if $(gcc) != $(GCC_BUILTIN) {
+        ENV_DYN_LINK_VARS on $(targets) = "/usr/bin/env PATH=\"$(PREFIX)/bin${PATH:+:$PATH}\"" ;
+      }
+    }
+    else {
+      if $(version) != $(GCC_BUILTIN) {
+        ENV_DYN_LINK_VARS on $(targets) = "/usr/bin/env LD_LIBRARY_PATH=\"$(PREFIX)/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"" ;
+      }
+    }
+  }
 }
 actions make-gcc
 {
   rm -f "$(<)" || exit $?
   [ -f "$(<:D)/build/Makefile" ] || exit 1
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
+    ( cd "$(<:D)/build" && $(ENV_DYN_LINK_VARS) make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
+    ( cd "$(<:D)/build" && $(ENV_DYN_LINK_VARS) make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make' GCC $(VER_RAW) ($(TRIPLET))." 1>&2
@@ -430,13 +461,12 @@ actions make-gcc
     exit 1
   fi
   ( cd "$(<:D)" && rm -rf build )
-  cp -f "$(GPP_TLIMIT)" "$(VERSION_PREFIX)/bin"
+  install --mode=755 "$(INTRO_ROOT_DIR)/gcc/gcc-wrapper" "$(INTRO_ROOT_DIR)/gcc/g++-wrapper" "$(VERSION_PREFIX)/bin"
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to create the wrapper script for GCC $(VER_RAW) ($(TRIPLET))." 1>&2
-    /bin/echo -n "ERROR: failed to create the wrapper script for GCC $(VER_RAW) ($(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to install the wrapper scripts for GCC $(VER_RAW) ($(TRIPLET))." 1>&2
+    /bin/echo -n "ERROR: failed to install the wrapper scripts for GCC $(VER_RAW) ($(TRIPLET))." | $(AWACS)
     exit 1
   fi
-  chmod +x "$(VERSION_PREFIX)/bin/g++-tlimit" || exit $?
   /bin/echo -n "GCC $(VER_RAW) ($(TRIPLET)) was successfully built." | $(AWACS)
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
@@ -456,6 +486,10 @@ rule install-req ( properties * )
   assert-unspecified <mpfr-hidden>     : $(properties) ;
   assert-specified   <mpc>             : $(properties) ;
   assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-specified   <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-specified   <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-specified   <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
@@ -472,9 +506,7 @@ rule install-req ( properties * )
   local gcc = [ feature.get-values <gcc> : $(properties) ] ;
   if $(gcc) = $(GCC_BUILTIN) {
     # Skips the build of GCC.
-    result = <source>../binutils//install/<multilib>unspecified/<gmp>unspecified/<mpfr>unspecified/<mpc>unspecified/<gcc>unspecified ;
-    # `../prerequisites//static-mpc' depends on `../prerequisites//static-gmp' and `../prerequisites//static-mpfr'.
-    result += <source>../prerequisites//static-mpc/<multilib>unspecified/<gcc>unspecified ;
+    result = <source>../binutils//install/<multilib>unspecified/<gmp>unspecified/<mpfr>unspecified/<mpc>unspecified/<ppl>unspecified/<cloog>unspecified/<gcc>unspecified ;
   }
   else {
     local triplet = [ feature.get-values <triplet> : $(properties) ] ;

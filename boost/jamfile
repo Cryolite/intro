@@ -27,8 +27,8 @@ rule assert-unspecified ( feature : properties * )
 rule gcc-dep-req ( properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
-  assert-specified   <multilib>        : $(properties) ;
-  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-specified   <multilib-hidden> : $(properties) ;
   assert-specified   <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
@@ -37,6 +37,10 @@ rule gcc-dep-req ( properties * )
   assert-specified   <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
   assert-specified   <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-specified   <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-specified   <cloog-hidden>    : $(properties) ;
   assert-specified   <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-specified   <icu4c>           : $(properties) ;
@@ -48,12 +52,18 @@ rule gcc-dep-req ( properties * )
   assert-specified   <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
   local result = <source>../gcc//install ;
+  local multilib = [ feature.get-values <multilib-hidden> : $(properties) ] ;
+  result = $(result)/<multilib>$(multilib)/<multilib-hidden>unspecified ;
   local gmp = [ feature.get-values <gmp-hidden> : $(properties) ] ;
   result = $(result)/<gmp>$(gmp)/<gmp-hidden>unspecified ;
   local mpfr = [ feature.get-values <mpfr-hidden> : $(properties) ] ;
   result = $(result)/<mpfr>$(mpfr)/<mpfr-hidden>unspecified ;
   local mpc = [ feature.get-values <mpc-hidden> : $(properties) ] ;
   result = $(result)/<mpc>$(mpc)/<mpc-hidden>unspecified ;
+  local ppl = [ feature.get-values <ppl-hidden> : $(properties) ] ;
+  result = $(result)/<ppl>$(ppl)/<ppl-hidden>unspecified ;
+  local cloog = [ feature.get-values <cloog-hidden> : $(properties) ] ;
+  result = $(result)/<cloog>$(cloog)/<cloog-hidden>unspecified ;
   result = $(result)/<icu4c>unspecified ;
   result = $(result)/<mpi>unspecified ;
   result = $(result)/<openmpi>unspecified ;
@@ -68,8 +78,8 @@ explicit gcc-dep ;
 rule icu4c-dep-req ( properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
-  assert-specified   <multilib>        : $(properties) ;
-  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-specified   <multilib-hidden> : $(properties) ;
   assert-specified   <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
@@ -78,6 +88,10 @@ rule icu4c-dep-req ( properties * )
   assert-specified   <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
   assert-specified   <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-specified   <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-specified   <cloog-hidden>    : $(properties) ;
   assert-specified   <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-specified   <icu4c>           : $(properties) ;
@@ -102,8 +116,8 @@ explicit icu4c-dep ;
 rule openmpi-dep-req ( properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
-  assert-specified   <multilib>        : $(properties) ;
-  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-specified   <multilib-hidden> : $(properties) ;
   assert-specified   <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
@@ -112,6 +126,10 @@ rule openmpi-dep-req ( properties * )
   assert-specified   <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
   assert-specified   <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-specified   <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-specified   <cloog-hidden>    : $(properties) ;
   assert-specified   <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-specified   <icu4c>           : $(properties) ;
@@ -147,8 +165,8 @@ explicit make ;
 rule make-boost ( targets * : sources * : properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
-  assert-specified   <multilib>        : $(properties) ;
-  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-specified   <multilib-hidden> : $(properties) ;
   assert-specified   <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
@@ -157,6 +175,10 @@ rule make-boost ( targets * : sources * : properties * )
   assert-specified   <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
   assert-specified   <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-specified   <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-specified   <cloog-hidden>    : $(properties) ;
   assert-specified   <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-specified   <icu4c>           : $(properties) ;
@@ -244,8 +266,8 @@ actions make-boost
 rule install-req ( properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
-  assert-specified   <multilib>        : $(properties) ;
-  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-specified   <multilib-hidden> : $(properties) ;
   assert-specified   <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
@@ -254,6 +276,10 @@ rule install-req ( properties * )
   assert-specified   <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
   assert-specified   <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-specified   <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-specified   <cloog-hidden>    : $(properties) ;
   assert-specified   <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-specified   <icu4c>           : $(properties) ;
