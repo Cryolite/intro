@@ -21,10 +21,10 @@ for local argv in [ modules.peek : ARGV ] {
     }
     version = $(tmp) ;
   }
-  tmp = [ regex.match "^--enable-awacs=(.*)$" : $(argv) : 1 ] ;
+  tmp = [ regex.match "^--with-awacs=(.*)$" : $(argv) : 1 ] ;
   if $(tmp) {
     if $(awacs) {
-      errors.error "ERROR: duplicate '--enable-awacs' option." ;
+      errors.error "ERROR: duplicate '--with-awacs' option." ;
     }
     awacs = $(tmp) ;
   }
@@ -35,7 +35,7 @@ if ! $(version) {
 }
 
 if ! $(awacs) {
-  errors.error "ERROR: no '--enable-awacs' option." ;
+  errors.error "ERROR: no '--with-awacs' option." ;
 }
 constant AWACS : $(awacs) ;
 

@@ -1,183 +1,107 @@
 import errors ;
 import feature : feature ;
 import modules ;
+import option ;
 import regex ;
 
 path-constant INTRO_ROOT_DIR : . ;
 
 
-local triplet ;
-local prefix ;
-local multilib ;
-local mpi ;
-local clang ;
-local concurrency ;
-local awacs ;
-local stream ;
-for local argv in [ modules.peek : ARGV ] {
-  local tmp = ;
-  tmp = [ regex.match "^--triplet=(.*)$" : $(argv) : 1 ] ;
-  if $(tmp) {
-    if $(triplet) {
-      errors.error "ERROR: duplicate '--triplet' option." ;
-    }
-    triplet = $(tmp) ;
-  }
-  tmp = [ regex.match "^--prefix=(/.*)$" : $(argv) : 1 ] ;
-  if $(tmp) {
-    if $(prefix) {
-      errors.error "ERROR: duplicate '--prefix' option." ;
-    }
-    prefix = $(tmp) ;
-  }
-  tmp = [ regex.match "^(--enable-multilib(=((yes)|(no)))?)$" : $(argv) : 1 ] ;
-  if $(tmp) {
-    if $(multilib) {
-      errors.error "ERROR: duplicate '--enable-multilib' or '--disable-multilib' options." ;
-    }
-    if $(tmp) = "--enable-multilib" {
-      multilib = yes ;
-    }
-    else if $(tmp) = "--enable-multilib=yes" {
-      multilib = yes ;
-    }
-    else if $(tmp) = "--enable-multilib=no" {
-      multilib = no ;
-    }
-    else {
-      errors.error "ERROR: an internal error." ;
-    }
-  }
-  tmp = [ regex.match "^(--disable-multilib)$" : $(argv) : 1 ] ;
-  if $(tmp) {
-    if $(multilib) {
-      errors.error "ERROR: duplicate '--enable-multilib' or '--disable-multilib' options." ;
-    }
-    multilib = no ;
-  }
-  tmp = [ regex.match "^(--with-mpi=((openmpi)|(mpich2)))$" : $(argv) : 1 ] ;
-  if $(tmp) {
-    if $(mpi) {
-      errors.error "ERROR: duplicate '--with-mpi' option." ;
-    }
-    if $(tmp) = "--with-mpi=openmpi" {
-      mpi = openmpi ;
-    }
-    else if $(tmp) = "--with-mpi=mpich2" {
-      mpi = mpich2 ;
-    }
-    else {
-      errors.error "ERROR: an internal error." ;
-    }
-  }
-  tmp = [ regex.match "^(--enable-clang(=((yes)|(no)))?)$" : $(argv) : 1 ] ;
-  if $(tmp) {
-    if $(clang) {
-      errors.error "ERROR: duplicate '--enable-clang' or '--disable-clang' options." ;
-    }
-    if $(tmp) = "--enable-clang" {
-      clang = yes ;
-    }
-    else if $(tmp) = "--enable-clang=yes" {
-      clang = yes ;
-    }
-    else if $(tmp) = "--enable-clang=no" {
-      clang = no ;
-    }
-    else {
-      errors.error "ERROR: an internal error." ;
-    }
-  }
-  tmp = [ regex.match "^(--disable-clang)$" : $(argv) : 1 ] ;
-  if $(tmp) {
-    if $(clang) {
-      errors.error "ERROR: duplicate '--enable-clang' or '--disable-clang' options." ;
-    }
-    clang = no ;
-  }
-  tmp = [ regex.match "^--concurrency=([123456789][0123456789]*)$" : $(argv) : 1 ] ;
-  if $(tmp) {
-    if $(concurrency) {
-      errors.error "ERROR: duplicate '--concurrency' option." ;
-    }
-    concurrency = $(tmp) ;
-  }
-  tmp = [ regex.match "^--enable-awacs=(.*)$" : $(argv) : 1 ] ;
-  if $(tmp) {
-    if $(awacs) {
-      errors.error "ERROR: duplicate '--enable-awacs' option." ;
-    }
-    awacs = $(tmp) ;
-  }
-  tmp = [ regex.match "^--enable-stream=(.*)$" : $(argv) : 1 ] ;
-  if $(tmp) {
-    if $(stream) {
-      errors.error "ERROR: duplicate '--enable-stream' option." ;
-    }
-    stream = $(tmp) ;
-  }
+local triplet = [ option.get triplet ] ;
+if ! $(triplet) {
+  errors.error "ERROR: '--triplet' option not specified." ;
 }
+constant TRIPLET : $(triplet) ;
+ECHO triplet... $(triplet) ;
 
+local prefix = [ option.get prefix ] ;
+if ! $(prefix) {
+  errors.error "ERROR: '--prefix' option not specified." ;
+}
+path-constant PREFIX : "$(prefix)" ;
+ECHO prefix... $(prefix) ;
 
+local multilib = [ option.get enable-multilib : no : yes ] ;
+if ! $(multilib) in no yes
 {
-  if ! $(triplet) {
-    errors.error "ERROR: '--triplet' option not specified." ;
-  }
-  constant TRIPLET : $(triplet) ;
-  ECHO --triplet... $(triplet) ;
-
-  if ! $(prefix) {
-    errors.error "ERROR: '--prefix' option not specified." ;
-  }
-  path-constant PREFIX : "$(prefix)" ;
-  ECHO --prefix... $(prefix) ;
-
-  if ! $(multilib) {
-    if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32 {
-      multilib = yes ;
-    }
-    else {
-      multilib = no ;
-    }
-  }
-  ECHO multilib... $(multilib) ;
-
-  if ! $(mpi) {
-    mpi = unspecified ;
-  }
-  ECHO mpi... $(mpi) ;
-
-  if ! $(clang) {
-    clang = no ;
-  }
-  ECHO clang... $(clang) ;
-
-  if $(concurrency) {
-    constant CONCURRENCY : $(concurrency) ;
-    ECHO concurrency... $(CONCURRENCY) ;
-  }
-  else {
-    ECHO concurrency... 1 ;
-  }
-
-  if $(awacs) {
-    constant AWACS : $(awacs) ;
-    ECHO awacs... $(AWACS) ;
-  }
-  else {
-    constant AWACS : "cat > /dev/null" ;
-    ECHO awacs... N/A ;
-  }
-
-  if $(stream) {
-    constant STREAM : $(stream) ;
-    ECHO stream... $(stream) ;
-  }
-  else {
-    constant STREAM : "" ;
-    ECHO stream... N/A ;
-  }
+  errors.error "ERROR: `$(multilib)' is a wrong value for `--enable-multilib' option." ;
 }
+if [ option.get disable-multilib : INUMIMI : INUMIMI ] != INUMIMI
+{
+  errors.error "ERROR: No value for `--disable-multilib' is allowed." ;
+}
+if $(multilib) = yes && [ option.get disable-multilib : : INUMIMI ] = INUMIMI
+{
+  errors.error "ERROR: both `--enable-multilib' and `--disable-multilib' are specified." ;
+}
+ECHO multilib... $(multilib) ;
+
+local mpi = [ option.get with-mpi : unspecified : INUMIMI ] ;
+if $(mpi) = INUMIMI {
+  errors.error "ERROR: No value is specified for `--with-mpi' option." ;
+}
+if ! $(mpi) in openmpi mpich2 unspecified
+{
+  errors.error "ERROR: `$(mpi)' is a wrong value for `--with-mpi' option.\n"
+               "             Allowed values are `openmpi' and `mpich2'." ;
+}
+ECHO mpi... $(mpi) ;
+
+local clang = [ option.get enable-clang : no : yes ] ;
+if ! $(clang) in no yes
+{
+  errors.error "ERROR: `$(clang)' is a wrong value for `--enable-clang' option.\n"
+               "             Allowed values are `yes' and `no'." ;
+}
+if [ option.get disable-clang : INUMIMI : INUMIMI ] != INUMIMI
+{
+  errors.error "ERROR: No value for `--disable-clang' is allowed." ;
+}
+if $(clang) = yes && [ option.get disable-clang : : INUMIMI ] = INUMIMI
+{
+  errors.error "ERROR: both `--enable-clang' and `--disable-clang' are specified." ;
+}
+ECHO clang... $(clang) ;
+
+local concurrency = [ option.get concurrency : 1 : INUMIMI ] ;
+if $(concurrency) = INUMIMI
+{
+  errors.error "ERROR: No value is specified for `--concurrency' option." ;
+}
+if ! [ regex.match "(^[1-9][0-9]*)" : "$(concurrency)" : 1 ] {
+  errors.error "ERROR: `$(concurrency)' is a wrong value for `--concurrency' option.'" ;
+}
+constant CONCURRENCY : $(concurrency) ;
+ECHO concurrency... $(CONCURRENCY) ;
+
+local awacs = [ option.get with-awacs : : INUMIMI ] ;
+if $(awacs) = INUMIMI
+{
+  errors.error "No value for `--with-awacs' option is specified." ;
+}
+if $(awacs) {
+  constant AWACS : $(awacs) ;
+  ECHO awacs... $(AWACS) ;
+}
+else {
+  constant AWACS : "cat > /dev/null" ;
+  ECHO awacs... N/A ;
+}
+
+local stream = [ option.get with-stream : : INUMIMI ] ;
+if $(stream) = INUMIMI
+{
+  errors.error "No value for `--with-stream' option is specified." ;
+}
+if $(stream) {
+  constant STREAM : $(stream) ;
+  ECHO stream... $(stream) ;
+}
+else {
+  constant STREAM : "" ;
+  ECHO stream... N/A ;
+}
+
 
 
 project intro : build-dir bin ;
@@ -190,7 +114,7 @@ feature multilib-hidden : [ feature.values <multilib> ] : propagated incidental 
 
 ECHO "Extracting binutils latest version, patience..." ;
 local binutils = [ SHELL "\"$(INTRO_ROOT_DIR)/binutils-latest.sh\" || /bin/echo -n 'error'" ] ;
-if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(binutils) : 1 ] {
+if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : $(binutils) : 1 ] {
   ECHO $(binutils) ;
   feature binutils        : unspecified $(binutils)       : propagated            ;
   feature binutils-hidden : [ feature.values <binutils> ] : propagated incidental ;
@@ -201,7 +125,7 @@ else {
 
 ECHO "Extracting GMP latest version, patience..." ;
 local gmp = [ SHELL "\"$(INTRO_ROOT_DIR)/gmp-latest.sh\" || /bin/echo -n 'error'" ] ;
-if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(gmp) : 1 ] {
+if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : $(gmp) : 1 ] {
   ECHO $(gmp) ;
   feature gmp        : unspecified $(gmp)       : propagated            ;
   feature gmp-hidden : [ feature.values <gmp> ] : propagated incidental ;
@@ -212,7 +136,7 @@ else {
 
 ECHO "Extracting MPFR latest version, patience..." ;
 local mpfr = [ SHELL "\"$(INTRO_ROOT_DIR)/mpfr-latest.sh\" || /bin/echo -n 'error'" ] ;
-if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(mpfr) : 1 ] {
+if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : $(mpfr) : 1 ] {
   ECHO $(mpfr) ;
   feature mpfr        : unspecified $(mpfr)       : propagated            ;
   feature mpfr-hidden : [ feature.values <mpfr> ] : propagated incidental ;
@@ -223,7 +147,7 @@ else {
 
 ECHO "Extracting MPC latest version, patience..." ;
 local mpc = [ SHELL "\"$(INTRO_ROOT_DIR)/mpc-latest.sh\" || /bin/echo -n 'error'" ] ;
-if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(mpc) : 1 ] {
+if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : $(mpc) : 1 ] {
   ECHO $(mpc) ;
   feature mpc        : unspecified $(mpc)       : propagated            ;
   feature mpc-hidden : [ feature.values <mpc> ] : propagated incidental ;
@@ -234,7 +158,7 @@ else {
 
 ECHO "Extracting PPL latest version, patience..." ;
 local ppl = [ SHELL "\"$(INTRO_ROOT_DIR)/ppl-latest.sh\" || /bin/echo -n 'error'" ] ;
-if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(ppl) : 1 ] {
+if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : $(ppl) : 1 ] {
   ECHO $(ppl) ;
   feature ppl        : unspecified $(ppl)       : propagated            ;
   feature ppl-hidden : [ feature.values <ppl> ] : propagated incidental ;
@@ -245,7 +169,7 @@ else {
 
 ECHO "Extracting CLooG latest version, patience..." ;
 local cloog = [ SHELL "\"$(INTRO_ROOT_DIR)/cloog-latest.sh\" || /bin/echo -n 'error'" ] ;
-if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(cloog) : 1 ] {
+if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : $(cloog) : 1 ] {
   ECHO $(cloog) ;
   feature cloog        : unspecified $(cloog)       : propagated            ;
   feature cloog-hidden : [ feature.values <cloog> ] : propagated incidental ;
@@ -257,13 +181,13 @@ else {
 ECHO "Extracting GCC versions, patience..." ;
 local gcc-versions = [ regex.split [ SHELL "\"$(INTRO_ROOT_DIR)/gcc-versions.sh\" || /bin/echo -n 'error'" ] " +" ] ;
 for local i in $(gcc-versions) {
-  if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(i) : 1 ] {
+  if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : $(i) : 1 ] {
     # Do nothing.
   }
-  else if [ regex.match "^([0123456789]+\\.[0123456789]+-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789])$" : $(i) : 1 ] {
+  else if [ regex.match "^([0-9]+\\.[0-9]+-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9])$" : $(i) : 1 ] {
     # Do nothing.
   }
-  else if [ regex.match "^([0123456789]+\\.[0123456789]+.0-RC-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789])$" : $(i) : 1 ] {
+  else if [ regex.match "^([0-9]+\\.[0-9]+.0-RC-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9])$" : $(i) : 1 ] {
     # Do nothing.
   }
   else {
@@ -291,7 +215,7 @@ feature gcc-hidden : [ feature.values <gcc> ]                                   
 
 ECHO "Extracting ICU4C latest version, patience..." ;
 local icu4c = [ SHELL "\"$(INTRO_ROOT_DIR)/icu4c-latest.sh\" || /bin/echo -n 'error'" ] ;
-if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)?)$" : $(icu4c) : 1 ] {
+if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)?)$" : $(icu4c) : 1 ] {
   ECHO $(icu4c) ;
 }
 else {
@@ -307,7 +231,7 @@ local openmpi = unspecified ;
 if $(mpi) = openmpi {
   ECHO "Extracting OpenMPI latest version, patience..." ;
   openmpi = [ SHELL "\"$(INTRO_ROOT_DIR)/openmpi-latest.sh\" || /bin/echo -n 'error'" ] ;
-  if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(openmpi) : 1 ] {
+  if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : $(openmpi) : 1 ] {
     ECHO $(openmpi) ;
     feature openmpi        : unspecified $(openmpi)       : propagated            ;
     feature openmpi-hidden : [ feature.values <openmpi> ] : propagated incidental ;
@@ -323,7 +247,7 @@ else {
 
 ECHO "Extracting Boost latest version, patience..." ;
 local boost = [ SHELL "\"$(INTRO_ROOT_DIR)/boost-latest.sh\" || /bin/echo -n 'error'" ] ;
-if [ regex.match "^([0123456789]+(\\.[0123456789]+(\\.[0123456789]+)?)?)$" : $(boost) : 1 ] {
+if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : $(boost) : 1 ] {
   ECHO $(boost) ;
 }
 else {
@@ -331,6 +255,7 @@ else {
 }
 feature boost        : unspecified $(boost)       : propagated            ;
 feature boost-hidden : [ feature.values <boost> ] : propagated incidental ;
+
 
 if $(clang) = yes {
   clang = "clang//install/<multilib-hidden>$(multilib)/<binutils>$(binutils)/<gmp>unspecified/<gmp-hidden>$(gmp)/<mpfr>unspecified/<mpfr-hidden>$(mpfr)/<mpc>unspecified/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)" ;
@@ -349,6 +274,7 @@ alias builtin
     gmp//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)
     mpfr//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)
     boost//install/<multilib-hidden>$(multilib)/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
+    $(clang)
   : <triplet>$(triplet)
     <binutils>$(binutils)
     <gcc>$(gcc-builtin)
@@ -391,6 +317,7 @@ else {
       gmp//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)
       mpfr//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)
       boost//install/<multilib-hidden>$(multilib)/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
+      $(clang)
     : <triplet>$(triplet)
       <binutils>$(binutils)
       <gcc>$(gcc-previous)
@@ -412,6 +339,7 @@ else {
       gmp//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)
       mpfr//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)
       boost//install/<multilib-hidden>$(multilib)/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
+      $(clang)
     : <triplet>$(triplet)
       <binutils>$(binutils)
       <gcc>$(gcc-oldest)
@@ -433,6 +361,7 @@ else {
       gmp//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)
       mpfr//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)
       boost//install/<multilib-hidden>$(multilib)/<gmp-hidden>$(gmp)/<mpfr-hidden>$(mpfr)/<mpc-hidden>$(mpc)/<ppl-hidden>$(ppl)/<cloog-hidden>$(cloog)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
+      $(clang)
     : <triplet>$(triplet)
       <binutils>$(binutils)
       <gcc>$(gcc-snapshot)

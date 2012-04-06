@@ -76,7 +76,6 @@ make make
   : @make-clang
   ;
 explicit make ;
-always make ;
 
 rule make-clang ( targets * : sources * : properties * )
 {

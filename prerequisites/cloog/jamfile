@@ -211,7 +211,8 @@ rule make-install ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --enable-static ;
   OPTIONS on $(targets) += --enable-shared ;
 
-  OPTIONS on $(targets) += --with-gmp=\"$(PREFIX)\" ;
+  OPTIONS on $(targets) += --with-gmp=system ;
+  OPTIONS on $(targets) += --with-gmp-prefix=\"$(PREFIX)\" ;
 }
 actions make-install
 {
