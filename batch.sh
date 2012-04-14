@@ -15,10 +15,9 @@ source ${HOME}/.bashrc
 prefix="${HOME}/local"
 log_file_full_path=${dir}/$(date +%Y%m%d%H%M%S).log
 
-cd "$dir" && bjam -d+2 --triplet=x86_64-unknown-linux-gnu --prefix="$prefix" --disable-multilib --with-mpi=openmpi --enable-clang --concurrency=3 --with-awacs=\"${prefix}/bin/twitter.rb\" --with-stream="$log_file_full_path" builtin current previous snapshot >> "$log_file_full_path" 2>&1
-if [ $? -ne 0 ]; then
-    cd "$dir" && bjam -d+2 --triplet=x86_64-unknown-linux-gnu --prefix="$prefix" --disable-multilib --with-mpi=openmpi --enable-clang --concurrency=3 --with-awacs=\"${prefix}/bin/twitter.rb\" --with-stream="$log_file_full_path" builtin current previous snapshot >> "$log_file_full_path" 2>&1
-fi
+echo -n '========== A scheduled batch build starts here ==========' | "${prefix}/bin/twitter.rb"
+
+cd "$dir" && bjam -d+2 --triplet=x86_64-unknown-linux-gnu --prefix="$prefix" --with-binutils-for-gcc=2.22.52 --with-ppl-for-gcc=0.11.2 --enable-gcc-versions=previous,current,4.6-latest,4.7-latest,snapshot --disable-multilib --with-mpi=openmpi --enable-clang --concurrency=3 --with-awacs=\"${prefix}/bin/twitter.rb\" --with-stream="$log_file_full_path" >> "$log_file_full_path" 2>&1
 
 disk_usage=$(df -h ~ | tail --lines=1 | tr --squeeze-repeats ' ')
 echo -n "INFO: disk space:"                                               \
@@ -27,3 +26,5 @@ echo -n "INFO: disk space:"                                               \
         "($(echo -n $disk_usage | cut --delimiter=' ' --fields=5)) used," \
         "$(echo -n $disk_usage | cut --delimiter=' ' --fields=4) free."   \
   | "${prefix}/bin/twitter.rb"
+
+echo -n '==========  A scheduled batch build ends here  ==========' | "${prefix}/bin/twitter.rb"

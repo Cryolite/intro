@@ -96,7 +96,7 @@ actions make-gmp
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'configure' GMP $(VERSION) (as prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'configure' GMP $(VERSION) (as prerequisites)." | $(AWACS)
+    echo -n "ERROR: failed to 'configure' GMP $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   [ -f "$(<:D)/build/Makefile" ] || exit 1
@@ -107,7 +107,7 @@ actions make-gmp
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make' GMP $(VERSION) (as prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make' GMP $(VERSION) (as prerequisites)." | $(AWACS)
+    echo -n "ERROR: failed to 'make' GMP $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   if [ -n "$(STREAM)" ]; then
@@ -117,7 +117,7 @@ actions make-gmp
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make check' GMP $(VERSION) (as prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make check' GMP $(VERSION) (as prerequisites)." | $(AWACS)
+    echo -n "ERROR: failed to 'make check' GMP $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   if [ -n "$(STREAM)" ]; then
@@ -127,11 +127,11 @@ actions make-gmp
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make install' GMP $(VERSION) (as prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make install' GMP $(VERSION) (as prerequisites)." | $(AWACS)
+    echo -n "ERROR: failed to 'make install' GMP $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   ( cd "$(<:D)" && rm -rf build )
-  /bin/echo -n "GMP $(VERSION) (as prerequisites) was successfully built." | $(AWACS)
+  echo -n "GMP $(VERSION) (as prerequisites) was successfully built." | $(AWACS)
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
@@ -209,7 +209,7 @@ actions make-mpfr
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'configure' MPFR $(VERSION) (as prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'configure' MPFR $(VERSION) (as prerequisites)." | $(AWACS)
+    echo -n "ERROR: failed to 'configure' MPFR $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   [ -f "$(<:D)/build/Makefile" ] || exit 1
@@ -220,7 +220,7 @@ actions make-mpfr
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make' MPFR $(VERSION) (as prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make' MPFR $(VERSION) (as prerequisites)." | $(AWACS)
+    echo -n "ERROR: failed to 'make' MPFR $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   if [ -n "$(STREAM)" ]; then
@@ -230,7 +230,7 @@ actions make-mpfr
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make check' MPFR $(VERSION) (as prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make check' MPFR $(VERSION) (as prerequisites)." | $(AWACS)
+    echo -n "ERROR: failed to 'make check' MPFR $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   if [ -n "$(STREAM)" ]; then
@@ -240,11 +240,11 @@ actions make-mpfr
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make install' MPFR $(VERSION) (as prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make install' MPFR $(VERSION) (as prerequisites)." | $(AWACS)
+    echo -n "ERROR: failed to 'make install' MPFR $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   ( cd "$(<:D)" && rm -rf build )
-  /bin/echo -n "MPFR $(VERSION) (as prerequisites) was successfully built." | $(AWACS)
+  echo -n "MPFR $(VERSION) (as prerequisites) was successfully built." | $(AWACS)
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
@@ -323,7 +323,7 @@ actions make-mpc
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'configure' MPC $(VERSION) (as prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'configure' MPC $(VERSION) (as prerequisites)." | $(AWACS)
+    echo -n "ERROR: failed to 'configure' MPC $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   [ -f "$(<:D)/build/Makefile" ] || exit 1
@@ -334,7 +334,7 @@ actions make-mpc
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make' MPC $(VERSION) (as prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make' MPC $(VERSION) (as prerequisites)." | $(AWACS)
+    echo -n "ERROR: failed to 'make' MPC $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   if [ -n "$(STREAM)" ]; then
@@ -344,7 +344,7 @@ actions make-mpc
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make check' MPC $(VERSION) (as prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make check' MPC $(VERSION) (as prerequisites)." | $(AWACS)
+    echo -n "ERROR: failed to 'make check' MPC $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   if [ -n "$(STREAM)" ]; then
@@ -354,11 +354,11 @@ actions make-mpc
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make install' MPC $(VERSION) (as prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make install' MPC $(VERSION) (as prerequisites)." | $(AWACS)
+    echo -n "ERROR: failed to 'make install' MPC $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   ( cd "$(<:D)" && rm -rf build )
-  /bin/echo -n "MPC $(VERSION) (as prerequisites) was successfully built." | $(AWACS)
+  echo -n "MPC $(VERSION) (as prerequisites) was successfully built." | $(AWACS)
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }

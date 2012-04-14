@@ -54,7 +54,6 @@ rule download ( targets * : sources * : properties * )
   assert-unspecified <boost-hidden>    : $(properties) ;
   local version = [ feature.get-values <ppl> : $(properties) ] ;
   URL on $(targets) = http://bugseng.com/products/ppl/download/ftp/releases/$(version)/ppl-$(version).tar.bz2 ;
-  #URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/gcc/infrastructure/ppl-$(version).tar.gz ;
   TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/ppl-$(version).tar.gz ;
   TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/ppl-$(version).tar.bz2 ;
 }
@@ -69,7 +68,7 @@ actions download
     fi
     if [ $? -ne 0 ]; then
       echo "ERROR: failed to download PPL tarball." 1>&2
-      /bin/echo -n "ERROR: failed to download PPL tarball." | $(AWACS)
+      echo -n "ERROR: failed to download PPL tarball." | $(AWACS)
       exit 1
     fi
     [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_BZ2)" ] || exit 1
@@ -144,7 +143,7 @@ actions expand
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to expand PPL tarball." 1>&2
-    /bin/echo -n "ERROR: failed to expand PPL tarball." | $(AWACS)
+    echo -n "ERROR: failed to expand PPL tarball." | $(AWACS)
     exit 1
   fi
   [ -d "$(DEST_DIR)" ] || exit 1
@@ -227,7 +226,7 @@ actions make-install
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'configure' PPL $(VERSION) (as prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'configure' PPL $(VERSION) (as prerequisites)." | $(AWACS)
+    echo -n "ERROR: failed to 'configure' PPL $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   [ -f "$(<:D)/build/Makefile" ] || exit 1
@@ -238,19 +237,23 @@ actions make-install
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make' PPL $(VERSION) (as prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make' PPL $(VERSION) (as prerequisites)." | $(AWACS)
+    echo -n "ERROR: failed to 'make' PPL $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   if [ -n "$(STREAM)" ]; then
-    echo 'Skip check'
-    #( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check >> "$(STREAM)" 2>&1 )
+    # 0.12 can't compile. See https://www.cs.unipr.it/mantis/view.php?id=350.
+    if [ $(VERSION) != 0.12 ]; then
+      ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check >> "$(STREAM)" 2>&1 )
+    fi
   else
-    echo 'Skip check'
-    #( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check )
+    # 0.12 can't compile. See https://www.cs.unipr.it/mantis/view.php?id=350.
+    if [ $(VERSION) != 0.12 ]; then
+      ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check )
+    fi
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make check' PPL $(VERSION) (as prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make check' PPL $(VERSION) (as prerequisites)." | $(AWACS)
+    echo -n "ERROR: failed to 'make check' PPL $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   if [ -n "$(STREAM)" ]; then
@@ -260,11 +263,11 @@ actions make-install
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make install' PPL $(VERSION) (as prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make install' PPL $(VERSION) (as prerequisites)." | $(AWACS)
+    echo -n "ERROR: failed to 'make install' PPL $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   ( cd "$(<:D)" && rm -rf build )
-  /bin/echo -n "PPL $(VERSION) (as prerequisites) was successfully built." | $(AWACS)
+  echo -n "PPL $(VERSION) (as prerequisites) was successfully built." | $(AWACS)
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }

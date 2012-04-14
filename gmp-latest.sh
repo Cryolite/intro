@@ -1,8 +1,9 @@
 #!/usr/bin/env sh
 
-uri_prefix='http://ftp.nara.wide.ad.jp/pub/GNU/gnu/gmp/' # NAIST, Nara, Japan +++
+uri_prefix='http://ftp.jaist.ac.jp/pub/GNU/gmp/'
 #uri_prefix='http://ftp.tsukuba.wide.ad.jp/software/gmp/' # Tsukuba Univ., Ibaraki, Japan ++
-#uri_prefix='http://core.ring.gr.jp/pub/GNU/gmp/'         # Japan
+#uri_prefix='http://ftp.nara.wide.ad.jp/pub/GNU/gnu/gmp/' # NAIST, Nara, Japan +++
+#uri_prefix='http://www.ring.gr.jp/archives/GNU/gmp/'
 
 { curl --silent "$uri_prefix" || exit 1; }                                                             \
     | { grep -oE "gmp-[[:digit:]]+(\\.[[:digit:]]+){0,2}\\.tar\\.((gz)|(bz2))" || exit 1; }            \

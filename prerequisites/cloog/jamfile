@@ -53,7 +53,8 @@ rule download ( targets * : sources * : properties * )
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
   local version = [ feature.get-values <cloog> : $(properties) ] ;
-  URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/gcc/infrastructure/cloog-$(version).tar.gz ;
+  URL on $(targets) = http://ftp.dti.ad.jp/pub/lang/gcc/infrastructure/cloog-$(version).tar.gz ;
+  #URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/gcc/infrastructure/cloog-$(version).tar.gz ;
   TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/cloog-$(version).tar.gz ;
   TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/cloog-$(version).tar.bz2 ;
 }
@@ -68,7 +69,7 @@ actions download
     fi
     if [ $? -ne 0 ]; then
       echo "ERROR: failed to download CLooG tarball." 1>&2
-      /bin/echo -n "ERROR: failed to download CLooG tarball." | $(AWACS)
+      echo -n "ERROR: failed to download CLooG tarball." | $(AWACS)
       exit 1
     fi
     [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_BZ2)" ] || exit 1
@@ -143,7 +144,7 @@ actions expand
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to expand CLooG tarball." 1>&2
-    /bin/echo -n "ERROR: failed to expand CLooG tarball." | $(AWACS)
+    echo -n "ERROR: failed to expand CLooG tarball." | $(AWACS)
     exit 1
   fi
   [ -d "$(DEST_DIR)" ] || exit 1
@@ -226,7 +227,7 @@ actions make-install
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'configure' CLooG $(VERSION) (as prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'configure' CLooG $(VERSION) (as prerequisites)." | $(AWACS)
+    echo -n "ERROR: failed to 'configure' CLooG $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   [ -f "$(<:D)/build/Makefile" ] || exit 1
@@ -237,7 +238,7 @@ actions make-install
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make' CLooG $(VERSION) (as prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make' CLooG $(VERSION) (as prerequisites)." | $(AWACS)
+    echo -n "ERROR: failed to 'make' CLooG $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   if [ -n "$(STREAM)" ]; then
@@ -247,7 +248,7 @@ actions make-install
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make check' CLooG $(VERSION) (as prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make check' CLooG $(VERSION) (as prerequisites)." | $(AWACS)
+    echo -n "ERROR: failed to 'make check' CLooG $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   if [ -n "$(STREAM)" ]; then
@@ -257,11 +258,11 @@ actions make-install
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make install' CLooG $(VERSION) (as prerequisites)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make install' CLooG $(VERSION) (as prerequisites)." | $(AWACS)
+    echo -n "ERROR: failed to 'make install' CLooG $(VERSION) (as prerequisites)." | $(AWACS)
     exit 1
   fi
   ( cd "$(<:D)" && rm -rf build )
-  /bin/echo -n "CLooG $(VERSION) (as prerequisites) was successfully built." | $(AWACS)
+  echo -n "CLooG $(VERSION) (as prerequisites) was successfully built." | $(AWACS)
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }

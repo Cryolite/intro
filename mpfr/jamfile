@@ -24,43 +24,6 @@ rule assert-unspecified ( feature : properties * )
 }
 
 
-rule gmp-dep-req ( properties * )
-{
-  assert-specified   <triplet>         : $(properties) ;
-  assert-unspecified <multilib>        : $(properties) ;
-  assert-specified   <multilib-hidden> : $(properties) ;
-  assert-specified   <binutils>        : $(properties) ;
-  assert-unspecified <binutils-hidden> : $(properties) ;
-  assert-specified   <gmp>             : $(properties) ;
-  assert-unspecified <gmp-hidden>      : $(properties) ;
-  assert-specified   <mpfr>            : $(properties) ;
-  assert-unspecified <mpfr-hidden>     : $(properties) ;
-  assert-unspecified <mpc>             : $(properties) ;
-  assert-specified   <mpc-hidden>      : $(properties) ;
-  assert-unspecified <ppl>             : $(properties) ;
-  assert-specified   <ppl-hidden>      : $(properties) ;
-  assert-unspecified <cloog>           : $(properties) ;
-  assert-specified   <cloog-hidden>    : $(properties) ;
-  assert-specified   <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
-  assert-unspecified <icu4c>           : $(properties) ;
-  assert-unspecified <icu4c-hidden>    : $(properties) ;
-  assert-unspecified <mpi>             : $(properties) ;
-  assert-unspecified <mpi-hidden>      : $(properties) ;
-  assert-unspecified <openmpi>         : $(properties) ;
-  assert-unspecified <openmpi-hidden>  : $(properties) ;
-  assert-unspecified <boost>           : $(properties) ;
-  assert-unspecified <boost-hidden>    : $(properties) ;
-  local result = <source>../gmp//install ;
-  local mpfr = [ feature.get-values <mpfr> : $(properties) ] ;
-  result = $(result)/<mpfr>unspecified/<mpfr-hidden>$(mpfr) ;
-  return $(result) ;
-}
-
-alias gmp-dep : : <conditional>@gmp-dep-req ;
-explicit gmp-dep ;
-
-
 make download : : @download-mpfr ;
 explicit download ;
 
@@ -108,7 +71,7 @@ actions download-mpfr
     fi
     if [ $? -ne 0 ]; then
       echo "ERROR: failed to download MPFR tarball." 1>&2
-      /bin/echo -n "ERROR: failed to download MPFR tarball." | $(AWACS)
+      echo -n "ERROR: failed to download MPFR tarball." | $(AWACS)
       exit 1
     fi
     [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_BZ2)" ] || exit 1
@@ -183,7 +146,7 @@ actions expand-mpfr
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to expand MPFR tarball." 1>&2
-    /bin/echo -n "ERROR: failed to expand MPFR tarball." | $(AWACS)
+    echo -n "ERROR: failed to expand MPFR tarball." | $(AWACS)
     exit 1
   fi
   [ -d "$(DEST_DIR)" ] || exit 1
@@ -194,8 +157,8 @@ actions expand-mpfr
 
 
 make make
-  : gmp-dep
-    expand/<triplet>unspecified/<multilib-hidden>unspecified/<binutils>unspecified/<gmp>unspecified/<mpc-hidden>unspecified/<ppl-hidden>unspecified/<cloog-hidden>unspecified/<gcc>unspecified
+  : ../gmp//install/<mpfr>unspecified
+    expand/<triplet>unspecified/<multilib-hidden>unspecified/<gmp>unspecified/<gcc>unspecified
   : @make-mpfr
   ;
 explicit make ;
@@ -205,18 +168,18 @@ rule make-mpfr ( targets * : sources * : properties * )
   assert-specified   <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
   assert-specified   <multilib-hidden> : $(properties) ;
-  assert-specified   <binutils>        : $(properties) ;
+  assert-unspecified <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
   assert-specified   <gmp>             : $(properties) ;
   assert-unspecified <gmp-hidden>      : $(properties) ;
   assert-specified   <mpfr>            : $(properties) ;
   assert-unspecified <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
-  assert-specified   <mpc-hidden>      : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
   assert-unspecified <ppl>             : $(properties) ;
-  assert-specified   <ppl-hidden>      : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
-  assert-specified   <cloog-hidden>    : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-specified   <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
@@ -243,28 +206,11 @@ rule make-mpfr ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --build=$(triplet) ;
   OPTIONS on $(targets) += --host=$(triplet) ;
 
+  local gcc = [ feature.get-values <gcc> : $(properties) ] ;
+  GCC on $(targets) = $(gcc) ;
+
   # Set the '--prefix' option for the 'configure' script.
-  local gcc-raw = [ feature.get-values <gcc> : $(properties) ] ;
-  GCC_RAW on $(targets) = $(gcc-raw) ;
-  local gcc ;
-  if [ regex.match "^([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : $(gcc-raw) : 1 ] {
-    gcc = $(gcc-raw) ;
-  }
-  else if [ regex.match "^([0123456789]+\\.[0123456789]+-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789])$" : $(gcc-raw) : 1 ] {
-    gcc = [ regex.replace "$(gcc-raw)" "-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]$" ".0" ] ;
-  }
-  else if [ regex.match "^([0123456789]+\\.[0123456789]+.0-RC-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789])$" : $(gcc-raw) : 1 ] {
-    gcc = [ regex.replace "$(gcc-raw)" "-RC-[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]$" "" ] ;
-  }
-  else {
-    errors.error "ERROR: an invalid GCC version." ;
-  }
-  if $(gcc) = $(GCC_BUILTIN) {
-    OPTIONS on $(targets) += --prefix=\"$(PREFIX)\" ;
-  }
-  else {
-    OPTIONS on $(targets) += --prefix=\"$(PREFIX)/$(gcc)\" ;
-  }
+  OPTIONS on $(targets) += --prefix=\"$(PREFIX)/gcc-$(gcc)\" ;
 
   # Set the link variants for the 'configure' script.
   if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32 {
@@ -276,34 +222,11 @@ rule make-mpfr ( targets * : sources * : properties * )
     OPTIONS on $(targets) += --enable-shared ;
   }
 
-  if $(gcc) = $(GCC_BUILTIN) {
-    OPTIONS on $(targets) += --with-gmp=\"$(PREFIX)\" ;
-  }
-  else {
-    OPTIONS on $(targets) += --with-gmp=\"$(PREFIX)/$(gcc)\" ;
-  }
+  OPTIONS on $(targets) += --with-gmp=\"$(PREFIX)/gcc-$(gcc)\" ;
 
   if $(gcc) != $(GCC_BUILTIN) {
-    OPTIONS on $(targets) += CC=\"$(PREFIX)/$(gcc)/bin/gcc-wrapper\" ;
-    OPTIONS on $(targets) += CXX=\"$(PREFIX)/$(gcc)/bin/g++-wrapper\" ;
-  }
-
-  SET_RUN_VARS on $(targets) = ;
-  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32 {
-    if $(gcc) = $(GCC_BUILTIN) {
-      SET_RUN_VARS on $(targets) = "PATH=\"$(PREFIX)/bin${PATH:+:$PATH}\"; export PATH" ;
-    }
-    else {
-      SET_RUN_VARS on $(targets) = "PATH=\"$(PREFIX)/$(gcc)/bin${PATH:+:$PATH}\"; export PATH" ;
-    }
-  }
-  else {
-    if $(gcc) = $(GCC_BUILTIN) {
-      SET_RUN_VARS on $(targets) = "LD_LIBRARY_PATH=\"$(PREFIX)/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"; export LD_LIBRARY_PATH" ;
-    }
-    else {
-      SET_RUN_VARS on $(targets) = "LD_LIBRARY_PATH=\"$(PREFIX)/$(gcc)/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"; export LD_LIBRARY_PATH" ;
-    }
+    OPTIONS on $(targets) += CC=\"$(PREFIX)/gcc-$(gcc)/bin/gcc\" ;
+    OPTIONS on $(targets) += CXX=\"$(PREFIX)/gcc-$(gcc)/bin/g++\" ;
   }
 }
 actions make-mpfr
@@ -318,8 +241,8 @@ actions make-mpfr
     ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'configure' MPFR $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
-    /bin/echo -n "ERROR: failed to 'configure' MPFR $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
+    echo "ERROR: failed to 'configure' MPFR $(VERSION) (GCC $(GCC), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'configure' MPFR $(VERSION) (GCC $(GCC), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
   [ -f "$(<:D)/build/Makefile" ] || exit 1
@@ -329,8 +252,8 @@ actions make-mpfr
     ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make' MPFR $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
-    /bin/echo -n "ERROR: failed to 'make' MPFR $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
+    echo "ERROR: failed to 'make' MPFR $(VERSION) (GCC $(GCC), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make' MPFR $(VERSION) (GCC $(GCC), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
   if [ -n "$(STREAM)" ]; then
@@ -339,8 +262,8 @@ actions make-mpfr
     ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make check' MPFR $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
-    /bin/echo -n "ERROR: failed to 'make check' MPFR $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
+    echo "ERROR: failed to 'make check' MPFR $(VERSION) (GCC $(GCC), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make check' MPFR $(VERSION) (GCC $(GCC), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
   if [ -n "$(STREAM)" ]; then
@@ -349,12 +272,12 @@ actions make-mpfr
     ( cd "$(<:D)/build" && make install )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make install' MPFR $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." 1>&2
-    /bin/echo -n "ERROR: failed to 'make install' MPFR $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW))." | $(AWACS)
+    echo "ERROR: failed to 'make install' MPFR $(VERSION) (GCC $(GCC), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make install' MPFR $(VERSION) (GCC $(GCC), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
   ( cd "$(<:D)" && rm -rf build )
-  /bin/echo -n "MPFR $(VERSION) ($(TRIPLET)-gcc-$(GCC_RAW)) was successfully built." | $(AWACS)
+  echo -n "MPFR $(VERSION) (GCC $(GCC), $(TRIPLET)) was successfully built." | $(AWACS)
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
@@ -365,18 +288,18 @@ rule install-req ( properties * )
   assert-specified   <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
   assert-specified   <multilib-hidden> : $(properties) ;
-  assert-specified   <binutils>        : $(properties) ;
+  assert-unspecified <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
   assert-specified   <gmp>             : $(properties) ;
   assert-unspecified <gmp-hidden>      : $(properties) ;
   assert-specified   <mpfr>            : $(properties) ;
   assert-unspecified <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
-  assert-specified   <mpc-hidden>      : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
   assert-unspecified <ppl>             : $(properties) ;
-  assert-specified   <ppl-hidden>      : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
-  assert-specified   <cloog-hidden>    : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-specified   <gcc>             : $(properties) ;
   assert-unspecified <gcc-hidden>      : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;

@@ -54,7 +54,8 @@ rule download-binutils ( targets * : sources * : properties * )
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
   local version = [ feature.get-values <binutils> : $(properties) ] ;
-  URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/binutils/binutils-$(version).tar.bz2 ;
+  URL on $(targets) = http://ftp.nara.wide.ad.jp/pub/GNU/gnu/binutils/binutils-$(version).tar.bz2 ;
+  #URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/binutils/binutils-$(version).tar.bz2 ;
   #URL on $(targets) = http://core.ring.gr.jp/pub/GNU/binutils/binutils-$(version).tar.bz2 ;
   TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/binutils-$(version).tar.gz ;
   TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/binutils-$(version).tar.bz2 ;
@@ -70,7 +71,7 @@ actions download-binutils
     fi
     if [ $? -ne 0 ]; then
       echo "ERROR: failed to download binutils tarball." 1>&2
-      /bin/echo -n "ERROR: failed to download binutils tarball." | $(AWACS)
+      echo -n "ERROR: failed to download binutils tarball." | $(AWACS)
       exit 1
     fi
     [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_BZ2)" ] || exit 1
@@ -145,7 +146,7 @@ actions expand-binutils
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to expand binutils tarball." 1>&2
-    /bin/echo -n "ERROR: failed to expand binutils tarball." | $(AWACS)
+    echo -n "ERROR: failed to expand binutils tarball." | $(AWACS)
     exit 1
   fi
   [ -d "$(DEST_DIR)" ] || exit 1
@@ -231,7 +232,7 @@ actions make-binutils
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'configure' binutils $(VERSION) ($(TRIPLET)-gcc)." 1>&2
-    /bin/echo -n "ERROR: failed to 'configure' binutils $(VERSION) ($(TRIPLET)-gcc)." | $(AWACS)
+    echo -n "ERROR: failed to 'configure' binutils $(VERSION) ($(TRIPLET)-gcc)." | $(AWACS)
     exit 1
   fi
   [ -f "$(<:D)/build/Makefile" ] || exit 1
@@ -242,7 +243,7 @@ actions make-binutils
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make' binutils $(VERSION) ($(TRIPLET)-gcc)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make' binutils $(VERSION) ($(TRIPLET)-gcc)." | $(AWACS)
+    echo -n "ERROR: failed to 'make' binutils $(VERSION) ($(TRIPLET)-gcc)." | $(AWACS)
     exit 1
   fi
   if [ -n "$(STREAM)" ]; then
@@ -252,7 +253,7 @@ actions make-binutils
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make check' binutils $(VERSION) ($(TRIPLET)-gcc)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make check' binutils $(VERSION) ($(TRIPLET)-gcc)." | $(AWACS)
+    echo -n "ERROR: failed to 'make check' binutils $(VERSION) ($(TRIPLET)-gcc)." | $(AWACS)
     exit 1
   fi
   if [ -n "$(STREAM)" ]; then
@@ -262,11 +263,11 @@ actions make-binutils
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make install' binutils $(VERSION) ($(TRIPLET)-gcc)." 1>&2
-    /bin/echo -n "ERROR: failed to 'make install' binutils $(VERSION) ($(TRIPLET)-gcc)." | $(AWACS)
+    echo -n "ERROR: failed to 'make install' binutils $(VERSION) ($(TRIPLET)-gcc)." | $(AWACS)
     exit 1
   fi
   ( cd "$(<:D)" && rm -rf build )
-  /bin/echo -n "binutils $(VERSION) ($(TRIPLET)-gcc) was successfully built." | $(AWACS)
+  echo -n "binutils $(VERSION) ($(TRIPLET)-gcc) was successfully built." | $(AWACS)
   [ -e "$(<)" ] && exit 1
   touch "$(<)"
 }
