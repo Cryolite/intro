@@ -674,12 +674,16 @@ else {
 
 ECHO "Extracting Boost latest version, patience..." ;
 local boost = [ SHELL "\"$(INTRO_ROOT_DIR)/boost-latest.sh\" || echo -n 'error'" ] ;
-if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : $(boost) : 1 ] {
+if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : $(boost) : 1 ]
+{
   ECHO $(boost) ;
 }
-else {
+else
+{
   errors.error "ERROR: failed to extract Boost latest version." ;
 }
+constant BOOST : $(boost) ;
+constant BOOST_VERSIONS : $(boost) ;
 feature boost        : unspecified $(boost)       : propagated            ;
 feature boost-hidden : [ feature.values <boost> ] : propagated incidental ;
 
@@ -706,7 +710,7 @@ for local compiler in $(compilers)
       prerequisites/cloog//install/<multilib-hidden>$(multilib)/<gmp>$(GMP)/<cloog>$(CLOOG)
       icu4c//install/<multilib-hidden>$(multilib)/<icu4c>$(ICU4C)
       openmpi//install/<multilib-hidden>$(multilib)/<mpi>openmpi/<openmpi>$(OPENMPI)
-      #boost//install/<multilib-hidden>$(multilib)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
+      boost//install/<multilib-hidden>$(multilib)/<icu4c>$(ICU4C)/<mpi>openmpi/<openmpi>$(OPENMPI)/<boost>$(BOOST)
       #$(clang)
     : <triplet>$(triplet)
       <compiler>$(compiler)

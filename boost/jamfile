@@ -5,6 +5,7 @@ import errors ;
 import feature ;
 import make ;
 import regex ;
+import "$(INTRO_ROOT_DIR)/compilers" ;
 
 
 rule assert-specified ( feature : properties * )
@@ -24,7 +25,7 @@ rule assert-unspecified ( feature : properties * )
 }
 
 
-rule gcc-dep-req ( properties * )
+rule compiler-dep-req ( properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
@@ -41,8 +42,8 @@ rule gcc-dep-req ( properties * )
   assert-unspecified <ppl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-specified   <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-specified   <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
   assert-unspecified <mpi>             : $(properties) ;
@@ -52,22 +53,47 @@ rule gcc-dep-req ( properties * )
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
   local multilib = [ feature.get-values <multilib-hidden> : $(properties) ] ;
-  return <source>../gcc//install/<multilib>$(multilib)/<multilib-hidden>unspecified ;
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
+  {
+    result = <source>../gcc//install/<multilib>$(multilib)/<multilib-hidden>unspecified ;
+  }
+  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
+  {
+    result = <source>../clang//install/<multilib-hidden>unspecified ;
+  }
+  else
+  {
+    errors.error "an internal error." ;
+  }
+  return $(result) ;
 }
 
-alias gcc-dep : : <conditional>@gcc-dep-req ;
-explicit gcc-dep ;
+alias compiler-dep : : <conditional>@compiler-dep-req ;
+explicit compiler-dep ;
 
 
-make make
-  : gcc-dep/<icu4c>unspecified/<mpi>unspecified/<openmpi>unspecified/<boost>unspecified
-    ../icu4c//install/<mpi>unspecified/<openmpi>unspecified/<boost>unspecified
-    ../openmpi//install/<icu4c>unspecified/<boost>unspecified
-  : @make-boost
-  ;
-explicit make ;
+for local compiler in $(COMPILERS)
+{
+  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
+  local compiler-abi-tag = [ "$(INTRO_ROOT_DIR)/compilers.get-abi-tag" $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local boost-abi-version = [ regex.match "^([0-9]+\\.[0-9]+)\\.[0-9]+$" : $(BOOST) : 1 ] ;
+  if ! $(boost-abi-version)
+  {
+    errors.error "an internal error." ;
+  }
+  local boost-abi-tag = [ regex.replace $(boost-abi-version) "\\." "_" ] ;
+  make "$(compiler-prefix)/lib/libboost_regex-$(compiler-abi-tag)-$(boost-abi-tag).so.$(BOOST)"
+    : compiler-dep/<icu4c>unspecified/<mpi>unspecified/<openmpi>unspecified/<boost>unspecified
+      ../icu4c//install/<mpi>unspecified/<openmpi>unspecified/<boost>unspecified
+      ../openmpi//install/<icu4c>unspecified/<boost>unspecified
+    : @install
+    ;
+  explicit "$(compiler-prefix)/lib/libboost_regex-$(compiler-abi-tag)-$(boost-abi-tag).so.$(BOOST)" ;
+}
 
-rule make-boost ( targets * : sources * : properties * )
+rule install ( targets * : sources * : properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
@@ -84,8 +110,8 @@ rule make-boost ( targets * : sources * : properties * )
   assert-unspecified <ppl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-specified   <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-specified   <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
   assert-specified   <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
   assert-specified   <mpi>             : $(properties) ;
@@ -96,6 +122,11 @@ rule make-boost ( targets * : sources * : properties * )
   assert-unspecified <boost-hidden>    : $(properties) ;
 
   local triplet = [ feature.get-values <triplet> : $(properties) ] ;
+  TRIPLET on $(targets) = $(triplet) ;
+
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(compiler) ] ;
+  COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
 
   OPTIONS on $(targets) = ;
 
@@ -106,46 +137,61 @@ rule make-boost ( targets * : sources * : properties * )
   BOOST_ROOT on $(targets) = $(boost-root) ;
 
   local gcc = [ feature.get-values <gcc> : $(properties) ] ;
-  GCC on $(targets) = $(gcc) ;
+  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
 
-  OPTIONS on $(targets) += -sICU_PATH=\"$(PREFIX)/gcc-$(gcc)\" ;
+  OPTIONS on $(targets) += -sICU_PATH=\"$(compiler-prefix)\" ;
 
-  OPTIONS on $(targets) += --stagedir=\"$(PREFIX)/gcc-$(gcc)\" ;
+  OPTIONS on $(targets) += --stagedir=\"$(compiler-prefix)\" ;
   OPTIONS on $(targets) += --build-type=complete ;
   OPTIONS on $(targets) += --layout=versioned ;
   OPTIONS on $(targets) += --without-mpi ;
 
-  local toolset-version = [ regex.replace $(gcc) "-" "_" ] ;
-  TOOLSET on $(targets) = gcc-$(toolset-version) ;
-
-  OPTIONS on $(targets) += toolset=gcc-$(toolset-version) ;
+  local toolset = [ "$(INTRO_ROOT_DIR)/compilers.get-toolset" $(compiler) : $(GCC_FOR_CLANG) ] ;
+  TOOLSET on $(targets) = $(toolset) ;
+  OPTIONS on $(targets) += toolset=$(toolset) ;
 
   OPTIONS on $(targets) += stage ;
 }
-actions make-boost
+actions install
 {
-  rm -f "$(<)" || exit $?
   if [ ! -x "$(BOOST_ROOT)/b2" ]; then
-    echo "ERROR: Boost $(VERSION) not found (GCC $(GCC), $(TRIPLET))." 1>&2
-    echo -n "ERROR: Boost $(VERSION) not found (GCC $(GCC), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: Boost $(VERSION) not found ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: Boost $(VERSION) not found ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
+
+  # Build debug version libraries.
   if [ -n "$(STREAM)" ]; then
     ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=debug cxxflags="-std=c++0x" $(OPTIONS) >> "$(STREAM)" 2>&1 )
-    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=release cflags=-flto cxxflags="-std=c++0x" linkflags="-O3 -flto" $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
     ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=debug cxxflags="-std=c++0x" $(OPTIONS) )
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to build Boost $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to build Boost $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    exit 1
+  fi
+
+  # Build release version libraries with LTO options.
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=release cflags=-flto cxxflags="-std=c++0x" linkflags="-O3 -flto" $(OPTIONS) >> "$(STREAM)" 2>&1 )
+  else
     ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=release cflags=-flto cxxflags="-std=c++0x" linkflags="-O3 -flto" $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to build Boost $(VERSION) (GCC $(GCC), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to build Boost $(VERSION) (GCC $(GCC), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to build Boost $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to build Boost $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
+
+  [ -x "$(<)" ] || exit 1
+
+  # Clean up the build directory.
   ( cd "$(BOOST_ROOT)/bin.v2" && rm -rf libs/*/build/$(TOOLSET) )
-  echo -n "Boost $(VERSION) (GCC $(GCC), $(TRIPLET)) was successfully built." | $(AWACS)
-  [ -e "$(<)" ] && exit 1
-  touch "$(<)"
+
+  echo -n "Boost $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built." | $(AWACS)
+  exit 0
 }
 
 
@@ -166,8 +212,8 @@ rule install-req ( properties * )
   assert-unspecified <ppl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-specified   <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-specified   <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
   assert-specified   <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
   assert-specified   <mpi>             : $(properties) ;
@@ -176,7 +222,19 @@ rule install-req ( properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-specified   <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  local version = [ feature.get-values <boost> : $(properties) ] ;
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
+  local compiler-abi-tag = [ "$(INTRO_ROOT_DIR)/compilers.get-abi-tag" $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local boost-abi-version = [ regex.match "^([0-9]+\\.[0-9]+)\\.[0-9]+$" : $(version) : 1 ] ;
+  if ! $(boost-abi-version)
+  {
+    errors.error "an internal error." ;
+  }
+  local boost-abi-tag = [ regex.replace $(boost-abi-version) "\\." "_" ] ;
+  return <source>"$(compiler-prefix)/lib/libboost_regex-$(compiler-abi-tag)-$(boost-abi-tag).so.$(version)" ;
 }
 
-alias install : make : <conditional>@install-req ;
+alias install : : <conditional>@install-req ;
 explicit install ;

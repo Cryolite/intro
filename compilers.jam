@@ -357,3 +357,59 @@ rule get-compiler-description ( compiler )
   }
   return $(result) ;
 }
+
+rule get-toolset ( compiler : gcc-for-clang ? )
+{
+  if ! [ is-valid "$(compiler)" ]
+  {
+    errors.error "an internal error." ;
+  }
+  local result ;
+  if [ is-gcc $(compiler) ]
+  {
+    local version = [ get-version "$(compiler)" ] ;
+    version = [ regex.replace $(version) "-" "_" ] ;
+    result = gcc-$(version) ;
+  }
+  else if [ is-clang $(compiler) ]
+  {
+    if ! [ is-valid "$(gcc-for-clang)" ]
+    {
+      errors.error "an internal error." ;
+    }
+    local gcc-version = [ get-version $(gcc-for-clang) ] ;
+    gcc-version = [ regex.replace $(gcc-version) "-" "_" ] ;
+    local clang-version = [ get-version $(compiler) ] ;
+    clang-version = [ regex.replace $(clang-version) "-" "_" ] ;
+    result = gcc-$(gcc-version)_clang_$(clang-version) ;
+  }
+  return $(result) ;
+}
+
+rule get-abi-tag ( compiler : gcc-for-clang ? )
+{
+  if ! [ is-valid "$(compiler)" ]
+  {
+    errors.error "an internal error." ;
+  }
+  local result ;
+  if [ is-gcc $(compiler) ]
+  {
+    local version = [ get-version $(compiler) ] ;
+    local abi-version = [ regex.match "^([0-9]+\\.[0-9]+)" : $(version) : 1 ] ;
+    local version-tag = [ regex.replace $(abi-version) "\\." "" ] ;
+    result = gcc$(version-tag) ;
+  }
+  else if [ is-clang $(compiler) ]
+  {
+    if ! [ is-valid "$(gcc-for-clang)" ]
+    {
+      errors.error "an internal error." ;
+    }
+    local version = [ get-version $(gcc-for-clang) ] ;
+    local abi-version = [ regex.match "^([0-9]+\\.[0-9]+)\\.[0-9]+$" : $(version) : 1 ] ;
+    local version-tag = [ regex.replace $(abi-version) "\\." "" ] ;
+    result = gcc$(version-tag) ;
+  }
+  return $(result) ;
+}
