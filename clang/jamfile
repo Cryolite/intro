@@ -200,7 +200,7 @@ actions make-clang
     echo -n "ERROR: failed to 'svn update' Clang repository." | $(AWACS)
     exit 1
   fi
-  llvm_rev=`( cd "$(LLVM_DIR)" && { env LANG=C svn info || exit 1; } | { grep -E '^Revision: [[:digit:]]+$' || exit 1; } | { grep -oE '[[:digit:]]+$' || exit 1; } )`
+  clang_rev=`( cd "$(CLANG_DIR)" && { env LANG=C svn info || exit 1; } | { grep -E 'Revision: [[:digit:]]+' || exit 1; } | { grep -oE '[[:digit:]]+' || exit 1; } )`
   [ $? -eq 0 ] || $?
   { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit 1
   if [ -n "$(STREAM)" ]; then
@@ -209,8 +209,8 @@ actions make-clang
     ( cd "$(<:D)/build" && $(ENV_DYN_LINK_VARS) "$(CONFIGURE)" $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'configure' LLVM & Clang Rev.${llvm_rev} (GCC $(GCC), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'configure' LLVM & Clang Rev.${llvm_rev} (GCC $(GCC), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'configure' LLVM & Clang Rev.${clang_rev} (GCC $(GCC), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'configure' LLVM & Clang Rev.${clang_rev} (GCC $(GCC), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
   [ -f "$(<:D)/build/Makefile" ] || exit 1
@@ -220,8 +220,8 @@ actions make-clang
     ( cd "$(<:D)/build" && $(ENV_DYN_LINK_VARS) make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make' LLVM & Clang Rev.${llvm_rev} (GCC $(GCC), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make' LLVM & Clang Rev.${llvm_rev} (GCC $(GCC), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'make' LLVM & Clang Rev.${clang_rev} (GCC $(GCC), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make' LLVM & Clang Rev.${clang_rev} (GCC $(GCC), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
   if [ -n "$(STREAM)" ]; then
@@ -230,8 +230,8 @@ actions make-clang
     ( cd "$(<:D)/build" && $(ENV_DYN_LINK_VARS) make check )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make check' LLVM & Clang Rev.${llvm_rev} (GCC $(GCC), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make check' LLVM & Clang Rev.${llvm_rev} (GCC $(GCC), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'make check' LLVM & Clang Rev.${clang_rev} (GCC $(GCC), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make check' LLVM & Clang Rev.${clang_rev} (GCC $(GCC), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
   if [ -n "$(STREAM)" ]; then
@@ -240,19 +240,13 @@ actions make-clang
     ( cd "$(<:D)/build" && $(ENV_DYN_LINK_VARS) make install )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make install' LLVM & Clang Rev.${llvm_rev} (GCC $(GCC), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make install' LLVM & Clang Rev.${llvm_rev} (GCC $(GCC), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'make install' LLVM & Clang Rev.${clang_rev} (GCC $(GCC), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make install' LLVM & Clang Rev.${clang_rev} (GCC $(GCC), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
-  #install --mode=755 "$(INTRO_ROOT_DIR)/clang/clang++-wrapper" "$(VERSION_PREFIX)/bin"
-  #if [ $? -ne 0 ]; then
-  #  echo "ERROR: failed to install the wrapper script for LLVM & Clang Rev.${llvm_rev} (GCC $(GCC), $(TRIPLET))." 1>&2
-  #  echo -n "ERROR: failed to install the wrapper script for LLVM & Clang Rev.${llvm_rev} (GCC $(GCC), $(TRIPLET))." | $(AWACS)
-  #  exit 1
-  #fi
   ( cd "$(<:D)" && rm -rf build )
   [ -e "$(<)" ] && exit 1
-  echo -n "LLVM & Clang Rev.${llvm_rev} (GCC $(GCC), $(TRIPLET)) was successfully built." | $(AWACS)
+  echo -n "LLVM & Clang Rev.${clang_rev} (GCC $(GCC), $(TRIPLET)) was successfully built." | $(AWACS)
   touch "$(<)"
 }
 

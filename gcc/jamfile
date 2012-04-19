@@ -5,7 +5,7 @@ import errors ;
 import feature ;
 import make ;
 import regex ;
-
+import "$(INTRO_ROOT_DIR)/compilers" ;
 
 rule assert-specified ( feature : properties * )
 {
@@ -24,11 +24,18 @@ rule assert-unspecified ( feature : properties * )
 }
 
 
-make download : : @download-gcc ;
-explicit download ;
-
-rule download-gcc ( targets * : sources * : properties * )
+for local version in [ "$(INTRO_ROOT_DIR)/compilers.get-gcc-versions" $(COMPILERS) ]
 {
+  make "$(INTRO_ROOT_DIR)/gcc-$(version).tar.bz2" : : @download ;
+  explicit "$(INTRO_ROOT_DIR)/gcc-$(version).tar.bz2" ;
+}
+
+rule download ( targets * : sources * : properties * )
+{
+  if $(sources[1])
+  {
+    errors.error "a wrong number of sources." ;
+  }
   assert-unspecified <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
@@ -44,8 +51,8 @@ rule download-gcc ( targets * : sources * : properties * )
   assert-unspecified <ppl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-specified   <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-unspecified <compiler>        : $(properties) ;
+  assert-specified   <compiler-hidden> : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
   assert-unspecified <mpi>             : $(properties) ;
@@ -54,55 +61,132 @@ rule download-gcc ( targets * : sources * : properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
-  local version = [ feature.get-values <gcc> : $(properties) ] ;
-  #local url_prefix = "http://gcc.igor.onlinedirect.bg" ;            # Bulgaria
-  #local url_prefix = "http://gcc.parentingamerica.com" ;            # Canada
-  #local url_prefix = "http://gcc.skazkaforyou.com" ;                # Canada
-  #local url_prefix = "http://fileboar.com/gcc" ;                    # US
-  #local url_prefix = "http://gcc.petsads.us" ;                      # US +
-  #local url_prefix = "http://mirrors-us.seosue.com/gcc" ;           # US
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
+  if ! [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" "$(compiler)" ]
+  {
+    errors.error "an internal error." ;
+  }
+  local version = [ "$(INTRO_ROOT_DIR)/compilers.get-version" $(compiler) ] ;
+  VERSION on $(targets) = $(version) ;
   local url_prefix = "http://ftp.dti.ad.jp/pub/lang/gcc" ;          # Japan ++
   #local url_prefix = "http://ftp.tsukuba.wide.ad.jp/software/gcc" ; # Japan +++
-  if [ regex.match "^([0-9]+\\.[0-9]+\\.[0-9]+)$" : $(version) : 1 ] {
+  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc-release" $(compiler) ]
+  {
     URL on $(targets) = "$(url_prefix)/releases/gcc-$(version)/gcc-$(version).tar.bz2" ;
   }
-  else if [ regex.match "^([0-9]+\\.[0-9]+-[0-9]+)$" : $(version) : 1 ] {
-    URL on $(targets) = "$(url_prefix)/snapshots/$(version)/gcc-$(version).tar.bz2" ;
-  }
-  else if [ regex.match "^([0-9]+\\.[0-9]+\\.0-RC-[0-9]+)$" : $(version) : 1 ] {
+  else if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc-snapshot" $(compiler) ]
+  {
     URL on $(targets) = "$(url_prefix)/snapshots/$(version)/gcc-$(version).tar.bz2" ;
   }
   else {
-    errors.error "ERROR: an invalid GCC version." ;
+    errors.error "an internal error." ;
   }
-  TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/gcc-$(version).tar.gz ;
-  TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/gcc-$(version).tar.bz2 ;
 }
-actions download-gcc
+actions download
 {
-  rm -f "$(<)" || exit $?
-  if [ ! -f "$(TARBALL_GZ)" -a ! -f "$(TARBALL_BZ2)" ]; then
-    if [ -n "$(STREAM)" ]; then
-      ( cd "$(TARBALL_BZ2:D)" && wget -- '$(URL)' >> "$(STREAM)" 2>&1 )
-    else
-      ( cd "$(TARBALL_BZ2:D)" && wget --quiet -- '$(URL)' )
-    fi
-    if [ $? -ne 0 ]; then
-      echo "ERROR: failed to download GCC tarball." 1>&2
-      echo -n "ERROR: failed to download GCC tarball." | $(AWACS)
-      exit 1
-    fi
-    [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_BZ2)" ] || exit 1
+  rm -rf "$(<)" || exit $?
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)" && wget -- '$(URL)' >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)" && wget --quiet -- '$(URL)' )
   fi
-  [ -e "$(<)" ] && exit 1
-  touch "$(<)"
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to download GCC $(VERSION) tarball." 1>&2
+    echo -n "ERROR: failed to download GCC $(VERSION) tarball." | $(AWACS)
+    rm -rf "$(<)"
+    exit 1
+  fi
+  [ -f "$(<)" ] || exit 1
+  exit 0
 }
 
 
-make expand : download : @expand-gcc ;
-explicit expand ;
+for local version in [ "$(INTRO_ROOT_DIR)/compilers.get-gcc-versions" $(COMPILERS) ]
+{
+  # Use `README' file as a target representing the completion of
+  # decompression action. It is suitable for the purpose because of the
+  # following reasons;
+  #
+  #   - The name of this file is considered stable even if the version
+  #     changes.
+  #   - This file won't be modified during the build procedure.
+  #
+  make "$(INTRO_ROOT_DIR)/gcc-$(version)/README"
+    : "$(INTRO_ROOT_DIR)/gcc-$(version).tar.bz2"
+    : @expand
+    ;
+  explicit "$(INTRO_ROOT_DIR)/gcc-$(version)/README" ;
+}
 
-rule expand-gcc ( targets * : sources * : properties * )
+rule expand ( targets * : sources * : properties * )
+{
+  if ! $(sources[1])
+  {
+    errors.error "an internal error." ;
+  }
+  if $(sources[2])
+  {
+    errors.error "an internal error." ;
+  }
+  assert-unspecified <triplet>         : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
+  assert-unspecified <compiler>        : $(properties) ;
+  assert-specified   <compiler-hidden> : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
+  if ! [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" "$(compiler)" ]
+  {
+    errors.error "an internal error." ;
+  }
+  local version = [ "$(INTRO_ROOT_DIR)/compilers.get-version" $(compiler) ] ;
+  VERSION on $(targets) = $(version) ;
+}
+actions expand
+{
+  rm -rf "$(<:D)" || exit 1
+  [ -f "$(>)" ] || exit 1
+  if [ -n "$(STREAM)" ]; then
+    tar xjvf "$(>)" --directory="$(INTRO_ROOT_DIR)" >> "$(STREAM)" 2>&1
+  else
+    tar xjf "$(>)" --directory="$(INTRO_ROOT_DIR)"
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to expand GCC $(VERSION) tarball." 1>&2
+    echo -n "ERROR: failed to expand GCC $(VERSION) tarball." | $(AWACS)
+    rm -rf "$(<:D)"
+    exit 1
+  fi
+  # If the timestamp of the tarball's contents is restored, the modification
+  # time of the source directory could be older than the one of the tarball.
+  # Such behavior is not desirable because the decompression always happens.
+  # Therefore, `touch' is required.
+  touch --no-create "$(<)"
+  [ -f "$(<)" ] || exit 1
+  exit 0
+}
+
+
+rule srcdir-req ( properties * )
 {
   assert-unspecified <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
@@ -119,8 +203,8 @@ rule expand-gcc ( targets * : sources * : properties * )
   assert-unspecified <ppl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-specified   <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-specified   <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
   assert-unspecified <mpi>             : $(properties) ;
@@ -129,70 +213,35 @@ rule expand-gcc ( targets * : sources * : properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
-  if ! $(sources[1]) {
-    errors.error "ERROR: wrong number of sources." ;
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  if ! [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" "$(compiler)" ]
+  {
+    errors.error "an internal error." ;
   }
-  if $(sources[2]) {
-    errors.error "ERROR: wrong number of sources." ;
-  }
-  local version = [ feature.get-values <gcc> : $(properties) ] ;
-  VERSION on $(targets) = $(version) ;
-  TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/gcc-$(version).tar.gz ;
-  TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/gcc-$(version).tar.bz2 ;
-  DEST_DIR on $(targets) = $(INTRO_ROOT_DIR)/gcc-$(version) ;
+  local version = [ "$(INTRO_ROOT_DIR)/compilers.get-version" $(compiler) ] ;
+  return <source>"$(INTRO_ROOT_DIR)/gcc-$(version)/README/<compiler>unspecified/<compiler-hidden>$(compiler)" ;
 }
-actions expand-gcc
+
+alias srcdir : : <conditional>@srcdir-req ;
+explicit srcdir ;
+
+
+for local gcc in [ "$(INTRO_ROOT_DIR)/compilers.get-gccs" $(COMPILERS) ]
 {
-  rm -f "$(<)" || exit $?
-  [ -f "$(>)" ] || exit 1
-  ( cd "$(INTRO_ROOT_DIR)" && rm -rf gcc-$(VERSION) ) || exit 1
-  [ -e "$(INTRO_ROOT_DIR)/gcc-$(VERSION)" ] && exit 1
-  if [ -f "$(TARBALL_GZ)" ]; then
-    if [ -n "$(STREAM)" ]; then
-      tar xzvf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" >> "$(STREAM)" 2>&1
-    else
-      tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)"
-    fi
-  elif [ -f "$(TARBALL_BZ2)" ]; then
-    if [ -n "$(STREAM)" ]; then
-      tar xjvf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)" >> "$(STREAM)" 2>&1
-    else
-      tar xjf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)"
-    fi
-  else
-    exit 1
-  fi
-  if [ $? -ne 0 ]; then
-    echo "ERROR: failed to expand GCC tarball." 1>&2
-    echo -n "ERROR: failed to expand GCC tarball." | $(AWACS)
-    exit 1
-  fi
-  [ -d "$(DEST_DIR)" ] || exit 1
-  [ -x "$(DEST_DIR)/configure" ] || exit 1
-  [ -e "$(<)" ] && exit 1
-  touch "$(<)"
+  make "$(PREFIX)/$(gcc)/bin/g++"
+    : ../binutils//srcdir/<triplet>unspecified/<multilib>unspecified/<binutils>$(BINUTILS_FOR_GCC)/<compiler>unspecified
+      ../gmp//srcdir/<triplet>unspecified/<multilib>unspecified/<gmp>$(GMP_FOR_GCC)/<compiler>unspecified
+      ../mpfr//srcdir/<triplet>unspecified/<multilib>unspecified/<mpfr>$(MPFR_FOR_GCC)/<compiler>unspecified
+      ../mpc//srcdir/<triplet>unspecified/<multilib>unspecified/<mpc>$(MPC_FOR_GCC)/<compiler>unspecified
+      ../prerequisites/ppl//srcdir/<triplet>unspecified/<multilib>unspecified/<ppl>$(PPL_FOR_GCC)/<compiler>unspecified
+      ../prerequisites/cloog//srcdir/<triplet>unspecified/<multilib>unspecified/<cloog>$(CLOOG_FOR_GCC)/<compiler>unspecified
+      srcdir/<triplet>unspecified/<multilib>unspecified
+    : @make-install
+    ;
+  explicit "$(INTRO_ROOT_DIR)/$(gcc)/bin/g++" ;
 }
 
-
-make configure
-  : #../binutils//install/<multilib>unspecified/<gmp>unspecified/<mpfr>unspecified/<mpc>unspecified/<ppl>unspecified/<cloog>unspecified/<gcc>unspecified
-    #../prerequisites//gmp/<multilib>unspecified/<mpfr>unspecified/<mpc>unspecified/<ppl>unspecified/<cloog>unspecified/<gcc>unspecified
-    #../prerequisites//mpfr/<multilib>unspecified/<mpc>unspecified/<ppl>unspecified/<cloog>unspecified/<gcc>unspecified
-    #../prerequisites//mpc/<multilib>unspecified/<ppl>unspecified/<cloog>unspecified/<gcc>unspecified
-    #../prerequisites/ppl//install/<multilib>unspecified/<ppl>$(PPL_FOR_GCC)/<gcc>unspecified
-    #../prerequisites/cloog//install/<multilib>unspecified/<cloog>$(CLOOG_FOR_GCC)/<gcc>unspecified
-    ../binutils//expand/<triplet>unspecified/<multilib>unspecified/<binutils>$(BINUTILS_FOR_GCC)/<gcc>unspecified
-    ../gmp//expand/<triplet>unspecified/<multilib>unspecified/<gmp>$(GMP_FOR_GCC)/<gcc>unspecified
-    ../mpfr//expand/<triplet>unspecified/<multilib>unspecified/<mpfr>$(MPFR_FOR_GCC)/<gcc>unspecified
-    ../mpc//expand/<triplet>unspecified/<multilib>unspecified/<mpc>$(MPC_FOR_GCC)/<gcc>unspecified
-    ../prerequisites/ppl//srcdir/<triplet>unspecified/<multilib>unspecified/<ppl>$(PPL_FOR_GCC)/<gcc>unspecified
-    ../prerequisites/cloog//srcdir/<triplet>unspecified/<multilib>unspecified/<cloog>$(CLOOG_FOR_GCC)/<gcc>unspecified
-    expand/<triplet>unspecified/<multilib>unspecified
-  : @configure-gcc
-  ;
-explicit configure ;
-
-rule configure-gcc ( targets * : sources * : properties * )
+rule make-install ( targets * : sources * : properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
   assert-specified   <multilib>        : $(properties) ;
@@ -209,8 +258,8 @@ rule configure-gcc ( targets * : sources * : properties * )
   assert-unspecified <ppl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-specified   <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-specified   <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
   assert-unspecified <mpi>             : $(properties) ;
@@ -222,66 +271,81 @@ rule configure-gcc ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) = ;
 
-  local version = [ feature.get-values <gcc> : $(properties) ] ;
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  if ! [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" "$(compiler)" ]
+  {
+    errors.error "an internal error." ;
+  }
+  local version = [ "$(INTRO_ROOT_DIR)/compilers.get-version" $(compiler) ] ;
   VERSION on $(targets) = $(version) ;
+  local compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(compiler) ] ;
+  COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
 
   local srcdir = "$(INTRO_ROOT_DIR)/gcc-$(version)" ;
   SRCDIR on $(targets) = "$(srcdir)" ;
 
-  # Set the '--build', '--host' and '--target' options for the 'configure' script.
   local triplet = [ feature.get-values <triplet> : $(properties) ] ;
   TRIPLET on $(targets) = $(triplet) ;
 
-  local version-prefix = "$(PREFIX)/gcc-$(version)" ;
-  VERSION_PREFIX on $(targets) = "$(version-prefix)" ;
-
+  # Set the '--build', '--host' and '--target' options for the 'configure' script.
   OPTIONS on $(targets) += --build=$(triplet) ;
   OPTIONS on $(targets) += --host=$(triplet) ;
   OPTIONS on $(targets) += --target=$(triplet) ;
 
+  # Set the compiler-specific prefix.
+  local compiler-prefix = "$(PREFIX)/$(compiler)" ;
+  COMPILER_PREFIX on $(targets) = "$(compiler-prefix)" ;
+
   # Set the '--prefix' option for the 'configure' script.
-  OPTIONS on $(targets) += "--prefix=\"$(version-prefix)\"" ;
+  OPTIONS on $(targets) += "--prefix=\"$(compiler-prefix)\"" ;
 
+  # Set the build variants of runtime libraries.
   OPTIONS on $(targets) += --enable-static ;
-
   OPTIONS on $(targets) += --enable-shared ;
 
-  #OPTIONS on $(targets) += "--with-ld=\"$(version-prefix)/bin/ld\"" ;
-
+  # Set the linker configuration to be used by the installed GCC front-end.
   OPTIONS on $(targets) += --enable-ld ;
-
   OPTIONS on $(targets) += --enable-gold=default ;
 
   local multilib = [ feature.get-values <multilib> : $(properties) ] ;
-  if $(multilib) = yes {
+  if $(multilib) = yes
+  {
     OPTIONS on $(targets) += --enable-multilib ;
   }
-  else {
+  else
+  {
     OPTIONS on $(targets) += --disable-multilib ;
   }
 
-  if $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32 {
+  if $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
+  {
     OPTIONS on $(targets) += --enable-threads=win32 ;
   }
-  else {
+  else
+  {
     OPTIONS on $(targets) += --enable-threads=posix ;
   }
 
   OPTIONS on $(targets) += --enable-tls ;
 
-  if $(triplet) = i686-pc-linux-gnu || $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 {
+  if $(triplet) = i686-pc-linux-gnu || $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32
+  {
     OPTIONS on $(targets) += --with-arch=i686 ;
     OPTIONS on $(targets) += --with-tune=generic ;
   }
-  else if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32 {
+  else if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32
+  {
     OPTIONS on $(targets) += --with-arch-32=i686 ;
     OPTIONS on $(targets) += --with-tune=generic ;
   }
 
-  if $(triplet) = i686-pc-cygwin {
+  if $(triplet) = i686-pc-cygwin
+  {
     OPTIONS on $(targets) += --disable-__cxa_atexit ;
   }
 
+  # This option is a workaround required to build PPL and CLooG alongside
+  # during GCC bootstrap.
   OPTIONS on $(targets) += --enable-build-with-cxx ;
 
   OPTIONS on $(targets) += --enable-bootstrap ;
@@ -290,43 +354,44 @@ rule configure-gcc ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) += --enable-libssp ;
 
-  if $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32 {
+  if $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
+  {
     # The target is `*-w64-mingw32.'
     # `--enable-libgomp' option requires `pthreads-w32' on the target.
     # Currently, just disable this option.
     OPTIONS on $(targets) += --disable-libgomp ;
   }
-  else {
+  else
+  {
     OPTIONS on $(targets) += --enable-libgomp ;
   }
 
-  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 {
+  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32
+  {
     OPTIONS on $(targets) += --with-dwarf2 ;
     OPTIONS on $(targets) += --disable-sjlj-exceptions ;
   }
   # `--with-dwarf2' is not supported on `x86_64-w64-mingw32' targets.
 
-  if $(multilib) = yes {
-    if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32 {
+  if $(multilib) = yes
+  {
+    if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32
+    {
       OPTIONS on $(targets) += --enable-targets=all ;
     }
   }
 
-  if $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32 {
+  if $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
+  {
     OPTIONS on $(targets) += --disable-win32-registry ;
   }
 
   OPTIONS on $(targets) += --disable-nls ;
 
-  if $(triplet) = i686-pc-cygwin {
+  if $(triplet) = i686-pc-cygwin
+  {
     OPTIONS on $(targets) += --enable-graphite ;
   }
-
-  #OPTIONS on $(targets) += "--with-gmp=\"$(PREFIX)\"" ;
-  #OPTIONS on $(targets) += "--with-mpfr=\"$(PREFIX)\"" ;
-  #OPTIONS on $(targets) += "--with-mpc=\"$(PREFIX)\"" ;
-  #OPTIONS on $(targets) += "--with-ppl=\"$(PREFIX)\"" ;
-  #OPTIONS on $(targets) += "--with-cloog=\"$(PREFIX)\"" ;
 
   OPTIONS on $(targets) += --enable-cloog-backend=isl ;
 
@@ -343,24 +408,23 @@ rule configure-gcc ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --enable-libstdcxx-debug ;
 
   SET_PREFIX_SYMLINK on $(targets) = ;
-  if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32 {
-    SET_PREFIX_SYMLINK on $(targets) = "{ mkdir -p \"$(PREFIX)/gcc-$(version)/lib\" && ( cd \"$(PREFIX)/gcc-$(version)\" && ln -sf lib lib64 ); } || exit 1" ;
+  if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32
+  {
+    SET_PREFIX_SYMLINK on $(targets) = "{ mkdir -p \"$(compiler-prefix)/lib\" && ( cd \"$(compiler-prefix)\" && ln -sfT lib lib64 ); } || exit 1" ;
   }
 }
-actions configure-gcc
+actions make-install
 {
-  rm -f "$(<)" || exit $?
-
   # The absolute path to the objdir.
-  objdir="$(INTRO_ROOT_DIR)/$(<:D)/objdir"
+  objdir="$(INTRO_ROOT_DIR)/objdir"
 
   # Clean-up the objdir.
   { mkdir -p "$objdir" && ( cd "$objdir" && rm -rf * ); } || exit 1
 
 
-  # Create the symlinks to the source directories to GNU Binutils libraries
-  # and tools (opcodes, bfd, binutils, gas, ld, gold, gprof) in the GCC
-  # source directory.
+  # Create the symlinks to the source directories to GNU Binutils
+  # libraries and tools (opcodes, bfd, binutils, gas, ld, gold, gprof) in
+  # the GCC source directory.
   ( cd "$(SRCDIR)"                                       \
       && ln -sf ../binutils-$(BINUTILS_FOR_GCC)/bfd      \
                 ../binutils-$(BINUTILS_FOR_GCC)/binutils \
@@ -372,43 +436,43 @@ actions configure-gcc
 
 
   # Create the symlink to the GMP source directory.
-  ( cd "$(SRCDIR)" && ln -sf ../gmp-$(GMP_FOR_GCC) gmp ) || exit 1
+  ( cd "$(SRCDIR)" && ln -sfT ../gmp-$(GMP_FOR_GCC) gmp ) || exit 1
 
-  # An ad-hoc workaround that forces the GCC bootstrap procedure to build GMP
-  # C++ bindings, which are necessary to build PPL and CLooG.
+  # An ad-hoc workaround that forces the GCC bootstrap procedure to build
+  # GMP C++ bindings, which are necessary to build PPL and CLooG.
   if [ ! -e "$(SRCDIR)/gmp/real-configure" ]; then
     ( cd "$(SRCDIR)" && mv gmp/configure gmp/real-configure ) || exit 1
   fi
-  echo '#! /bin/sh'                                      >  "$(SRCDIR)/gmp/configure"
-  echo ""                                                >> "$(SRCDIR)/gmp/configure"
-  echo "echo INUMIMI: \$@"                               >> "$(SRCDIR)/gmp/configure"
-  echo "dir=\`dirname \"\$0\"\`"                         >> "$(SRCDIR)/gmp/configure"
-  #echo "\"\${dir}/real-configure\" --enable-cxx \"\$@\"" >> "$(SRCDIR)/gmp/configure"
+  echo '#! /bin/sh'                                          >  "$(SRCDIR)/gmp/configure"
+  echo ""                                                    >> "$(SRCDIR)/gmp/configure"
+  echo "echo original options for GMP configure script: \$@" >> "$(SRCDIR)/gmp/configure"
+  echo "dir=\`dirname \"\$0\"\`"                             >> "$(SRCDIR)/gmp/configure"
+  #echo "\"\${dir}/real-configure\" --enable-cxx \"\$@\""    >> "$(SRCDIR)/gmp/configure"
   echo "\"\${dir}/real-configure\" --srcdir=\"$(SRCDIR)/gmp\" --build=$(TRIPLET) --host=$(TRIPLET) --enable-cxx --enable-static --disable-shared" >> "$(SRCDIR)/gmp/configure"
   chmod +x "$(SRCDIR)/gmp/configure"
 
 
   # Create the symlink to the MPFR source directory.
-  ( cd "$(SRCDIR)" && ln -sf ../mpfr-$(MPFR_FOR_GCC) mpfr ) || exit 1
+  ( cd "$(SRCDIR)" && ln -sfT ../mpfr-$(MPFR_FOR_GCC) mpfr ) || exit 1
 
 
   # Create the symlink to the MPC source directory.
-  ( cd "$(SRCDIR)" && ln -sf ../mpc-$(MPC_FOR_GCC) mpc ) || exit 1
+  ( cd "$(SRCDIR)" && ln -sfT ../mpc-$(MPC_FOR_GCC) mpc ) || exit 1
 
 
   # Create the symlink to the PPL source directory in the GCC source
   # directory.
-  ( cd "$(SRCDIR)" && ln -sf ../ppl-$(PPL_FOR_GCC) ppl ) || exit 1
+  ( cd "$(SRCDIR)" && ln -sfT ../ppl-$(PPL_FOR_GCC) ppl ) || exit 1
 
   # An ad-hoc workaround that enables the PPL configure script to find the
   # GMP build directory during the GCC bootstrap procedure.
   if [ ! -e "$(SRCDIR)/ppl/real-configure" ]; then
     ( cd "$(SRCDIR)" && mv ppl/configure ppl/real-configure ) || exit 1
   fi
-  echo '#! /bin/sh'                                                            >  "$(SRCDIR)/ppl/configure"
-  echo ""                                                                      >> "$(SRCDIR)/ppl/configure"
-  echo "echo INUMIMI: \$@"                                                     >> "$(SRCDIR)/ppl/configure"
-  echo "dir=\`dirname \"\$0\"\`"                                               >> "$(SRCDIR)/ppl/configure"
+  echo '#! /bin/sh'                                                             >  "$(SRCDIR)/ppl/configure"
+  echo ""                                                                       >> "$(SRCDIR)/ppl/configure"
+  echo "echo original options for PPL configure script: \$@"                    >> "$(SRCDIR)/ppl/configure"
+  echo "dir=\`dirname \"\$0\"\`"                                                >> "$(SRCDIR)/ppl/configure"
   #echo "\"\${dir}/real-configure\" --with-gmp-build=\"${objdir}/gmp\" \"\$@\"" >> "$(SRCDIR)/ppl/configure"
   echo  "\"\${dir}/real-configure\" --srcdir="$(SRCDIR)/ppl" --build=$(TRIPLET) --host=$(TRIPLET) --disable-coverage --enable-static --disable-shared --with-gmp-build=\"${objdir}/gmp\"" >> "$(SRCDIR)/ppl/configure"
   chmod +x "$(SRCDIR)/ppl/configure"
@@ -416,16 +480,16 @@ actions configure-gcc
 
   # Create the symlink to the CLooG source directory in the GCC source
   # directory.
-  ( cd "$(SRCDIR)" && ln -sf ../cloog-$(CLOOG_FOR_GCC) cloog ) || exit 1
+  ( cd "$(SRCDIR)" && ln -sfT ../cloog-$(CLOOG_FOR_GCC) cloog ) || exit 1
 
-  # An ad-hoc workaround that enables the CLooG configure script to find the
-  # GMP build directory during the GCC bootstrap procedure.
+  # An ad-hoc workaround that enables the CLooG configure script to find
+  # the GMP build directory during the GCC bootstrap procedure.
   if [ ! -e "$(SRCDIR)/cloog/real-configure" ]; then
     ( cd "$(SRCDIR)" && mv cloog/configure cloog/real-configure ) || exit 1
   fi
   echo '#! /bin/sh'                                                               >  "$(SRCDIR)/cloog/configure"
   echo ""                                                                         >> "$(SRCDIR)/cloog/configure"
-  echo "echo INUMIMI: \$@"                                                        >> "$(SRCDIR)/cloog/configure"
+  echo "echo original options for CLooG configure script: \$@"                    >> "$(SRCDIR)/cloog/configure"
   echo "dir=\`dirname \"\$0\"\`"                                                  >> "$(SRCDIR)/cloog/configure"
   #echo "\"\${dir}/real-configure\" --with-gmp-builddir=\"${objdir}/gmp\" \"\$@\"" >> "$(SRCDIR)/cloog/configure"
   echo "\"\${dir}/real-configure\" --srcdir=$(SRCDIR)/cloog --build=$(TRIPLET) --host=$(TRIPLET) --enable-static --disable-shared --with-gnu-ld --with-gmp-builddir=\"${objdir}/gmp\"" >> "$(SRCDIR)/cloog/configure"
@@ -446,8 +510,8 @@ actions configure-gcc
     ( cd "$objdir" && "$(SRCDIR)/configure" $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'configure' GCC $(VERSION) ($(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'configure' GCC $(VERSION) ($(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'configure' $(COMPILER_DESCRIPTION) ($(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'configure' $(COMPILER_DESCRIPTION) ($(TRIPLET))." | $(AWACS)
     exit 1
   fi
 
@@ -455,12 +519,11 @@ actions configure-gcc
   [ -f "${objdir}/Makefile" ] || exit 1
 
 
-  # `make'.
   # PPL and CLooG requires GMP. However, they will fail to find the GMP
-  # header files, <gmp.h> and <gmpxx.h>. <gmp.h> will be created in
-  # ${objdir}/gmp during the bootstrap procedure, whereas <gmpxx.h> resides
-  # in $(SRCDIR)/gmp. So, CPATH is set to include the paths to those header
-  # files.
+  # header files, `<gmp.h>' and `<gmpxx.h>'. `<gmp.h>' will be created in
+  # `${objdir}/gmp' during the bootstrap procedure, whereas `<gmpxx.h>'
+  # resides in `$(SRCDIR)/gmp'. So, `CPATH' environment variable is set
+  # to include the paths to those header files.
   if [ -n "$(STREAM)" ]; then
     ( cd "$objdir" \
         && env CPATH="${objdir}/gmp:$(SRCDIR)/gmp${CPATH:+:$CPATH}" LIBRARY_PATH="${objdir}/gmp/.libs:${objdir}/$(TRIPLET)/libstdc++-v3/src/.libs${LIBRARY_PATH:+:$LIBRARY_PATH}" make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
@@ -485,8 +548,8 @@ actions configure-gcc
     fi
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make' GCC $(VERSION) ($(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make' GCC $(VERSION) ($(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'make' $(COMPILER_DESCRIPTION) ($(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make' $(COMPILER_DESCRIPTION) ($(TRIPLET))." | $(AWACS)
     exit 1
   fi
 
@@ -498,38 +561,31 @@ actions configure-gcc
     ( cd "$objdir" && make install )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make install' GCC $(VERSION) ($(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make install' GCC $(VERSION) ($(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'make install' $(COMPILER_DESCRIPTION) ($(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make install' $(COMPILER_DESCRIPTION) ($(TRIPLET))." | $(AWACS)
     exit 1
   fi
 
 
   # A workaround. Create a symlink to `ld' in the directory where the
   # installed GCC front end searches for subprograms.
-  ( cd $(VERSION_PREFIX)/libexec/gcc/$(TRIPLET)/`$(VERSION_PREFIX)/bin/gcc -dumpversion` && ln -sf ../../../../bin/ld real-ld )
+  ( cd "$(COMPILER_PREFIX)"/libexec/gcc/$(TRIPLET)/`"$(COMPILER_PREFIX)/bin/gcc" -dumpversion` && ln -sf ../../../../bin/ld real-ld )
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to create the workaround symlink to the linker for GCC $(VERSION) ($(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to create the workaround symlink to the linker for GCC $(VERSION) ($(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to create the workaround symlink to the linker for $(COMPILER_DESCRIPTION) ($(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to create the workaround symlink to the linker for $(COMPILER_DESCRIPTION) ($(TRIPLET))." | $(AWACS)
     exit 1
   fi
 
 
-  #install --mode=755 "$(INTRO_ROOT_DIR)/gcc/gcc-wrapper" "$(INTRO_ROOT_DIR)/gcc/g++-wrapper" "$(VERSION_PREFIX)/bin"
-  #if [ $? -ne 0 ]; then
-  #  echo "ERROR: failed to install the wrapper scripts for GCC $(VERSION) ($(TRIPLET))." 1>&2
-  #  echo -n "ERROR: failed to install the wrapper scripts for GCC $(VERSION) ($(TRIPLET))." | $(AWACS)
-  #  exit 1
-  #fi
-
+  # Check the creation of `g++'.
+  [ -x "$(<)" ] || exit 1
 
   # Clean-up the objdir.
-  ( cd "$objdir" && rm -rf * && cd .. && rmdir objdir )
+  rm -rf "$objdir" || exit 1
 
-
-  [ -e "$(<)" ] && exit 1
-  echo -n "GCC $(VERSION) ($(TRIPLET)) was successfully built." | $(AWACS)
-  echo -n "Binutils $(BINUTILS_FOR_GCC), GMP $(GMP_FOR_GCC), MPFR $(MPFR_FOR_GCC), MPC $(MPC_FOR_GCC), PPL $(PPL_FOR_GCC), CLooG $(CLOOG_FOR_GCC) were bootstrapped alongside." | $(AWACS)
-  touch "$(<)"
+  echo -n "$(COMPILER_DESCRIPTION) ($(TRIPLET)) was successfully built." | $(AWACS)
+  echo -n "NOTE: Binutils $(BINUTILS_FOR_GCC), GMP $(GMP_FOR_GCC), MPFR $(MPFR_FOR_GCC), MPC $(MPC_FOR_GCC), PPL $(PPL_FOR_GCC), CLooG $(CLOOG_FOR_GCC) were bootstrapped alongside." | $(AWACS)
+  exit 0
 }
 
 
@@ -550,8 +606,8 @@ rule install-req ( properties * )
   assert-unspecified <ppl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-specified   <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-specified   <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
   assert-unspecified <mpi>             : $(properties) ;
@@ -561,29 +617,8 @@ rule install-req ( properties * )
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
 
-  local result ;
-
-  local gcc = [ feature.get-values <gcc> : $(properties) ] ;
-  if $(gcc) = $(GCC_BUILTIN) {
-    # Skips the build of GCC.
-  }
-  else {
-    local triplet = [ feature.get-values <triplet> : $(properties) ] ;
-
-    local multilib = [ feature.get-values <multilib> : $(properties) ] ;
-    if $(multilib) = yes {
-      if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32 {
-        # Do nothing.
-      }
-      else {
-        errors.error "ERROR: `<multilib>' is not supported on `$(triplet)'." ;
-      }
-    }
-
-    result = <source>configure ;
-  }
-
-  return $(result) ;
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  return <source>"$(PREFIX)/$(compiler)/bin/g++" ;
 }
 
 alias install : : <conditional>@install-req ;

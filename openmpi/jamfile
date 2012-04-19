@@ -5,6 +5,7 @@ import errors ;
 import feature ;
 import make ;
 import regex ;
+import "$(INTRO_ROOT_DIR)/compilers" ;
 
 
 rule assert-specified ( feature : properties * )
@@ -24,7 +25,7 @@ rule assert-unspecified ( feature : properties * )
 }
 
 
-rule gcc-dep-req ( properties * )
+rule compiler-dep-req ( properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
@@ -41,8 +42,8 @@ rule gcc-dep-req ( properties * )
   assert-unspecified <ppl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-specified   <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-specified   <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
   assert-unspecified <mpi>             : $(properties) ;
@@ -52,153 +53,216 @@ rule gcc-dep-req ( properties * )
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
   local multilib = [ feature.get-values <multilib-hidden> : $(properties) ] ;
-  return <source>../gcc//install/<multilib>$(multilib)/<multilib-hidden>unspecified ;
-}
-
-alias gcc-dep : : <conditional>@gcc-dep-req ;
-explicit gcc-dep ;
-
-
-make download : : @download-openmpi ;
-explicit download ;
-
-rule download-openmpi ( targets * : sources * : properties * )
-{
-  assert-unspecified <triplet>         : $(properties) ;
-  assert-unspecified <multilib>        : $(properties) ;
-  assert-unspecified <multilib-hidden> : $(properties) ;
-  assert-unspecified <binutils>        : $(properties) ;
-  assert-unspecified <binutils-hidden> : $(properties) ;
-  assert-unspecified <gmp>             : $(properties) ;
-  assert-unspecified <gmp-hidden>      : $(properties) ;
-  assert-unspecified <mpfr>            : $(properties) ;
-  assert-unspecified <mpfr-hidden>     : $(properties) ;
-  assert-unspecified <mpc>             : $(properties) ;
-  assert-unspecified <mpc-hidden>      : $(properties) ;
-  assert-unspecified <ppl>             : $(properties) ;
-  assert-unspecified <ppl-hidden>      : $(properties) ;
-  assert-unspecified <cloog>           : $(properties) ;
-  assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-unspecified <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
-  assert-unspecified <icu4c>           : $(properties) ;
-  assert-unspecified <icu4c-hidden>    : $(properties) ;
-  assert-unspecified <mpi>             : $(properties) ;
-  assert-unspecified <mpi-hidden>      : $(properties) ;
-  assert-specified   <openmpi>         : $(properties) ;
-  assert-unspecified <openmpi-hidden>  : $(properties) ;
-  assert-unspecified <boost>           : $(properties) ;
-  assert-unspecified <boost-hidden>    : $(properties) ;
-  local version = [ feature.get-values <openmpi> : $(properties) ] ;
-  local minor = [ regex.match "^([0123456789]+\\.[0123456789]+)(\\.[0123456789]+)?$" : "$(version)" : 1 ] ;
-  URL on $(targets) = http://www.open-mpi.org/software/ompi/v$(minor)/downloads/openmpi-$(version).tar.bz2 ;
-  TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/openmpi-$(version).tar.gz ;
-  TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/openmpi-$(version).tar.bz2 ;
-}
-actions download-openmpi
-{
-  rm -f "$(<)" || exit $?
-  if [ ! -f "$(TARBALL_GZ)" -a ! -f "$(TARBALL_BZ2)" ]; then
-    if [ -n "$(STREAM)" ]; then
-      ( cd "$(TARBALL_BZ2:D)" && wget -- '$(URL)' >> "$(STREAM)" 2>&1 )
-    else
-      ( cd "$(TARBALL_BZ2:D)" && wget --quiet -- '$(URL)' )
-    fi
-    if [ $? -ne 0 ]; then
-      echo "ERROR: failed to download Open MPI tarball." 1>&2
-      echo -n "ERROR: failed to download Open MPI tarball." | $(AWACS)
-      exit 1
-    fi
-    [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_BZ2)" ] || exit 1
-  fi
-  [ -e "$(<)" ] && exit 1
-  touch "$(<)"
-}
-
-
-make expand : download : @expand-openmpi ;
-explicit expand ;
-
-rule expand-openmpi ( targets * : sources * : properties * )
-{
-  if ! $(sources[1]) {
-    errors.error "ERROR: wrong number of sources." ;
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local result ;
+  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
+  {
+    result = <source>../gcc//install/<multilib>$(multilib)/<multilib-hidden>unspecified ;
   }
-  if $(sources[2]) {
-    errors.error "ERROR: wrong number of sources." ;
+  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
+  {
+    result = <source>../clang//install/<multilib-hidden>unspecified ;
   }
-  assert-unspecified <triplet>         : $(properties) ;
-  assert-unspecified <multilib>        : $(properties) ;
-  assert-unspecified <multilib-hidden> : $(properties) ;
-  assert-unspecified <binutils>        : $(properties) ;
-  assert-unspecified <binutils-hidden> : $(properties) ;
-  assert-unspecified <gmp>             : $(properties) ;
-  assert-unspecified <gmp-hidden>      : $(properties) ;
-  assert-unspecified <mpfr>            : $(properties) ;
-  assert-unspecified <mpfr-hidden>     : $(properties) ;
-  assert-unspecified <mpc>             : $(properties) ;
-  assert-unspecified <mpc-hidden>      : $(properties) ;
-  assert-unspecified <ppl>             : $(properties) ;
-  assert-unspecified <ppl-hidden>      : $(properties) ;
-  assert-unspecified <cloog>           : $(properties) ;
-  assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-unspecified <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
-  assert-unspecified <icu4c>           : $(properties) ;
-  assert-unspecified <icu4c-hidden>    : $(properties) ;
-  assert-unspecified <mpi>             : $(properties) ;
-  assert-unspecified <mpi-hidden>      : $(properties) ;
-  assert-specified   <openmpi>         : $(properties) ;
-  assert-unspecified <openmpi-hidden>  : $(properties) ;
-  assert-unspecified <boost>           : $(properties) ;
-  assert-unspecified <boost-hidden>    : $(properties) ;
-  local version = [ feature.get-values <openmpi> : $(properties) ] ;
-  VERSION on $(targets) = $(version) ;
-  TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/openmpi-$(version).tar.gz ;
-  TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/openmpi-$(version).tar.bz2 ;
-  DEST_DIR on $(targets) = $(INTRO_ROOT_DIR)/openmpi-$(version) ;
-}
-actions expand-openmpi
-{
-  rm -f "$(<)" || exit $?
-  [ -f "$(>)" ] || exit 1
-  ( cd "$(INTRO_ROOT_DIR)" && rm -rf openmpi-$(VERSION) ) || exit 1
-  [ -e "$(INTRO_ROOT_DIR)/openmpi-$(VERSION)" ] && exit 1
-  if [ -f "$(TARBALL_GZ)" ]; then
-    if [ -n "$(STREAM)" ]; then
-      tar xzvf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" >> "$(STREAM)" 2>&1
-    else
-      tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)"
-    fi
-  elif [ -f "$(TARBALL_BZ2)" ]; then
-    if [ -n "$(STREAM)" ]; then
-      tar xjvf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)" >> "$(STREAM)" 2>&1
-    else
-      tar xjf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)"
-    fi
   else
-    exit 1
+  {
+    errors.error "an internal error." ;
+  }
+  return $(result) ;
+}
+
+alias compiler-dep : : <conditional>@compiler-dep-req ;
+explicit compiler-dep ;
+
+
+for local version in $(OPENMPI_VERSIONS)
+{
+  make "$(INTRO_ROOT_DIR)/openmpi-$(version).tar.bz2" : : @download ;
+  explicit "$(INTRO_ROOT_DIR)/openmpi-$(version).tar.bz2" ;
+}
+
+rule download ( targets * : sources * : properties * )
+{
+  if $(sources[1])
+  {
+    errors.error "an internal error." ;
+  }
+  assert-unspecified <triplet>         : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
+  assert-unspecified <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-specified   <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  local version = [ feature.get-values <openmpi-hidden> : $(properties) ] ;
+  VERSION on $(targets) = $(version) ;
+  local minor = [ regex.match "^([0-9]+\\.[0-9]+)(\\.[0-9]+)?$" : "$(version)" : 1 ] ;
+  URL on $(targets) = http://www.open-mpi.org/software/ompi/v$(minor)/downloads/openmpi-$(version).tar.bz2 ;
+}
+actions download
+{
+  rm -rf "$(<)" || exit 1
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)" && wget -- '$(URL)' >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)" && wget --quiet -- '$(URL)' )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to expand Open MPI tarball." 1>&2
-    echo -n "ERROR: failed to expand Open MPI tarball." | $(AWACS)
+    echo "ERROR: failed to download Open MPI $(VERSION) tarball." 1>&2
+    echo -n "ERROR: failed to download Open MPI $(VERSION) tarball." | $(AWACS)
+    rm -rf "$(<)"
     exit 1
   fi
-  [ -d "$(DEST_DIR)" ] || exit 1
-  [ -x "$(DEST_DIR)/configure" ] || exit 1
-  [ -e "$(<)" ] && exit 1
-  touch "$(<)"
+  [ -f "$(<)" ] || exit 1
+  exit 0
 }
 
 
-make make
-  : gcc-dep/<mpi>unspecified/<openmpi>unspecified
-    expand/<triplet>unspecified/<multilib-hidden>unspecified/<gcc>unspecified/<mpi>unspecified
-  : @make-openmpi
-  ;
-explicit make ;
+for local version in $(OPENMPI_VERSIONS)
+{
+  # Use `README' file as a target representing the completion of
+  # decompression action. It is suitable for the purpose because of the
+  # following reasons;
+  #
+  #   - The name of this file is considered stable even if the version
+  #     changes.
+  #   - This file won't be modified during the build procedure.
+  #
+  make "$(INTRO_ROOT_DIR)/openmpi-$(version)/README"
+    : "$(INTRO_ROOT_DIR)/openmpi-$(version).tar.bz2"
+    : @expand
+    ;
+  explicit "$(INTRO_ROOT_DIR)/openmpi-$(version)/README" ;
+}
 
-rule make-openmpi ( targets * : sources * : properties * )
+rule expand ( targets * : sources * : properties * )
+{
+  if ! $(sources[1])
+  {
+    errors.error "an internal error." ;
+  }
+  if $(sources[2])
+  {
+    errors.error "an internal error." ;
+  }
+  assert-unspecified <triplet>         : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
+  assert-unspecified <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-specified   <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  local version = [ feature.get-values <openmpi-hidden> : $(properties) ] ;
+  VERSION on $(targets) = $(version) ;
+}
+actions expand
+{
+  rm -rf "$(<:D)" || exit 1
+  [ -f "$(>)" ] || exit 1
+  if [ -n "$(STREAM)" ]; then
+    tar xjvf "$(>)" --directory="$(INTRO_ROOT_DIR)" >> "$(STREAM)" 2>&1
+  else
+    tar xjf "$(>)" --directory="$(INTRO_ROOT_DIR)"
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to expand Open MPI $(VERSION) tarball." 1>&2
+    echo -n "ERROR: failed to expand Open MPI $(VERSION) tarball." | $(AWACS)
+    rm -rf "$(<:D)"
+    exit 1
+  fi
+  # If the timestamp of the tarball's contents is restored, the modification
+  # time of the source directory could be older than the one of the tarball.
+  # Such behavior is not desirable because the decompression always happens.
+  # Therefore, `touch' is required.
+  touch --no-create "$(<)"
+  [ -f "$(<)" ] || exit 1
+  exit 0
+}
+
+
+rule srcdir-req ( properties * )
+{
+  assert-unspecified <triplet>         : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
+  assert-unspecified <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-specified   <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  local version = [ feature.get-values <openmpi> : $(properties) ] ;
+  return <source>"$(INTRO_ROOT_DIR)/openmpi-$(version)/README/<openmpi>unspecified/<openmpi-hidden>$(version)" ;
+}
+
+alias srcdir : : <conditional>@srcdir-req ;
+explicit srcdir ;
+
+
+for local compiler in $(COMPILERS)
+{
+  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
+  make "$(compiler-prefix)/include/mpi.h"
+    : compiler-dep/<mpi>unspecified/<openmpi>unspecified
+      srcdir/<triplet>unspecified/<multilib-hidden>unspecified/<compiler>unspecified/<mpi>unspecified
+    : @make-install
+    ;
+  explicit "$(compiler-prefix)/include/mpi.h" ;
+}
+
+rule make-install ( targets * : sources * : properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
@@ -215,8 +279,8 @@ rule make-openmpi ( targets * : sources * : properties * )
   assert-unspecified <ppl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-specified   <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-specified   <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
   assert-specified   <mpi>             : $(properties) ;
@@ -226,14 +290,18 @@ rule make-openmpi ( targets * : sources * : properties * )
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
 
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(compiler) ] ;
+  COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
+
   OPTIONS on $(targets) = ;
 
   local version = [ feature.get-values <openmpi> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
 
-  # Set the path to the 'configure' file.
-  local configure = $(INTRO_ROOT_DIR)/openmpi-$(version)/configure ;
-  CONFIGURE on $(targets) = $(configure) ;
+  # Set the path to the source directory.
+  local srcdir = "$(INTRO_ROOT_DIR)/openmpi-$(version)" ;
+  SRCDIR on $(targets) = "$(srcdir)" ;
 
   # Set the '--build' and '--host' options for the 'configure' script.
   local triplet = [ feature.get-values <triplet> : $(properties) ] ;
@@ -241,11 +309,10 @@ rule make-openmpi ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --build=$(triplet) ;
   OPTIONS on $(targets) += --host=$(triplet) ;
 
-  local gcc = [ feature.get-values <gcc> : $(properties) ] ;
-  GCC on $(targets) = $(gcc) ;
-
   # Set the '--prefix' option for the 'configure' script.
-  OPTIONS on $(targets) += --prefix=\"$(PREFIX)/gcc-$(gcc)\" ;
+  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
+  OPTIONS on $(targets) += --prefix=\"$(compiler-prefix)\" ;
 
   OPTIONS on $(targets) += --disable-mpi-f77 ;
   OPTIONS on $(targets) += --disable-mpi-f90 ;
@@ -256,62 +323,87 @@ rule make-openmpi ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) += --enable-mpi-threads ;
 
-  if $(gcc) != $(GCC_BUILTIN) {
-    OPTIONS on $(targets) += CC=\"$(PREFIX)/gcc-$(gcc)/bin/gcc\" ;
-    OPTIONS on $(targets) += CXX=\"$(PREFIX)/gcc-$(gcc)/bin/g++\" ;
+  if ! [ "$(INTRO_ROOT_DIR)/compilers.is-builtin-gcc" $(compiler) ]
+  {
+    OPTIONS on $(targets) += CC=\"$(compiler-prefix)/bin/gcc\" ;
+    OPTIONS on $(targets) += CXX=\"$(compiler-prefix)/bin/g++\" ;
+  }
+
+  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
+  {
+    ENV_RUN_VARS on $(targets) = "env PATH=\"$(compiler-prefix)/bin${PATH:+:$PATH}\"" ;
+  }
+  else
+  {
+    ENV_RUN_VARS on $(targets) = "env LD_LIBRARY_PATH=\"$(compiler-prefix)/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"" ;
   }
 }
-actions make-openmpi
+actions make-install
 {
-  rm -f "$(<)" || exit $?
-  [ -x "$(CONFIGURE)" ] || exit 1
-  [ `"$(CONFIGURE:D)/config/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit 1
-  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit 1
+  [ -x "$(SRCDIR)/configure" ] || exit 1
+  [ -x "$(SRCDIR)/config/config.sub" ] || exit 1
+  [ `"$(SRCDIR)/config/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit 1
+
+  # Set the absolute path to `objdir'.
+  objdir="$(INTRO_ROOT_DIR)/objdir"
+
+  # Clean up the `objdir'.
+  { mkdir -p "$objdir" && ( cd "$objdir" && rm -rf * ); } || exit 1
+
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) >> "$(STREAM)" 2>&1 )
+    ( cd "$objdir" && $(ENV_RUN_VARS) "$(SRCDIR)/configure" $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
+    ( cd "$objdir" && $(ENV_RUN_VARS) "$(SRCDIR)/configure" $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'configure' Open MPI $(VERSION) (GCC $(GCC), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'configure' Open MPI $(VERSION) (GCC $(GCC), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'configure' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'configure' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
-  [ -f "$(<:D)/build/Makefile" ] || exit 1
+
+  # Check the creation of `Makefile'.
+  [ -f "${objdir}/Makefile" ] || exit 1
+
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
+    ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
+    ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make' Open MPI $(VERSION) (GCC $(GCC), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make' Open MPI $(VERSION) (GCC $(GCC), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'make' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
+
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check >> "$(STREAM)" 2>&1 )
+    ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) check >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check )
+    ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) check )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make check' Open MPI $(VERSION) (GCC $(GCC), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make check' Open MPI $(VERSION) (GCC $(GCC), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'make check' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make check' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
+
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)/build" && make install >> "$(STREAM)" 2>&1 )
+    ( cd "$objdir" && $(ENV_RUN_VARS) make install >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(<:D)/build" && make install )
+    ( cd "$objdir" && $(ENV_RUN_VARS) make install )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make install' Open MPI $(VERSION) (GCC $(GCC), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make install' Open MPI $(VERSION) (GCC $(GCC), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'make install' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make install' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
-  ( cd "$(<:D)" && rm -rf build )
-  echo -n "Open MPI $(VERSION) (GCC $(GCC), $(TRIPLET)) was successfully built." | $(AWACS)
-  [ -e "$(<)" ] && exit 1
-  touch "$(<)"
+
+  [ -f "$(<)" ] || exit 1
+
+  # Clean up the `objdir'.
+  rm -rf "$objdir" || exit 1
+
+  echo -n "Open MPI $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built." | $(AWACS)
+  exit 0
 }
 
 
@@ -332,8 +424,8 @@ rule install-req ( properties * )
   assert-unspecified <ppl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-specified   <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-specified   <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
   assert-specified   <mpi>             : $(properties) ;
@@ -342,7 +434,11 @@ rule install-req ( properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
+  return <source>"$(compiler-prefix)/include/mpi.h" ;
 }
 
-alias install : make : <conditional>@install-req ;
+alias install : : <conditional>@install-req ;
 explicit install ;

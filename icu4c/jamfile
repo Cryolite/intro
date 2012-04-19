@@ -5,6 +5,7 @@ import errors ;
 import feature ;
 import make ;
 import regex ;
+import "$(INTRO_ROOT_DIR)/compilers" ;
 
 
 rule assert-specified ( feature : properties * )
@@ -24,7 +25,7 @@ rule assert-unspecified ( feature : properties * )
 }
 
 
-rule gcc-dep-req ( properties * )
+rule compiler-dep-req ( properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
@@ -41,8 +42,8 @@ rule gcc-dep-req ( properties * )
   assert-unspecified <ppl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-specified   <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-specified   <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
   assert-unspecified <mpi>             : $(properties) ;
@@ -52,161 +53,222 @@ rule gcc-dep-req ( properties * )
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
   local multilib = [ feature.get-values <multilib-hidden> : $(properties) ] ;
-  return <source>../gcc//install/<multilib>$(multilib)/<multilib-hidden>unspecified ;
-}
-
-alias gcc-dep : : <conditional>@gcc-dep-req ;
-explicit gcc-dep ;
-
-
-make download : : @download-icu4c ;
-explicit download ;
-
-rule download-icu4c ( targets * : sources * : properties * )
-{
-  assert-unspecified <triplet>         : $(properties) ;
-  assert-unspecified <multilib>        : $(properties) ;
-  assert-unspecified <multilib-hidden> : $(properties) ;
-  assert-unspecified <binutils>        : $(properties) ;
-  assert-unspecified <binutils-hidden> : $(properties) ;
-  assert-unspecified <gmp>             : $(properties) ;
-  assert-unspecified <gmp-hidden>      : $(properties) ;
-  assert-unspecified <mpfr>            : $(properties) ;
-  assert-unspecified <mpfr-hidden>     : $(properties) ;
-  assert-unspecified <mpc>             : $(properties) ;
-  assert-unspecified <mpc-hidden>      : $(properties) ;
-  assert-unspecified <ppl>             : $(properties) ;
-  assert-unspecified <ppl-hidden>      : $(properties) ;
-  assert-unspecified <cloog>           : $(properties) ;
-  assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-unspecified <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
-  assert-specified   <icu4c>           : $(properties) ;
-  assert-unspecified <icu4c-hidden>    : $(properties) ;
-  assert-unspecified <mpi>             : $(properties) ;
-  assert-unspecified <mpi-hidden>      : $(properties) ;
-  assert-unspecified <openmpi>         : $(properties) ;
-  assert-unspecified <openmpi-hidden>  : $(properties) ;
-  assert-unspecified <boost>           : $(properties) ;
-  assert-unspecified <boost-hidden>    : $(properties) ;
-  local version = [ feature.get-values <icu4c> : $(properties) ] ;
-  local underscore_version = [ regex.replace "$(version)" "\\." "_" ] ;
-  URL on $(targets) = http://download.icu-project.org/files/icu4c/$(version)/icu4c-$(underscore_version)-src.tgz ;
-  TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/icu4c-$(underscore_version)-src.tar.gz ;
-  TARBALL_TGZ on $(targets) = $(INTRO_ROOT_DIR)/icu4c-$(underscore_version)-src.tgz ;
-  TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/icu4c-$(underscore_version)-src.tar.bz2 ;
-}
-actions download-icu4c
-{
-  rm -f "$(<)" || exit $?
-  if [ ! -f "$(TARBALL_GZ)" -a ! -f "$(TARBALL_TGZ)" -a ! -f "$(TARBALL_BZ2)" ]; then
-    if [ -n "$(STREAM)" ]; then
-      ( cd "$(TARBALL_TGZ:D)" && wget -- '$(URL)' >> "$(STREAM)" 2>&1 )
-    else
-      ( cd "$(TARBALL_TGZ:D)" && wget --quiet -- '$(URL)' )
-    fi
-    if [ $? -ne 0 ]; then
-      echo "ERROR: failed to download ICU4C tarball." 1>&2
-      echo -n "ERROR: failed to download ICU4C tarball." | $(AWACS)
-      exit 1
-    fi
-    [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_TGZ)" -o -f "$(TARBALL_BZ2)" ] || exit 1
-  fi
-  [ -e "$(<)" ] && exit 1
-  touch "$(<)"
-}
-
-
-make expand : download : @expand-icu4c ;
-explicit expand ;
-
-rule expand-icu4c ( targets * : sources * : properties * )
-{
-  if ! $(sources[1]) {
-    errors.error "ERROR: wrong number of sources." ;
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local result ;
+  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
+  {
+    result = <source>../gcc//install/<multilib>$(multilib)/<multilib-hidden>unspecified ;
   }
-  if $(sources[2]) {
-    errors.error "ERROR: wrong number of sources." ;
+  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
+  {
+    result = <source>../clang//install/<multilib-hidden>unspecified ;
   }
-  assert-unspecified <triplet>         : $(properties) ;
-  assert-unspecified <multilib>        : $(properties) ;
-  assert-unspecified <multilib-hidden> : $(properties) ;
-  assert-unspecified <binutils>        : $(properties) ;
-  assert-unspecified <binutils-hidden> : $(properties) ;
-  assert-unspecified <gmp>             : $(properties) ;
-  assert-unspecified <gmp-hidden>      : $(properties) ;
-  assert-unspecified <mpfr>            : $(properties) ;
-  assert-unspecified <mpfr-hidden>     : $(properties) ;
-  assert-unspecified <mpc>             : $(properties) ;
-  assert-unspecified <mpc-hidden>      : $(properties) ;
-  assert-unspecified <ppl>             : $(properties) ;
-  assert-unspecified <ppl-hidden>      : $(properties) ;
-  assert-unspecified <cloog>           : $(properties) ;
-  assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-unspecified <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
-  assert-specified   <icu4c>           : $(properties) ;
-  assert-unspecified <icu4c-hidden>    : $(properties) ;
-  assert-unspecified <mpi>             : $(properties) ;
-  assert-unspecified <mpi-hidden>      : $(properties) ;
-  assert-unspecified <openmpi>         : $(properties) ;
-  assert-unspecified <openmpi-hidden>  : $(properties) ;
-  assert-unspecified <boost>           : $(properties) ;
-  assert-unspecified <boost-hidden>    : $(properties) ;
-  local version = [ feature.get-values <icu4c> : $(properties) ] ;
-  local underscore_version = [ regex.replace "$(version)" "\\." "_" ] ;
-  TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/icu4c-$(underscore_version)-src.tar.gz ;
-  TARBALL_TGZ on $(targets) = $(INTRO_ROOT_DIR)/icu4c-$(underscore_version)-src.tgz ;
-  TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/icu4c-$(underscore_version)-src.tar.bz2 ;
-  DEST_DIR on $(targets) = $(INTRO_ROOT_DIR)/icu ;
-}
-actions expand-icu4c
-{
-  rm -f "$(<)" || exit $?
-  [ -f "$(>)" ] || exit 1
-  ( cd "$(INTRO_ROOT_DIR)" && rm -rf icu ) || exit 1
-  [ -e "$(INTRO_ROOT_DIR)/icu" ] && exit 1
-  if [ -f "$(TARBALL_GZ)" ]; then
-    if [ -n "$(STREAM)" ]; then
-      tar xzvf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" >> "$(STREAM)" 2>&1
-    else
-      tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)"
-    fi
-  elif [ -f "$(TARBALL_TGZ)" ]; then
-    if [ -n "$(STREAM)" ]; then
-      tar xzvf "$(TARBALL_TGZ)" -C "$(TARBALL_TGZ:D)" >> "$(STREAM)" 2>&1
-    else
-      tar xzf "$(TARBALL_TGZ)" -C "$(TARBALL_TGZ:D)"
-    fi
-  elif [ -f "$(TARBALL_BZ2)" ]; then
-    if [ -n "$(STREAM)" ]; then
-      tar xjvf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)" >> "$(STREAM)" 2>&1
-    else
-      tar xjf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)"
-    fi
   else
-    exit 1
+  {
+    errors.error "an internal error." ;
+  }
+  return $(result) ;
+}
+
+alias compiler-dep : : <conditional>@compiler-dep-req ;
+explicit compiler-dep ;
+
+
+for local version in $(ICU4C_VERSIONS)
+{
+  local version-string = [ regex.replace "$(version)" "\\." "_" ] ;
+  make "$(INTRO_ROOT_DIR)/icu4c-$(version-string)-src.tgz" : : @download ;
+  explicit "$(INTRO_ROOT_DIR)/icu4c-$(version-string)-src.tgz" ;
+}
+
+rule download ( targets * : sources * : properties * )
+{
+  if $(sources[1])
+  {
+    errors.error "an internal error." ;
+  }
+  assert-unspecified <triplet>         : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
+  assert-unspecified <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-specified   <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  local version = [ feature.get-values <icu4c-hidden> : $(properties) ] ;
+  VERSION on $(targets) = $(version) ;
+  local version-string = [ regex.replace "$(version)" "\\." "_" ] ;
+  URL on $(targets) = http://download.icu-project.org/files/icu4c/$(version)/icu4c-$(version-string)-src.tgz ;
+}
+actions download
+{
+  rm -rf "$(<)" || exit 1
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)" && wget -- '$(URL)' >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)" && wget --quiet -- '$(URL)' )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to expand ICU4C tarball." 1>&2
-    echo -n "ERROR: failed to expand ICU4C tarball." | $(AWACS)
+    echo "ERROR: failed to download ICU4C $(VERSION) tarball." 1>&2
+    echo -n "ERROR: failed to download ICU4C $(VERSION) tarball." | $(AWACS)
+    rm -rf "$(<)"
     exit 1
   fi
-  [ -d "$(DEST_DIR)" ] || exit 1
-  [ -x "$(DEST_DIR)/source/runConfigureICU" ] || exit 1
-  [ -e "$(<)" ] && exit 1
-  touch "$(<)"
+  [ -f "$(<)" ] || exit 1
+  exit 0
 }
 
 
-make make
-  : gcc-dep/<icu4c>unspecified
-    expand/<triplet>unspecified/<multilib-hidden>unspecified/<gcc>unspecified
-  : @make-icu4c
-  ;
-explicit make ;
+for local version in $(ICU4C_VERSIONS)
+{
+  # Use `readme.html' file as a target representing the completion of
+  # decompression action. It is suitable for the purpose because of the
+  # following reasons;
+  #
+  #   - The name of this file is considered stable even if the version
+  #     changes.
+  #   - This file won't be modified during the build procedure.
+  #
+  local version-string = [ regex.replace "$(version)" "\\." "_" ] ;
+  make "$(INTRO_ROOT_DIR)/icu-$(version)/readme.html"
+    : "$(INTRO_ROOT_DIR)/icu4c-$(version-string)-src.tgz"
+    : @expand
+    ;
+  explicit "$(INTRO_ROOT_DIR)/icu-$(version)/readme.html" ;
+}
 
-rule make-icu4c ( targets * : sources * : properties * )
+rule expand ( targets * : sources * : properties * )
+{
+  if ! $(sources[1])
+  {
+    errors.error "an internal error." ;
+  }
+  if $(sources[2])
+  {
+    errors.error "an internal error." ;
+  }
+  assert-unspecified <triplet>         : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
+  assert-unspecified <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-specified   <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  local version = [ feature.get-values <icu4c-hidden> : $(properties) ] ;
+  VERSION on $(targets) = $(version) ;
+}
+actions expand
+{
+  rm -rf "$(<:D)" || exit 1
+  rm -rf "$(INTRO_ROOT_DIR)/icu" || exit 1
+  [ -f "$(>)" ] || exit 1
+  if [ -n "$(STREAM)" ]; then
+    tar xzvf "$(>)" --directory="$(INTRO_ROOT_DIR)" >> "$(STREAM)" 2>&1
+  else
+    tar xzf "$(>)" --directory="$(INTRO_ROOT_DIR)"
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to expand ICU4C $(VERSION) tarball." 1>&2
+    echo -n "ERROR: failed to expand ICU4C $(VERSION) tarball." | $(AWACS)
+    rm -rf "$(<:D)"
+    rm -rf "$(INTRO_ROOT_DIR)/icu"
+    exit 1
+  fi
+  [ -d "$(INTRO_ROOT_DIR)/icu" ] || exit 1
+  mv "$(INTRO_ROOT_DIR)/icu" "$(<:D)" || exit 1
+  # If the timestamp of the tarball's contents is restored, the modification
+  # time of the source directory could be older than the one of the tarball.
+  # Such behavior is not desirable because the decompression always happens.
+  # Therefore, `touch' is required.
+  touch --no-create "$(<)"
+  [ -f "$(<)" ] || exit 1
+  exit 0
+}
+
+
+rule srcdir-req ( properties * )
+{
+  assert-unspecified <triplet>         : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
+  assert-unspecified <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
+  assert-specified   <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  local version = [ feature.get-values <icu4c> : $(properties) ] ;
+  return <source>"$(INTRO_ROOT_DIR)/icu-$(version)/readme.html/<icu4c>unspecified/<icu4c-hidden>$(version)" ;
+}
+
+alias srcdir : : <conditional>@srcdir-req ;
+explicit srcdir ;
+
+
+for local compiler in $(COMPILERS)
+{
+  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
+  make "$(compiler-prefix)/include/unicode/uchar.h"
+    : compiler-dep/<icu4c>unspecified
+      srcdir/<triplet>unspecified/<multilib-hidden>unspecified/<compiler>unspecified
+    : @make-install
+    ;
+  explicit "$(compiler-prefix)/include/unicode/uchar.h" ;
+}
+
+rule make-install ( targets * : sources * : properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
@@ -223,8 +285,8 @@ rule make-icu4c ( targets * : sources * : properties * )
   assert-unspecified <ppl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-specified   <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-specified   <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
   assert-specified   <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
   assert-unspecified <mpi>             : $(properties) ;
@@ -234,26 +296,37 @@ rule make-icu4c ( targets * : sources * : properties * )
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
 
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(compiler) ] ;
+  COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
+
   OPTIONS on $(targets) = ;
 
   local version = [ feature.get-values <icu4c> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
 
-  # Set the path to the 'configure' file.
-  local configure = $(INTRO_ROOT_DIR)/icu/source/runConfigureICU ;
-  CONFIGURE on $(targets) = $(configure) ;
+  # Set the path to the source directory.
+  local srcdir = "$(INTRO_ROOT_DIR)/icu-$(version)" ;
+  SRCDIR on $(targets) = "$(srcdir)" ;
 
   OPTIONS on $(targets) += --enable-debug ;
 
   local triplet = [ feature.get-values <triplet> : $(properties) ] ;
-  if $(triplet) = i686-pc-cygwin {
+  if $(triplet) = i686-pc-cygwin
+  {
     OPTIONS on $(targets) += Cygwin ;
   }
-  else if $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32 {
+  else if $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
+  {
     OPTIONS on $(targets) += MinGW ;
   }
-  else {
+  else if $(triplet) = i686-pc-linux-gnu || $(triplet) = x86_64-unknown-linux-gnu
+  {
     OPTIONS on $(targets) += Linux ;
+  }
+  else
+  {
+    errors.error "an internal error." ;
   }
 
   # Set the '--build' and '--host' options for the 'configure' script.
@@ -261,11 +334,10 @@ rule make-icu4c ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --build=$(triplet) ;
   OPTIONS on $(targets) += --host=$(triplet) ;
 
-  local gcc = [ feature.get-values <gcc> : $(properties) ] ;
-  GCC on $(targets) = $(gcc) ;
-
   # Set the '--prefix' option for the 'configure' script.
-  OPTIONS on $(targets) += --prefix=\"$(PREFIX)/gcc-$(gcc)\" ;
+  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
+  OPTIONS on $(targets) += --prefix=\"$(compiler-prefix)\" ;
 
   OPTIONS on $(targets) += --enable-release ;
 
@@ -274,70 +346,100 @@ rule make-icu4c ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) += --enable-threads ;
 
-  if $(triplet) = i686-pc-linux-gnu || $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 {
+  if $(triplet) = i686-pc-linux-gnu || $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32
+  {
     OPTIONS on $(targets) += --with-library-bits=32 ;
   }
-  else if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32 {
+  else if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32
+  {
     OPTIONS on $(targets) += --with-library-bits=64 ;
   }
+  else
+  {
+    errors.error "an internal error." ;
+  }
 
-  if $(gcc) != $(GCC_BUILTIN) {
-    OPTIONS on $(targets) += CC=\"$(PREFIX)/gcc-$(gcc)/bin/gcc\" ;
-    OPTIONS on $(targets) += CXX=\"$(PREFIX)/gcc-$(gcc)/bin/g++\" ;
+  if ! [ "$(INTRO_ROOT_DIR)/compilers.is-builtin-gcc" $(compiler) ]
+  {
+    OPTIONS on $(targets) += CC=\"$(compiler-prefix)/bin/gcc\" ;
+    OPTIONS on $(targets) += CXX=\"$(compiler-prefix)/bin/g++\" ;
+  }
+
+  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
+  {
+    ENV_RUN_VARS on $(targets) = "env PATH=\"$(compiler-prefix)/bin${PATH:+:$PATH}\"" ;
+  }
+  else
+  {
+    ENV_RUN_VARS on $(targets) = "env LD_LIBRARY_PATH=\"$(compiler-prefix)/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"" ;
   }
 }
-actions make-icu4c
+actions make-install
 {
-  rm -f "$(<)" || exit $?
-  [ -x "$(CONFIGURE)" ] || exit 1
-  chmod +x "$(CONFIGURE:D)/config.sub" || exit $?
-  [ `"$(CONFIGURE:D)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit 1
-  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit 1
+  [ -x "$(SRCDIR)/source/runConfigureICU" ] || exit 1
+  chmod +x "$(SRCDIR)/source/config.sub" || exit 1
+  [ `"$(SRCDIR)/source/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit 1
+
+  # Set the absolute path to `objdir'.
+  objdir="$(INTRO_ROOT_DIR)/objdir"
+
+  # Clean up the `objdir'.
+  { mkdir -p "$objdir" && ( cd "$objdir" && rm -rf * ); } || exit 1
+
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) >> "$(STREAM)" 2>&1 )
+    ( cd "$objdir" && $(ENV_RUN_VARS) "$(SRCDIR)/source/runConfigureICU" $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
+    ( cd "$objdir" && $(ENV_RUN_VARS) "$(SRCDIR)/source/runConfigureICU" $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'runConfigureICU' ICU4C $(VERSION) (GCC $(GCC), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'runConfigureICU' ICU4C $(VERSION) (GCC $(GCC), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'runConfigureICU' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'runConfigureICU' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
-  [ -f "$(<:D)/build/Makefile" ] || exit 1
+
+  # Check the creation of `Makefile'.
+  [ -f "${objdir}/Makefile" ] || exit 1
+
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
+    ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
+    ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make' ICU4C $(VERSION) (GCC $(GCC), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make' ICU4C $(VERSION) (GCC $(GCC), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'make' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
+
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)/build" && make check >> "$(STREAM)" 2>&1 )
+    ( cd "$objdir" && $(ENV_RUN_VARS) make check >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(<:D)/build" && make check )
+    ( cd "$objdir" && $(ENV_RUN_VARS) make check )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make check' ICU4C $(VERSION) (GCC $(GCC), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make check' ICU4C $(VERSION) (GCC $(GCC), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'make check' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make check' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
+
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)/build" && make install >> "$(STREAM)" 2>&1 )
+    ( cd "$objdir" && $(ENV_RUN_VARS) make install >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(<:D)/build" && make install )
+    ( cd "$objdir" && $(ENV_RUN_VARS) make install )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make install' ICU4C $(VERSION) (GCC $(GCC), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make install' ICU4C $(VERSION) (GCC $(GCC), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'make install' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make install' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
-  ( cd "$(<:D)" && rm -rf build )
-  echo -n "ICU4C $(VERSION) (GCC $(GCC), $(TRIPLET)) was successfully built." | $(AWACS)
-  [ -e "$(<)" ] && exit 1
-  touch "$(<)"
+
+  [ -f "$(<)" ] || exit 1
+
+  # Clean up the `objdir'.
+  rm -rf "$objdir" || exit 1
+
+  echo -n "ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built." | $(AWACS)
+  exit 0
 }
 
 
@@ -358,8 +460,8 @@ rule install-req ( properties * )
   assert-unspecified <ppl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-specified   <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-specified   <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
   assert-specified   <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
   assert-unspecified <mpi>             : $(properties) ;
@@ -368,7 +470,11 @@ rule install-req ( properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
+  return <source>"$(compiler-prefix)/include/unicode/uchar.h" ;
 }
 
-alias install : make : <conditional>@install-req ;
+alias install : : <conditional>@install-req ;
 explicit install ;

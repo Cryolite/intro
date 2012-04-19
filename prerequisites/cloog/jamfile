@@ -1,8 +1,10 @@
 project intro/prerequisites/cloog ;
 
+import alias ;
 import errors ;
 import feature ;
 import make ;
+import "$(INTRO_ROOT_DIR)/compilers" ;
 
 
 rule assert-specified ( feature : properties * )
@@ -22,11 +24,67 @@ rule assert-unspecified ( feature : properties * )
 }
 
 
-make tarball : : @download ;
-explicit tarball ;
+rule compiler-dep-req ( properties * )
+{
+  assert-specified   <triplet>         : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-specified   <multilib-hidden> : $(properties) ;
+  assert-unspecified <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
+  assert-specified   <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  local multilib = [ feature.get-values <multilib-hidden> : $(properties) ] ;
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local result ;
+  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
+  {
+    result = <source>../../gcc//install/<multilib>$(multilib)/<multilib-hidden>unspecified ;
+  }
+  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
+  {
+    result = <source>../../clang//install/<multilib-hidden>unspecified ;
+  }
+  else
+  {
+    errors.error "an internal error." ;
+  }
+  return $(result) ;
+}
+
+alias compiler-dep : : <conditional>@compiler-dep-req ;
+explicit compiler-dep ;
+
+
+for local version in $(CLOOG_VERSIONS)
+{
+  make "$(INTRO_ROOT_DIR)/cloog-$(version).tar.gz" : : @download ;
+  explicit "$(INTRO_ROOT_DIR)/cloog-$(version).tar.gz" ;
+}
 
 rule download ( targets * : sources * : properties * )
 {
+  if $(sources[1])
+  {
+    errors.error "an internal error." ;
+  }
   assert-unspecified <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
@@ -40,10 +98,10 @@ rule download ( targets * : sources * : properties * )
   assert-unspecified <mpc-hidden>      : $(properties) ;
   assert-unspecified <ppl>             : $(properties) ;
   assert-unspecified <ppl-hidden>      : $(properties) ;
-  assert-specified   <cloog>           : $(properties) ;
-  assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-unspecified <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-specified   <cloog-hidden>    : $(properties) ;
+  assert-unspecified <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
   assert-unspecified <mpi>             : $(properties) ;
@@ -52,44 +110,112 @@ rule download ( targets * : sources * : properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
-  local version = [ feature.get-values <cloog> : $(properties) ] ;
+  local version = [ feature.get-values <cloog-hidden> : $(properties) ] ;
+  VERSION on $(targets) = $(version) ;
   URL on $(targets) = http://ftp.dti.ad.jp/pub/lang/gcc/infrastructure/cloog-$(version).tar.gz ;
   #URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/gcc/infrastructure/cloog-$(version).tar.gz ;
-  TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/cloog-$(version).tar.gz ;
-  TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/cloog-$(version).tar.bz2 ;
 }
 actions download
 {
-  rm -f "$(<)" || exit $?
-  if [ ! -f "$(TARBALL_GZ)" -a ! -f "$(TARBALL_BZ2)" ]; then
-    if [ -n "$(STREAM)" ]; then
-      ( cd "$(TARBALL_BZ2:D)" && wget -- '$(URL)' >> "$(STREAM)" 2>&1 )
-    else
-      ( cd "$(TARBALL_BZ2:D)" && wget --quiet -- '$(URL)' )
-    fi
-    if [ $? -ne 0 ]; then
-      echo "ERROR: failed to download CLooG tarball." 1>&2
-      echo -n "ERROR: failed to download CLooG tarball." | $(AWACS)
-      exit 1
-    fi
-    [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_BZ2)" ] || exit 1
+  rm -rf "$(<)" || exit 1
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)" && wget -- '$(URL)' >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)" && wget --quiet -- '$(URL)' )
   fi
-  [ -e "$(<)" ] && exit 1
-  touch "$(<)"
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to download CLooG $(VERSION) tarball." 1>&2
+    echo -n "ERROR: failed to download CLooG $(VERSION) tarball." | $(AWACS)
+    rm -rf "$(<)"
+    exit 1
+  fi
+  [ -f "$(<)" ] || exit 1
+  exit 0
 }
 
 
-make srcdir : tarball : @expand ;
-explicit srcdir ;
+for local version in $(CLOOG_VERSIONS)
+{
+  # Use `README' file as a target representing the completion of
+  # decompression action. It is suitable for the purpose because of the
+  # following reasons;
+  #
+  #   - The name of this file is considered stable even if the version
+  #     changes.
+  #   - This file won't be modified during the build procedure.
+  #
+  make "$(INTRO_ROOT_DIR)/cloog-$(version)/README"
+    : "$(INTRO_ROOT_DIR)/cloog-$(version).tar.gz"
+    : @expand
+    ;
+  explicit "$(INTRO_ROOT_DIR)/cloog-$(version)/README" ;
+}
 
 rule expand ( targets * : sources * : properties * )
 {
-  if ! $(sources[1]) {
-    errors.error "ERROR: wrong number of sources." ;
+  if ! $(sources[1])
+  {
+    errors.error "an internal error." ;
   }
-  if $(sources[2]) {
-    errors.error "ERROR: wrong number of sources." ;
+  if $(sources[2])
+  {
+    errors.error "an internal error." ;
   }
+  assert-unspecified <triplet>         : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-specified   <cloog-hidden>    : $(properties) ;
+  assert-unspecified <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  local version = [ feature.get-values <cloog-hidden> : $(properties) ] ;
+  VERSION on $(targets) = $(version) ;
+}
+actions expand
+{
+  rm -rf "$(<:D)" || exit 1
+  [ -f "$(>)" ] || exit 1
+  if [ -n "$(STREAM)" ]; then
+    tar xzvf "$(>)" --directory="$(INTRO_ROOT_DIR)" >> "$(STREAM)" 2>&1
+  else
+    tar xzf "$(>)" --directory="$(INTRO_ROOT_DIR)"
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to expand CLooG $(VERSION) tarball." 1>&2
+    echo -n "ERROR: failed to expand CLooG $(VERSION) tarball." | $(AWACS)
+    rm -rf "$(<:D)"
+    exit 1
+  fi
+  # If the timestamp of the tarball's contents is restored, the modification
+  # time of the source directory could be older than the one of the tarball.
+  # Such behavior is not desirable because the decompression always happens.
+  # Therefore, `touch' is required.
+  touch --no-create "$(<)"
+  [ -f "$(<)" ] || exit 1
+  exit 0
+}
+
+
+rule srcdir-req ( properties * )
+{
   assert-unspecified <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
@@ -105,8 +231,8 @@ rule expand ( targets * : sources * : properties * )
   assert-unspecified <ppl-hidden>      : $(properties) ;
   assert-specified   <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-unspecified <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-unspecified <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
   assert-unspecified <mpi>             : $(properties) ;
@@ -116,58 +242,32 @@ rule expand ( targets * : sources * : properties * )
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
   local version = [ feature.get-values <cloog> : $(properties) ] ;
-  VERSION on $(targets) = $(version) ;
-  TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/cloog-$(version).tar.gz ;
-  TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/cloog-$(version).tar.bz2 ;
-  DEST_DIR on $(targets) = $(INTRO_ROOT_DIR)/cloog-$(version) ;
+  return <source>"$(INTRO_ROOT_DIR)/cloog-$(version)/README/<cloog>unspecified/<cloog-hidden>$(version)" ;
 }
-actions expand
+
+alias srcdir : : <conditional>@srcdir-req ;
+explicit srcdir ;
+
+
+for local compiler in $(COMPILERS)
 {
-  rm -f "$(<)" || exit $?
-  [ -f "$(>)" ] || exit 1
-  ( cd "$(INTRO_ROOT_DIR)" && rm -rf cloog-$(VERSION) ) || exit 1
-  [ -e "$(INTRO_ROOT_DIR)/cloog-$(VERSION)" ] && exit 1
-  if [ -f "$(TARBALL_GZ)" ]; then
-    if [ -n "$(STREAM)" ]; then
-      tar xzvf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" >> "$(STREAM)" 2>&1
-    else
-      tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)"
-    fi
-  elif [ -f "$(TARBALL_BZ2)" ]; then
-    if [ -n "$(STREAM)" ]; then
-      tar xjvf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)" >> "$(STREAM)" 2>&1
-    else
-      tar xjf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)"
-    fi
-  else
-    exit 1
-  fi
-  if [ $? -ne 0 ]; then
-    echo "ERROR: failed to expand CLooG tarball." 1>&2
-    echo -n "ERROR: failed to expand CLooG tarball." | $(AWACS)
-    exit 1
-  fi
-  [ -d "$(DEST_DIR)" ] || exit 1
-  [ -x "$(DEST_DIR)/configure" ] || exit 1
-  [ -e "$(<)" ] && exit 1
-  touch "$(<)"
+  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
+  make "$(compiler-prefix)/include/cloog/cloog.h"
+    : compiler-dep/<gmp>unspecified/<cloog>unspecified
+      ../../gmp//install/<cloog>unspecified
+      srcdir/<triplet>unspecified/<multilib-hidden>unspecified/<gmp>unspecified/<compiler>unspecified
+    : @make-install
+    ;
+  explicit "$(compiler-prefix)/include/cloog/cloog.h" ;
 }
-
-
-make install
-  : ../../binutils//install/<gmp>unspecified/<cloog>unspecified
-    ..//gmp/<cloog>unspecified
-    srcdir/<triplet>unspecified/<binutils>unspecified/<gmp>unspecified
-  : @make-install
-  ;
-explicit install ;
 
 rule make-install ( targets * : sources * : properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
-  assert-unspecified <multilib-hidden> : $(properties) ;
-  assert-specified   <binutils>        : $(properties) ;
+  assert-specified   <multilib-hidden> : $(properties) ;
+  assert-unspecified <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
   assert-specified   <gmp>             : $(properties) ;
   assert-unspecified <gmp-hidden>      : $(properties) ;
@@ -179,8 +279,8 @@ rule make-install ( targets * : sources * : properties * )
   assert-unspecified <ppl-hidden>      : $(properties) ;
   assert-specified   <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-unspecified <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-specified   <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
   assert-unspecified <mpi>             : $(properties) ;
@@ -190,14 +290,18 @@ rule make-install ( targets * : sources * : properties * )
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
 
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(compiler) ] ;
+  COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
+
   OPTIONS on $(targets) = ;
 
   local version = [ feature.get-values <cloog> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
 
-  # Set the path to the 'configure' file.
-  local configure = $(INTRO_ROOT_DIR)/cloog-$(version)/configure ;
-  CONFIGURE on $(targets) = $(configure) ;
+  # Set the path to the source directory.
+  local srcdir = "$(INTRO_ROOT_DIR)/cloog-$(version)" ;
+  SRCDIR on $(targets) = "$(srcdir)" ;
 
   # Set the '--build' and '--host' options for the 'configure' script.
   local triplet = [ feature.get-values <triplet> : $(properties) ] ;
@@ -206,63 +310,158 @@ rule make-install ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --host=$(triplet) ;
 
   # Set the '--prefix' option for the 'configure' script.
-  OPTIONS on $(targets) += --prefix=\"$(PREFIX)\" ;
+  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
+  OPTIONS on $(targets) += --prefix=\"$(compiler-prefix)\" ;
 
   # Set the link variants for the 'configure' script.
-  OPTIONS on $(targets) += --enable-static ;
-  OPTIONS on $(targets) += --enable-shared ;
+  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
+  {
+    OPTIONS on $(targets) += --disable-static ;
+    OPTIONS on $(targets) += --enable-shared ;
+  }
+  else
+  {
+    OPTIONS on $(targets) += --enable-static ;
+    OPTIONS on $(targets) += --enable-shared ;
+  }
 
   OPTIONS on $(targets) += --with-gmp=system ;
-  OPTIONS on $(targets) += --with-gmp-prefix=\"$(PREFIX)\" ;
+  OPTIONS on $(targets) += --with-gmp-prefix=\"$(compiler-prefix)\" ;
+
+
+  if ! [ "$(INTRO_ROOT_DIR)/compilers.is-builtin-gcc" $(compiler) ]
+  {
+    if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
+    {
+      OPTIONS on $(targets) += CC=\"$(compiler-prefix)/bin/gcc\" ;
+      OPTIONS on $(targets) += CXX=\"$(compiler-prefix)/bin/g++\" ;
+    }
+    else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
+    {
+      OPTIONS on $(targets) += CC=\"$(compiler-prefix)/bin/clang\" ;
+      OPTIONS on $(targets) += CXX=\"$(compiler-prefix)/bin/clang++\" ;
+    }
+    else
+    {
+      errors.error "an internal error." ;
+    }
+  }
+
+  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
+  {
+    ENV_RUN_VARS on $(targets) = "env PATH=\"$(compiler-prefix)/bin${PATH:+:$PATH}\"" ;
+  }
+  else
+  {
+    ENV_RUN_VARS on $(targets) = "env LD_LIBRARY_PATH=\"$(compiler-prefix)/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"" ;
+  }
 }
 actions make-install
 {
-  rm -f "$(<)" || exit $?
-  [ -x "$(CONFIGURE)" ] || exit 1
-  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit 1
+  # Restore the hacked configure script. See also `../../gcc/jamfile'.
+  if [ -e "$(SRCDIR)/real-configure" ]; then
+    [ ! -x "$(SRCDIR)/real-configure" ] && exit 1
+    mv -f "$(SRCDIR)/real-configure" "$(SRCDIR)/configure" || exit 1
+  fi
+
+  [ -x "$(SRCDIR)/configure" ] || exit 1
+
+  # Set the absolute path to `objdir'.
+  objdir="$(INTRO_ROOT_DIR)/objdir"
+
+  # Clean up the `objdir'.
+  { mkdir -p "$objdir" && ( cd "$objdir" && rm -rf * ); } || exit 1
+
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) >> "$(STREAM)" 2>&1 )
+    ( cd "$objdir" && $(ENV_RUN_VARS) "$(SRCDIR)/configure" $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
+    ( cd "$objdir" && $(ENV_RUN_VARS) "$(SRCDIR)/configure" $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'configure' CLooG $(VERSION) (as prerequisites)." 1>&2
-    echo -n "ERROR: failed to 'configure' CLooG $(VERSION) (as prerequisites)." | $(AWACS)
+    echo "ERROR: failed to 'configure' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'configure' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
-  [ -f "$(<:D)/build/Makefile" ] || exit 1
+
+  # Check the creation of `Makefile'.
+  [ -f "${objdir}/Makefile" ] || exit 1
+
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
+    ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
+    ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make' CLooG $(VERSION) (as prerequisites)." 1>&2
-    echo -n "ERROR: failed to 'make' CLooG $(VERSION) (as prerequisites)." | $(AWACS)
+    echo "ERROR: failed to 'make' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
+
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check >> "$(STREAM)" 2>&1 )
+    ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) check >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check )
+    ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) check )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make check' CLooG $(VERSION) (as prerequisites)." 1>&2
-    echo -n "ERROR: failed to 'make check' CLooG $(VERSION) (as prerequisites)." | $(AWACS)
+    echo "ERROR: failed to 'make check' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make check' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
+
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)/build" && make install >> "$(STREAM)" 2>&1 )
+    ( cd "$objdir" && $(ENV_RUN_VARS) make install >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(<:D)/build" && make install )
+    ( cd "$objdir" && $(ENV_RUN_VARS) make install )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make install' CLooG $(VERSION) (as prerequisites)." 1>&2
-    echo -n "ERROR: failed to 'make install' CLooG $(VERSION) (as prerequisites)." | $(AWACS)
+    echo "ERROR: failed to 'make install' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make install' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
-  ( cd "$(<:D)" && rm -rf build )
-  echo -n "CLooG $(VERSION) (as prerequisites) was successfully built." | $(AWACS)
-  [ -e "$(<)" ] && exit 1
-  touch "$(<)"
+
+  [ -f "$(<)" ] || exit 1
+
+  # Clean up the `objdir'.
+  rm -rf "$objdir" || exit 1
+
+  echo -n "CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built." | $(AWACS)
+  exit 0
 }
+
+
+rule install-req ( properties * )
+{
+  assert-specified   <triplet>         : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-specified   <multilib-hidden> : $(properties) ;
+  assert-unspecified <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
+  assert-specified   <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-specified   <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
+  assert-specified   <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
+  return <source>"$(compiler-prefix)/include/cloog/cloog.h" ;
+}
+
+alias install : : <conditional>@install-req ;
+explicit install ;

@@ -6,12 +6,26 @@ import regex ;
 
 path-constant INTRO_ROOT_DIR : . ;
 
+import "$(INTRO_ROOT_DIR)/compilers" ;
+"$(INTRO_ROOT_DIR)/compilers.init" "$(INTRO_ROOT_DIR)" ;
+
 
 local binutils-latest ;
 local gmp-latest ;
 local mpfr-latest ;
 local mpc-latest ;
+local ppl-latest ;
+local cloog-latest ;
+local icu4c-latest ;
+local openmpi-latest ;
 
+local gmp-versions ;
+local mpfr-versions ;
+local mpc-versions ;
+local ppl-versions ;
+local cloog-versions ;
+local icu4c-versions ;
+local openmpi-versions ;
 
 local triplet = [ option.get triplet ] ;
 if ! $(triplet)
@@ -31,288 +45,186 @@ path-constant PREFIX : "$(prefix)" ;
 ECHO prefix... $(prefix) ;
 
 
-local binutils-for-gcc = [ option.get with-binutils-for-gcc : latest : ] ;
-if ! $(binutils-for-gcc) || $(binutils-for-gcc) = latest
+local binutils-for-gcc = [ option.get with-binutils-for-gcc : latest : IMPLIED ] ;
+if $(binutils-for-gcc) = IMPLIED
+{
+  errors.error "no value specified for `--with-binutils-for-gcc'." ;
+}
+if $(binutils-for-gcc) = latest
 {
   ECHO "Extracting binutils latest version, patience..." ;
   binutils-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/binutils-latest.sh\" || echo -n ERROR" ] ;
-  if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : $(binutils-latest) : 1 ] {
-    ECHO $(binutils-latest) ;
-    binutils-for-gcc = $(binutils-latest) ;
-  }
-  else {
+  if $(binutils-latest) = ERROR
+  {
     errors.error "failed to extract binutils latest version." ;
   }
+  ECHO $(binutils-latest) ;
+  binutils-for-gcc = $(binutils-latest) ;
 }
-if ! $(binutils-for-gcc)
+if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(binutils-for-gcc)" : 1 ]
 {
-  errors.error "an internal error." ;
+  errors.error "an invalid value `$(binutils-for-gcc)' for `--with-binutils-for-gcc'." ;
 }
 ECHO "BINUTILS_FOR_GCC... $(binutils-for-gcc)" ;
 constant BINUTILS_FOR_GCC : $(binutils-for-gcc) ;
 
 
-local gmp-for-gcc = [ option.get with-gmp-for-gcc : latest : ] ;
-if ! $(gmp-for-gcc) || $(gmp-for-gcc) = latest
+local gmp-for-gcc = [ option.get with-gmp-for-gcc : latest : IMPLIED ] ;
+if $(gmp-for-gcc) = IMPLIED
+{
+  errors.error "`--with-gmp-for-gcc' should be specified with a value." ;
+}
+if $(gmp-for-gcc) = latest
 {
   ECHO "Extracting GMP latest version, patience..." ;
   gmp-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/gmp-latest.sh\" || echo -n ERROR" ] ;
-  if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : $(gmp-latest) : 1 ] {
-    ECHO $(gmp-latest) ;
-    gmp-for-gcc = $(gmp-latest) ;
-  }
-  else {
+  if $(gmp-latest) = ERROR
+  {
     errors.error "failed to extract GMP latest version." ;
   }
+  ECHO $(gmp-latest) ;
+  gmp-for-gcc = $(gmp-latest) ;
 }
-if ! $(gmp-for-gcc)
+if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(gmp-for-gcc)" : 1 ]
 {
-  errors.error "an internal error." ;
+  errors.error "an invalid value `$(gmp-for-gcc)' for `--with-gmp-for-gcc'." ;
 }
 ECHO "GMP_FOR_GCC... $(gmp-for-gcc)" ;
 constant GMP_FOR_GCC : $(gmp-for-gcc) ;
+if ! $(gmp-for-gcc) in $(gmp-versions)
+{
+  gmp-versions += $(gmp-for-gcc) ;
+}
 
 
-local mpfr-for-gcc = [ option.get with-mpfr-for-gcc : 3.0.1 : ] ;
-if ! $(mpfr-for-gcc) || $(mpfr-for-gcc) = latest
+local mpfr-for-gcc = [ option.get with-mpfr-for-gcc : latest : IMPLIED ] ;
+if $(mpfr-for-gcc) = IMPLIED
+{
+  errors.error "`--with-mpfr-for-gcc' should be specified with a value." ;
+}
+if $(mpfr-for-gcc) = latest
 {
   ECHO "Extracting MPFR latest version, patience..." ;
   mpfr-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/mpfr-latest.sh\" || echo -n ERROR" ] ;
-  if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : $(mpfr-latest) : 1 ] {
-    ECHO $(mpfr-latest) ;
-    mpfr-for-gcc = $(mpfr-latest) ;
-  }
-  else {
+  if $(mpfr-latest) = ERROR
+  {
     errors.error "failed to extract MPFR latest version." ;
   }
+  ECHO $(mpfr-latest) ;
+  mpfr-for-gcc = $(mpfr-latest) ;
 }
-if ! $(mpfr-for-gcc)
+if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(mpfr-for-gcc)" : 1 ]
 {
-  errors.error "an internal error." ;
+  errors.error "an invalid value `$(mpfr-for-gcc)' for `--with-mpfr-for-gcc'." ;
 }
 ECHO "MPFR_FOR_GCC... $(mpfr-for-gcc)" ;
 constant MPFR_FOR_GCC : $(mpfr-for-gcc) ;
+if ! $(mpfr-for-gcc) in $(mpfr-versions)
+{
+  mpfr-versions += $(mpfr-for-gcc) ;
+}
 
 
-local mpc-for-gcc = [ option.get with-mpc-for-gcc : latest : ] ;
+local mpc-for-gcc = [ option.get with-mpc-for-gcc : latest : IMPLIED ] ;
+if $(mpc-for-gcc) = IMPLIED
+{
+  errors.error "`--with-mpc-for-gcc' should be specified with a value." ;
+}
 if ! $(mpc-for-gcc) || $(mpc-for-gcc) = latest
 {
   ECHO "Extracting MPC latest version, patience..." ;
-  mpc-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/mpc-latest.sh\" || echo -n ERROR" ] ;
-  if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : $(mpc-latest) : 1 ] {
-    ECHO $(mpc-latest) ;
-    mpc-for-gcc = $(mpc-latest) ;
-  }
-  else {
+  mpc-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/mpc-latest.sh\" || echo -n error" ] ;
+  if $(mpc-latest) = error
+  {
     errors.error "failed to extract MPC latest version." ;
   }
+  ECHO $(mpc-latest) ;
+  mpc-for-gcc = $(mpc-latest) ;
 }
-if ! $(mpc-for-gcc)
+if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(mpc-for-gcc)" : 1 ]
 {
-  errors.error "an internal error." ;
+  errors.error "an invalid value `$(mpc-for-gcc)' for `--with-mpc-for-gcc'." ;
 }
 ECHO "MPC_FOR_GCC... $(mpc-for-gcc)" ;
 constant MPC_FOR_GCC : $(mpc-for-gcc) ;
+if ! $(mpc-for-gcc) in $(mpc-versions)
+{
+  mpc-versions += $(mpc-for-gcc) ;
+}
 
 
-local ppl-for-gcc = [ option.get with-ppl-for-gcc : latest : ] ;
-if ! $(ppl-for-gcc) || $(ppl-for-gcc) = latest
+local ppl-for-gcc = [ option.get with-ppl-for-gcc : latest : IMPLIED ] ;
+if $(ppl-for-gcc) = IMPLIED
+{
+  errors.error "`--with-ppl-for-gcc' should be specified with a value." ;
+}
+if $(ppl-for-gcc) = latest
 {
   ECHO "Extracting PPL latest version, patience..." ;
   ppl-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/ppl-latest.sh\" || echo -n ERROR" ] ;
-  if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : $(ppl-latest) : 1 ] {
-    ECHO $(ppl-latest) ;
-    ppl-for-gcc = $(ppl-latest) ;
-  }
-  else {
+  if $(ppl-latest) = ERROR
+  {
     errors.error "failed to extract PPL latest version." ;
   }
+  ECHO $(ppl-latest) ;
+  ppl-for-gcc = $(ppl-latest) ;
 }
-if ! $(ppl-for-gcc)
+if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(ppl-for-gcc)" : 1 ]
 {
-  errors.error "an internal error." ;
+  errors.error "an invalid value `$(ppl-for-gcc)' for `--with-ppl-for-gcc'." ;
 }
 ECHO "PPL_FOR_GCC... $(ppl-for-gcc)" ;
 constant PPL_FOR_GCC : $(ppl-for-gcc) ;
+if ! $(ppl-for-gcc) in $(ppl-versions)
+{
+  ppl-versions += $(ppl-for-gcc) ;
+}
 
 
-local cloog-for-gcc = [ option.get with-cloog-for-gcc : latest : ] ;
-if ! $(cloog-for-gcc) || $(cloog-for-gcc) = latest
+local cloog-for-gcc = [ option.get with-cloog-for-gcc : latest : IMPLIED ] ;
+if $(cloog-for-gcc) = IMPLIED
+{
+  errors.error "`--with-cloog-for-gcc' should be specified with a value." ;
+}
+if $(cloog-for-gcc) = latest
 {
   ECHO "Extracting CLooG latest version, patience..." ;
   cloog-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/cloog-latest.sh\" || echo -n ERROR" ] ;
-  if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : $(cloog-latest) : 1 ] {
-    ECHO $(cloog-latest) ;
-    cloog-for-gcc = $(cloog-latest) ;
-  }
-  else {
+  if $(cloog-latest) = ERROR
+  {
     errors.error "failed to extract CLooG latest version." ;
   }
+  ECHO $(cloog-latest) ;
+  cloog-for-gcc = $(cloog-latest) ;
 }
-if ! $(cloog-for-gcc)
+if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(cloog-for-gcc)" : 1 ]
 {
-  errors.error "an internal error." ;
+  errors.error "an invalid value `$(cloog-for-gcc)' for `--with-cloog-for-gcc'." ;
 }
 ECHO "CLOOG_FOR_GCC... $(cloog-for-gcc)" ;
 constant CLOOG_FOR_GCC : $(cloog-for-gcc) ;
+if ! $(cloog-for-gcc) in $(cloog-versions)
+{
+  cloog-versions += $(cloog-for-gcc) ;
+}
 
 
-local gcc-versions = [ option.get enable-gcc-versions : : INUMIMI ] ;
-if ! $(gcc-versions)
+local compilers = [ option.get enable-compilers : : IMPLIED ] ;
+if $(compilers) = IMPLIED
 {
-  errors.error "ERROR: `--enable-gcc-versions' is not specified" ;
+  errors.error "`--enable-compilers' should be specified with a value." ;
 }
-if $(gcc-versions) = INUMIMI
+compilers = [ regex.split "$(compilers)" "," ] ;
+for local compiler in $(compilers)
 {
-  errors.error "ERROR: No value is specified for `--enable-gcc-versions'." ;
-}
-local gcc-release-versions = ;
-local gcc-snapshot-versions = ;
-{
-  local gcc-release-aliases = [ SHELL "\"$(INTRO_ROOT_DIR)/gcc-release-aliases.sh\" || echo -n error" ] ;
-  gcc-release-aliases = [ regex.split "$(gcc-release-aliases)" " +" ] ;
-  local gcc-snapshot-aliases = [ SHELL "\"$(INTRO_ROOT_DIR)/gcc-snapshot-aliases.sh\" || echo -n error" ] ;
-  gcc-snapshot-aliases = [ regex.split "$(gcc-snapshot-aliases)" " +" ] ;
-  for local gcc-version in [ regex.split "$(gcc-versions)" "," ]
+  if ! [ "$(INTRO_ROOT_DIR)/compilers.is-valid" "$(compiler)" ]
   {
-    if $(gcc-version) in current previous oldest
-    {
-      local tmp = ;
-      for local gcc-release-alias in $(gcc-release-aliases)
-      {
-        local kv = [ regex.split $(gcc-release-alias) "," ] ;
-        if $(kv[1]) = $(gcc-version)
-        {
-          if ! $(tmp)
-          {
-            tmp = $(kv[2]) ;
-          }
-          else
-          {
-            errors.error "ERROR: A logic error." ;
-          }
-        }
-      }
-      if ! $(tmp)
-      {
-        errors.error "ERROR: A logic error." ;
-      }
-      if ! $(tmp) in $(gcc-release-versions)
-      {
-        ECHO "gcc version... $(gcc-version) ($(tmp))" ;
-        gcc-release-versions += $(tmp) ;
-      }
-      else
-      {
-        ECHO "gcc version... $(gcc-version) ($(tmp), dumplicated)" ;
-      }
-    }
-    else if $(gcc-version) = snapshot
-    {
-      local tmp = ;
-      for local gcc-snapshot-alias in $(gcc-snapshot-aliases)
-      {
-        local kv = [ regex.split $(gcc-snapshot-alias) "," ] ;
-        if $(kv[1]) = snapshot
-        {
-          if ! $(tmp)
-          {
-            tmp = $(kv[2]) ;
-          }
-          else
-          {
-            errors.error "ERROR: A logic error." ;
-          }
-        }
-      }
-      if ! $(tmp)
-      {
-        errors.error "ERROR: A logic error." ;
-      }
-      if ! $(tmp) in $(gcc-snapshot-versions)
-      {
-        ECHO "gcc version... snapshot ($(tmp))" ;
-        gcc-snapshot-versions += $(tmp) ;
-      }
-      else
-      {
-        ECHO "gcc version... snapshot ($(tmp), duplicated)" ;
-      }
-    }
-    else if [ regex.match "^([0-9]+\\.[0-9]+\\.[0-9]+)$" : "$(gcc-version)" : 1 ]
-    {
-      if ! $(gcc-version) in $(gcc-release-versions)
-      {
-        ECHO "gcc version... $(gcc-version)" ;
-        gcc-release-versions += $(gcc-version) ;
-      }
-      else
-      {
-        ECHO "gcc version... $(gcc-version) (duplicated)" ;
-      }
-    }
-    else if [ regex.match "^([0-9]+\\.[0-9]+-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9])$" : "$(gcc-version)" : 1 ]
-    {
-      if ! $(gcc-version) in $(gcc-snapshot-versions)
-      {
-        ECHO "gcc version... $(gcc-version)" ;
-        gcc-snapshot-versions += $(gcc-version) ;
-      }
-      else
-      {
-        ECHO "gcc version... $(gcc-version) (duplicated)" ;
-      }
-    }
-    else if [ regex.match "^([0-9]+\\.[0-9]+\\.0-RC-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9])$" : "$(gcc-version)" : 1 ]
-    {
-      if ! $(gcc-version) in $(gcc-snapshot-versions)
-      {
-        ECHO "gcc version... $(gcc-version)" ;
-        gcc-snapshot-versions += $(gcc-version) ;
-      }
-      else
-      {
-        ECHO "gcc version... $(gcc-version) (duplicated)" ;
-      }
-    }
-    else if [ regex.match "^([0-9]+\\.[0-9]+-latest)$" : "$(gcc-version)" : 1 ]
-    {
-      local tmp = ;
-      for local gcc-snapshot-alias in $(gcc-snapshot-aliases)
-      {
-        local kv = [ regex.split $(gcc-snapshot-alias) "," ] ;
-        if $(kv[1]) = $(gcc-version)
-        {
-          if ! $(tmp)
-          {
-            tmp = $(kv[2]) ;
-          }
-          else
-          {
-            errors.error "ERROR: A logic error." ;
-          }
-        }
-      }
-      if ! $(tmp)
-      {
-        errors.error "ERROR: A logic error." ;
-      }
-      if ! $(tmp) in $(gcc-snapshot-versions)
-      {
-        ECHO "gcc version... $(gcc-version) ($(tmp))" ;
-        gcc-snapshot-versions += $(tmp) ;
-      }
-      else
-      {
-        ECHO "gcc version... $(gcc-version) ($(tmp), duplicated)" ;
-      }
-    }
-    else
-    {
-      errors.error "ERROR: `$(gcc-version)' is a wrong value for `--enable-gcc-versions' option." ;
-    }
+    errors.error "an invalid value `$(compiler)' for `--enable-compilers' option." ;
   }
+  ECHO "enabled compiler... $(compiler)" ;
 }
+constant COMPILERS : $(compilers) ;
+
 
 local multilib = [ option.get enable-multilib : no : yes ] ;
 if ! $(multilib) in no yes
@@ -329,6 +241,284 @@ if $(multilib) = yes && [ option.get disable-multilib : : INUMIMI ] = INUMIMI
 }
 ECHO multilib... $(multilib) ;
 
+
+local gmp = [ option.get enable-gmp : : latest ] ;
+if $(gmp) = latest
+{
+  if ! $(gmp-latest)
+  {
+    ECHO "Extracting GMP latest version, patience..." ;
+    gmp-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/gmp-latest.sh\" || echo -n error" ] ;
+    if $(gmp-latest) = error
+    {
+      errors.error "failed to extract GMP latest version." ;
+    }
+    ECHO $(gmp-latest) ;
+  }
+  gmp = $(gmp-latest) ;
+}
+if $(gmp)
+{
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(gmp)" : 1 ]
+  {
+    errors.error "an invalid value `$(gmp)' for `--enable-gmp'." ;
+  }
+  ECHO "GMP... $(gmp)" ;
+  constant GMP : $(gmp) ;
+  if ! $(gmp) in $(gmp-versions)
+  {
+    gmp-versions += $(gmp) ;
+  }
+}
+
+
+local mpfr = [ option.get enable-mpfr : : latest ] ;
+if $(mpfr) = latest
+{
+  if ! $(mpfr-latest)
+  {
+    ECHO "Extracting MPFR latest version, patience..." ;
+    mpfr-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/mpfr-latest.sh\" || echo -n error" ] ;
+    if $(mpfr-latest) = error
+    {
+      errors.error "failed to extract MPFR latest version." ;
+    }
+    ECHO $(mpfr-latest) ;
+  }
+  mpfr = $(mpfr-latest) ;
+}
+if $(mpfr)
+{
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(mpfr)" : 1 ]
+  {
+    errors.error "an invalid value `$(mpfr)' for `--enable-mpfr'." ;
+  }
+  ECHO "MPFR... $(mpfr)" ;
+  constant MPFR : $(mpfr) ;
+  if ! $(mpfr) in $(mpfr-versions)
+  {
+    mpfr-versions += $(mpfr) ;
+  }
+  if ! $(GMP)
+  {
+    if ! $(gmp-latest)
+    {
+      ECHO "Extracting GMP latest version, patience..." ;
+      gmp-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/gmp-latest.sh\" || echo -n error" ] ;
+      if $(gmp-latest) = error
+      {
+        errors.error "failed to extract GMP latest version." ;
+      }
+      ECHO $(gmp-latest) ;
+    }
+    gmp = $(gmp-latest) ;
+    ECHO "GMP... $(gmp) (implied by MPFR)" ;
+    constant GMP : $(gmp) ;
+    if ! $(gmp) in $(gmp-versions)
+    {
+      gmp-versions += $(gmp) ;
+    }
+  }
+}
+
+
+local mpc = [ option.get enable-mpc : : latest ] ;
+if $(mpc) = latest
+{
+  if ! $(mpc-latest)
+  {
+    ECHO "Extracting MPC latest version, patience..." ;
+    mpc-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/mpc-latest.sh\" || echo -n error" ] ;
+    if $(mpc-latest) = error
+    {
+      errors.error "failed to extract MPC latest version." ;
+    }
+    ECHO $(mpc-latest) ;
+  }
+  mpc = $(mpc-latest) ;
+}
+if $(mpc)
+{
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(mpc)" : 1 ]
+  {
+    errors.error "an invalid value `$(mpc)' for `--enable-mpc'." ;
+  }
+  ECHO "MPC... $(mpc)" ;
+  constant MPC : $(mpc) ;
+  if ! $(mpc) in $(mpc-versions)
+  {
+    mpc-versions += $(mpc) ;
+  }
+  if ! $(GMP)
+  {
+    if ! $(gmp-latest)
+    {
+      ECHO "Extracting GMP latest version, patience..." ;
+      gmp-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/gmp-latest.sh\" || echo -n error" ] ;
+      if $(gmp-latest) = error
+      {
+        errors.error "failed to extract GMP latest version." ;
+      }
+      ECHO $(gmp-latest) ;
+    }
+    gmp = $(gmp-latest) ;
+    ECHO "GMP... $(gmp) (implied by MPC)" ;
+    constant GMP : $(gmp) ;
+    if ! $(gmp) in $(gmp-versions)
+    {
+      gmp-versions += $(gmp) ;
+    }
+  }
+  if ! $(MPFR)
+  {
+    if ! $(mpfr-latest)
+    {
+      ECHO "Extracting MPFR latest version, patience..." ;
+      mpfr-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/mpfr-latest.sh\" || echo -n error" ] ;
+      if $(mpfr-latest) = error
+      {
+        errors.error "failed to extract MPFR latest version." ;
+      }
+      ECHO $(mpfr-latest) ;
+    }
+    mpfr = $(mpfr-latest) ;
+    ECHO "MPFR... $(mpfr) (implied by MPC)" ;
+    constant MPFR : $(mpfr) ;
+    if ! $(mpfr) in $(mpfr-versions)
+    {
+      mpfr-versions += $(mpfr) ;
+    }
+  }
+}
+
+
+local ppl = [ option.get enable-ppl : : latest ] ;
+if $(ppl) = latest
+{
+  if ! $(ppl-latest)
+  {
+    ECHO "Extracting PPL latest version, patience..." ;
+    ppl-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/ppl-latest.sh\" || echo -n error" ] ;
+    if $(ppl-latest) = error
+    {
+      errors.error "failed to extract PPL latest version." ;
+    }
+    ECHO $(ppl-latest) ;
+  }
+  ppl = $(ppl-latest) ;
+}
+if $(ppl)
+{
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(ppl)" : 1 ]
+  {
+    errors.error "an invalid value `$(ppl)' for `--enable-ppl'." ;
+  }
+  ECHO "PPL... $(ppl)" ;
+  constant PPL : $(ppl) ;
+  if ! $(ppl) in $(ppl-versions)
+  {
+    ppl-versions += $(ppl) ;
+  }
+  if ! $(GMP)
+  {
+    if ! $(gmp-latest)
+    {
+      ECHO "Extracting GMP latest version, patience..." ;
+      gmp-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/gmp-latest.sh\" || echo -n error" ] ;
+      if $(gmp-latest) = error
+      {
+        errors.error "failed to extract GMP latest version." ;
+      }
+      ECHO $(gmp-latest) ;
+    }
+    gmp = $(gmp-latest) ;
+    ECHO "GMP... $(gmp) (implied by PPL)" ;
+    constant GMP : $(gmp) ;
+    if ! $(gmp) in $(gmp-versions)
+    {
+      gmp-versions += $(gmp) ;
+    }
+  }
+}
+
+
+local cloog = [ option.get enable-cloog : : latest ] ;
+if $(cloog) = latest
+{
+  if ! $(cloog-latest)
+  {
+    ECHO "Extracting CLooG latest version, patience..." ;
+    cloog-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/cloog-latest.sh\" || echo -n error" ] ;
+    if $(cloog-latest) = error
+    {
+      errors.error "failed to extract CLooG latest version." ;
+    }
+    ECHO $(cloog-latest) ;
+  }
+  cloog = $(cloog-latest) ;
+}
+if $(cloog)
+{
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(cloog)" : 1 ]
+  {
+    errors.error "an invalid value `$(cloog)' for `--enable-cloog'." ;
+  }
+  ECHO "CLOOG... $(cloog)" ;
+  constant CLOOG : $(cloog) ;
+  if ! $(cloog) in $(cloog-versions)
+  {
+    cloog-versions += $(cloog) ;
+  }
+  if ! $(GMP)
+  {
+    if ! $(gmp-latest)
+    {
+      ECHO "Extracting GMP latest version, patience..." ;
+      gmp-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/gmp-latest.sh\" || echo -n error" ] ;
+      if $(gmp-latest) = error
+      {
+        errors.error "failed to extract GMP latest version." ;
+      }
+      ECHO $(gmp-latest) ;
+    }
+    gmp = $(gmp-latest) ;
+    ECHO "GMP... $(gmp) (implied by CLooG)" ;
+    constant GMP : $(gmp) ;
+    if ! $(gmp) in $(gmp-versions)
+    {
+      gmp-versions += $(gmp) ;
+    }
+  }
+}
+
+
+local icu4c = [ option.get with-icu4c : latest : latest ] ;
+if $(icu4c) = latest
+{
+  if ! $(icu4c-latest)
+  {
+    ECHO "Extracting ICU4C latest version, patience..." ;
+    icu4c-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/icu4c-latest.sh\" || echo -n error" ] ;
+    if $(icu4c-latest) = error
+    {
+      errors.error "failed to extract ICU4C latest version." ;
+    }
+    ECHO $(icu4c-latest) ;
+  }
+  icu4c = $(icu4c-latest) ;
+}
+if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)?)$" : $(icu4c) : 1 ]
+{
+  errors.error "an invalid value `$(icu4c)' for `--with-icu4c'." ;
+}
+ECHO "ICU4C... $(icu4c)" ;
+constant ICU4C : $(icu4c) ;
+if ! $(icu4c) in $(icu4c-versions)
+{
+  icu4c-versions += $(icu4c) ;
+}
+
+
 local mpi = [ option.get with-mpi : unspecified : INUMIMI ] ;
 if $(mpi) = INUMIMI {
   errors.error "ERROR: No value is specified for `--with-mpi' option." ;
@@ -339,6 +529,7 @@ if ! $(mpi) in openmpi mpich2 unspecified
                "             Allowed values are `openmpi' and `mpich2'." ;
 }
 ECHO mpi... $(mpi) ;
+
 
 local clang = [ option.get enable-clang : no : yes ] ;
 if ! $(clang) in no yes
@@ -356,6 +547,7 @@ if $(clang) = yes && [ option.get disable-clang : : INUMIMI ] = INUMIMI
 }
 ECHO clang... $(clang) ;
 
+
 local concurrency = [ option.get concurrency : 1 : INUMIMI ] ;
 if $(concurrency) = INUMIMI
 {
@@ -366,6 +558,7 @@ if ! [ regex.match "(^[1-9][0-9]*)" : "$(concurrency)" : 1 ] {
 }
 constant CONCURRENCY : $(concurrency) ;
 ECHO concurrency... $(CONCURRENCY) ;
+
 
 local awacs = [ option.get with-awacs : : INUMIMI ] ;
 if $(awacs) = INUMIMI
@@ -380,6 +573,7 @@ else {
   constant AWACS : "cat > /dev/null" ;
   ECHO awacs... N/A ;
 }
+
 
 local stream = [ option.get with-stream : : INUMIMI ] ;
 if $(stream) = INUMIMI
@@ -400,6 +594,32 @@ else {
 project intro : build-dir bin ;
 
 
+if $(gmp-versions)
+{
+  constant GMP_VERSIONS : $(gmp-versions) ;
+}
+if $(mpfr-versions)
+{
+  constant MPFR_VERSIONS : $(mpfr-versions) ;
+}
+if $(mpc-versions)
+{
+  constant MPC_VERSIONS : $(mpc-versions) ;
+}
+if $(ppl-versions)
+{
+  constant PPL_VERSIONS : $(ppl-versions) ;
+}
+if $(cloog-versions)
+{
+  constant CLOOG_VERSIONS : $(cloog-versions) ;
+}
+if $(icu4c-versions)
+{
+  constant ICU4C_VERSIONS : $(icu4c-versions) ;
+}
+
+
 feature triplet : unspecified i686-pc-linux-gnu i686-pc-cygwin i686-w64-mingw32 x86_64-unknown-linux-gnu x86_64-w64-mingw32 : propagated ;
 
 feature multilib        : unspecified no yes            : propagated            ;
@@ -408,34 +628,26 @@ feature multilib-hidden : [ feature.values <multilib> ] : propagated incidental 
 feature binutils        : unspecified $(binutils-for-gcc) : propagated            ;
 feature binutils-hidden : [ feature.values <binutils> ]   : propagated incidental ;
 
-feature gmp        : unspecified $(gmp-for-gcc) : propagated            ;
-feature gmp-hidden : [ feature.values <gmp> ]   : propagated incidental ;
+feature gmp        : unspecified $(gmp-versions) : propagated            ;
+feature gmp-hidden : [ feature.values <gmp> ]    : propagated incidental ;
 
-feature mpfr        : unspecified $(mpfr-for-gcc) : propagated            ;
-feature mpfr-hidden : [ feature.values <mpfr> ]   : propagated incidental ;
+feature mpfr        : unspecified $(mpfr-versions) : propagated            ;
+feature mpfr-hidden : [ feature.values <mpfr> ]    : propagated incidental ;
 
-feature mpc        : unspecified $(mpc-for-gcc) : propagated            ;
-feature mpc-hidden : [ feature.values <mpc> ]   : propagated incidental ;
+feature mpc        : unspecified $(mpc-versions) : propagated            ;
+feature mpc-hidden : [ feature.values <mpc> ]    : propagated incidental ;
 
-feature ppl        : unspecified $(ppl-for-gcc) : propagated            ;
-feature ppl-hidden : [ feature.values <ppl> ]   : propagated incidental ;
+feature ppl        : unspecified $(ppl-versions) : propagated            ;
+feature ppl-hidden : [ feature.values <ppl> ]    : propagated incidental ;
 
-feature cloog        : unspecified $(cloog-for-gcc) : propagated            ;
-feature cloog-hidden : [ feature.values <cloog> ]   : propagated incidental ;
+feature cloog        : unspecified $(cloog-versions) : propagated            ;
+feature cloog-hidden : [ feature.values <cloog> ]    : propagated incidental ;
 
-feature gcc        : unspecified $(gcc-release-versions) $(gcc-snapshot-versions) : propagated            ;
-feature gcc-hidden : [ feature.values <gcc> ]                                     : propagated incidental ;
+feature compiler        : unspecified $(compilers) : propagated            ;
+feature compiler-hidden : [ feature.values <compiler> ] : propagated incidental ;
 
-ECHO "Extracting ICU4C latest version, patience..." ;
-local icu4c = [ SHELL "\"$(INTRO_ROOT_DIR)/icu4c-latest.sh\" || echo -n 'error'" ] ;
-if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)?)$" : $(icu4c) : 1 ] {
-  ECHO $(icu4c) ;
-}
-else {
-  errors.error "ERROR: failed to extract ICU4C latest version." ;
-}
-feature icu4c        : unspecified $(icu4c)       : propagated            ;
-feature icu4c-hidden : [ feature.values <icu4c> ] : propagated incidental ;
+feature icu4c        : unspecified $(icu4c-versions) : propagated            ;
+feature icu4c-hidden : [ feature.values <icu4c> ]    : propagated incidental ;
 
 feature mpi        : unspecified openmpi mpich2 : propagated            ;
 feature mpi-hidden : [ feature.values <mpi> ]   : propagated incidental ;
@@ -446,6 +658,8 @@ if $(mpi) = openmpi {
   openmpi = [ SHELL "\"$(INTRO_ROOT_DIR)/openmpi-latest.sh\" || echo -n 'error'" ] ;
   if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : $(openmpi) : 1 ] {
     ECHO $(openmpi) ;
+    constant OPENMPI : $(openmpi) ;
+    constant OPENMPI_VERSIONS : $(openmpi) ;
     feature openmpi        : unspecified $(openmpi)       : propagated            ;
     feature openmpi-hidden : [ feature.values <openmpi> ] : propagated incidental ;
   }
@@ -481,15 +695,20 @@ if $(triplet) = i686-pc-cygwin && $(clang) {
   errors.error "Sorry, but there is a problem in building Clang by the GCC current release on i686-pc-cygwin." ;
 }
 
-for local gcc-ver in $(gcc-release-versions) $(gcc-snapshot-versions)
+for local compiler in $(compilers)
 {
-  alias gcc-$(gcc-ver)
+  alias $(compiler)
     : gcc//install/<multilib>$(multilib)
-      gmp//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)
-      mpfr//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr>$(mpfr)
-      boost//install/<multilib-hidden>$(multilib)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
-      $(clang)
+      gmp//install/<multilib-hidden>$(multilib)/<gmp>$(GMP)
+      mpfr//install/<multilib-hidden>$(multilib)/<gmp>$(GMP)/<mpfr>$(MPFR)
+      mpc//install/<multilib-hidden>$(multilib)/<gmp>$(GMP)/<mpfr>$(MPFR)/<mpc>$(MPC)
+      prerequisites/ppl//install/<multilib-hidden>$(multilib)/<gmp>$(GMP)/<ppl>$(PPL)
+      prerequisites/cloog//install/<multilib-hidden>$(multilib)/<gmp>$(GMP)/<cloog>$(CLOOG)
+      icu4c//install/<multilib-hidden>$(multilib)/<icu4c>$(ICU4C)
+      openmpi//install/<multilib-hidden>$(multilib)/<mpi>openmpi/<openmpi>$(OPENMPI)
+      #boost//install/<multilib-hidden>$(multilib)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
+      #$(clang)
     : <triplet>$(triplet)
-      <gcc>$(gcc-ver)
+      <compiler>$(compiler)
     ;
 }

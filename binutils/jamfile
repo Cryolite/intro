@@ -4,6 +4,7 @@ import alias ;
 import errors ;
 import feature ;
 import make ;
+import "$(INTRO_ROOT_DIR)/compilers" ;
 
 
 rule assert-specified ( feature : properties * )
@@ -23,149 +24,200 @@ rule assert-unspecified ( feature : properties * )
 }
 
 
-make download : : @download-binutils ;
-explicit download ;
-
-rule download-binutils ( targets * : sources * : properties * )
-{
-  assert-unspecified <triplet>         : $(properties) ;
-  assert-unspecified <multilib>        : $(properties) ;
-  assert-unspecified <multilib-hidden> : $(properties) ;
-  assert-specified   <binutils>        : $(properties) ;
-  assert-unspecified <binutils-hidden> : $(properties) ;
-  assert-unspecified <gmp>             : $(properties) ;
-  assert-unspecified <gmp-hidden>      : $(properties) ;
-  assert-unspecified <mpfr>            : $(properties) ;
-  assert-unspecified <mpfr-hidden>     : $(properties) ;
-  assert-unspecified <mpc>             : $(properties) ;
-  assert-unspecified <mpc-hidden>      : $(properties) ;
-  assert-unspecified <ppl>             : $(properties) ;
-  assert-unspecified <ppl-hidden>      : $(properties) ;
-  assert-unspecified <cloog>           : $(properties) ;
-  assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-unspecified <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
-  assert-unspecified <icu4c>           : $(properties) ;
-  assert-unspecified <icu4c-hidden>    : $(properties) ;
-  assert-unspecified <mpi>             : $(properties) ;
-  assert-unspecified <mpi-hidden>      : $(properties) ;
-  assert-unspecified <openmpi>         : $(properties) ;
-  assert-unspecified <openmpi-hidden>  : $(properties) ;
-  assert-unspecified <boost>           : $(properties) ;
-  assert-unspecified <boost-hidden>    : $(properties) ;
-  local version = [ feature.get-values <binutils> : $(properties) ] ;
-  URL on $(targets) = http://ftp.nara.wide.ad.jp/pub/GNU/gnu/binutils/binutils-$(version).tar.bz2 ;
-  #URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/binutils/binutils-$(version).tar.bz2 ;
-  #URL on $(targets) = http://core.ring.gr.jp/pub/GNU/binutils/binutils-$(version).tar.bz2 ;
-  TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/binutils-$(version).tar.gz ;
-  TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/binutils-$(version).tar.bz2 ;
-}
-actions download-binutils
-{
-  rm -f "$(<)" || exit $?
-  if [ ! -f "$(TARBALL_GZ)" -a ! -f "$(TARBALL_BZ2)" ]; then
-    if [ -n "$(STREAM)" ]; then
-      ( cd "$(TARBALL_BZ2:D)" && wget -- '$(URL)' >> "$(STREAM)" 2>&1 )
-    else
-      ( cd "$(TARBALL_BZ2:D)" && wget --quiet -- '$(URL)' )
-    fi
-    if [ $? -ne 0 ]; then
-      echo "ERROR: failed to download binutils tarball." 1>&2
-      echo -n "ERROR: failed to download binutils tarball." | $(AWACS)
-      exit 1
-    fi
-    [ -f "$(TARBALL_GZ)" -o -f "$(TARBALL_BZ2)" ] || exit 1
-  fi
-  [ -e "$(<)" ] && exit 1
-  touch "$(<)"
-}
-
-
-make expand : download : @expand-binutils ;
-explicit expand ;
-
-rule expand-binutils ( targets * : sources * : properties * )
-{
-  if ! $(sources[1]) {
-    errors.error "ERROR: wrong number of sources." ;
-  }
-  if $(sources[2]) {
-    errors.error "ERROR: wrong number of sources." ;
-  }
-  assert-unspecified <triplet>         : $(properties) ;
-  assert-unspecified <multilib>        : $(properties) ;
-  assert-unspecified <multilib-hidden> : $(properties) ;
-  assert-specified   <binutils>        : $(properties) ;
-  assert-unspecified <binutils-hidden> : $(properties) ;
-  assert-unspecified <gmp>             : $(properties) ;
-  assert-unspecified <gmp-hidden>      : $(properties) ;
-  assert-unspecified <mpfr>            : $(properties) ;
-  assert-unspecified <mpfr-hidden>     : $(properties) ;
-  assert-unspecified <mpc>             : $(properties) ;
-  assert-unspecified <mpc-hidden>      : $(properties) ;
-  assert-unspecified <ppl>             : $(properties) ;
-  assert-unspecified <ppl-hidden>      : $(properties) ;
-  assert-unspecified <cloog>           : $(properties) ;
-  assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-unspecified <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
-  assert-unspecified <icu4c>           : $(properties) ;
-  assert-unspecified <icu4c-hidden>    : $(properties) ;
-  assert-unspecified <mpi>             : $(properties) ;
-  assert-unspecified <mpi-hidden>      : $(properties) ;
-  assert-unspecified <openmpi>         : $(properties) ;
-  assert-unspecified <openmpi-hidden>  : $(properties) ;
-  assert-unspecified <boost>           : $(properties) ;
-  assert-unspecified <boost-hidden>    : $(properties) ;
-  local version = [ feature.get-values <binutils> : $(properties) ] ;
-  VERSION on $(targets) = $(version) ;
-  TARBALL_GZ on $(targets) = $(INTRO_ROOT_DIR)/binutils-$(version).tar.gz ;
-  TARBALL_BZ2 on $(targets) = $(INTRO_ROOT_DIR)/binutils-$(version).tar.bz2 ;
-  DEST_DIR on $(targets) = $(INTRO_ROOT_DIR)/binutils-$(version) ;
-}
-actions expand-binutils
-{
-  rm -f "$(<)" || exit $?
-  [ -f "$(>)" ] || exit 1
-  ( cd "$(INTRO_ROOT_DIR)" && rm -rf binutils-$(VERSION) ) || exit 1
-  [ -e "$(INTRO_ROOT_DIR)/binutils-$(VERSION)" ] && exit 1
-  if [ -f "$(TARBALL_GZ)" ]; then
-    if [ -n "$(STREAM)" ]; then
-      tar xzvf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)" >> "$(STREAM)" 2>&1
-    else
-      tar xzf "$(TARBALL_GZ)" -C "$(TARBALL_GZ:D)"
-    fi
-  elif [ -f "$(TARBALL_BZ2)" ]; then
-    if [ -n "$(STREAM)" ]; then
-      tar xjvf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)" >> "$(STREAM)" 2>&1
-    else
-      tar xjf "$(TARBALL_BZ2)" -C "$(TARBALL_BZ2:D)"
-    fi
-  else
-    exit 1
-  fi
-  if [ $? -ne 0 ]; then
-    echo "ERROR: failed to expand binutils tarball." 1>&2
-    echo -n "ERROR: failed to expand binutils tarball." | $(AWACS)
-    exit 1
-  fi
-  [ -d "$(DEST_DIR)" ] || exit 1
-  [ -x "$(DEST_DIR)/configure" ] || exit 1
-  [ -e "$(<)" ] && exit 1
-  touch "$(<)"
-}
-
-
-make make
-  : expand/<triplet>unspecified
-  : @make-binutils
-  ;
-explicit make ;
-
-rule make-binutils ( targets * : sources * : properties * )
+rule compiler-dep-req ( properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
+  assert-specified   <multilib-hidden> : $(properties) ;
+  assert-unspecified <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
+  assert-specified   <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  local multilib = [ feature.get-values <multilib-hidden> : $(properties) ] ;
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local result ;
+  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
+  {
+    result = <source>../gcc//install/<multilib>$(multilib)/<multilib-hidden>unspecified ;
+  }
+  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
+  {
+    result = <source>../clang//install/<multilib-hidden>unspecified ;
+  }
+  else
+  {
+    errors.error "an internal error." ;
+  }
+  return $(result) ;
+}
+
+alias compiler-dep : : <conditional>$compiler-dep-req ;
+explicit compiler-dep ;
+
+
+for local version in $(BINUTILS_FOR_GCC)
+{
+  make "$(INTRO_ROOT_DIR)/binutils-$(version).tar.bz2" : : @download ;
+  explicit "$(INTRO_ROOT_DIR)/binutils-$(version).tar.bz2" ;
+}
+
+rule download ( targets * : sources * : properties * )
+{
+  if $(sources[1]) {
+    errors.error "a wrong number of sources." ;
+  }
+  assert-unspecified <triplet>         : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <binutils>        : $(properties) ;
+  assert-specified   <binutils-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
+  assert-unspecified <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  local version = [ feature.get-values <binutils-hidden> : $(properties) ] ;
+  VERSION on $(targets) = $(version) ;
+  URL on $(targets) = http://ftp.nara.wide.ad.jp/pub/GNU/gnu/binutils/binutils-$(version).tar.bz2 ;
+  #URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/binutils/binutils-$(version).tar.bz2 ;
+  #URL on $(targets) = http://core.ring.gr.jp/pub/GNU/binutils/binutils-$(version).tar.bz2 ;
+}
+actions download
+{
+  rm -rf "$(<)" || exit 1
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(<:D)" && wget -- '$(URL)' >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(<:D)" && wget --quiet -- '$(URL)' )
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to download Binutils $(VERSION) tarball." 1>&2
+    echo -n "ERROR: failed to download Binutils $(VERSION) tarball." | $(AWACS)
+    rm -rf "$(<)"
+    exit 1
+  fi
+  [ -f "$(<)" ] || exit 1
+  exit 0
+}
+
+
+for local version in $(BINUTILS_FOR_GCC)
+{
+  # Use `README' file as a target representing the completion of
+  # decompression action. It is suitable for the purpose because of the
+  # following reasons;
+  #
+  #   - The name of this file is considered stable even if the version
+  #     changes.
+  #   - This file won't be modified during the build procedure.
+  #
+  make "$(INTRO_ROOT_DIR)/binutils-$(version)/README"
+    : "$(INTRO_ROOT_DIR)/binutils-$(version).tar.bz2"
+    : @expand
+    ;
+  explicit "$(INTRO_ROOT_DIR)/binutils-$(version)/README" ;
+}
+
+rule expand ( targets * : sources * : properties * )
+{
+  if ! $(sources[1])
+  {
+    errors.error "a wrong number of sources." ;
+  }
+  if $(sources[2])
+  {
+    errors.error "a wrong number of sources." ;
+  }
+  assert-unspecified <triplet>         : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <binutils>        : $(properties) ;
+  assert-specified   <binutils-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
+  assert-unspecified <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  local version = [ feature.get-values <binutils-hidden> : $(properties) ] ;
+  VERSION on $(targets) = $(version) ;
+}
+actions expand
+{
+  rm -rf "$(<:D)" || exit 1
+  [ -f "$(>)" ] || exit 1
+  if [ -n "$(STREAM)" ]; then
+    tar xjvf "$(>)" --directory="$(INTRO_ROOT_DIR)" >> "$(STREAM)" 2>&1
+  else
+    tar xjf "$(>)" --directory="$(INTRO_ROOT_DIR)"
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to expand Binutils $(VERSION) tarball." 1>&2
+    echo -n "ERROR: failed to expand Binutils $(VERSION) tarball." | $(AWACS)
+    rm -rf "$(<:D)"
+    exit 1
+  fi
+  # If the timestamp of the tarball's contents is restored, the modification
+  # time of the source directory could be older than the one of the tarball.
+  # Such behavior is not desirable because the decompression always happens.
+  # Therefore, `touch' is required.
+  touch --no-create "$(<)"
+  [ -f "$(<)" ] || exit 1
+  exit 0
+}
+
+
+rule srcdir-req ( properties * )
+{
+  assert-unspecified <triplet>         : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
   assert-unspecified <multilib-hidden> : $(properties) ;
   assert-specified   <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
@@ -179,8 +231,73 @@ rule make-binutils ( targets * : sources * : properties * )
   assert-unspecified <ppl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-unspecified <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-unspecified <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  local version = [ feature.get-values <binutils> : $(properties) ] ;
+  return <source>"$(INTRO_ROOT_DIR)/binutils-$(version)/README/<binutils>unspecified/<binutils-hidden>$(version)" ;
+}
+
+alias srcdir : : <conditional>@srcdir-req ;
+explicit srcdir ;
+
+
+for local compiler in $(COMPILERS)
+{
+  local prefix-leaf ;
+  local compiler-prefix ;
+  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" "$(compiler)" ]
+  {
+    prefix-leaf = $(compiler) ;
+    compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
+  }
+  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" "$(compiler)" ]
+  {
+    if ! $(GCC_FOR_CLANG)
+    {
+      errors.error "an internal error." ;
+    }
+    prefix-leaf = $(compiler)-gcc-$(GCC_FOR_CLANG) ;
+    compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
+  }
+  else
+  {
+    errors.error "an internal error." ;
+  }
+  make "$(compiler-prefix)/bin/ld.gold"
+    : compiler-dep/<binutils>unspecified
+      srcdir/<triplet>unspecified/<multilib-hidden>unspecified/<compiler>unspecified
+    : @make-install
+    ;
+  explicit "$(compiler-prefix)/bin/ld.gold" ;
+}
+
+rule make-install ( targets * : sources * : properties * )
+{
+  assert-specified   <triplet>         : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-specified   <multilib-hidden> : $(properties) ;
+  assert-specified   <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
+  assert-specified   <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
   assert-unspecified <mpi>             : $(properties) ;
@@ -195,9 +312,12 @@ rule make-binutils ( targets * : sources * : properties * )
   local version = [ feature.get-values <binutils> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
 
-  # Set the path to the 'configure' file.
-  local configure = $(INTRO_ROOT_DIR)/binutils-$(version)/configure ;
-  CONFIGURE on $(targets) = $(configure) ;
+  local compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(compiler) ] ;
+  COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
+
+  # Set the path to the source directory.
+  local srcdir = "$(INTRO_ROOT_DIR)/binutils-$(version)" ;
+  SRCDIR on $(targets) = $(srcdir) ;
 
   # Set the '--build', '--host' and '--target' options for the 'configure' script.
   local triplet = [ feature.get-values <triplet> : $(properties) ] ;
@@ -209,67 +329,80 @@ rule make-binutils ( targets * : sources * : properties * )
   # Set the '--prefix' option for the 'configure' script.
   OPTIONS on $(targets) += --prefix=\"$(PREFIX)\" ;
 
-  OPTIONS on $(targets) += --enable-ld=default ;
-
-  OPTIONS on $(targets) += --enable-gold ;
+  OPTIONS on $(targets) += --enable-ld ;
+  OPTIONS on $(targets) += --enable-gold=default ;
 
   OPTIONS on $(targets) += --enable-libssp ;
 
   OPTIONS on $(targets) += --enable-lto ;
-
   OPTIONS on $(targets) += --enable-plugins ;
 }
-actions make-binutils
+actions make-install
 {
-  rm -f "$(<)" || exit $?
-  [ -x "$(CONFIGURE)" ] || exit 1
-  [ `"$(CONFIGURE:D)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit 1
-  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit 1
+  [ -x "$(SRCDIR)/configure" ] || exit 1
+  [ -x "$(SRCDIR)/config.sub" ] || exit 1
+  [ `"$(SRCDIR)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit 1
+
+  # Set the absolute path to `objdir'.
+  objdir="$(INTRO_ROOT_DIR)/objdir"
+
+  # Clean up the `objdir'.
+  { mkdir -p "$objdir" && ( cd "$objdir" && rm -rf * ); } || exit 1
+
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) >> "$(STREAM)" 2>&1 )
+    ( cd "$objdir" && "$(SRCDIR)/configure" $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(<:D)/build" && "$(CONFIGURE)" $(OPTIONS) )
+    ( cd "$objdir" && "$(SRCDIR)/configure" $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'configure' binutils $(VERSION) ($(TRIPLET)-gcc)." 1>&2
-    echo -n "ERROR: failed to 'configure' binutils $(VERSION) ($(TRIPLET)-gcc)." | $(AWACS)
+    echo "ERROR: failed to 'configure' Binutils $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'configure' Binutils $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
-  [ -f "$(<:D)/build/Makefile" ] || exit 1
+
+  # Check the creation of `Makefile'.
+  [ -f "${objdir}/Makefile" ] || exit 1
+
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
+    ( cd "$objdir" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) )
+    ( cd "$objdir" && make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make' binutils $(VERSION) ($(TRIPLET)-gcc)." 1>&2
-    echo -n "ERROR: failed to 'make' binutils $(VERSION) ($(TRIPLET)-gcc)." | $(AWACS)
+    echo "ERROR: failed to 'make' Binutils $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make' Binutils $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
+
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check >> "$(STREAM)" 2>&1 )
+    ( cd "$objdir" && make --jobs=$(CONCURRENCY) check >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(<:D)/build" && make --jobs=$(CONCURRENCY) check )
+    ( cd "$objdir" && make --jobs=$(CONCURRENCY) check )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make check' binutils $(VERSION) ($(TRIPLET)-gcc)." 1>&2
-    echo -n "ERROR: failed to 'make check' binutils $(VERSION) ($(TRIPLET)-gcc)." | $(AWACS)
+    echo "ERROR: failed to 'make check' Binutils $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make check' Binutils $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
+
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)/build" && make install >> "$(STREAM)" 2>&1 )
+    ( cd "$objdir" && make install >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(<:D)/build" && make install )
+    ( cd "$objdir" && make install )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make install' binutils $(VERSION) ($(TRIPLET)-gcc)." 1>&2
-    echo -n "ERROR: failed to 'make install' binutils $(VERSION) ($(TRIPLET)-gcc)." | $(AWACS)
+    echo "ERROR: failed to 'make install' Binutils $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make install' Binutils $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
-  ( cd "$(<:D)" && rm -rf build )
-  echo -n "binutils $(VERSION) ($(TRIPLET)-gcc) was successfully built." | $(AWACS)
-  [ -e "$(<)" ] && exit 1
-  touch "$(<)"
+
+  [ -x "$(<)" ] || exit 1
+
+  # Clean up the `objdir'.
+  rm -rf "$objdir" || exit 1
+
+  echo -n "Binutils $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built." | $(AWACS)
+  exit 0
 }
 
 
@@ -277,7 +410,7 @@ rule install-req ( properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
-  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-specified   <multilib-hidden> : $(properties) ;
   assert-specified   <binutils>        : $(properties) ;
   assert-unspecified <binutils-hidden> : $(properties) ;
   assert-unspecified <gmp>             : $(properties) ;
@@ -290,8 +423,8 @@ rule install-req ( properties * )
   assert-unspecified <ppl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-unspecified <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-specified   <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
   assert-unspecified <mpi>             : $(properties) ;
@@ -300,7 +433,27 @@ rule install-req ( properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local compiler-prefix ;
+  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" "$(compiler)" ]
+  {
+    compiler-prefix = "$(PREFIX)/$(compiler)" ;
+  }
+  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" "$(compiler)" ]
+  {
+    if ! $(GCC_FOR_CLANG)
+    {
+      errors.error "an internal error." ;
+    }
+    compiler-prefix = "$(PREFIX)/$(compiler)-gcc-$(GCC_FOR_CLANG)" ;
+  }
+  else
+  {
+    errors.error "an internal error." ;
+  }
+  return <source>"$(compiler-prefix)/bin/ld.gold" ;
 }
 
-alias install : make : <conditional>@install-req ;
+alias install : : <conditional>@install-req ;
 explicit install ;

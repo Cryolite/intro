@@ -21,11 +21,11 @@
 /cloog-*.tar.gz
 /cloog-*.tar.bz2
 /cloog-*/
-/gcc-*.tar.gz
 /gcc-*.tar.bz2
+/gcc-*.tar.bz2.sig
 /gcc-*.*/
 /icu4c-*.tgz
-/icu/
+/icu-*/
 /openmpi-*.tar.gz
 /openmpi-*.tar.bz2
 /openmpi-*/

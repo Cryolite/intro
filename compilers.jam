@@ -1,0 +1,359 @@
+import errors ;
+import path ;
+import regex ;
+
+local .root-dir ;
+local .gcc-versions ;
+local .gcc-current-version ;
+local .gcc-previous-version ;
+local .gcc-oldest-version ;
+local .gcc-snapshot-version ;
+local .gcc-current-latest-version ;
+local .gcc-previous-snapshot-version ;
+local .gcc-oldest-snapshot-version ;
+
+rule init ( root-dir )
+{
+  if $(.root-dir)
+  {
+    errors.error "an internal error." ;
+  }
+
+  .root-dir = [ path.make "$(root-dir)" ] ;
+  .gcc-versions = [ SHELL "\"$(.root-dir)/gcc-release-versions.sh\" || echo -n error" ] ;
+  if $(.gcc-versions) = error
+  {
+    errors.error "failed to extract GCC release versions." ;
+  }
+  .gcc-versions = [ regex.split "$(.gcc-versions)" " +" ] ;
+}
+
+rule .init-gcc-release-aliases ( )
+{
+  if ! $(.gcc-current-version)
+  {
+    if $(.gcc-previous-version) || $(.gcc-oldest-version)
+    {
+      errors.error "an internal error." ;
+    }
+
+    local gcc-recent-majors
+      = [ SHELL "echo -n \"$(.gcc-versions:J= )\" \\
+                   | grep -Eo \"[[:digit:]]+\\.[[:digit:]]+\\.[[:digit:]]+\" \\
+                   | grep -Eo \"^[[:digit:]]+\\.[[:digit:]]+\" \\
+                   | sort -u -t '.' -k 1,1n -k 2,2n \\
+                   | tail --lines=3 \\
+                   | tr '\\n' ' '" ] ;
+
+    local gcc-current-major
+      = [ SHELL "echo -n $(gcc-recent-majors) | tr ' ' '\\n' | tail --lines=1 | tr --delete '\\n'" ] ;
+    local gcc-current-version
+      = [ SHELL "echo -n $(.gcc-versions:J= ) | grep -Eo \"$(gcc-current-major)\\.[[:digit:]]+\" | sort -u -t '.' -k 1,1n -k 2,2n -k 3,3n | tail --lines=1 | tr --delete '\\n'" ] ;
+    .gcc-current-version = $(gcc-current-version) ;
+
+    local gcc-previous-major
+      = [ SHELL "echo -n $(gcc-recent-majors) | tr ' ' '\\n' | tail --lines=2 | head --lines=1 | tr --delete '\\n'" ] ;
+    local gcc-previous-version
+      = [ SHELL "echo -n $(.gcc-versions:J= ) | grep -Eo \"$(gcc-previous-major)\\.[[:digit:]]+\" | sort -u -t '.' -k 1,1n -k 2,2n -k 3,3n | tail --lines=1 | tr --delete '\\n'" ] ;
+    .gcc-previous-version = $(gcc-previous-version) ;
+
+    local gcc-oldest-major
+      = [ SHELL "echo -n $(gcc-recent-majors) | tr ' ' '\\n' | tail --lines=3 | head --lines=1 | tr --delete '\\n'" ] ;
+    local gcc-oldest-version
+      = [ SHELL "echo -n $(.gcc-versions:J= ) | grep -Eo \"$(gcc-oldest-major)\\.[[:digit:]]+\" | sort -u -t '.' -k 1,1n -k 2,2n -k 3,3n | tail --lines=1 | tr --delete '\\n'" ] ;
+    .gcc-oldest-version = $(gcc-oldest-version) ;
+  }
+}
+
+rule .init-gcc-snapshot-aliases-impl ( major )
+{
+  return [ SHELL "echo -n \"$(.gcc-versions:J= )\" | grep -Eo \"$(major)(\\.0-RC)?-[[:digit:]]{8}\" | grep -Eo \"[[:digit:]]{8}\" | sort --numeric-sort | tail --lines=1 | tr --delete '\\n'" ] ;
+}
+
+rule .init-gcc-snapshot-aliases ( )
+{
+  if ! $(.gcc-snapshot-version)
+  {
+    if $(.gcc-current-snapshot-version) || $(.gcc-previous-snapshot-version) || $(.gcc-oldest-snapshot-version)
+    {
+      errors.error "an internal error." ;
+    }
+
+    local gcc-snapshot-major
+      = [ SHELL "{ echo -n \"$(.gcc-versions:J= )\"                                      || echo -n error; } \\
+                   | { grep -Eo \"[[:digit:]]+\\.[[:digit:]]+(\\.0-RC)?-[[:digit:]]{8}\" || echo -n error; } \\
+                   | { grep -Eo \"^[[:digit:]]+\\.[[:digit:]]+\"                         || echo -n error; } \\
+                   | { sort -u -t '.' -k 1,1n -k 2,2n                                    || echo -n error; } \\
+                   | { tail --lines=1                                                    || echo -n error; } \\
+                   | { tr --delete '\\n'                                                 || echo -n error; }" ] ;
+    local gcc-snapshot-date = [ .init-gcc-snapshot-aliases-impl $(gcc-snapshot-major) ] ;
+    .gcc-snapshot-version
+      = [ SHELL "{ echo -n \"$(.gcc-versions:J= )\"                                      || echo -n error; } \\
+                   | { grep -Eo \"$(gcc-snapshot-major)(\\.0-RC)?-$(gcc-snapshot-date)\" || echo -n error; } \\
+                   | { tail --lines=1                                                    || echo -n error; } \\
+                   | { tr --delete '\\n'                                                 || echo -n error; }" ] ;
+    if $(.gcc-snapshot-version) = error
+    {
+      errors.error "failed to extract GCC snapshot versions." ;
+    }
+
+    local gcc-current-snapshot-major = [ regex.match "^([0-9]+\\.[0-9]+)\\.[0-9]+$" : [ get-gcc-current-version ] : 1 ] ;
+    local gcc-current-snapshot-date = [ .init-gcc-snapshot-aliases-impl $(gcc-current-snapshot-major) ] ;
+    .gcc-current-snapshot-version
+      = [ SHELL "{ echo -n \"$(.gcc-versions:J= )\"                                                      || echo -n error; } \\
+                   | { grep -Eo \"$(gcc-current-snapshot-major)(\\.0-RC)?-$(gcc-current-snapshot-date)\" || echo -n error; } \\
+                   | { tail --lines=1                                                                    || echo -n error; } \\
+                   | { tr --delete '\\n'                                                                 || echo -n error; }" ] ;
+    if $(.gcc-current-snapshot-version) = error
+    {
+      errors.error "failed to extract GCC snapshot versions." ;
+    }
+
+    local gcc-previous-snapshot-major = [ regex.match "^([0-9]+\\.[0-9]+)\\.[0-9]+$" : [ get-gcc-previous-version ] : 1 ] ;
+    local gcc-previous-snapshot-date = [ .init-gcc-snapshot-aliases-impl $(gcc-previous-snapshot-major) ] ;
+    .gcc-previous-snapshot-version
+      = [ SHELL "{ echo -n \"$(.gcc-versions:J= )\"                                                        || echo -n error; } \\
+                   | { grep -Eo \"$(gcc-previous-snapshot-major)(\\.0-RC)?-$(gcc-previous-snapshot-date)\" || echo -n error; } \\
+                   | { tail --lines=1                                                                      || echo -n error; } \\
+                   | { tr --delete '\\n'                                                                   || echo -n error; }" ] ;
+    if $(.gcc-previous-snapshot-version) = error
+    {
+      errors.error "failed to extract GCC snapshot versions." ;
+    }
+
+    local gcc-oldest-snapshot-major = [ regex.match "^([0-9]+\\.[0-9]+)\\.[0-9]+$" : [ get-gcc-oldest-version ] : 1 ] ;
+    local gcc-oldest-snapshot-date = [ .init-gcc-snapshot-aliases-impl $(gcc-oldest-snapshot-major) ] ;
+    .gcc-oldest-snapshot-version
+      = [ SHELL "{ echo -n \"$(.gcc-versions:J= )\"                                                    || echo -n error; } \\
+                   | { grep -Eo \"$(gcc-oldest-snapshot-major)(\\.0-RC)?-$(gcc-oldest-snapshot-date)\" || echo -n error; } \\
+                   | { tail --lines=1                                                                  || echo -n error; } \\
+                   | { tr --delete '\\n'                                                               || echo -n error; }" ] ;
+    if $(.gcc-oldest-snapshot-version) = error
+    {
+      errors.error "failed to extract GCC snapshot versions." ;
+    }
+  }
+}
+
+rule get-gcc-current-version ( )
+{
+  .init-gcc-release-aliases ;
+  return $(.gcc-current-version) ;
+}
+
+rule get-gcc-previous-version ( )
+{
+  .init-gcc-release-aliases ;
+  return $(.gcc-previous-version) ;
+}
+
+rule get-gcc-oldest-version ( )
+{
+  .init-gcc-release-aliases ;
+  return $(.gcc-oldest-version) ;
+}
+
+rule get-gcc-snapshot-version ( )
+{
+  .init-gcc-snapshot-aliases ;
+  return $(.gcc-snapshot-version) ;
+}
+
+rule get-gcc-current-snapshot-version ( )
+{
+  .init-gcc-snapshot-aliases ;
+  return $(.gcc-current-snapshot-version) ;
+}
+
+rule get-gcc-previous-snapshot-version ( )
+{
+  .init-gcc-snapshot-aliases ;
+  return $(.gcc-previous-snapshot-version) ;
+}
+
+rule get-gcc-oldest-snapshot-version ( )
+{
+  .init-gcc-snapshot-aliases ;
+  return $(.gcc-oldest-snapshot-version) ;
+}
+
+rule is-valid ( compiler )
+{
+  local result ;
+  if "$(compiler)" in gcc-current gcc-previous gcc-oldest gcc-snapshot gcc-current-snapshot gcc-previous-snapshot gcc-oldest-snapshot gcc-$(.gcc-versions)
+  {
+    result = yes ;
+  }
+  else if $(compiler) = clang-trunk
+  {
+    result = yes ;
+  }
+  return $(result) ;
+}
+
+rule is-gcc ( compiler )
+{
+  if ! [ is-valid "$(compiler)" ]
+  {
+    errors.error "an internal error." ;
+  }
+  local result ;
+  if "$(compiler)" in gcc-current gcc-previous gcc-oldest gcc-snapshot gcc-current-snapshot gcc-previous-snapshot gcc-oldest-snapshot gcc-$(.gcc-versions)
+  {
+    result = yes ;
+  }
+  return $(result) ;
+}
+
+rule is-builtin-gcc ( compiler )
+{
+  if ! [ is-valid "$(compiler)" ]
+  {
+    errors.error "an internal error." ;
+  }
+  local result ;
+  if [ get-version $(compiler) ] = [ SHELL "g++ -dumpversion | tr --delete '\\n'" ]
+  {
+    result = yes ;
+  }
+  return $(result) ;
+}
+
+rule is-gcc-release ( compiler )
+{
+  if ! [ is-valid "$(compiler)" ]
+  {
+    errors.error "an invalid argument." ;
+  }
+  local result ;
+  if $(compiler) in gcc-current gcc-previous gcc-oldest
+  {
+    result = yes ;
+  }
+  else if [ regex.match "^(gcc-[0-9]+\\.[0-9]+\\.[0-9]+)$" : $(compiler) : 1 ]
+  {
+    result = yes ;
+  }
+  return $(result) ;
+}
+
+rule is-gcc-snapshot ( compiler )
+{
+  if ! [ is-valid "$(compiler)" ]
+  {
+    errors.error "an invalid argument." ;
+  }
+  local result ;
+  if $(compiler) in gcc-snapshot gcc-current-snapshot gcc-previous-snapshot gcc-oldest-snapshot
+  {
+    result = yes ;
+  }
+  else if [ regex.match "^(gcc-[0-9]+\\.[0-9]+(\\.0-RC)?-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9])$" ]
+  {
+    result = yes ;
+  }
+  return $(result) ;
+}
+
+rule get-gccs ( compilers * )
+{
+  local result ;
+  for local compiler in $(compilers)
+  {
+    if ! [ is-valid "$(compiler)" ]
+    {
+      errors.error "an internal error." ;
+    }
+    if [ is-gcc $(compiler) ]
+    {
+      result += $(compiler) ;
+    }
+  }
+  return $(result) ;
+}
+
+rule get-gcc-versions ( compilers * )
+{
+  local result ;
+  for local gcc in [ get-gccs $(compilers) ]
+  {
+    local version = [ get-version $(gcc) ] ;
+    if ! $(version) in $(result)
+    {
+      result += $(version) ;
+    }
+  }
+  return $(result) ;
+}
+
+rule get-version ( compiler )
+{
+  if ! [ is-valid "$(compiler)" ]
+  {
+    errors.error "an internal error." ;
+  }
+  local result ;
+  if $(compiler) in gcc-current gcc-previous gcc-oldest gcc-snapshot gcc-current-snapshot gcc-previous-snapshot gcc-oldest-snapshot
+  {
+    result = [ get-$(compiler)-version ] ;
+  }
+  else if [ is-gcc $(compiler) ]
+  {
+    result = [ regex.match "gcc-(.+)" : $(compiler) : 1 ] ;
+  }
+  return $(result) ;
+}
+
+rule get-prefix-leaf ( compiler : gcc-for-clang ? )
+{
+  if ! [ is-valid "$(compiler)" ]
+  {
+    errors.error "an internal error." ;
+  }
+  local result ;
+  if [ is-gcc $(compiler) ]
+  {
+    if $(gcc-for-clang)
+    {
+      errors.error "an internal error." ;
+    }
+    result = $(compiler) ;
+  }
+  else if [ is-clang $(compiler) ]
+  {
+    if ! $(gcc-for-clang)
+    {
+      errors.error "an internal error." ;
+    }
+    result = $(compiler)-gcc-$(gcc-for-clang) ;
+  }
+  else
+  {
+    errors.error "an internal error." ;
+  }
+  return $(result) ;
+}
+
+rule get-compiler-description ( compiler )
+{
+  if ! [ is-valid "$(compiler)" ]
+  {
+    errors.error "an internal error." ;
+  }
+  local result ;
+  if [ is-gcc $(compiler) ]
+  {
+    local version = [ get-version $(compiler) ] ;
+    result = "GCC $(version)" ;
+  }
+  else if [ is-clang $(compiler) ]
+  {
+    local version = [ get-version $(compiler) ] ;
+    result = "Clang $(version)" ;
+  }
+  else
+  {
+    errors.error "an internal error." ;
+  }
+  return $(result) ;
+}
