@@ -43,61 +43,30 @@ local home = [ modules.peek : HOME ] ;
 
 # Modify the following lines.
 local prefix = "$(home)/local" ;
-local boost-version = 1.49 ;
 
 
-local gcc-builtin = [ SHELL "g++ -dumpversion" ] ;
-gcc-builtin = [ regex.match "^([0123456789]+\\.[0123456789]+\\.[0123456789]+)" : $(gcc-builtin) : 1 ] ;
+# --------------------------
+# GCC & Clang configuration.
+# --------------------------
 
-local gcc-vers ;
-for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
-  local ver = [ regex.match "^$(prefix)/([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : "$(ph)" : 1 ] ;
-  if $(ver) {
-    local result = [ SHELL "which \"$(ph)/bin/g++\" >/dev/null 2>/dev/null; if [ $? -eq 0 ]; then /bin/echo -n \"INUMIMI\"; fi" ] ;
-    if [ MATCH ".*(INUMIMI).*" : "$(result)" ] {
-      gcc-vers += $(ver) ;
-    }
-  }
-}
+using gcc ;
 
-
-# ------------------
-# GCC configuration.
-# ------------------
-
-# Configure gcc (default version).
-ECHO "using gcc   :       : /usr/bin/g++ ;" ;
-using gcc : : /usr/bin/g++ ;
-
-# Configure specific gcc version, giving alternative name to use.
-for local ver in $(gcc-vers) {
-  ECHO "using gcc   : $(ver) : \"$(prefix)/$(ver)/bin/g++-wrapper\" ;" ;
-  using gcc : $(ver) : "$(prefix)/$(ver)/bin/g++-wrapper" ;
-}
-
-
-# --------------------
-# Clang configuration.
-# --------------------
-
+for local path-ver in $(INTRO_GCC_PATHS) $(INTRO_GCC_LATEST_PATHS) $(INTRO_CLANG_PATHS) $(INTRO_CLANG_LATEST_PATHS)
 {
-  local vers = "" ;
-  for local ver in $(gcc-vers) {
-    local result = [ SHELL "which \"$(prefix)/$(ver)/bin/clang++-wrapper\" >/dev/null 2>/dev/null; if [ $? -eq 0 ]; then /bin/echo -n \"INUMIMI\"; fi" ] ;
-    if [ MATCH ".*(INUMIMI).*" : "$(result)" ] {
-      vers = "$(vers)$(ver)\n" ;
-    }
+  local ph = ;
+  local ver = ;
+  local rev = ;
+  {
+    local tmp = [ regex.split "$(path-ver)" "," ] ;
+    ph = "$(tmp[1])" ;
+    ver = $(tmp[2]) ;
   }
-  if "$(vers)" {
-    local ver = [ SHELL "/bin/echo -n '$(vers)' | sort --version-sort | tail -n 1" ] ;
-    ver = [ regex.match "^([0123456789]+\\.[0123456789]+\\.[0123456789]+)" : "$(ver)" : 1 ] ;
-    local result = [ SHELL "which \"$(prefix)/$(ver)/bin/clang++-wrapper\" >/dev/null 2>/dev/null; if [ $? -eq 0 ]; then /bin/echo -n \"INUMIMI\"; fi" ] ;
-    if ! [ MATCH ".*(INUMIMI).*" : "$(result)" ] {
-      errors.error "A logic error." ;
-    }
-    ECHO "using clang :       : \"$(prefix)/$(ver)/bin/clang++-wrapper\" ;" ;
-    using clang : : "$(prefix)/$(ver)/bin/clang++-wrapper" ;
+  if ! "$(ph)" || ! $(ver)
+  {
+    errors.error "an internal error." ;
   }
+  using gcc : $(ver) : "$(ph)" ;
+  ECHO $(ver) $(ph) ;
 }
 
 
@@ -149,46 +118,6 @@ for local ver in $(gcc-vers) {
 
 # Configure specific Python version.
 # using python : 3.1 : /usr/bin/python3 : /usr/include/python3.1 : /usr/lib ;
-
-
-# ------------------
-# MPI configuration.
-# ------------------
-
-local mpi-options ;
-
-{
-  local cxxflags = [ SHELL "\"$(prefix)/bin/mpic++\" -showme:compile | tr --delete '\n'" ] ;
-  cxxflags = [ regex.split "$(cxxflags)" " +" ] ;
-  mpi-options += <toolset-gcc:version>$(gcc-builtin):<cxxflags>$(cxxflags) ;
-  local linkflags = [ SHELL "\"$(prefix)/bin/mpic++\" -showme:link | tr --delete '\n'" ] ;
-  linkflags = [ regex.split "$(linkflags)" " +" ] ;
-  mpi-options += <toolset-gcc:version>$(gcc-builtin):<linkflags>$(linkflags) ;
-}
-
-for local ver in $(gcc-vers) {
-  local cxxflags = [ SHELL "\"$(prefix)/$(ver)/bin/mpic++\" -showme:compile | tr --delete '\n'" ] ;
-  cxxflags = [ regex.split "$(cxxflags)" " +" ] ;
-  mpi-options += <toolset-gcc:version>$(ver):<cxxflags>$(cxxflags) ;
-  local linkflags = [ SHELL "\"$(prefix)/$(ver)/bin/mpic++\" -showme:link | tr --delete '\n'" ] ;
-  linkflags = [ regex.split "$(linkflags)" " +" ] ;
-  mpi-options += <toolset-gcc:version>$(ver):<linkflags>$(linkflags) ;
-}
-
-using mpi : : $(mpi-options) ;
-
-
-# --------------------
-# Boost configuration.
-# --------------------
-
-using boost
-  : $(boost-version)
-  : <include>"$(prefix)/boost/latest"
-    <library>"$(prefix)/boost/latest/stage/lib"
-  ;
-import boost ;
-boost.use-project ;
 
 
 # -----------------------

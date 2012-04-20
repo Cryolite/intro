@@ -1,335 +1,592 @@
-# GCC 4.4.5 (default)
-# GCC 4.4.6 (oldest)
-# GCC 4.5.3 (previous)
-# GCC 4.6.2 (current)
-# GCC 4.7.0 (snapshot)
-# Clang 3.1 (SVN) on GCC 4.6.2
-# GMP 5.0.4
-# MPFR 3.1.0
-# zlib 1.2.5
-# bzip2 1.0.6
-# ICU4C 4.8.1.1
-# OpenSSL 1.0.0d
-# OpenMPI 1.4.5
-# Boost 1.49.0
-
 project site-config ;
 
+import common ;
 import errors ;
-#import mpi ;
+import feature ;
 import modules ;
 import path ;
 import python ;
 import regex ;
 
-if ! $(mpi.configured) {
-  #errors.error "ERROR: MPI is not configured." ;
-}
-
-if ! $(python.configure) {
-  #errors.error "ERROR: Python is not configured." ;
-}
-
 local home = [ modules.peek : HOME ] ;
 
 # Modify the following lines.
 local prefix = "$(home)/local" ;
-local gcc-builtin = 4.4.5 ;
-local clang-gcc-version = 4.6.2 ;
+local boost-root = "$(prefix)/boost" ;
 
 
-alias gcc_s : : <toolset>gcc <toolset-gcc:version>$(gcc-builtin) ;
-alias gcc_s : : <toolset>clang <runtime-link>static                   : : <library-path>"$(prefix)/$(clang-gcc-version)/lib"   ;
-alias gcc_s : : <toolset>clang <runtime-link>static <address-model>32 : : <library-path>"$(prefix)/$(clang-gcc-version)/lib32" ;
-alias gcc_s : : <toolset>clang <runtime-link>static <address-model>64 : : <library-path>"$(prefix)/$(clang-gcc-version)/lib64" ;
-alias gcc_s : : <toolset>clang <runtime-link>shared                   : : <library-path>"$(prefix)/$(clang-gcc-version)/lib"   <xdll-path>"$(prefix)/$(clang-gcc-version)/lib"   ;
-alias gcc_s : : <toolset>clang <runtime-link>shared <address-model>32 : : <library-path>"$(prefix)/$(clang-gcc-version)/lib32" <xdll-path>"$(prefix)/$(clang-gcc-version)/lib32" ;
-alias gcc_s : : <toolset>clang <runtime-link>shared <address-model>64 : : <library-path>"$(prefix)/$(clang-gcc-version)/lib64" <xdll-path>"$(prefix)/$(clang-gcc-version)/lib64" ;
-
-alias stdc++ : gcc_s : <toolset>gcc <toolset-gcc:version>$(gcc-builtin) ;
-alias stdc++ : gcc_s : <toolset>clang <runtime-link>static                              : : <library-path>"$(prefix)/$(clang-gcc-version)/lib"   ;
-alias stdc++ : gcc_s : <toolset>clang <runtime-link>static <address-model>32            : : <library-path>"$(prefix)/$(clang-gcc-version)/lib32" ;
-alias stdc++ : gcc_s : <toolset>clang <runtime-link>static <address-model>64            : : <library-path>"$(prefix)/$(clang-gcc-version)/lib64" ;
-alias stdc++ :       : <toolset>clang <runtime-link>shared                   <use>gcc_s : : <library-path>"$(prefix)/$(clang-gcc-version)/lib"   <xdll-path>"$(prefix)/$(clang-gcc-version)/lib"   ;
-alias stdc++ :       : <toolset>clang <runtime-link>shared <address-model>32 <use>gcc_s : : <library-path>"$(prefix)/$(clang-gcc-version)/lib32" <xdll-path>"$(prefix)/$(clang-gcc-version)/lib32" ;
-alias stdc++ :       : <toolset>clang <runtime-link>shared <address-model>64 <use>gcc_s : : <library-path>"$(prefix)/$(clang-gcc-version)/lib64" <xdll-path>"$(prefix)/$(clang-gcc-version)/lib64" ;
-
-# -For default GCC and Clang.
-# -32bit version is not available.
-# -Static version is avaiable on GCC.
-# -Does not depend on the C++ runtimes (libgcc_s and libstdc++).
-# -Static version is not available on Clang because of Boost.Build v2 bugs.
-local rule declare ( target-name : sources * : lib-name )
-{
-  lib $(target-name) : $(sources) : <toolset>gcc <toolset-gcc:version>$(gcc-builtin) <link>static                   <name>$(lib-name) ;
-  lib $(target-name) : $(sources) : <toolset>gcc <toolset-gcc:version>$(gcc-builtin) <link>static <address-model>32 <name>32bit_version_of_$(lib-name)_is_not_available ;
-  lib $(target-name) : $(sources) : <toolset>gcc <toolset-gcc:version>$(gcc-builtin) <link>static <address-model>64 <name>$(lib-name) ;
-  lib $(target-name) :            : <toolset>gcc <toolset-gcc:version>$(gcc-builtin) <link>shared                   <name>$(lib-name) <use>$(sources) ;
-  lib $(target-name) :            : <toolset>gcc <toolset-gcc:version>$(gcc-builtin) <link>shared <address-model>32 <name>32bit_version_of_$(lib-name)_is_not_available ;
-  lib $(target-name) :            : <toolset>gcc <toolset-gcc:version>$(gcc-builtin) <link>shared <address-model>64 <name>$(lib-name) <use>$(sources) ;
-
-  lib $(target-name) : $(sources) : <toolset>clang <link>static                   <name>static_version_of_$(lib-name)_is_not_available_on_clang_because_of_bbv2_bug ;
-  lib $(target-name) :            : <toolset>clang <link>shared                   <name>$(lib-name) <search>"$(prefix)/$(clang-gcc-version)/lib"   <use>$(sources) ;
-  lib $(target-name) :            : <toolset>clang <link>shared <address-model>32 <name>32bit_version_of_$(lib-name)_is_not_available ;
-  lib $(target-name) :            : <toolset>clang <link>shared <address-model>64 <name>$(lib-name) <search>"$(prefix)/$(clang-gcc-version)/lib64" <use>$(sources) ;
-}
-
-declare gmp  :     : gmp  ;
-declare mpfr : gmp : mpfr ;
-declare z    :     : z    ;
-declare bz2  :     : bz2  ;
-
-# -For default GCC and Clang.
-# -32bit version is not available.
-# -Static version is not available on GCC.
-# -Depends on the C++ runtimes (libgcc_s and libstdc++).
-# -Static version is not available on Clang because of Boost.Build v2 bugs.
-local rule declare2 ( target-name : sources * : lib-name )
-{
-  lib $(target-name) : $(sources) : <toolset>gcc <toolset-gcc:version>$(gcc-builtin) <link>static                                        <name>static_version_of_$(lib-name)_is_not_available ;
-  lib $(target-name) :            : <toolset>gcc <toolset-gcc:version>$(gcc-builtin) <link>shared <runtime-link>shared                   <name>$(lib-name) <use>$(sources) ;
-  lib $(target-name) :            : <toolset>gcc <toolset-gcc:version>$(gcc-builtin) <link>shared <runtime-link>shared <address-model>32 <name>32bit_version_of_$(lib-name)_is_not_available  ;
-  lib $(target-name) :            : <toolset>gcc <toolset-gcc:version>$(gcc-builtin) <link>shared <runtime-link>shared <address-model>64 <name>$(lib-name) <use>$(sources) ;
-
-  lib $(target-name) : $(sources) : <toolset>clang <link>static                                        <name>static_version_of_$(lib-name)_is_not_available_because_of_bbv2_bug ;
-  lib $(target-name) :            : <toolset>clang <link>shared <runtime-link>shared                   <name>$(lib-name) <search>"$(prefix)/$(clang-gcc-version)/lib"   <use>$(sources) ;
-  lib $(target-name) :            : <toolset>clang <link>shared <runtime-link>shared <address-model>32 <name>32bit_version_of_$(lib-name)_is_not_available  ;
-  lib $(target-name) :            : <toolset>clang <link>shared <runtime-link>shared <address-model>64 <name>$(lib-name) <search>"$(prefix)/$(clang-gcc-version)/lib64" <use>$(sources) ;
-}
-
-declare2 icudt :                          : icudata ;
-declare2 icuuc : stdc++ icudt             : icuuc   ;
-declare2 icuin : stdc++ icudt icuuc       : icui18n ;
-declare2 icuio : stdc++ icudt icuuc       : icuio   ;
-declare2 icule : stdc++ icudt icuuc       : icule   ;
-declare2 iculx : stdc++ icudt icuuc icule : iculx   ;
-declare2 icutu : stdc++ icudt icuuc icuin : icutu   ;
-
-declare crypto :        : crypto ;
-declare ssl    : crypto : ssl    ;
-
-
-local rule declare4 ( target-name : sources * : gcc-version : lib-name )
-{
-  lib $(target-name) : $(sources) : <toolset>gcc <toolset-gcc:version>$(gcc-version) <link>static                   <name>$(lib-name) ;
-  lib $(target-name) : $(sources) : <toolset>gcc <toolset-gcc:version>$(gcc-version) <link>static <address-model>32 <name>32bit_version_of_$(lib-name)_is_not_available ;
-  lib $(target-name) : $(sources) : <toolset>gcc <toolset-gcc:version>$(gcc-version) <link>static <address-model>64 <name>$(lib-name) ;
-  lib $(target-name) :            : <toolset>gcc <toolset-gcc:version>$(gcc-version) <link>shared                   <name>$(lib-name) <search>"$(prefix)/$(gcc-version)/lib"   <use>$(sources) ;
-  lib $(target-name) :            : <toolset>gcc <toolset-gcc:version>$(gcc-version) <link>shared <address-model>32 <name>32bit_version_of_$(lib-name)_is_not_available ;
-  lib $(target-name) :            : <toolset>gcc <toolset-gcc:version>$(gcc-version) <link>shared <address-model>64 <name>$(lib-name) <search>"$(prefix)/$(gcc-version)/lib64" <use>$(sources) ;
-}
-
-local rule declare5 ( target-name : sources * : gcc-version : lib-name )
-{
-  lib $(target-name) : $(sources) : <toolset>gcc <toolset-gcc:version>$(gcc-version) <link>static <runtime-link>shared                   <name>$(lib-name) ;
-  lib $(target-name) : $(sources) : <toolset>gcc <toolset-gcc:version>$(gcc-version) <link>static <runtime-link>shared <address-model>32 <name>32bit_version_of_$(lib-name)_is_not_available ;
-  lib $(target-name) : $(sources) : <toolset>gcc <toolset-gcc:version>$(gcc-version) <link>static <runtime-link>shared <address-model>64 <name>$(lib-name) ;
-  lib $(target-name) :            : <toolset>gcc <toolset-gcc:version>$(gcc-version) <link>shared <runtime-link>shared                   <name>$(lib-name) <search>"$(prefix)/$(gcc-version)/lib"   <use>$(sources) ;
-  lib $(target-name) :            : <toolset>gcc <toolset-gcc:version>$(gcc-version) <link>shared <runtime-link>shared <address-model>32 <name>32bit_version_of_$(lib-name)_is_not_available ;
-  lib $(target-name) :            : <toolset>gcc <toolset-gcc:version>$(gcc-version) <link>shared <runtime-link>shared <address-model>64 <name>$(lib-name) <search>"$(prefix)/$(gcc-version)/lib64" <use>$(sources) ;
-}
+local ver-prefixes ;
+local gcc-paths ;
+local gcc-latest-paths ;
+local clang-paths ;
+local clang-latest-paths ;
 
 {
   local gcc-vers ;
-  for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
-    local gcc-ver = [ regex.match "^$(prefix)/([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : "$(ph)" : 1 ] ;
-    if $(gcc-ver) {
-      local result = [ SHELL "which \"$(ph)/bin/g++\" >/dev/null 2>/dev/null; if [ $? -eq 0 ]; then echo INUMIMI; fi" ] ;
-      if [ MATCH ".*(INUMIMI).*" : "$(result)" ] {
-        gcc-vers += $(gcc-ver) ;
+  local clang-vers ;
+
+  for local ver-prefix in [ path.glob "$(prefix)" : * ]
+  {
+    if [ SHELL "[ -x \"$(ver-prefix)/bin/g++-wrapper\" ] && echo -n SUCCESS" ] = SUCCESS
+    {
+      local tmp = [ SHELL "env LANG=C \"$(ver-prefix)/bin/g++-wrapper\" --version | head --lines=1" ] ;
+      local ver-date = [ regex.match "([0-9]+\\.[0-9]+\\.[0-9]+) ([0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]) \\(((experimental)|(prerelease))\\)" : "$(tmp)" : 1 2 ] ;
+      if $(ver-date[1]) && $(ver-date[2])
+      {
+        if ! "$(ver-prefix)" in "$(ver-prefixes)"
+        {
+          ver-prefixes += "$(ver-prefix)" ;
+        }
+        if ! $(ver-date[1]) in $(gcc-vers)
+        {
+          gcc-vers += $(ver-date[1]) ;
+        }
+        local timestamp = [ SHELL "env LANG=C ls --full-time \"$(ver-prefix)/bin/g++-wrapper\" | tr --squeeze-repeats ' ' | cut --delimiter=' ' --fields=6,7,8 | date --file=- +%Y%m%d%H%M%S | tr --delete '\\n'" ] ;
+        gcc-paths += "$(ver-prefix)/bin/g++-wrapper",$(ver-date[1]),$(ver-date[2]),$(timestamp) ;
+      }
+      else {
+        local ver = [ regex.match "([0-9]+\\.[0-9]+\\.[0-9]+)" : "$(tmp)" : 1 ] ;
+        if $(ver) {
+          if ! "$(ver-prefix)" in "$(ver-prefixes)"
+          {
+            ver-prefixes += "$(ver-prefix)" ;
+          }
+          if ! $(ver) in $(gcc-vers)
+          {
+            gcc-vers += $(ver) ;
+          }
+          local timestamp = [ SHELL "env LANG=C ls --full-time \"$(ver-prefix)/bin/g++-wrapper\" | tr --squeeze-repeats ' ' | cut --delimiter=' ' --fields=6,7,8 | date --file=- +%Y%m%d%H%M%S | tr --delete '\\n'" ] ;
+          gcc-paths += "$(ver-prefix)/bin/g++-wrapper",$(ver),99999999,$(timestamp) ;
+        }
+      }
+    }
+
+    if [ SHELL "[ -x \"$(ver-prefix)/bin/clang++-wrapper\" ] && echo -n SUCCESS" ] = SUCCESS &&
+       [ SHELL "[ -x \"$(ver-prefix)/bin/g++-wrapper\" ] && echo -n SUCCESS" ] != SUCCESS
+    {
+      local tmp = [ SHELL "env LANG=C \"$(ver-prefix)/bin/clang++-wrapper\" --version | head --lines=1" ] ;
+      local ver-rev = [ regex.match "^clang version ([0-9]+\\.[0-9]+) \\(trunk ([0-9]+)\\)" : "$(tmp)" : 1 2 ] ;
+      if $(ver-rev[1]) && $(ver-rev[2]) {
+        if ! "$(ver-prefix)" in "$(ver-prefixes)"
+        {
+          ver-prefixes += "$(ver-prefix)" ;
+        }
+        if ! $(ver-rev[1]) in $(clang-vers)
+        {
+          clang-vers += $(ver-rev[1]) ;
+        }
+        local timestamp = [ SHELL "env LANG=C ls --full-time \"$(ver-prefix)/bin/clang++-wrapper\" | tr --squeeze-repeats ' ' | cut --delimiter=' ' --fields=6,7,8 | date --file=- +%Y%m%d%H%M%S | tr --delete '\\n'" ] ;
+        clang-paths += "$(ver-prefix)/bin/clang++-wrapper",$(ver-rev[1]),$(ver-rev[2]),$(timestamp) ;
+      }
+      else {
+        local ver = [ regex.match "([0-9]+\\.[0-9]+)" : "$(tmp)" : 1 ] ;
+        if $(ver)
+        {
+          if ! "$(ver-prefix)" in "$(ver-prefixes)"
+          {
+            ver-prefixes += "$(ver-prefix)" ;
+          }
+          if ! $(ver) in $(clang-vers)
+          {
+            clang-vers += $(ver) ;
+          }
+          local timestamp = [ SHELL "env LANG=C ls --full-time \"$(ver-prefix)/bin/clang++-wrapper\" | tr --squeeze-repeats ' ' | cut --delimiter=' ' --fields=6,7,8 | date --file=- +%Y%m%d%H%M%S | tr --delete '\\n'" ] ;
+          clang-paths += "$(ver-prefix)/bin/clang++-wrapper",$(ver),99999999,$(timestamp) ;
+        }
       }
     }
   }
-  for local gcc-version in $(gcc-vers) {
-    alias gcc_s : : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>static                   ;
-    alias gcc_s : : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>static <address-model>32 ;
-    alias gcc_s : : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>static <address-model>64 ;
-    alias gcc_s : : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>shared                   : : <xdll-path>"$(prefix)/$(gcc-version)/lib"   ;
-    alias gcc_s : : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>shared <address-model>32 : : <xdll-path>"$(prefix)/$(gcc-version)/lib32" ;
-    alias gcc_s : : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>shared <address-model>64 : : <xdll-path>"$(prefix)/$(gcc-version)/lib64" ;
 
-    alias stdc++ : gcc_s : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>static                   ;
-    alias stdc++ : gcc_s : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>static <address-model>32 ;
-    alias stdc++ : gcc_s : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>static <address-model>64 ;
-    alias stdc++ :       : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>shared                   <use>gcc_s : : <xdll-path>"$(prefix)/$(gcc-version)/lib"   ;
-    alias stdc++ :       : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>shared <address-model>32 <use>gcc_s : : <xdll-path>"$(prefix)/$(gcc-version)/lib32" ;
-    alias stdc++ :       : <toolset>gcc <toolset-gcc:version>$(gcc-version) <runtime-link>shared <address-model>64 <use>gcc_s : : <xdll-path>"$(prefix)/$(gcc-version)/lib64" ;
+  for local gcc-ver in $(gcc-vers)
+  {
+    local latest-path ;
+    local latest-rev ;
+    local latest-timestamp ;
+    for local gcc-path in $(gcc-paths)
+    {
+      local ph ;
+      local ver ;
+      local rev ;
+      local timestamp ;
+      {
+        local tmp = [ regex.split "$(gcc-path)" "," ] ;
+        ph = "$(tmp[1])" ;
+        ver = $(tmp[2]) ;
+        rev = $(tmp[3]) ;
+        timestamp = $(tmp[4]) ;
+      }
+      if ! $(ph) || ! $(ver) || ! $(rev) || ! $(timestamp)
+      {
+        errors.error "an internal error." ;
+      }
+      if $(ver) = $(gcc-ver)
+      {
+        if ! $(latest-path) && ! $(latest-rev) && ! $(latest-timestamp)
+        {
+          latest-path      = "$(ph)" ;
+          latest-rev       = $(rev) ;
+          latest-timestamp = $(timestamp) ;
+        }
+        else
+        {
+          if $(rev) > $(latest-rev)
+          {
+            latest-path      = "$(ph)" ;
+            latest-rev       = $(rev) ;
+            latest-timestamp = $(timestamp) ;
+          }
+          else if $(rev) = $(latest-rev)
+          {
+            if $(timestamp) > $(latest-timestamp)
+            {
+              latest-path      = "$(ph)" ;
+              latest-rev       = $(rev) ;
+              latest-timestamp = $(timestamp) ;
+            }
+          }
+        }
+      }
+    }
 
-    declare4 gmp  :     : $(gcc-version) : gmp  ;
-    declare4 mpfr : gmp : $(gcc-version) : mpfr ;
-    declare4 z    :     : $(gcc-version) : z    ;
-    declare4 bz2  :     : $(gcc-version) : bz2  ;
+    if ! $(latest-path) || ! $(latest-rev) || ! $(latest-timestamp)
+    {
+      errors.error "an internal error." ;
+    }
 
-    declare5 icudt :                          : $(gcc-version) : icudata ;
-    declare5 icuuc : stdc++ icudt             : $(gcc-version) : icuuc   ;
-    declare5 icuin : stdc++ icudt icuuc       : $(gcc-version) : icui18n ;
-    declare5 icuio : stdc++ icudt icuuc icuin : $(gcc-version) : icuio   ;
-    declare5 icule : stdc++ icudt icuuc       : $(gcc-version) : icule   ;
-    declare5 iculx : stdc++ icudt icuuc icule : $(gcc-version) : iculx   ;
-    declare5 icutu : stdc++ icudt icuuc icuin : $(gcc-version) : icutu   ;
+    gcc-latest-paths += "$(latest-path)",$(gcc-ver),$(latest-rev),$(latest-timestamp) ;
+  }
 
-    declare4 crypto :        : $(gcc-version) : crypto ;
-    declare4 ssl    : crypto : $(gcc-version) : ssl    ;
+  for local clang-ver in $(clang-vers)
+  {
+    local latest-path ;
+    local latest-rev ;
+    local latest-timestamp ;
+    for local clang-path in $(clang-paths)
+    {
+      local ph ;
+      local ver ;
+      local rev ;
+      local ts ;
+      {
+        local tmp = [ regex.split "$(clang-path)" "," ] ;
+        ph  = "$(tmp[1])" ;
+        ver = $(tmp[2]) ;
+        rev = $(tmp[3]) ;
+        ts  = $(tmp[4]) ;
+      }
+      if ! $(ph) || ! $(ver) || ! $(rev) || ! $(ts)
+      {
+        errors.error "an internal error." ;
+      }
+      if $(ver) = $(clang-ver)
+      {
+        if ! $(latest-path) && ! $(latest-rev) && ! $(latest-timestamp)
+        {
+          latest-path      = "$(ph)" ;
+          latest-rev       = $(rev) ;
+          latest-timestamp = $(ts) ;
+        }
+        else
+        {
+          if $(rev) > $(latest-rev)
+          {
+            latest-path      = "$(ph)" ;
+            latest-rev       = $(rev) ;
+            latest-timestamp = $(ts) ;
+          }
+          else if $(rev) = $(latest-rev)
+          {
+            if $(ts) > $(latest-timestamp)
+            {
+              latest-path      = "$(ph)" ;
+              latest-rev       = $(rev) ;
+              latest-timestamp = $(ts) ;
+            }
+          }
+        }
+      }
+    }
+
+    if ! $(latest-path) || ! $(latest-rev) || ! $(latest-timestamp)
+    {
+      errors.error "an internal error." ;
+    }
+
+    clang-latest-paths += "$(latest-path)",$(clang-ver),$(latest-rev),$(latest-timestamp) ;
   }
 }
 
-alias boost_headers : /boost//headers ;
-
-for local lib-name in date_time exception math_c99 math_c99f math_c99l math_tr1 math_tr1f math_tr1l prg_exec_monitor program_options random serialization signals test_exec_monitor unit_test_framework
 {
-  alias boost_$(lib-name)
-    : /boost//$(lib-name)
-    : <use>boost_headers
-      <use>stdc++
+  local gcc-paths-tmp ;
+  for local gcc-path in $(gcc-paths)
+  {
+    gcc-path = [ regex.split "$(gcc-path)" "," ] ;
+    local ver = [ regex.match "^([0-9]+\\.[0-9]+)\\.[0-9]+$" : $(gcc-path[2]) : 1 ] ;
+    if $(gcc-path[3]) != 99999999
+    {
+      gcc-paths-tmp += "$(gcc-path[1])",$(ver)_$(gcc-path[3]) ;
+      if [ SHELL "[ -x \"$(gcc-path[1]:D)/clang++-wrapper\" ] && echo -n SUCCESS" ] = SUCCESS
+      {
+        gcc-paths-tmp += "$(gcc-path[1]:D)/clang++-wrapper",$(ver)_$(gcc-path[3])_clang ;
+      }
+    }
+  }
+  gcc-paths = $(gcc-paths-tmp) ;
+}
+
+{
+  local gcc-latest-paths-tmp ;
+  for local gcc-latest-path in $(gcc-latest-paths)
+  {
+    gcc-latest-path = [ regex.split "$(gcc-latest-path)" "," ] ;
+    gcc-latest-paths-tmp += "$(gcc-latest-path[1])",$(gcc-latest-path[2]) ;
+    if [ SHELL "[ -x \"$(gcc-latest-path[1]:D)/clang++-wrapper\" ] && echo -n SUCCESS" ] = SUCCESS
+    {
+      gcc-latest-paths-tmp += "$(gcc-latest-path[1]:D)/clang++-wrapper",$(gcc-latest-path[2])_clang ;
+    }
+  }
+  gcc-latest-paths = $(gcc-latest-paths-tmp) ;
+}
+
+{
+  local clang-paths-tmp ;
+  for local clang-path in $(clang-paths)
+  {
+    clang-path = [ regex.split "$(clang-path)" "," ] ;
+    if $(clang-path[3]) != 99999999
+    {
+      clang-paths-tmp += "$(clang-path[1])",$(clang-path[2])_$(clang-path[3]) ;
+    }
+  }
+  clang-paths = $(clang-paths-tmp) ;
+}
+
+{
+  local clang-latest-paths-tmp ;
+  for local clang-latest-path in $(clang-latest-paths)
+  {
+    clang-latest-path = [ regex.split "$(clang-latest-path)" "," ] ;
+    clang-latest-paths-tmp += "$(clang-latest-path[1])",$(clang-latest-path[2]) ;
+  }
+  clang-latest-paths = $(clang-latest-paths-tmp) ;
+}
+
+if $(gcc-paths)
+{
+  constant INTRO_GCC_PATHS : $(gcc-paths) ;
+}
+if $(gcc-latest-paths)
+{
+  constant INTRO_GCC_LATEST_PATHS : $(gcc-latest-paths) ;
+}
+if $(clang-paths)
+{
+  constant INTRO_CLANG_PATHS : $(clang-paths) ;
+}
+if $(clang-latest-paths)
+{
+  constant INTRO_CLANG_LATEST_PATHS : $(clang-latest-paths) ;
+}
+
+#ECHO $(INTRO_GCC_PATHS) ;
+#ECHO $(INTRO_GCC_LATEST_PATHS) ;
+#ECHO $(INTRO_CLANG_PATHS) ;
+#ECHO $(INTRO_CLANG_LATEST_PATHS) ;
+
+
+{
+  local mpi-options ;
+  for local path-ver in in $(INTRO_GCC_PATHS) $(INTRO_GCC_LATEST_PATHS) $(INTRO_CLANG_PATHS) $(INTRO_CLANG_LATEST_PATHS)
+  {
+    local ph ;
+    local ver ;
+    {
+      local tmp = [ regex.split "$(path-ver)" "," ] ;
+      ph = "$(tmp[1])" ;
+      ver = $(tmp[2]) ;
+    }
+    #ECHO $(ver) $(ph) ;
+    if [ SHELL "[ -x \"$(ph:D)/mpic++\" ] && echo -n SUCCESS" ] = SUCCESS
+    {
+      local cxxflags = [ SHELL "\"$(ph:D)/mpic++\" -showme:compile | tr --delete '\\n'" ] ;
+      cxxflags = [ regex.split "$(cxxflags)" " +" ] ;
+      mpi-options += <toolset-gcc:version>$(ver):<cxxflags>$(cxxflags) ;
+      local linkflags = [ SHELL "\"$(ph:D)/mpic++\" -showme:link | tr --delete '\\n'" ] ;
+      linkflags = [ regex.split "$(linkflags)" " +" ] ;
+      mpi-options += <toolset-gcc:version>$(ver):<linkflags>$(linkflags) ;
+    }
+  }
+  #ECHO $(mpi-options) ;
+  if $(mpi-options)
+  {
+    using mpi : : $(mpi-options) ;
+  }
+}
+
+
+local boost-vers ;
+
+for local boost-prefix in [ path.glob "$(boost-root)" : *.*.* ]
+{
+  local ver = [ regex.match "/([0-9]+\\.[0-9]+\\.[0-9]+)$" : "$(boost-prefix)" : 1 ] ;
+  if [ SHELL "[ -f \"$(boost-prefix)/boost/version.hpp\" ] && echo -n SUCCESS" ] != SUCCESS
+  {
+    errors.error "an internal error." ;
+  }
+  if [ SHELL "grep -Fq \"Release $(ver)\" \"$(boost-prefix)/index.html\" && echo -n SUCCESS" ] != SUCCESS
+  {
+    errors.error "an internal error." ;
+  }
+  if ! $(ver) in $(boost-vers)
+  {
+    boost-vers += $(ver) ;
+  }
+}
+
+feature.feature boost-version  : $(boost-vers) : propagated ;
+feature.feature boost-layout   : versioned tagged system : propagated ;
+feature.feature boost-build-id : : free ;
+
+for local ver in $(boost-vers)
+{
+  alias boost_headers : : <boost-version>$(ver) : : <include>$(prefix)/boost/$(ver) ;
+}
+
+#ECHO $(boost-vers) ;
+
+rule boost-tag ( name : type ? : property-set )
+{
+  if $(type) != SEARCHED_LIB
+  {
+    errors.error "an internal error." ;
+  }
+
+  local version     = [ $(property-set).get <boost-version> ] ;
+  local layout      = [ $(property-set).get <boost-layout> ] ;
+  local version-tag = [ regex.replace [ regex.match "^([0-9]+\\.[0-9]+)\\.[0-9]+$" : $(version) : 1 ] "\\." "_" ] ;
+  local build-id    = [ $(property-set).get <boost-build-id> ] ;
+  local result ;
+  if $(layout) = versioned
+  {
+    result = [ common.format-name
+      <base> <toolset> <threading> <runtime> -$(version-tag)
+      -$(build-id)
+      : $(name) : $(type) : $(property-set) ] ;
+  }
+  else if $(layout) = tagged
+  {
+    result = [ common.format-name
+      <base> <threading> <runtime>
+      -$(build-id)
+      : $(name) : $(type) : $(property-set) ] ;            
+  }
+  else if $(layout) = system
+  {
+    result = [ common.format-name
+      <base> 
+      -$(build-id)
+      : $(name) : $(type) : $(property-set) ] ;
+  }
+  else
+  {
+    ECHO "error: invalid layout '$(layout:E=)'" ;
+    EXIT ;               
+  }
+
+  return $(result) ;
+}
+
+rule declare-libs ( libdir : version )
+{
+  #ECHO $(libdir) $(version) ;
+  lib gmp   : : <name>gmp     <search>"$(libdir)" <toolset-gcc:version>$(version) <link>shared <runtime-link>shared ;
+  lib gmp   : : <name>ERROR   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>shared <runtime-link>static ;
+  lib gmp   : : <name>ERROR   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>static <runtime-link>shared ;
+  lib gmp   : : <name>gmp     <search>"$(libdir)" <toolset-gcc:version>$(version) <link>static <runtime-link>static ;
+
+  lib mpfr  : : <name>mpfr    <search>"$(libidr)" <toolset-gcc:version>$(version) <link>shared <runtime-link>shared <use>gmp ;
+  lib mpfr  : : <name>ERROR   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>shared <runtime-link>static <use>gmp ;
+  lib mpfr  : : <name>ERROR   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>static <runtime-link>shared <use>gmp : : <library>gmp ;
+  lib mpfr  : : <name>mpfr    <search>"$(libdir)" <toolset-gcc:version>$(version) <link>static <runtime-link>static <use>gmp : : <library>gmp ;
+
+  lib icudt : : <name>icudata <search>"$(libdir)" <toolset-gcc:version>$(version) <link>shared <runtime-link>shared ;
+  lib icudt : : <name>ERROR   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>shared <runtime-link>static ;
+  lib icudt : : <name>ERROR   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>static <runtime-link>shared ;
+  lib icudt : : <name>icudata <search>"$(libdir)" <toolset-gcc:version>$(version) <link>static <runtime-link>static ;
+
+  lib icuuc : : <name>icuuc   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>shared <runtime-link>shared <use>icudt : :                ;
+  lib icuuc : : <name>ERROR   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>shared <runtime-link>static <use>icudt : :                ;
+  lib icuuc : : <name>ERROR   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>static <runtime-link>shared <use>icudt : : <library>icudt ;
+  lib icuuc : : <name>icuuc   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>static <runtime-link>static <use>icudt : : <library>icudt ;
+
+  lib icuin : : <name>icui18n <search>"$(libdir)" <toolset-gcc:version>$(version) <link>shared <runtime-link>shared <use>icuuc <use>icudt : : ;
+  lib icuin : : <name>ERROR   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>shared <runtime-link>static <use>icuuc <use>icudt : : ;
+  lib icuin : : <name>ERROR   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>static <runtime-link>shared <use>icuuc <use>icudt : : <library>icuuc <library>icudt ;
+  lib icuin : : <name>icui18n <search>"$(libdir)" <toolset-gcc:version>$(version) <link>static <runtime-link>static <use>icuuc <use>icudt : : <library>icuuc <library>icudt ;
+
+  lib icuio : : <name>icuio   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>shared <runtime-link>shared <use>icuin <use>icuuc <use>icudt : : ;
+  lib icuio : : <name>ERROR   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>shared <runtime-link>static <use>icuin <use>icuuc <use>icudt : : ;
+  lib icuio : : <name>ERROR   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>static <runtime-link>shared <use>icuin <use>icuuc <use>icudt : : <library>icuin <library>icuuc <library>icudt ;
+  lib icuio : : <name>icuio   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>static <runtime-link>static <use>icuin <use>icuuc <use>icudt : : <library>icuin <library>icuuc <library>icudt ;
+
+  lib icule : : <name>icule   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>shared <runtime-link>shared <use>icuuc <use>icudt : : ;
+  lib icule : : <name>ERROR   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>shared <runtime-link>static <use>icuuc <use>icudt : : ;
+  lib icule : : <name>ERROR   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>static <runtime-link>shared <use>icuuc <use>icudt : : <library>icuuc <library>icudt ;
+  lib icule : : <name>icule   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>static <runtime-link>static <use>icuuc <use>icudt : : <library>icuuc <library>icudt ;
+
+  lib iculx : : <name>iculx   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>shared <runtime-link>shared <use>icule <use>icuuc <use>icudt : : ;
+  lib iculx : : <name>ERROR   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>shared <runtime-link>static <use>icule <use>icuuc <use>icudt : : ;
+  lib iculx : : <name>ERROR   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>static <runtime-link>shared <use>icule <use>icuuc <use>icudt : : <library>icule <library>icuuc <library>icudt ;
+  lib iculx : : <name>iculx   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>static <runtime-link>static <use>icule <use>icuuc <use>icudt : : <library>icule <library>icuuc <library>icudt ;
+
+  lib icutu : : <name>icutu   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>shared <runtime-link>shared <use>icuin <use>icuuc <use>icudt : : ;
+  lib icutu : : <name>ERROR   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>shared <runtime-link>static <use>icuin <use>icuuc <use>icudt : : ;
+  lib icutu : : <name>ERROR   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>static <runtime-link>shared <use>icuin <use>icuuc <use>icudt : : <library>icuin <library>icuuc <library>icudt ;
+  lib icutu : : <name>icutu   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>static <runtime-link>static <use>icuin <use>icuuc <use>icudt : : <library>icuin <library>icuuc <library>icudt ;
+
+  for local lib-name in date_time exception math_c99 math_c99f math_c99l math_tr1 math_tr1f math_tr1l prg_exec_monitor program_options random serialization signals test_exec_monitor unit_test_framework
+  {
+    lib boost_$(lib-name)
+      :
+      : <name>boost_$(lib-name) <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+        <use>boost_headers
+      ;
+  }
+
+  lib boost_chrono
     :
-    : <link>static:<library>stdc++
-      <link>shared:<xdll-path>"$(prefix)/boost/latest/stage/lib"
+    : <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+      <use>boost_headers
+      <use>boost_system
+    :
+    : <link>static:<library>boost_system
+    ;
+
+  lib boost_filesystem
+    :
+    : <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+      <use>boost_headers
+      <use>boost_system
+    :
+    : <define>BOOST_FILESYSTEM_NO_DEPRECATED
+      <link>static:<library>boost_system
+    ;
+
+  lib boost_graph
+    :
+    : <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+      <use>boost_headers
+      <use>boost_regex
+    :
+    : <link>static:<library>boost_regex
+    ;
+
+  lib boost_graph_parallel
+    :
+    : <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+      <use>boost_headers
+      <use>boost_mpi
+      <use>boost_serialization
+    :
+    : <link>static:<library>boost_mpi
+      <link>static:<library>boost_serialization
+    ;
+
+  lib boost_iostreams
+    :
+    : <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+      <use>boost_headers
+      <use>z
+      <use>bz2
+    :
+    : <link>static:<library>z
+      <link>static:<library>bz2
+    ;
+
+  lib boost_mpi
+    :
+    : <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+      <use>/mpi//mpi
+      <use>boost_headers
+      <use>boost_serialization
+    :
+    : <library>/mpi//mpi
+      <link>static:<library>boost_serialization
+    ;
+
+  lib boost_python
+    :
+    : <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+      <use>boost_headers
+      <use>/python//python
+    :
+    : <library>/python//python
+    ;
+
+  lib boost_regex
+    :
+    : <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+      <use>boost_headers
+      <use>icudt
+      <use>icuuc
+      <use>icuin
+    :
+    : <link>static:<library>icudt
+      <link>static:<library>icuuc
+      <link>static:<library>icuin
+    ;
+
+  lib boost_system
+    :
+    : <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+      <use>boost_headers
+    :
+    : <define>BOOST_SYSTEM_NO_DEPRECATED
+    ;
+
+  lib boost_thread
+    :
+    : <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+      <use>boost_headers
+      <use>boost_system
+    :
+    : <link>static:<library>boost_system
+    ;
+
+  lib boost_wave
+    :
+    : <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+      <use>boost_headers
+      <use>boost_date_time
+      <use>boost_filesystem
+      <use>boost_system
+      <use>boost_thread
+    :
+    : <link>static:<library>boost_date_time
+      <link>static:<library>boost_filesystem
+      <link>static:<library>boost_system
+      <link>static:<library>boost_thread
+    ;
+
+  lib boost_wserialization
+    :
+    : <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+      <use>boost_headers
+      <use>boost_serialization
+    :
+    : <link>static:<library>boost_serialization
     ;
 }
 
-alias boost_chrono
-  : /boost//chrono
-  : <use>boost_headers
-    <use>stdc++
-    <use>boost_system
-  :
-  : <link>static:<library>stdc++
-    <link>static:<library>boost_system
-    <link>shared:<xdll-path>"$(prefix)/boost/latest/stage/lib"
-  ;
+for local gcc-path in $(gcc-paths) $(gcc-latest-paths) $(clang-paths) $(clang-latest-paths)
+{
+  local ph ;
+  local ver ;
+  {
+    local tmp = [ regex.split "$(gcc-path)" "," ] ;
+    ph = "$(tmp[1])" ;
+    ver = $(tmp[2]) ;
+  }
 
-alias boost_filesystem
-  : /boost//filesystem
-  : <use>boost_headers
-    <use>stdc++
-    <use>boost_system
-  :
-  : <define>BOOST_FILESYSTEM_NO_DEPRECATED
-    <link>static:<library>stdc++
-    <link>static:<library>boost_system
-    <link>shared:<xdll-path>"$(prefix)/boost/latest/stage/lib"
-  ;
-
-alias boost_graph
-  : /boost//graph
-  : <use>boost_headers
-    <use>stdc++
-    <use>boost_regex
-  :
-  : <link>static:<library>stdc++
-    <link>static:<library>boost_regex
-    <link>shared:<xdll-path>"$(prefix)/boost/latest/stage/lib"
-  ;
-
-alias boost_graph_parallel
-  : /boost//graph_parallel
-  : <use>boost_headers
-    <use>stdc++
-    <use>boost_mpi
-    <use>boost_serialization
-  :
-  : <link>static:<library>stdc++
-    <link>static:<library>boost_mpi
-    <link>static:<library>boost_serialization
-    <link>shared:<xdll-path>"$(prefix)/boost/latest/stage/lib"
-  ;
-
-alias boost_iostreams
-  : /boost//iostreams
-  : <use>boost_headers
-    <use>stdc++
-    <use>z
-    <use>bz2
-  :
-  : <link>static:<library>stdc++
-    <link>static:<library>z
-    <link>static:<library>bz2
-    <link>shared:<xdll-path>"$(prefix)/boost/latest/stage/lib"
-  ;
-
-alias boost_mpi
-  : /boost//mpi
-  : <use>boost_headers
-    <use>stdc++
-    <use>/mpi//mpi
-    <use>boost_serialization
-  :
-  : <link>static:<library>stdc++
-    <library>/mpi//mpi
-    <link>static:<library>boost_serialization
-    <link>shared:<xdll-path>"$(prefix)/boost/latest/stage/lib"
-  ;
-
-alias boost_python
-  : /boost//python
-  : <use>boost_headers
-    <use>stdc++
-    <use>/python//python
-  :
-  : <link>static:<library>stdc++
-    <library>/python//python
-  ;
-
-alias boost_regex
-  : /boost//regex
-  : <use>boost_headers
-    <use>stdc++
-    <use>icudt
-    <use>icuuc
-    <use>icuin
-  :
-  : <link>static:<library>stdc++
-    <link>static:<library>icudt
-    <link>static:<library>icuuc
-    <link>static:<library>icuin
-    <link>shared:<xdll-path>"$(prefix)/boost/latest/stage/lib"
-  ;
-
-alias boost_system
-  : /boost//system
-  : <use>boost_headers
-    <use>stdc++
-  :
-  : <define>BOOST_SYSTEM_NO_DEPRECATED
-    <link>static:<library>stdc++
-    <link>shared:<xdll-path>"$(prefix)/boost/latest/stage/lib"
-  ;
-
-alias boost_thread
-  : /boost//thread
-  : <use>boost_headers
-    <use>stdc++
-    <use>boost_system
-  :
-  : <link>static:<library>stdc++
-    <link>static:<library>boost_system
-    <link>shared:<xdll-path>"$(prefix)/boost/latest/stage/lib"
-  ;
-
-alias boost_wave
-  : /boost//wave
-  : <use>boost_headers
-    <use>stdc++
-    <use>boost_date_time
-    <use>boost_filesystem
-    <use>boost_system
-    <use>boost_thread
-  :
-  : <link>static:<library>stdc++
-    <link>static:<library>boost_date_time
-    <link>static:<library>boost_filesystem
-    <link>static:<library>boost_system
-    <link>static:<library>boost_thread
-    <link>shared:<xdll-path>"$(prefix)/boost/latest/stage/lib"
-  ;
-
-alias boost_wserialization
-  : /boost//wserialization
-  : <use>boost_headers
-    <use>stdc++
-    <use>boost_serialization
-  :
-  : <link>static:<library>stdc++
-    <link>static:<library>boost_serialization
-    <link>shared:<xdll-path>"$(prefix)/boost/latest/stage/lib"
-  ;
+  declare-libs [ path.make "$(ph:D)/../lib" ] : $(ver) ;
+}
