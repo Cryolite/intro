@@ -294,14 +294,14 @@ rule make-install ( targets * : sources * : properties * )
   local compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(compiler) ] ;
   COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
 
-  OPTIONS on $(targets) = ;
-
   local version = [ feature.get-values <cloog> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
 
   # Set the path to the source directory.
   local srcdir = "$(INTRO_ROOT_DIR)/cloog-$(version)" ;
   SRCDIR on $(targets) = "$(srcdir)" ;
+
+  OPTIONS on $(targets) = ;
 
   # Set the '--build' and '--host' options for the 'configure' script.
   local triplet = [ feature.get-values <triplet> : $(properties) ] ;
@@ -334,13 +334,13 @@ rule make-install ( targets * : sources * : properties * )
   {
     if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
     {
-      OPTIONS on $(targets) += CC=\"$(compiler-prefix)/bin/gcc\" ;
-      OPTIONS on $(targets) += CXX=\"$(compiler-prefix)/bin/g++\" ;
+      OPTIONS on $(targets) += CC=\"$(compiler-prefix)/bin/gcc-wrapper\" ;
+      OPTIONS on $(targets) += CXX=\"$(compiler-prefix)/bin/g++-wrapper\" ;
     }
     else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
     {
-      OPTIONS on $(targets) += CC=\"$(compiler-prefix)/bin/clang\" ;
-      OPTIONS on $(targets) += CXX=\"$(compiler-prefix)/bin/clang++\" ;
+      OPTIONS on $(targets) += CC=\"$(compiler-prefix)/bin/clang-wrapper\" ;
+      OPTIONS on $(targets) += CXX=\"$(compiler-prefix)/bin/clang++-wrapper\" ;
     }
     else
     {
@@ -351,10 +351,6 @@ rule make-install ( targets * : sources * : properties * )
   if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
   {
     ENV_RUN_VARS on $(targets) = "env PATH=\"$(compiler-prefix)/bin${PATH:+:$PATH}\"" ;
-  }
-  else
-  {
-    ENV_RUN_VARS on $(targets) = "env LD_LIBRARY_PATH=\"$(compiler-prefix)/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"" ;
   }
 }
 actions make-install

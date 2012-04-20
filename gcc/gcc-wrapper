@@ -9,8 +9,18 @@ if [ "$dir" != "." ]; then
     fi
 fi
 dir="$(cd "$dir"; pwd)"
+libdir="$(dirname "$dir")/lib"
 
-/usr/bin/env LD_LIBRARY_PATH=${dir}/../../lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH} "${dir}/gcc" "$@"
+if uname | grep -Fq 'Linux'; then
+    # It is more suitable to set `LD_RUN_PATH' environment variable. However,
+    # gold linker has a bug that ignores this environment variable.
+    # http://sourceware.org/bugzilla/show_bug.cgi?id=13764
+    "${dir}/gcc" -Wl,-rpath="$libdir" "$@"
+elif uname | grep -Fq 'CYGWIN'; then
+    env PATH="${dir}/../bin${PATH:+:$PATH}" "${dir}/gcc" "$@"
+else
+    exit 1
+fi
 result=$?
 
 exit $result

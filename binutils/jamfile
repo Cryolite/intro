@@ -307,17 +307,18 @@ rule make-install ( targets * : sources * : properties * )
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
 
-  OPTIONS on $(targets) = ;
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(compiler) ] ;
+  COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
 
   local version = [ feature.get-values <binutils> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
 
-  local compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(compiler) ] ;
-  COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
-
   # Set the path to the source directory.
   local srcdir = "$(INTRO_ROOT_DIR)/binutils-$(version)" ;
   SRCDIR on $(targets) = $(srcdir) ;
+
+  OPTIONS on $(targets) = ;
 
   # Set the '--build', '--host' and '--target' options for the 'configure' script.
   local triplet = [ feature.get-values <triplet> : $(properties) ] ;
@@ -327,7 +328,9 @@ rule make-install ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --target=$(triplet) ;
 
   # Set the '--prefix' option for the 'configure' script.
-  OPTIONS on $(targets) += --prefix=\"$(PREFIX)\" ;
+  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
+  OPTIONS on $(targets) += --prefix=\"$(compiler-prefix)\" ;
 
   OPTIONS on $(targets) += --enable-ld ;
   OPTIONS on $(targets) += --enable-gold=default ;
@@ -336,6 +339,30 @@ rule make-install ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) += --enable-lto ;
   OPTIONS on $(targets) += --enable-plugins ;
+
+  if ! [ "$(INTRO_ROOT_DIR)/compilers.is-builtin-gcc" $(compiler) ]
+  {
+    if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
+    {
+      OPTIONS on $(targets) += CC=\"$(compiler-prefix)/bin/gcc-wrapper\" ;
+      OPTIONS on $(targets) += CXX=\"$(compiler-prefix)/bin/g++-wrapper\" ;
+    }
+    else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
+    {
+      OPTIONS on $(targets) += CC=\"$(compiler-prefix)/bin/clang-wrapper\" ;
+      OPTIONS on $(targets) += CXX=\"$(compiler-prefix)/bin/clang++-wrapper\" ;
+    }
+    else
+    {
+      errors.error "an internal error." ;
+    }
+  }
+
+  ENV_RUN_VARS on $(targets) = ;
+  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
+  {
+    ENV_RUN_VARS on $(targets) = "env PATH=\"$(compiler-prefix)/bin${PATH:+:$PATH}\"" ;
+  }
 }
 actions make-install
 {
@@ -350,9 +377,9 @@ actions make-install
   { mkdir -p "$objdir" && ( cd "$objdir" && rm -rf * ); } || exit 1
 
   if [ -n "$(STREAM)" ]; then
-    ( cd "$objdir" && "$(SRCDIR)/configure" $(OPTIONS) >> "$(STREAM)" 2>&1 )
+    ( cd "$objdir" && $(ENV_RUN_VARS) "$(SRCDIR)/configure" $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$objdir" && "$(SRCDIR)/configure" $(OPTIONS) )
+    ( cd "$objdir" && $(ENV_RUN_VARS) "$(SRCDIR)/configure" $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'configure' Binutils $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
@@ -364,9 +391,9 @@ actions make-install
   [ -f "${objdir}/Makefile" ] || exit 1
 
   if [ -n "$(STREAM)" ]; then
-    ( cd "$objdir" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
+    ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$objdir" && make --jobs=$(CONCURRENCY) )
+    ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make' Binutils $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
@@ -375,9 +402,9 @@ actions make-install
   fi
 
   if [ -n "$(STREAM)" ]; then
-    ( cd "$objdir" && make --jobs=$(CONCURRENCY) check >> "$(STREAM)" 2>&1 )
+    ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) check >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$objdir" && make --jobs=$(CONCURRENCY) check )
+    ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) check )
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make check' Binutils $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
@@ -386,9 +413,9 @@ actions make-install
   fi
 
   if [ -n "$(STREAM)" ]; then
-    ( cd "$objdir" && make install >> "$(STREAM)" 2>&1 )
+    ( cd "$objdir" && $(ENV_RUN_VARS) make install >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$objdir" && make install )
+    ( cd "$objdir" && $(ENV_RUN_VARS) make install )
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make install' Binutils $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
