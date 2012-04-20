@@ -1,4 +1,4 @@
-project intro/prerequisites/cloog ;
+project intro/ppl ;
 
 import alias ;
 import errors ;
@@ -11,7 +11,7 @@ rule assert-specified ( feature : properties * )
 {
   local val = [ feature.get-values $(feature) : $(properties) ] ;
   if $(val) = unspecified {
-    errors.error $(feature) is not specified for CLooG build. ;
+    errors.error $(feature) is not specified for PPL build. ;
   }
 }
 
@@ -19,7 +19,7 @@ rule assert-unspecified ( feature : properties * )
 {
   local val = [ feature.get-values $(feature) : $(properties) ] ;
   if $(val) != unspecified {
-    errors.error $(feature) is not valid for CLooG build. ;
+    errors.error $(feature) is not valid for PPL build. ;
   }
 }
 
@@ -56,11 +56,11 @@ rule compiler-dep-req ( properties * )
   local result ;
   if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
   {
-    result = <source>../../gcc//install/<multilib>$(multilib)/<multilib-hidden>unspecified ;
+    result = <source>../gcc//install/<multilib>$(multilib)/<multilib-hidden>unspecified ;
   }
   else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
   {
-    result = <source>../../clang//install/<multilib-hidden>unspecified ;
+    result = <source>../clang//install/<multilib-hidden>unspecified ;
   }
   else
   {
@@ -73,10 +73,10 @@ alias compiler-dep : : <conditional>@compiler-dep-req ;
 explicit compiler-dep ;
 
 
-for local version in $(CLOOG_VERSIONS)
+for local version in $(PPL_VERSIONS)
 {
-  make "$(INTRO_ROOT_DIR)/cloog-$(version).tar.gz" : : @download ;
-  explicit "$(INTRO_ROOT_DIR)/cloog-$(version).tar.gz" ;
+  make "$(INTRO_ROOT_DIR)/ppl-$(version).tar.bz2" : : @download ;
+  explicit "$(INTRO_ROOT_DIR)/ppl-$(version).tar.bz2" ;
 }
 
 rule download ( targets * : sources * : properties * )
@@ -97,9 +97,9 @@ rule download ( targets * : sources * : properties * )
   assert-unspecified <mpc>             : $(properties) ;
   assert-unspecified <mpc-hidden>      : $(properties) ;
   assert-unspecified <ppl>             : $(properties) ;
-  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-specified   <ppl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
-  assert-specified   <cloog-hidden>    : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-unspecified <compiler>        : $(properties) ;
   assert-unspecified <compiler-hidden> : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
@@ -110,10 +110,9 @@ rule download ( targets * : sources * : properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
-  local version = [ feature.get-values <cloog-hidden> : $(properties) ] ;
+  local version = [ feature.get-values <ppl-hidden> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
-  URL on $(targets) = http://ftp.dti.ad.jp/pub/lang/gcc/infrastructure/cloog-$(version).tar.gz ;
-  #URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/gcc/infrastructure/cloog-$(version).tar.gz ;
+  URL on $(targets) = http://bugseng.com/products/ppl/download/ftp/releases/$(version)/ppl-$(version).tar.bz2 ;
 }
 actions download
 {
@@ -124,8 +123,8 @@ actions download
     ( cd "$(<:D)" && wget --quiet -- '$(URL)' )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to download CLooG $(VERSION) tarball." 1>&2
-    echo -n "ERROR: failed to download CLooG $(VERSION) tarball." | $(AWACS)
+    echo "ERROR: failed to download PPL $(VERSION) tarball." 1>&2
+    echo -n "ERROR: failed to download PPL $(VERSION) tarball." | $(AWACS)
     rm -rf "$(<)"
     exit 1
   fi
@@ -134,7 +133,7 @@ actions download
 }
 
 
-for local version in $(CLOOG_VERSIONS)
+for local version in $(PPL_VERSIONS)
 {
   # Use `README' file as a target representing the completion of
   # decompression action. It is suitable for the purpose because of the
@@ -144,11 +143,11 @@ for local version in $(CLOOG_VERSIONS)
   #     changes.
   #   - This file won't be modified during the build procedure.
   #
-  make "$(INTRO_ROOT_DIR)/cloog-$(version)/README"
-    : "$(INTRO_ROOT_DIR)/cloog-$(version).tar.gz"
+  make "$(INTRO_ROOT_DIR)/ppl-$(version)/README"
+    : "$(INTRO_ROOT_DIR)/ppl-$(version).tar.bz2"
     : @expand
     ;
-  explicit "$(INTRO_ROOT_DIR)/cloog-$(version)/README" ;
+  explicit "$(INTRO_ROOT_DIR)/ppl-$(version)/README" ;
 }
 
 rule expand ( targets * : sources * : properties * )
@@ -173,9 +172,9 @@ rule expand ( targets * : sources * : properties * )
   assert-unspecified <mpc>             : $(properties) ;
   assert-unspecified <mpc-hidden>      : $(properties) ;
   assert-unspecified <ppl>             : $(properties) ;
-  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-specified   <ppl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
-  assert-specified   <cloog-hidden>    : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-unspecified <compiler>        : $(properties) ;
   assert-unspecified <compiler-hidden> : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
@@ -186,7 +185,7 @@ rule expand ( targets * : sources * : properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
-  local version = [ feature.get-values <cloog-hidden> : $(properties) ] ;
+  local version = [ feature.get-values <ppl-hidden> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
 }
 actions expand
@@ -194,13 +193,13 @@ actions expand
   rm -rf "$(<:D)" || exit 1
   [ -f "$(>)" ] || exit 1
   if [ -n "$(STREAM)" ]; then
-    tar xzvf "$(>)" --directory="$(INTRO_ROOT_DIR)" >> "$(STREAM)" 2>&1
+    tar xjvf "$(>)" --directory="$(INTRO_ROOT_DIR)" >> "$(STREAM)" 2>&1
   else
-    tar xzf "$(>)" --directory="$(INTRO_ROOT_DIR)"
+    tar xjf "$(>)" --directory="$(INTRO_ROOT_DIR)"
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to expand CLooG $(VERSION) tarball." 1>&2
-    echo -n "ERROR: failed to expand CLooG $(VERSION) tarball." | $(AWACS)
+    echo "ERROR: failed to expand PPL $(VERSION) tarball." 1>&2
+    echo -n "ERROR: failed to expand PPL $(VERSION) tarball." | $(AWACS)
     rm -rf "$(<:D)"
     exit 1
   fi
@@ -227,9 +226,9 @@ rule srcdir-req ( properties * )
   assert-unspecified <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
   assert-unspecified <mpc-hidden>      : $(properties) ;
-  assert-unspecified <ppl>             : $(properties) ;
+  assert-specified   <ppl>             : $(properties) ;
   assert-unspecified <ppl-hidden>      : $(properties) ;
-  assert-specified   <cloog>           : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-unspecified <compiler>        : $(properties) ;
   assert-unspecified <compiler-hidden> : $(properties) ;
@@ -241,8 +240,8 @@ rule srcdir-req ( properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
-  local version = [ feature.get-values <cloog> : $(properties) ] ;
-  return <source>"$(INTRO_ROOT_DIR)/cloog-$(version)/README/<cloog>unspecified/<cloog-hidden>$(version)" ;
+  local version = [ feature.get-values <ppl> : $(properties) ] ;
+  return <source>"$(INTRO_ROOT_DIR)/ppl-$(version)/README/<ppl>unspecified/<ppl-hidden>$(version)" ;
 }
 
 alias srcdir : : <conditional>@srcdir-req ;
@@ -253,13 +252,13 @@ for local compiler in $(COMPILERS)
 {
   local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
   local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-  make "$(compiler-prefix)/include/cloog/cloog.h"
-    : compiler-dep/<gmp>unspecified/<cloog>unspecified
-      ../../gmp//install/<cloog>unspecified
+  make "$(compiler-prefix)/include/ppl.hh"
+    : compiler-dep/<gmp>unspecified/<ppl>unspecified
+      ../gmp//install/<ppl>unspecified
       srcdir/<triplet>unspecified/<multilib-hidden>unspecified/<gmp>unspecified/<compiler>unspecified
     : @make-install
     ;
-  explicit "$(compiler-prefix)/include/cloog/cloog.h" ;
+  explicit "$(compiler-prefix)/include/ppl.hh" ;
 }
 
 rule make-install ( targets * : sources * : properties * )
@@ -275,9 +274,9 @@ rule make-install ( targets * : sources * : properties * )
   assert-unspecified <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
   assert-unspecified <mpc-hidden>      : $(properties) ;
-  assert-unspecified <ppl>             : $(properties) ;
+  assert-specified   <ppl>             : $(properties) ;
   assert-unspecified <ppl-hidden>      : $(properties) ;
-  assert-specified   <cloog>           : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-specified   <compiler>        : $(properties) ;
   assert-unspecified <compiler-hidden> : $(properties) ;
@@ -294,11 +293,11 @@ rule make-install ( targets * : sources * : properties * )
   local compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(compiler) ] ;
   COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
 
-  local version = [ feature.get-values <cloog> : $(properties) ] ;
+  local version = [ feature.get-values <ppl> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
 
   # Set the path to the source directory.
-  local srcdir = "$(INTRO_ROOT_DIR)/cloog-$(version)" ;
+  local srcdir = "$(INTRO_ROOT_DIR)/ppl-$(version)" ;
   SRCDIR on $(targets) = "$(srcdir)" ;
 
   OPTIONS on $(targets) = ;
@@ -326,9 +325,7 @@ rule make-install ( targets * : sources * : properties * )
     OPTIONS on $(targets) += --enable-shared ;
   }
 
-  OPTIONS on $(targets) += --with-gmp=system ;
-  OPTIONS on $(targets) += --with-gmp-prefix=\"$(compiler-prefix)\" ;
-
+  OPTIONS on $(targets) += --with-gmp=\"$(compiler-prefix)\" ;
 
   if ! [ "$(INTRO_ROOT_DIR)/compilers.is-builtin-gcc" $(compiler) ]
   {
@@ -355,13 +352,15 @@ rule make-install ( targets * : sources * : properties * )
 }
 actions make-install
 {
-  # Restore the hacked configure script. See also `../../gcc/jamfile'.
+  # Restore the hacked configure script. See also `../gcc/jamfile'.
   if [ -e "$(SRCDIR)/real-configure" ]; then
     [ ! -x "$(SRCDIR)/real-configure" ] && exit 1
     mv -f "$(SRCDIR)/real-configure" "$(SRCDIR)/configure" || exit 1
   fi
 
   [ -x "$(SRCDIR)/configure" ] || exit 1
+  [ -x "$(SRCDIR)/config.sub" ] || exit 1
+  [ `"$(SRCDIR)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit 1
 
   # Set the absolute path to `objdir'.
   objdir="$(INTRO_ROOT_DIR)/objdir"
@@ -375,8 +374,8 @@ actions make-install
     ( cd "$objdir" && $(ENV_RUN_VARS) "$(SRCDIR)/configure" $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'configure' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'configure' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'configure' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'configure' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
 
@@ -389,19 +388,25 @@ actions make-install
     ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'make' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
 
   if [ -n "$(STREAM)" ]; then
-    ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) check >> "$(STREAM)" 2>&1 )
+    # 0.12 can't run `make check'. See https://www.cs.unipr.it/mantis/view.php?id=350.
+    if [ $(VERSION) != 0.12 ]; then
+      ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) check >> "$(STREAM)" 2>&1 )
+    fi
   else
-    ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) check )
+    # 0.12 can't run `make check'. See https://www.cs.unipr.it/mantis/view.php?id=350.
+    if [ $(VERSION) != 0.12 ]; then
+      ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) check )
+    fi
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make check' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make check' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'make check' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make check' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
 
@@ -411,8 +416,8 @@ actions make-install
     ( cd "$objdir" && $(ENV_RUN_VARS) make install )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make install' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make install' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'make install' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make install' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
 
@@ -421,7 +426,7 @@ actions make-install
   # Clean up the `objdir'.
   rm -rf "$objdir" || exit 1
 
-  echo -n "CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built." | $(AWACS)
+  echo -n "PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built." | $(AWACS)
   exit 0
 }
 
@@ -439,9 +444,9 @@ rule install-req ( properties * )
   assert-unspecified <mpfr-hidden>     : $(properties) ;
   assert-unspecified <mpc>             : $(properties) ;
   assert-unspecified <mpc-hidden>      : $(properties) ;
-  assert-unspecified <ppl>             : $(properties) ;
+  assert-specified   <ppl>             : $(properties) ;
   assert-unspecified <ppl-hidden>      : $(properties) ;
-  assert-specified   <cloog>           : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-specified   <compiler>        : $(properties) ;
   assert-unspecified <compiler-hidden> : $(properties) ;
@@ -456,7 +461,7 @@ rule install-req ( properties * )
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
   local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-  return <source>"$(compiler-prefix)/include/cloog/cloog.h" ;
+  return <source>"$(compiler-prefix)/include/ppl.hh" ;
 }
 
 alias install : : <conditional>@install-req ;

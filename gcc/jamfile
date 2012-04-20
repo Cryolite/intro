@@ -233,8 +233,8 @@ for local gcc in [ "$(INTRO_ROOT_DIR)/compilers.get-gccs" $(COMPILERS) ]
       ../gmp//srcdir/<triplet>unspecified/<multilib>unspecified/<gmp>$(GMP_FOR_GCC)/<compiler>unspecified
       ../mpfr//srcdir/<triplet>unspecified/<multilib>unspecified/<mpfr>$(MPFR_FOR_GCC)/<compiler>unspecified
       ../mpc//srcdir/<triplet>unspecified/<multilib>unspecified/<mpc>$(MPC_FOR_GCC)/<compiler>unspecified
-      ../prerequisites/ppl//srcdir/<triplet>unspecified/<multilib>unspecified/<ppl>$(PPL_FOR_GCC)/<compiler>unspecified
-      ../prerequisites/cloog//srcdir/<triplet>unspecified/<multilib>unspecified/<cloog>$(CLOOG_FOR_GCC)/<compiler>unspecified
+      ../ppl//srcdir/<triplet>unspecified/<multilib>unspecified/<ppl>$(PPL_FOR_GCC)/<compiler>unspecified
+      ../cloog//srcdir/<triplet>unspecified/<multilib>unspecified/<cloog>$(CLOOG_FOR_GCC)/<compiler>unspecified
       srcdir/<triplet>unspecified/<multilib>unspecified
     : @make-install
     ;
