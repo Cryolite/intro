@@ -531,7 +531,7 @@ if ! $(mpi) in openmpi mpich2 unspecified
 ECHO mpi... $(mpi) ;
 
 
-local clang = [ option.get enable-clang : no : yes ] ;
+local clang = [ option.get enable-clang : yes : yes ] ;
 if ! $(clang) in no yes
 {
   errors.error "ERROR: `$(clang)' is a wrong value for `--enable-clang' option.\n"
@@ -711,7 +711,7 @@ for local compiler in $(compilers)
       icu4c//install/<multilib-hidden>$(multilib)/<icu4c>$(ICU4C)
       openmpi//install/<multilib-hidden>$(multilib)/<mpi>openmpi/<openmpi>$(OPENMPI)
       boost//install/<multilib-hidden>$(multilib)/<icu4c>$(ICU4C)/<mpi>openmpi/<openmpi>$(OPENMPI)/<boost>$(BOOST)
-      #$(clang)
+      $(clang)
     : <triplet>$(triplet)
       <compiler>$(compiler)
     ;

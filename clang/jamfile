@@ -4,7 +4,7 @@ import alias ;
 import errors ;
 import feature ;
 import make ;
-import regex ;
+import "$(INTRO_ROOT_DIR)/compilers" ;
 
 
 rule assert-specified ( feature : properties * )
@@ -41,8 +41,8 @@ rule gcc-dep-req ( properties * )
   assert-unspecified <ppl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-specified   <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-specified   <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
   assert-unspecified <mpi>             : $(properties) ;
@@ -52,20 +52,43 @@ rule gcc-dep-req ( properties * )
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
   local multilib = [ feature.get-values <multilib-hidden> : $(properties) ] ;
-  return <source>../gcc//install/<multilib>$(multilib)/<multilib-hidden>unspecified ;
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local result ;
+  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
+  {
+    result = <source>../gcc//install/<multilib>$(multilib)/<multilib-hidden>unspecified ;
+  }
+  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
+  {
+    if ! $(GCC_FOR_CLANG)
+    {
+      errors.error "an internal error." ;
+    }
+    result = <source>../gcc//install/<compiler>$(GCC_FOR_CLANG)/<multilib>$(multilib)/<multilib-hidden>unspecified ;
+  }
+  else
+  {
+    errors.error "an internal error." ;
+  }
+  return $(result) ;
 }
 
 alias gcc-dep : : <conditional>@gcc-dep-req ;
 explicit gcc-dep ;
 
 
-make make
-  : gcc-dep
-  : @make-clang
-  ;
-explicit make ;
+for local compiler in $(COMPILERS)
+{
+  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" "$(compiler)" : "$(GCC_FOR_CLANG)" ] ;
+  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
+  make "$(compiler-prefix)/bin/clang++-wrapper"
+    : gcc-dep
+    : @make-install
+    ;
+  explicit "$(compiler-prefix)/bin/clang++-wrapper" ;
+}
 
-rule make-clang ( targets * : sources * : properties * )
+rule make-install ( targets * : sources * : properties * )
 {
   assert-specified   <triplet>         : $(properties) ;
   assert-unspecified <multilib>        : $(properties) ;
@@ -82,8 +105,8 @@ rule make-clang ( targets * : sources * : properties * )
   assert-unspecified <ppl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-specified   <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-specified   <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
   assert-unspecified <mpi>             : $(properties) ;
@@ -93,17 +116,18 @@ rule make-clang ( targets * : sources * : properties * )
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
 
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" "$(compiler)" ] ;
+  COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
+
   local llvm-dir = "$(INTRO_ROOT_DIR)/llvm" ;
   LLVM_DIR on $(targets) = "$(llvm-dir)" ;
 
   local clang-dir = "$(llvm-dir)/tools/clang" ;
   CLANG_DIR on $(targets) = "$(clang-dir)" ;
 
-  local configure = "$(llvm-dir)/configure" ;
-  CONFIGURE on $(targets) = "$(configure)" ;
-
-  local config-sub = "$(llvm-dir)/autoconf/config.sub" ;
-  CONFIG_SUB on $(targets) = "$(configure:D)/autoconf/config.sub" ;
+  local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
+  OBJDIR on $(targets) = "$(objdir)" ;
 
   local triplet = [ feature.get-values <triplet> : $(properties) ] ;
   TRIPLET on $(targets) = $(triplet) ;
@@ -119,36 +143,56 @@ rule make-clang ( targets * : sources * : properties * )
   GCC on $(targets) = $(gcc) ;
 
   # Set the '--prefix' option for the 'configure' script.
-  OPTIONS on $(targets) += --prefix=\"$(PREFIX)/gcc-$(gcc)\" ;
+  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
+  COMPILER_PREFIX on $(targets) = "$(compiler-prefix)" ;
+  OPTIONS on $(targets) += "--prefix=\"$(compiler-prefix)\"" ;
 
-  if $(gcc) != $(GCC_BUILTIN) {
-    OPTIONS on $(targets) += "--with-c-include-dirs=\"$(PREFIX)/gcc-$(gcc)/include:/usr/include\"" ;
-    OPTIONS on $(targets) += "--with-cxx-include-root=\"$(PREFIX)/gcc-$(gcc)/include/c++/\"`\"$(PREFIX)/gcc-$(gcc)/bin/g++\" -dumpversion`" ;
+  OPTIONS on $(targets) += "--enable-bindings=none" ;
+
+  if ! [ "$(INTRO_ROOT_DIR)/compilers.is-builtin-gcc" $(compiler) ]
+  {
+    OPTIONS on $(targets) += "--with-c-include-dirs=\"$(compiler-prefix)/include:/usr/include\"" ;
+    OPTIONS on $(targets) += "--with-cxx-include-root=\"$(compiler-prefix)/include/c++/\"`\"$(compiler-prefix)/bin/g++\" -dumpversion`" ;
     OPTIONS on $(targets) += --with-cxx-include-arch=$(triplet) ;
-    if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32 {
+    if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32
+    {
       OPTIONS on $(targets) += --with-cxx-include-32bit-dir=32 ;
     }
   }
 
-  if $(gcc) != $(GCC_BUILTIN) {
-    OPTIONS on $(targets) += CC="\"$(PREFIX)/gcc-$(gcc)/bin/gcc\"" ;
-    OPTIONS on $(targets) += CXX="\"$(PREFIX)/gcc-$(gcc)/bin/g++\"" ;
+  if ! [ "$(INTRO_ROOT_DIR)/compilers.is-builtin-gcc" $(compiler) ]
+  {
+    OPTIONS on $(targets) += "CC=\"$(compiler-prefix)/bin/gcc-wrapper\"" ;
+    OPTIONS on $(targets) += "CXX=\"$(compiler-prefix)/bin/g++-wrapper\"" ;
   }
 
-  local version-prefix = "$(PREFIX)/gcc-$(gcc)" ;
-  VERSION_PREFIX on $(targets) = $(version-prefix) ;
-
-  ENV_DYN_LINK_VARS on $(targets) = ;
-  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32 {
-    ENV_DYN_LINK_VARS on $(targets) = "env PATH=\"$(PREFIX)/gcc-$(gcc)/bin${PATH:+:$PATH}\"" ;
+  ENV_FOR_CONFIGURE on $(targets) = ;
+  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
+  {
+    ENV_FOR_CONFIGURE on $(targets) = "env PATH=\"$(compiler-prefix)/bin${PATH:+:$PATH}\"" ;
   }
-  else {
-    ENV_DYN_LINK_VARS on $(targets) = "env LD_LIBRARY_PATH=\"$(PREFIX)/gcc-$(gcc)/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"" ;
+
+  ENV_FOR_MAKE on $(targets) = ;
+  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
+  {
+    ENV_FOR_MAKE on $(targets) = "env PATH=\"$(compiler-prefix)/bin${PATH:+:$PATH}\"" ;
+  }
+
+  ENV_FOR_MAKE_CHECK on $(targets) = ;
+  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
+  {
+    ENV_FOR_MAKE_CHECK on $(targets) = "env PATH=\"$(compiler-prefix)/bin${PATH:+:$PATH}\"" ;
+  }
+
+  ENV_FOR_MAKE_INSTALL on $(targets) = ;
+  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
+  {
+    ENV_FOR_MAKE_INSTALL on $(targets) = "env PATH=\"$(compiler-prefix)/bin${PATH:+:$PATH}\"" ;
   }
 }
-actions make-clang
+actions make-install
 {
-  rm -f "$(<)" || exit $?
   if [ ! -d "$(LLVM_DIR)" ]; then
     if [ -n "$(STREAM)" ]; then
       ( cd "$(INTRO_ROOT_DIR)" && svn checkout http://llvm.org/svn/llvm-project/llvm/trunk llvm >> "$(STREAM)" 2>&1 )
@@ -163,9 +207,11 @@ actions make-clang
     fi
     [ -d "$(LLVM_DIR)" ] || exit 1
   fi
-  [ -x "$(CONFIG_SUB)" ] || exit 1
-  [ `"$(CONFIG_SUB)" $(TRIPLET)` = $(TRIPLET) ] || exit 1
-  [ -x "$(CONFIGURE)" ] || exit 1
+
+  [ -x "$(LLVM_DIR)/autoconf/config.sub" ] || exit 1
+  [ `"$(LLVM_DIR)/autoconf/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit 1
+  [ -x "$(LLVM_DIR)/configure" ] || exit 1
+
   if [ ! -d "$(CLANG_DIR)" ]; then
     if [ -n "$(STREAM)" ]; then
       ( cd "$(INTRO_ROOT_DIR)/llvm/tools" && svn checkout http://llvm.org/svn/llvm-project/cfe/trunk clang >> "$(STREAM)" 2>&1 )
@@ -180,6 +226,7 @@ actions make-clang
     fi
     [ -d "$(CLANG_DIR)" ] || exit 1
   fi
+
   if [ -n "$(STREAM)" ]; then
     ( cd "$(LLVM_DIR)" && svn update >> "$(STREAM)" 2>&1 )
   else
@@ -190,6 +237,7 @@ actions make-clang
     echo -n "ERROR: failed to 'svn update' LLVM repository." | $(AWACS)
     exit 1
   fi
+
   if [ -n "$(STREAM)" ]; then
     ( cd "$(CLANG_DIR)" && svn update >> "$(STREAM)" 2>&1 )
   else
@@ -200,54 +248,76 @@ actions make-clang
     echo -n "ERROR: failed to 'svn update' Clang repository." | $(AWACS)
     exit 1
   fi
+
+  # Extract the revision number of Clang.
   clang_rev=`( cd "$(CLANG_DIR)" && { env LANG=C svn info || exit 1; } | { grep -E 'Revision: [[:digit:]]+' || exit 1; } | { grep -oE '[[:digit:]]+' || exit 1; } )`
-  [ $? -eq 0 ] || $?
-  { mkdir -p "$(<:D)/build" && ( cd "$(<:D)/build" && rm -rf * ); } || exit 1
+  [ $? -eq 0 ] || 1
+
+  # Clean up the $(OBJDIR).
+  { mkdir -p "$(OBJDIR)" && ( cd "$(OBJDIR)" && rm -rf * ); } || exit 1
+
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)/build" && $(ENV_DYN_LINK_VARS) "$(CONFIGURE)" $(OPTIONS) >> "$(STREAM)" 2>&1 )
+    ( cd "$(OBJDIR)" && $(ENV_FOR_CONFIGURE) "$(LLVM_DIR)/configure" $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(<:D)/build" && $(ENV_DYN_LINK_VARS) "$(CONFIGURE)" $(OPTIONS) )
+    ( cd "$(OBJDIR)" && $(ENV_FOR_CONFIGURE) "$(LLVM_DIR)/configure" $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'configure' LLVM & Clang Rev.${clang_rev} (GCC $(GCC), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'configure' LLVM & Clang Rev.${clang_rev} (GCC $(GCC), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'configure' LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'configure' LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
-  [ -f "$(<:D)/build/Makefile" ] || exit 1
+
+  # Check the creation of `Makefile'.
+  [ -f "$(OBJDIR)/Makefile" ] || exit 1
+
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)/build" && $(ENV_DYN_LINK_VARS) make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
+    ( cd "$(OBJDIR)" && $(ENV_FOR_MAKE) make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(<:D)/build" && $(ENV_DYN_LINK_VARS) make --jobs=$(CONCURRENCY) )
+    ( cd "$(OBJDIR)" && $(ENV_FOR_MAKE) make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make' LLVM & Clang Rev.${clang_rev} (GCC $(GCC), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make' LLVM & Clang Rev.${clang_rev} (GCC $(GCC), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'make' LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make' LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
+
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)/build" && $(ENV_DYN_LINK_VARS) make check >> "$(STREAM)" 2>&1 )
+    ( cd "$(OBJDIR)" && $(ENV_FOR_MAKE_CHECK) make check >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(<:D)/build" && $(ENV_DYN_LINK_VARS) make check )
+    ( cd "$(OBJDIR)" && $(ENV_FOR_MAKE_CHECK) make check )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make check' LLVM & Clang Rev.${clang_rev} (GCC $(GCC), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make check' LLVM & Clang Rev.${clang_rev} (GCC $(GCC), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'make check' LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make check' LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
+
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)/build" && $(ENV_DYN_LINK_VARS) make install >> "$(STREAM)" 2>&1 )
+    ( cd "$(OBJDIR)" && $(ENV_FOR_MAKE_INSTALL) make install >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(<:D)/build" && $(ENV_DYN_LINK_VARS) make install )
+    ( cd "$(OBJDIR)" && $(ENV_FOR_MAKE_INSTALL) make install )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make install' LLVM & Clang Rev.${clang_rev} (GCC $(GCC), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make install' LLVM & Clang Rev.${clang_rev} (GCC $(GCC), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'make install' LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make install' LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
-  ( cd "$(<:D)" && rm -rf build )
-  [ -e "$(<)" ] && exit 1
-  echo -n "LLVM & Clang Rev.${clang_rev} (GCC $(GCC), $(TRIPLET)) was successfully built." | $(AWACS)
-  touch "$(<)"
+
+  install --mode=755 "$(INTRO_ROOT_DIR)/clang/clang-wrapper" "$(INTRO_ROOT_DIR)/clang/clang++-wrapper" "$(COMPILER_PREFIX)/bin"
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to install the wrapper scripts for LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to install the wrapper scripts for LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    exit 1
+  fi
+
+  # Check the creation of `clang++-wrapper'.
+  [ -x "$(<)" ] || exit 1
+
+  # Clean up the "$(OBJDIR)".
+  rm -rf "$(OBJDIR)" || exit 1
+
+  echo -n "LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built." | $(AWACS)
+  exit 0
 }
 
 
@@ -268,8 +338,8 @@ rule install-req ( properties * )
   assert-unspecified <ppl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
-  assert-specified   <gcc>             : $(properties) ;
-  assert-unspecified <gcc-hidden>      : $(properties) ;
+  assert-specified   <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
   assert-unspecified <mpi>             : $(properties) ;
@@ -278,7 +348,11 @@ rule install-req ( properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : "$(GCC_FOR_CLANG)" ] ;
+  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
+  return <source>"$(compiler-prefix)/bin/clang++-wrapper" ;
 }
 
-alias install : make : <conditional>@install-req ;
+alias install : : <conditional>@install-req ;
 explicit install ;

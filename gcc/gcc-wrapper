@@ -10,6 +10,7 @@ if [ "$dir" != "." ]; then
 fi
 dir="$(cd "$dir"; pwd)"
 libdir="$(dirname "$dir")/lib"
+bindir="$(dirname "$dir")/bin"
 
 if uname | grep -Fq 'Linux'; then
     # It is more suitable to set `LD_RUN_PATH' environment variable. However,
@@ -17,7 +18,7 @@ if uname | grep -Fq 'Linux'; then
     # http://sourceware.org/bugzilla/show_bug.cgi?id=13764
     "${dir}/gcc" -Wl,-rpath="$libdir" "$@"
 elif uname | grep -Fq 'CYGWIN'; then
-    env PATH="${dir}/../bin${PATH:+:$PATH}" "${dir}/gcc" "$@"
+    env PATH="$bindir${PATH:+:$PATH}" "${dir}/gcc" "$@"
 else
     exit 1
 fi

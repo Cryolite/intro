@@ -634,7 +634,6 @@ rule install-req ( properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
-
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   return <source>"$(PREFIX)/$(compiler)/bin/g++" ;
 }
