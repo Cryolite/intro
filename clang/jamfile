@@ -64,7 +64,7 @@ rule gcc-dep-req ( properties * )
     {
       errors.error "an internal error." ;
     }
-    result = <source>../gcc//install/<compiler>$(GCC_FOR_CLANG)/<multilib>$(multilib)/<multilib-hidden>unspecified ;
+    result = <source>../gcc//install/<multilib>$(multilib)/<multilib-hidden>unspecified ;
   }
   else
   {
@@ -117,7 +117,19 @@ rule make-install ( targets * : sources * : properties * )
   assert-unspecified <boost-hidden>    : $(properties) ;
 
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" "$(compiler)" ] ;
+  local compiler-description ;
+  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
+  {
+    compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(compiler) ] ;
+  }
+  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
+  {
+    compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(GCC_FOR_CLANG) ] ;
+  }
+  else
+  {
+    errors.error "an internal error." ;
+  }
   COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
 
   local llvm-dir = "$(INTRO_ROOT_DIR)/llvm" ;

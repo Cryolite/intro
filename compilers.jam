@@ -304,6 +304,20 @@ rule get-version ( compiler )
   return $(result) ;
 }
 
+rule is-clang ( compiler )
+{
+  if ! [ is-valid "$(compiler)" ]
+  {
+    errors.error "an internal error." ;
+  }
+  local result ;
+  if "$(compiler)" in clang-trunk
+  {
+    result = yes ;
+  }
+  return $(result) ;
+}
+
 rule get-prefix-leaf ( compiler : gcc-for-clang ? )
 {
   if ! [ is-valid "$(compiler)" ]
@@ -313,10 +327,6 @@ rule get-prefix-leaf ( compiler : gcc-for-clang ? )
   local result ;
   if [ is-gcc $(compiler) ]
   {
-    if $(gcc-for-clang)
-    {
-      errors.error "an internal error." ;
-    }
     result = $(compiler) ;
   }
   else if [ is-clang $(compiler) ]
@@ -325,7 +335,7 @@ rule get-prefix-leaf ( compiler : gcc-for-clang ? )
     {
       errors.error "an internal error." ;
     }
-    result = $(compiler)-gcc-$(gcc-for-clang) ;
+    result = $(compiler)-$(gcc-for-clang) ;
   }
   else
   {
@@ -407,7 +417,7 @@ rule get-abi-tag ( compiler : gcc-for-clang ? )
       errors.error "an internal error." ;
     }
     local version = [ get-version $(gcc-for-clang) ] ;
-    local abi-version = [ regex.match "^([0-9]+\\.[0-9]+)\\.[0-9]+$" : $(version) : 1 ] ;
+    local abi-version = [ regex.match "^([0-9]+\\.[0-9]+)" : $(version) : 1 ] ;
     local version-tag = [ regex.replace $(abi-version) "\\." "" ] ;
     result = gcc$(version-tag) ;
   }

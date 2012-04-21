@@ -73,11 +73,8 @@ alias compiler-dep : : <conditional>$compiler-dep-req ;
 explicit compiler-dep ;
 
 
-for local version in $(BINUTILS_FOR_GCC)
-{
-  make "$(INTRO_ROOT_DIR)/binutils-$(version).tar.bz2" : : @download ;
-  explicit "$(INTRO_ROOT_DIR)/binutils-$(version).tar.bz2" ;
-}
+make "$(INTRO_ROOT_DIR)/binutils-$(BINUTILS).tar.bz2" : : @download ;
+explicit "$(INTRO_ROOT_DIR)/binutils-$(BINUTILS).tar.bz2" ;
 
 rule download ( targets * : sources * : properties * )
 {
@@ -134,22 +131,19 @@ actions download
 }
 
 
-for local version in $(BINUTILS_FOR_GCC)
-{
-  # Use `README' file as a target representing the completion of
-  # decompression action. It is suitable for the purpose because of the
-  # following reasons;
-  #
-  #   - The name of this file is considered stable even if the version
-  #     changes.
-  #   - This file won't be modified during the build procedure.
-  #
-  make "$(INTRO_ROOT_DIR)/binutils-$(version)/README"
-    : "$(INTRO_ROOT_DIR)/binutils-$(version).tar.bz2"
-    : @expand
-    ;
-  explicit "$(INTRO_ROOT_DIR)/binutils-$(version)/README" ;
-}
+# Use `README' file as a target representing the completion of
+# decompression action. It is suitable for the purpose because of the
+# following reasons;
+#
+#   - The name of this file is considered stable even if the version
+#     changes.
+#   - This file won't be modified during the build procedure.
+#
+make "$(INTRO_ROOT_DIR)/binutils-$(BINUTILS)/README"
+  : "$(INTRO_ROOT_DIR)/binutils-$(BINUTILS).tar.bz2"
+  : @expand
+  ;
+explicit "$(INTRO_ROOT_DIR)/binutils-$(BINUTILS)/README" ;
 
 rule expand ( targets * : sources * : properties * )
 {

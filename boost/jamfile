@@ -75,22 +75,25 @@ explicit compiler-dep ;
 
 for local compiler in $(COMPILERS)
 {
-  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
-  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-  local compiler-abi-tag = [ "$(INTRO_ROOT_DIR)/compilers.get-abi-tag" $(compiler) : $(GCC_FOR_CLANG) ] ;
-  local boost-abi-version = [ regex.match "^([0-9]+\\.[0-9]+)\\.[0-9]+$" : $(BOOST) : 1 ] ;
-  if ! $(boost-abi-version)
+  for local boost in $(BOOST_VERSIONS)
   {
-    errors.error "an internal error." ;
+    local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
+    local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
+    local compiler-abi-tag = [ "$(INTRO_ROOT_DIR)/compilers.get-abi-tag" $(compiler) : $(GCC_FOR_CLANG) ] ;
+    local boost-abi-version = [ regex.match "^([0-9]+\\.[0-9]+)\\.[0-9]+$" : $(boost) : 1 ] ;
+    if ! $(boost-abi-version)
+    {
+      errors.error "an internal error." ;
+    }
+    local boost-abi-tag = [ regex.replace $(boost-abi-version) "\\." "_" ] ;
+    make "$(compiler-prefix)/lib/libboost_regex-$(compiler-abi-tag)-$(boost-abi-tag).so.$(boost)"
+      : compiler-dep/<icu4c>unspecified/<mpi>unspecified/<openmpi>unspecified/<boost>unspecified
+        ../icu4c//install/<mpi>unspecified/<openmpi>unspecified/<boost>unspecified
+        ../openmpi//install/<icu4c>unspecified/<boost>unspecified
+      : @install
+      ;
+    explicit "$(compiler-prefix)/lib/libboost_regex-$(compiler-abi-tag)-$(boost-abi-tag).so.$(boost)" ;
   }
-  local boost-abi-tag = [ regex.replace $(boost-abi-version) "\\." "_" ] ;
-  make "$(compiler-prefix)/lib/libboost_regex-$(compiler-abi-tag)-$(boost-abi-tag).so.$(BOOST)"
-    : compiler-dep/<icu4c>unspecified/<mpi>unspecified/<openmpi>unspecified/<boost>unspecified
-      ../icu4c//install/<mpi>unspecified/<openmpi>unspecified/<boost>unspecified
-      ../openmpi//install/<icu4c>unspecified/<boost>unspecified
-    : @install
-    ;
-  explicit "$(compiler-prefix)/lib/libboost_regex-$(compiler-abi-tag)-$(boost-abi-tag).so.$(BOOST)" ;
 }
 
 rule install ( targets * : sources * : properties * )

@@ -226,19 +226,45 @@ alias srcdir : : <conditional>@srcdir-req ;
 explicit srcdir ;
 
 
-for local gcc in [ "$(INTRO_ROOT_DIR)/compilers.get-gccs" $(COMPILERS) ]
+for local compiler in $(COMPILERS)
 {
-  make "$(PREFIX)/$(gcc)/bin/g++"
-    : ../binutils//srcdir/<triplet>unspecified/<multilib>unspecified/<binutils>$(BINUTILS_FOR_GCC)/<compiler>unspecified
-      ../gmp//srcdir/<triplet>unspecified/<multilib>unspecified/<gmp>$(GMP_FOR_GCC)/<compiler>unspecified
-      ../mpfr//srcdir/<triplet>unspecified/<multilib>unspecified/<mpfr>$(MPFR_FOR_GCC)/<compiler>unspecified
-      ../mpc//srcdir/<triplet>unspecified/<multilib>unspecified/<mpc>$(MPC_FOR_GCC)/<compiler>unspecified
-      ../ppl//srcdir/<triplet>unspecified/<multilib>unspecified/<ppl>$(PPL_FOR_GCC)/<compiler>unspecified
-      ../cloog//srcdir/<triplet>unspecified/<multilib>unspecified/<cloog>$(CLOOG_FOR_GCC)/<compiler>unspecified
-      srcdir/<triplet>unspecified/<multilib>unspecified
-    : @make-install
-    ;
-  explicit "$(INTRO_ROOT_DIR)/$(gcc)/bin/g++" ;
+  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" "$(compiler)" : "$(GCC_FOR_CLANG)" ] ;
+  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
+  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
+  {
+    make "$(compiler-prefix)/bin/g++-wrapper"
+      : ../binutils//srcdir/<triplet>unspecified/<multilib>unspecified/<binutils>$(BINUTILS)/<compiler>unspecified
+        ../gmp//srcdir/<triplet>unspecified/<multilib>unspecified/<gmp>$(GMP_FOR_GCC)/<compiler>unspecified
+        ../mpfr//srcdir/<triplet>unspecified/<multilib>unspecified/<mpfr>$(MPFR_FOR_GCC)/<compiler>unspecified
+        ../mpc//srcdir/<triplet>unspecified/<multilib>unspecified/<mpc>$(MPC_FOR_GCC)/<compiler>unspecified
+        ../ppl//srcdir/<triplet>unspecified/<multilib>unspecified/<ppl>$(PPL_FOR_GCC)/<compiler>unspecified
+        ../cloog//srcdir/<triplet>unspecified/<multilib>unspecified/<cloog>$(CLOOG_FOR_GCC)/<compiler>unspecified
+        srcdir/<triplet>unspecified/<multilib>unspecified
+      : @make-install
+      ;
+  }
+  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
+  {
+    if ! $(GCC_FOR_CLANG)
+    {
+      errors.error "an internal error." ;
+    }
+    make "$(compiler-prefix)/bin/g++-wrapper"
+      : ../binutils//srcdir/<triplet>unspecified/<multilib>unspecified/<binutils>$(BINUTILS)/<compiler>unspecified
+        ../gmp//srcdir/<triplet>unspecified/<multilib>unspecified/<gmp>$(GMP_FOR_GCC)/<compiler>unspecified
+        ../mpfr//srcdir/<triplet>unspecified/<multilib>unspecified/<mpfr>$(MPFR_FOR_GCC)/<compiler>unspecified
+        ../mpc//srcdir/<triplet>unspecified/<multilib>unspecified/<mpc>$(MPC_FOR_GCC)/<compiler>unspecified
+        ../ppl//srcdir/<triplet>unspecified/<multilib>unspecified/<ppl>$(PPL_FOR_GCC)/<compiler>unspecified
+        ../cloog//srcdir/<triplet>unspecified/<multilib>unspecified/<cloog>$(CLOOG_FOR_GCC)/<compiler>unspecified
+        srcdir/<triplet>unspecified/<multilib>unspecified/<compiler>$(GCC_FOR_CLANG)
+      : @make-install
+      ;
+  }
+  else
+  {
+    errors.error "an internal error." ;
+  }
+  explicit "$(compiler-prefix)/bin/g++-wrapper" ;
 }
 
 rule make-install ( targets * : sources * : properties * )
@@ -270,13 +296,22 @@ rule make-install ( targets * : sources * : properties * )
   assert-unspecified <boost-hidden>    : $(properties) ;
 
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  if ! [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" "$(compiler)" ]
+  local version ;
+  local compiler-description ;
+  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
+  {
+    version = [ "$(INTRO_ROOT_DIR)/compilers.get-version" $(compiler) ] ;
+    compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(compiler) ] ;
+  }
+  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
+  {
+    version = [ "$(INTRO_ROOT_DIR)/compilers.get-version" $(GCC_FOR_CLANG) ] ;
+    compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(GCC_FOR_CLANG) ] ;
+  }
+  else
   {
     errors.error "an internal error." ;
   }
-  local version = [ "$(INTRO_ROOT_DIR)/compilers.get-version" $(compiler) ] ;
-  VERSION on $(targets) = $(version) ;
-  local compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(compiler) ] ;
   COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
 
   local srcdir = "$(INTRO_ROOT_DIR)/gcc-$(version)" ;
@@ -286,7 +321,8 @@ rule make-install ( targets * : sources * : properties * )
   OBJDIR on $(targets) = "$(objdir)" ;
 
   # Set the compiler-specific prefix.
-  local compiler-prefix = "$(PREFIX)/$(compiler)" ;
+  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
   COMPILER_PREFIX on $(targets) = "$(compiler-prefix)" ;
 
   local libdir = "$(compiler-prefix)/lib" ;
@@ -422,7 +458,7 @@ rule make-install ( targets * : sources * : properties * )
   ENV_FOR_MAKE on $(targets) = env ;
   ENV_FOR_MAKE on $(targets) += "CPATH=\"$(objdir)/gmp:$(srcdir)/gmp${CPATH:+:$CPATH}\"" ;
   ENV_FOR_MAKE on $(targets) += "LIBRARY_PATH=\"$(objdir)/gmp/.libs:$(objdir)/$(triplet)/libstdc++-v3/src/.libs${LIBRARY_PATH:+:$LIBRARY_PATH}\"" ;
-  ENV_FOR_MAKE on $(targets) += "LD_RUN_PATH=\"$(libdir):${LD_RUN_PATH:+:$LD_RUN_PATH}\"" ;
+  ENV_FOR_MAKE on $(targets) += "LD_RUN_PATH=\"$(libdir)${LD_RUN_PATH:+:$LD_RUN_PATH}\"" ;
 }
 actions make-install
 {
@@ -433,14 +469,14 @@ actions make-install
   # Create the symlinks to the source directories to GNU Binutils
   # libraries and tools (opcodes, bfd, binutils, gas, ld, gold, gprof) in
   # the GCC source directory.
-  ( cd "$(SRCDIR)"                                       \
-      && ln -sf ../binutils-$(BINUTILS_FOR_GCC)/bfd      \
-                ../binutils-$(BINUTILS_FOR_GCC)/binutils \
-                ../binutils-$(BINUTILS_FOR_GCC)/gas      \
-                ../binutils-$(BINUTILS_FOR_GCC)/gold     \
-                ../binutils-$(BINUTILS_FOR_GCC)/gprof    \
-                ../binutils-$(BINUTILS_FOR_GCC)/ld       \
-                ../binutils-$(BINUTILS_FOR_GCC)/opcodes  . ) || exit 1
+  ( cd "$(SRCDIR)"                               \
+      && ln -sf ../binutils-$(BINUTILS)/bfd      \
+                ../binutils-$(BINUTILS)/binutils \
+                ../binutils-$(BINUTILS)/gas      \
+                ../binutils-$(BINUTILS)/gold     \
+                ../binutils-$(BINUTILS)/gprof    \
+                ../binutils-$(BINUTILS)/ld       \
+                ../binutils-$(BINUTILS)/opcodes  . ) || exit 1
 
 
   # Create the symlink to the GMP source directory.
@@ -513,9 +549,9 @@ actions make-install
 
   # `configure'.
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(OBJDIR)" && env LD_RUN_PATH="$(LIBDIR):${LD_RUN_PATH:+:$LD_RUN_PATH}" "$(SRCDIR)/configure" $(OPTIONS) >> "$(STREAM)" 2>&1 )
+    ( cd "$(OBJDIR)" && env LD_RUN_PATH="$(LIBDIR)${LD_RUN_PATH:+:$LD_RUN_PATH}" "$(SRCDIR)/configure" $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(OBJDIR)" && env LD_RUN_PATH="$(LIBDIR):${LD_RUN_PATH:+:$LD_RUN_PATH}" "$(SRCDIR)/configure" $(OPTIONS) )
+    ( cd "$(OBJDIR)" && env LD_RUN_PATH="$(LIBDIR)${LD_RUN_PATH:+:$LD_RUN_PATH}" "$(SRCDIR)/configure" $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'configure' $(COMPILER_DESCRIPTION) ($(TRIPLET))." 1>&2
@@ -558,9 +594,9 @@ actions make-install
 
   # `make install'.
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(OBJDIR)" && env LD_RUN_PATH="$(LIBDIR):${LD_RUN_PATH:+:$LD_RUN_PATH}" make install >> "$(STREAM)" 2>&1 )
+    ( cd "$(OBJDIR)" && env LD_RUN_PATH="$(LIBDIR)${LD_RUN_PATH:+:$LD_RUN_PATH}" make install >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(OBJDIR)" && env LD_RUN_PATH="$(LIBDIR):${LD_RUN_PATH:+:$LD_RUN_PATH}" make install )
+    ( cd "$(OBJDIR)" && env LD_RUN_PATH="$(LIBDIR)${LD_RUN_PATH:+:$LD_RUN_PATH}" make install )
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make install' $(COMPILER_DESCRIPTION) ($(TRIPLET))." 1>&2
@@ -587,7 +623,7 @@ actions make-install
 
 
   # Install the wrapper scripts.
-  install --mode=755 "$(INTRO_ROOT_DIR)/gcc/gcc-wrapper" "$(INTRO_ROOT_DIR)/gcc/g++-wrapper" "$(<:D)"
+  install --mode=755 "$(INTRO_ROOT_DIR)/gcc/gcc-wrapper" "$(INTRO_ROOT_DIR)/gcc/g++-wrapper" "$(COMPILER_PREFIX)/bin"
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to install the wrapper scripts for $(COMPILER_DESCRIPTION) ($(TRIPLET))." 1>&2
     echo -n "ERROR: failed to install the wrapper scripts for $(COMPILER_DESCRIPTION) ($(TRIPLET))." | $(AWACS)
@@ -595,14 +631,14 @@ actions make-install
   fi
 
 
-  # Check the creation of `g++'.
+  # Check the creation of `g++-wrapper'.
   [ -x "$(<)" ] || exit 1
 
   # Clean-up the OBJDIR.
   rm -rf "$(OBJDIR)" || exit 1
 
   echo -n "$(COMPILER_DESCRIPTION) ($(TRIPLET)) was successfully built." | $(AWACS)
-  echo -n "NOTE: Binutils $(BINUTILS_FOR_GCC), GMP $(GMP_FOR_GCC), MPFR $(MPFR_FOR_GCC), MPC $(MPC_FOR_GCC), PPL $(PPL_FOR_GCC), CLooG $(CLOOG_FOR_GCC) were bootstrapped alongside." | $(AWACS)
+  echo -n "NOTE: Binutils $(BINUTILS), GMP $(GMP_FOR_GCC), MPFR $(MPFR_FOR_GCC), MPC $(MPC_FOR_GCC), PPL $(PPL_FOR_GCC), CLooG $(CLOOG_FOR_GCC) were bootstrapped alongside." | $(AWACS)
   exit 0
 }
 
@@ -635,7 +671,9 @@ rule install-req ( properties * )
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  return <source>"$(PREFIX)/$(compiler)/bin/g++" ;
+  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
+  return <source>"$(compiler-prefix)/bin/g++-wrapper" ;
 }
 
 alias install : : <conditional>@install-req ;
