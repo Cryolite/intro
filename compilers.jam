@@ -3,6 +3,7 @@ import path ;
 import regex ;
 
 local .root-dir ;
+
 local .gcc-versions ;
 local .gcc-current-version ;
 local .gcc-previous-version ;
@@ -212,9 +213,12 @@ rule is-builtin-gcc ( compiler )
     errors.error "an internal error." ;
   }
   local result ;
-  if [ get-version $(compiler) ] = [ SHELL "g++ -dumpversion | tr --delete '\\n'" ]
+  if [ is-gcc $(compiler) ]
   {
-    result = yes ;
+    if [ get-version $(compiler) ] = [ SHELL "gcc -dumpversion | tr --delete '\\n'" ]
+    {
+      result = yes ;
+    }
   }
   return $(result) ;
 }
@@ -301,6 +305,14 @@ rule get-version ( compiler )
   {
     result = [ regex.match "gcc-(.+)" : $(compiler) : 1 ] ;
   }
+  else if $(compiler) = clang-trunk
+  {
+    errors.error "this rule cannot be called for Clang." ;
+  }
+  else
+  {
+    errors.error "an internal error." ;
+  }
   return $(result) ;
 }
 
@@ -358,8 +370,8 @@ rule get-compiler-description ( compiler )
   }
   else if [ is-clang $(compiler) ]
   {
-    local version = [ get-version $(compiler) ] ;
-    result = "Clang $(version)" ;
+    #local version = [ get-version $(compiler) ] ;
+    result = Clang ;
   }
   else
   {
@@ -391,7 +403,7 @@ rule get-toolset ( compiler : gcc-for-clang ? )
     gcc-version = [ regex.replace $(gcc-version) "-" "_" ] ;
     local clang-version = [ get-version $(compiler) ] ;
     clang-version = [ regex.replace $(clang-version) "-" "_" ] ;
-    result = gcc-$(gcc-version)_clang_$(clang-version) ;
+    result = gcc-$(gcc-version)_$(clang-version) ;
   }
   return $(result) ;
 }

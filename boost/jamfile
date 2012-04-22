@@ -60,7 +60,7 @@ rule compiler-dep-req ( properties * )
   }
   else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
   {
-    result = <source>../clang//install/<multilib-hidden>unspecified ;
+    result = <source>../clang//install ;
   }
   else
   {
@@ -149,9 +149,18 @@ rule install ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --layout=versioned ;
   OPTIONS on $(targets) += --without-mpi ;
 
-  local toolset = [ "$(INTRO_ROOT_DIR)/compilers.get-toolset" $(compiler) : $(GCC_FOR_CLANG) ] ;
-  TOOLSET on $(targets) = $(toolset) ;
-  OPTIONS on $(targets) += toolset=$(toolset) ;
+  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
+  {
+    OPTIONS on $(targets) += "toolset=`\"$(INTRO_ROOT_DIR)/boost/toolset.sh\" \"$(compiler-prefix)/bin/g++-wrapper\"`" ;
+  }
+  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
+  {
+    OPTIONS on $(targets) += "toolset=`\"$(INTRO_ROOT_DIR)/boost/toolset.sh\" \"$(compiler-prefix)/bin/clang++-wrapper\"`" ;
+  }
+  else
+  {
+    errors.error "an internal error." ;
+  }
 
   OPTIONS on $(targets) += stage ;
 }
@@ -190,7 +199,7 @@ actions install
   [ -x "$(<)" ] || exit 1
 
   # Clean up the build directory.
-  ( cd "$(BOOST_ROOT)/bin.v2" && rm -rf libs/*/build/$(TOOLSET) )
+  rm -rf "$(BOOST_ROOT)/bin.v2"
 
   echo -n "Boost $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built." | $(AWACS)
   exit 0

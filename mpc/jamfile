@@ -60,7 +60,7 @@ rule compiler-dep-req ( properties * )
   }
   else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
   {
-    result = <source>../clang//install/<multilib-hidden>unspecified ;
+    result = <source>../clang//install ;
   }
   else
   {
@@ -450,7 +450,7 @@ rule install-req ( properties * )
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) ] ;
+  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
   local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
   return <source>"$(compiler-prefix)/include/mpc.h" ;
 }

@@ -60,7 +60,7 @@ rule compiler-dep-req ( properties * )
   }
   else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
   {
-    result = <source>../clang//install/<multilib-hidden>unspecified ;
+    result = <source>../clang//install ;
   }
   else
   {
