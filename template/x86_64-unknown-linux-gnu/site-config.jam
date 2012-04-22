@@ -21,81 +21,112 @@ local gcc-latest-paths ;
 local clang-paths ;
 local clang-latest-paths ;
 
+rule get-gcc-path ( ph )
+{
+  local tmp = [ SHELL "env LANG=C \"$(ph)/bin/g++-wrapper\" --version | head --lines=1" ] ;
+  local ver-date = [ regex.match "([0-9]+\\.[0-9]+\\.[0-9]+) ([0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]) \\(((experimental)|(prerelease))\\)" : "$(tmp)" : 1 2 ] ;
+  local result ;
+  if $(ver-date[1]) && $(ver-date[2])
+  {
+    local timestamp = [ SHELL "env LANG=C ls --full-time \"$(ph)/bin/g++-wrapper\" | tr --squeeze-repeats ' ' | cut --delimiter=' ' --fields=6,7,8 | date --file=- +%Y%m%d%H%M%S | tr --delete '\\n'" ] ;
+    result  = "$(ph)/bin/g++-wrapper" ;
+    result += $(ver-date[1]) ;
+    result += $(ver-date[2]) ;
+    result += $(timestamp) ;
+  }
+  else
+  {
+    local ver = [ regex.match "([0-9]+\\.[0-9]+\\.[0-9]+)" : "$(tmp)" : 1 ] ;
+    if $(ver)
+    {
+      local timestamp = [ SHELL "env LANG=C ls --full-time \"$(ph)/bin/g++-wrapper\" | tr --squeeze-repeats ' ' | cut --delimiter=' ' --fields=6,7,8 | date --file=- +%Y%m%d%H%M%S | tr --delete '\\n'" ] ;
+      result  = "$(ph)/bin/g++-wrapper" ;
+      result += $(ver) ;
+      result += 99999999 ;
+      result += $(timestamp) ;
+    }
+  }
+  return $(result) ;
+}
+
+rule get-clang-path ( ph )
+{
+  local tmp = [ SHELL "env LANG=C \"$(ph)/bin/clang++-wrapper\" --version | head --lines=1" ] ;
+  local ver-rev = [ regex.match "^clang version ([0-9]+\\.[0-9]+) \\(trunk ([0-9]+)\\)" : "$(tmp)" : 1 2 ] ;
+  local result ;
+  if $(ver-rev[1]) && $(ver-rev[2])
+  {
+    local timestamp = [ SHELL "env LANG=C ls --full-time \"$(ph)/bin/clang++-wrapper\" | tr --squeeze-repeats ' ' | cut --delimiter=' ' --fields=6,7,8 | date --file=- +%Y%m%d%H%M%S | tr --delete '\\n'" ] ;
+    result  = "$(ph)/bin/clang++-wrapper" ;
+    result += $(ver-rev[1]) ;
+    result += $(ver-rev[2]) ;
+    result += $(timestamp) ;
+  }
+  else
+  {
+    local ver = [ regex.match "([0-9]+\\.[0-9]+)" : "$(tmp)" : 1 ] ;
+    if $(ver)
+    {
+      local timestamp = [ SHELL "env LANG=C ls --full-time \"$(ph)/bin/clang++-wrapper\" | tr --squeeze-repeats ' ' | cut --delimiter=' ' --fields=6,7,8 | date --file=- +%Y%m%d%H%M%S | tr --delete '\\n'" ] ;
+      result  = "$(ph)/bin/clang++-wrapper" ;
+      result += $(ver) ;
+      result += 99999999 ;
+      result += $(timestamp) ;
+    }
+  }
+  return $(result) ;
+}
+
 {
   local gcc-vers ;
   local clang-vers ;
 
   for local ver-prefix in [ path.glob "$(prefix)" : * ]
   {
-    if [ SHELL "[ -x \"$(ver-prefix)/bin/g++-wrapper\" ] && echo -n SUCCESS" ] = SUCCESS
+    if [ regex.match "^($(prefix)/gcc-)" : "$(ver-prefix)" : 1 ]
     {
-      local tmp = [ SHELL "env LANG=C \"$(ver-prefix)/bin/g++-wrapper\" --version | head --lines=1" ] ;
-      local ver-date = [ regex.match "([0-9]+\\.[0-9]+\\.[0-9]+) ([0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]) \\(((experimental)|(prerelease))\\)" : "$(tmp)" : 1 2 ] ;
-      if $(ver-date[1]) && $(ver-date[2])
+      local gcc-path = [ get-gcc-path "$(ver-prefix)" ] ;
+      if $(gcc-path)
       {
         if ! "$(ver-prefix)" in "$(ver-prefixes)"
         {
           ver-prefixes += "$(ver-prefix)" ;
         }
-        if ! $(ver-date[1]) in $(gcc-vers)
+        local ver = $(gcc-path[2]) ;
+        if ! $(ver) in $(gcc-vers)
         {
-          gcc-vers += $(ver-date[1]) ;
+          gcc-vers += $(ver) ;
         }
-        local timestamp = [ SHELL "env LANG=C ls --full-time \"$(ver-prefix)/bin/g++-wrapper\" | tr --squeeze-repeats ' ' | cut --delimiter=' ' --fields=6,7,8 | date --file=- +%Y%m%d%H%M%S | tr --delete '\\n'" ] ;
-        gcc-paths += "$(ver-prefix)/bin/g++-wrapper",$(ver-date[1]),$(ver-date[2]),$(timestamp) ;
-      }
-      else {
-        local ver = [ regex.match "([0-9]+\\.[0-9]+\\.[0-9]+)" : "$(tmp)" : 1 ] ;
-        if $(ver) {
-          if ! "$(ver-prefix)" in "$(ver-prefixes)"
-          {
-            ver-prefixes += "$(ver-prefix)" ;
-          }
-          if ! $(ver) in $(gcc-vers)
-          {
-            gcc-vers += $(ver) ;
-          }
-          local timestamp = [ SHELL "env LANG=C ls --full-time \"$(ver-prefix)/bin/g++-wrapper\" | tr --squeeze-repeats ' ' | cut --delimiter=' ' --fields=6,7,8 | date --file=- +%Y%m%d%H%M%S | tr --delete '\\n'" ] ;
-          gcc-paths += "$(ver-prefix)/bin/g++-wrapper",$(ver),99999999,$(timestamp) ;
-        }
+        gcc-paths += "$(gcc-path:J=,)" ;
       }
     }
 
-    if [ SHELL "[ -x \"$(ver-prefix)/bin/clang++-wrapper\" ] && echo -n SUCCESS" ] = SUCCESS &&
-       [ SHELL "[ -x \"$(ver-prefix)/bin/g++-wrapper\" ] && echo -n SUCCESS" ] != SUCCESS
+    if [ regex.match "^($(prefix)/clang-)" : "$(ver-prefix)" : 1 ]
+    #if [ SHELL "[ -x \"$(ver-prefix)/bin/clang++-wrapper\" ] && echo -n SUCCESS" ] = SUCCESS &&
+    #   [ SHELL "[ -x \"$(ver-prefix)/bin/g++-wrapper\" ] && echo -n SUCCESS" ] != SUCCESS
     {
-      local tmp = [ SHELL "env LANG=C \"$(ver-prefix)/bin/clang++-wrapper\" --version | head --lines=1" ] ;
-      local ver-rev = [ regex.match "^clang version ([0-9]+\\.[0-9]+) \\(trunk ([0-9]+)\\)" : "$(tmp)" : 1 2 ] ;
-      if $(ver-rev[1]) && $(ver-rev[2]) {
+      local gcc-path = [ get-gcc-path "$(ver-prefix)" ] ;
+      local clang-path = [ get-clang-path "$(ver-prefix)" ] ;
+      if $(gcc-path) && $(clang-path)
+      {
         if ! "$(ver-prefix)" in "$(ver-prefixes)"
         {
           ver-prefixes += "$(ver-prefix)" ;
         }
-        if ! $(ver-rev[1]) in $(clang-vers)
+        local clang-ver = $(clang-path[2]) ;
+        if ! $(clang-ver) in $(clang-vers)
         {
-          clang-vers += $(ver-rev[1]) ;
+          clang-vers += $(clang-ver) ;
         }
-        local timestamp = [ SHELL "env LANG=C ls --full-time \"$(ver-prefix)/bin/clang++-wrapper\" | tr --squeeze-repeats ' ' | cut --delimiter=' ' --fields=6,7,8 | date --file=- +%Y%m%d%H%M%S | tr --delete '\\n'" ] ;
-        clang-paths += "$(ver-prefix)/bin/clang++-wrapper",$(ver-rev[1]),$(ver-rev[2]),$(timestamp) ;
-      }
-      else {
-        local ver = [ regex.match "([0-9]+\\.[0-9]+)" : "$(tmp)" : 1 ] ;
-        if $(ver)
-        {
-          if ! "$(ver-prefix)" in "$(ver-prefixes)"
-          {
-            ver-prefixes += "$(ver-prefix)" ;
-          }
-          if ! $(ver) in $(clang-vers)
-          {
-            clang-vers += $(ver) ;
-          }
-          local timestamp = [ SHELL "env LANG=C ls --full-time \"$(ver-prefix)/bin/clang++-wrapper\" | tr --squeeze-repeats ' ' | cut --delimiter=' ' --fields=6,7,8 | date --file=- +%Y%m%d%H%M%S | tr --delete '\\n'" ] ;
-          clang-paths += "$(ver-prefix)/bin/clang++-wrapper",$(ver),99999999,$(timestamp) ;
-        }
+        clang-paths += "$(ver-prefix)/bin/clang++-wrapper",$(gcc-path[2]),$(gcc-path[3]),$(gcc-path[4]),$(clang-path[2]),$(clang-path[3]),$(clang-path[4]) ;
       }
     }
   }
+  #ECHO $(ver-prefixes:J=,) ;
+  #ECHO $(gcc-vers:J=,) ;
+  #ECHO $(clang-vers:J=,) ;
+  #ECHO $(gcc-paths:J=@) ;
+  #ECHO $(clang-paths:J=@) ;
 
   for local gcc-ver in $(gcc-vers)
   {
@@ -159,62 +190,108 @@ local clang-latest-paths ;
   for local clang-ver in $(clang-vers)
   {
     local latest-path ;
-    local latest-rev ;
-    local latest-timestamp ;
+    local latest-gcc-ver ;
+    local latest-gcc-date ;
+    local latest-gcc-timestamp ;
+    local latest-clang-rev ;
+    local latest-clang-timestamp ;
     for local clang-path in $(clang-paths)
     {
+      #ECHO clang-path: $(clang-path) ;
       local ph ;
+      local gcc-ver ;
+      local gcc-date ;
+      local gcc-timestamp ;
       local ver ;
-      local rev ;
-      local ts ;
+      local clang-rev ;
+      local clang-timestamp ;
       {
         local tmp = [ regex.split "$(clang-path)" "," ] ;
-        ph  = "$(tmp[1])" ;
-        ver = $(tmp[2]) ;
-        rev = $(tmp[3]) ;
-        ts  = $(tmp[4]) ;
+        ph               = "$(tmp[1])" ;
+        gcc-ver          = $(tmp[2]) ;
+        gcc-date         = $(tmp[3]) ;
+        gcc-timestamp    = $(tmp[4]) ;
+        ver              = $(tmp[5]) ;
+        clang-rev        = $(tmp[6]) ;
+        clang-timestamp  = $(tmp[7]) ;
       }
-      if ! $(ph) || ! $(ver) || ! $(rev) || ! $(ts)
+      if ! $(ph) || ! $(gcc-ver) || ! $(gcc-date) || ! $(gcc-timestamp) || ! $(ver) || ! $(clang-rev) || ! $(clang-timestamp)
       {
         errors.error "an internal error." ;
       }
       if $(ver) = $(clang-ver)
       {
-        if ! $(latest-path) && ! $(latest-rev) && ! $(latest-timestamp)
+        local is-latest ;
+        if ! $(latest-path)
         {
-          latest-path      = "$(ph)" ;
-          latest-rev       = $(rev) ;
-          latest-timestamp = $(ts) ;
+          if $(latest-gcc-ver) || $(latest-gcc-date) || $(latest-gcc-timestamp) || $(latest-clang-ver) || $(latest-clang-rev) || $(latest-clang-timestamp)
+          {
+            errors.error "an internal error." ;
+          }
+          is-latest = yes ;
         }
         else
         {
-          if $(rev) > $(latest-rev)
+          if $(gcc-ver) > $(latest-gcc-ver)
           {
-            latest-path      = "$(ph)" ;
-            latest-rev       = $(rev) ;
-            latest-timestamp = $(ts) ;
+            is-latest = yes ;
           }
-          else if $(rev) = $(latest-rev)
+          else if $(gcc-date) = $(latest-gcc-date)
           {
-            if $(ts) > $(latest-timestamp)
+            if $(gcc-date) > $(latest-gcc-date)
             {
-              latest-path      = "$(ph)" ;
-              latest-rev       = $(rev) ;
-              latest-timestamp = $(ts) ;
+              is-latest = yes ;
+            }
+            else if $(gcc-date) = $(latest-gcc-date)
+            {
+              if $(gcc-timestamp) > $(latest-gcc-timestamp)
+              {
+                is-latest = yes ;
+              }
+              else if $(gcc-timestamp) = $(latest-gcc-timestamp)
+              {
+                if $(clang-rev) > $(latest-clang-rev)
+                {
+                  is-latest = yes ;
+                }
+                else if $(clang-rev) = $(latest-clang-rev)
+                {
+                  if $(clang-timestamp) > $(latest-clang-timestamp)
+                  {
+                    is-latest = yes ;
+                  }
+                }
+              }
             }
           }
+        }
+        if $(is-latest)
+        {
+          latest-path            = "$(ph)" ;
+          latest-gcc-ver         = $(gcc-ver) ;
+          latest-gcc-date        = $(gcc-date) ;
+          latest-gcc-timestamp   = $(gcc-timestamp) ;
+          latest-clang-rev       = $(clang-rev) ;
+          latest-clang-timestamp = $(clang-timestamp) ;
         }
       }
     }
 
-    if ! $(latest-path) || ! $(latest-rev) || ! $(latest-timestamp)
+    if ! $(latest-path) || ! $(latest-gcc-ver) || ! $(latest-gcc-date) || ! $(latest-gcc-timestamp) || ! $(latest-clang-rev) || ! $(latest-clang-timestamp)
     {
+      ECHO latest-path: $(latest-path) ;
+      ECHO latest-gcc-ver: $(latest-gcc-ver) ;
+      ECHO latest-gcc-date: $(latest-gcc-date) ;
+      ECHO latest-gcc-timestamp: $(latest-gcc-timestamp) ;
+      ECHO latest-clang-rev: $(latest-clang-rev) ;
+      ECHO latest-clnag-timestamp: $(latest-clang-timestamp) ;
       errors.error "an internal error." ;
     }
 
-    clang-latest-paths += "$(latest-path)",$(clang-ver),$(latest-rev),$(latest-timestamp) ;
+    clang-latest-paths += "$(latest-path)",$(latest-gcc-ver),$(latest-gcc-date),$(latest-gcc-timestamp),$(clang-ver),$(latest-clang-rev),$(latest-clang-timestamp) ;
   }
 }
+
 
 {
   local gcc-paths-tmp ;
@@ -253,20 +330,40 @@ local clang-latest-paths ;
   for local clang-path in $(clang-paths)
   {
     clang-path = [ regex.split "$(clang-path)" "," ] ;
-    if $(clang-path[3]) != 99999999
+    local ver ;
+    if $(clang-path[3]) = 99999999
     {
-      clang-paths-tmp += "$(clang-path[1])",$(clang-path[2])_$(clang-path[3]) ;
+      ver = $(clang-path[2]) ;
+    }
+    else
+    {
+      ver = $(clang-path[2])_$(clang-path[3]) ;
+    }
+    if $(clang-path[6]) != 99999999
+    {
+      clang-paths-tmp += "$(clang-path[1])",$(ver)_$(clang-path[5])_$(clang-path[6]) ;
     }
   }
   clang-paths = $(clang-paths-tmp) ;
 }
+
 
 {
   local clang-latest-paths-tmp ;
   for local clang-latest-path in $(clang-latest-paths)
   {
     clang-latest-path = [ regex.split "$(clang-latest-path)" "," ] ;
-    clang-latest-paths-tmp += "$(clang-latest-path[1])",$(clang-latest-path[2]) ;
+    local ver ;
+    if $(clang-latest-path[3]) = 99999999
+    {
+      ver = $(clang-latest-path[2]) ;
+    }
+    else
+    {
+      ver = $(clang-latest-path[2])_$(clang-latest-path[3]) ;
+    }
+    ver = $(ver)_$(clang-latest-path[5]) ;
+    clang-latest-paths-tmp += "$(clang-latest-path[1])",$(ver) ;
   }
   clang-latest-paths = $(clang-latest-paths-tmp) ;
 }
