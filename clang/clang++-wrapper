@@ -13,12 +13,9 @@ libdir="$(dirname "$dir")/lib"
 bindir="$(dirname "$dir")/bin"
 
 if uname | grep -Fq 'Linux'; then
-    # It is more suitable to set `LD_RUN_PATH' environment variable. However,
-    # gold linker has a bug that ignores this environment variable.
-    # http://sourceware.org/bugzilla/show_bug.cgi?id=13764
-    "${dir}/clang++" -Wl,-rpath="$libdir" "$@"
+    env LD_RUN_PATH="${LD_RUN_PATH:+$LD_RUN_PATH:}$libdir" "${dir}/clang++" "$@"
 elif uname | grep -Fq 'CYGWIN'; then
-    env PATH="$bindir${PATH:+:$PATH}" "${dir}/clang++" "$@"
+    env PATH="${PATH:+$PATH:}$bindir" "${dir}/clang++" "$@"
 else
     exit 1
 fi

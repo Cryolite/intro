@@ -346,8 +346,13 @@ rule make-install ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --enable-shared ;
 
   # Set the linker configuration to be used by the installed GCC front-end.
-  OPTIONS on $(targets) += --enable-ld ;
-  OPTIONS on $(targets) += --enable-gold=default ;
+  #
+  # gold linker has a bug that ignores `LD_RUN_PATH' environment variable.
+  # http://sourceware.org/bugzilla/show_bug.cgi?id=13764
+  # If the day comes when this bug is fixed, gold can become the default
+  # linker.
+  OPTIONS on $(targets) += --enable-ld=default ;
+  OPTIONS on $(targets) += --enable-gold ;
 
   local multilib = [ feature.get-values <multilib> : $(properties) ] ;
   if $(multilib) = yes
