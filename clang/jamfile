@@ -179,10 +179,11 @@ rule make-install ( targets * : sources * : properties * )
     OPTIONS on $(targets) += "CXX=\"$(compiler-prefix)/bin/g++-wrapper\"" ;
   }
 
-  # `PATH' and `LD_RUN_PATH' environment variables are required to complete
-  # `make check' because it internally uses built tools that cannot find
-  # necessary libraries including libstdc++.so without specifying these
-  # environment variables.
+  # `PATH' and `LD_LIBRARY_PATH' environment variables are required to
+  # complete `make check' because it internally uses built tools that cannot
+  # find necessary libraries including `libstdc++.so' without specifying
+  # these environment variables. `LD_RUN_PATH' does not work for this
+  # purpose.
   ENV_FOR_CONFIGURE on $(targets) = ;
   if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
   {
@@ -190,7 +191,7 @@ rule make-install ( targets * : sources * : properties * )
   }
   else
   {
-    ENV_FOR_CONFIGURE on $(targets) = "env LD_RUN_PATH=\"${LD_RUN_PATH:+$LD_RUN_PATH:}$(compiler-prefix)/lib\"" ;
+    ENV_FOR_CONFIGURE on $(targets) = "env LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$(compiler-prefix)/lib\"" ;
   }
 
   ENV_FOR_MAKE on $(targets) = ;
@@ -200,7 +201,7 @@ rule make-install ( targets * : sources * : properties * )
   }
   else
   {
-    ENV_FOR_MAKE on $(targets) = "env LD_RUN_PATH=\"${LD_RUN_PATH:+$LD_RUN_PATH:}$(compiler-prefix)/lib\"" ;
+    ENV_FOR_MAKE on $(targets) = "env LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$(compiler-prefix)/lib\"" ;
   }
 
   ENV_FOR_MAKE_CHECK on $(targets) = ;
@@ -210,7 +211,7 @@ rule make-install ( targets * : sources * : properties * )
   }
   else
   {
-    ENV_FOR_MAKE_CHECK on $(targets) = "env LD_RUN_PATH=\"${LD_RUN_PATH:+$LD_RUN_PATH:}$(compiler-prefix)/lib\"" ;
+    ENV_FOR_MAKE_CHECK on $(targets) = "env LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$(compiler-prefix)/lib\"" ;
   }
 
   ENV_FOR_MAKE_INSTALL on $(targets) = ;
@@ -220,7 +221,7 @@ rule make-install ( targets * : sources * : properties * )
   }
   else
   {
-    ENV_FOR_MAKE_INSTALL on $(targets) = "env LD_RUN_PATH=\"${LD_RUN_PATH:+$LD_RUN_PATH:}$(compiler-prefix)/lib\"" ;
+    ENV_FOR_MAKE_INSTALL on $(targets) = "env LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$(compiler-prefix)/lib\"" ;
   }
 }
 actions make-install
