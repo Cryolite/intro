@@ -6,6 +6,7 @@ if echo -n "$1" | grep -Fq '/g++-wrapper'; then
     tmp=`env LANG=C "$1" --version | head --lines=1`
     if echo -n "$tmp" | grep -Eq "[[:digit:]]+\\.[[:digit:]]+\\.[[:digit:]]+ [[:digit:]]{8} \\(((experimental)|(prerelease))\\)"; then
 	ver=`echo -n "$tmp" | grep -Eo "[[:digit:]]+\\.[[:digit:]]+\\.[[:digit:]]+"`
+	ver=`echo -n "$ver" | grep -Eo "^[[:digit:]]+\\.[[:digit:]]+"`
 	date=`echo -n "$tmp" | grep -Eo "[[:digit:]]{8}"`
 	echo -n gcc-${ver}_${date}
 	exit 0
@@ -22,6 +23,7 @@ elif echo -n "$1" | grep -Fq '/clang++-wrapper'; then
     tmp=`env LANG=C "${dir}/g++-wrapper" --version | head --lines=1`
     if echo -n "$tmp" | grep -Eq "[[:digit:]]+\\.[[:digit:]]+\\.[[:digit:]]+ [[:digit:]]{8} \\(((experimental)|(prerelease))\\)"; then
 	ver=`echo -n "$tmp" | grep -Eo "[[:digit:]]+\\.[[:digit:]]+\\.[[:digit:]]+"`
+	ver=`echo -n "$ver" | grep -Eo "^[[:digit:]]+\\.[[:digit:]]+"`
 	date=`echo -n "$tmp" | grep -Eo "[[:digit:]]{8}"`
 	result=gcc-${ver}_${date}
     elif echo -n "$tmp" | grep -Eq "[[:digit:]]+\\.[[:digit:]]+\\.[[:digit:]]+"; then

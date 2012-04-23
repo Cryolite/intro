@@ -343,9 +343,9 @@ if ! $(multilib) in no yes
 {
   errors.error "ERROR: `$(multilib)' is a wrong value for `--enable-multilib' option." ;
 }
-if [ option.get disable-multilib : INUMIMI : INUMIMI ] != INUMIMI
+if [ option.get disable-multilib : IMPLIED : IMPLIED ] != IMPLIED
 {
-  errors.error "ERROR: No value for `--disable-multilib' is allowed." ;
+  errors.error "no value for `--disable-multilib' is allowed." ;
 }
 if $(multilib) = yes && [ option.get disable-multilib : : INUMIMI ] = INUMIMI
 {

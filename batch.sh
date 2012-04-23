@@ -17,7 +17,7 @@ log_file_full_path=${dir}/$(date +%Y%m%d%H%M%S).log
 
 echo -n '========== A scheduled batch build starts here ==========' | "${prefix}/bin/twitter.rb"
 
-cd "$dir" && bjam -d+2 --triplet=x86_64-unknown-linux-gnu --prefix="$prefix" --with-binutils=2.22.52 --with-mpfr-for-gcc=3.0.1 --with-ppl-for-gcc=0.11.2 --enable-compilerss=gcc-previous,gcc-previous-snapshot,gcc-current,gcc-current-snapshot,gcc-snapshot --disable-multilib --enable-gmp --enable-mpfr --enable-mpc --enable-ppl --enable-cloog --with-mpi=openmpi --enable-boost --enable-clang --concurrency=3 --with-awacs=\"${prefix}/bin/twitter.rb\" --with-stream="$log_file_full_path" >> "$log_file_full_path" 2>&1
+cd "$dir" && bjam -d+2 --triplet=x86_64-unknown-linux-gnu --prefix="$prefix" --with-binutils=2.22.52 --with-mpfr-for-gcc=3.0.1 --with-ppl-for-gcc=0.11.2 --with-gcc-for-clang=gcc-snapshot --enable-compilers=gcc-previous,gcc-previous-snapshot,gcc-current,gcc-current-snapshot,gcc-snapshot,clang-trunk --disable-multilib --enable-gmp --enable-mpfr --enable-mpc --enable-ppl --enable-cloog --with-mpi=openmpi --enable-boost --enable-clang --concurrency=3 --with-awacs=\"${prefix}/bin/twitter.rb\" --with-stream="$log_file_full_path" >> "$log_file_full_path" 2>&1
 
 disk_usage=$(df -h ~ | tail --lines=1 | tr --squeeze-repeats ' ')
 echo -n "INFO: disk space:"                                               \
