@@ -1,4 +1,6 @@
+import common ;
 import errors ;
+import os ;
 import path ;
 import regex ;
 
@@ -434,4 +436,108 @@ rule get-abi-tag ( compiler : gcc-for-clang ? )
     result = gcc$(version-tag) ;
   }
   return $(result) ;
+}
+
+rule cc ( prefix : compiler : gcc-for-clang ? )
+{
+  if ! [ is-valid "$(compiler)" ]
+  {
+    errors.error "an internal error." ;
+  }
+  local prefix-leaf = [ get-prefix-leaf "$(compiler)" : $(gcc-for-clang) ] ;
+  local compiler-prefix = "$(prefix)/$(prefix-leaf)" ;
+  local result ;
+  if ! [ is-builtin-gcc $(compiler) ]
+  {
+    if [ is-gcc $(compiler) ]
+    {
+      if [ path.exists "$(compiler-prefix)/bin/gcc-wrapper" ]
+      {
+        result = "$(compiler-prefix)/bin/gcc-wrapper" ;
+      }
+      else
+      {
+        errors.error "an internal error." ;
+      }
+    }
+    else if [ is-clang $(compiler) ]
+    {
+      ECHO "$(compiler-prefix)/bin/clang" ;
+      if [ path.exists "$(compiler-prefix)/bin/clang-wrapper" ]
+      {
+        result = "$(compiler-prefix)/bin/clang-wrapper" ;
+      }
+      else
+      {
+        errors.error "an internal error." ;
+      }
+    }
+    else
+    {
+      errors.error "an internal error." ;
+    }
+  }
+  return [ path.native "$(result)" ] ;
+}
+
+rule cxx ( prefix : compiler : gcc-for-clang ? )
+{
+  if ! [ is-valid "$(compiler)" ]
+  {
+    errors.error "an internal error." ;
+  }
+  local prefix-leaf = [ get-prefix-leaf "$(compiler)" : $(gcc-for-clang) ] ;
+  local compiler-prefix = "$(prefix)/$(prefix-leaf)" ;
+  local result ;
+  if ! [ is-builtin-gcc $(compiler) ]
+  {
+    if [ is-gcc $(compiler) ]
+    {
+      if [ path.exists "$(compiler-prefix)/bin/g++-wrapper" ]
+      {
+        result = "$(compiler-prefix)/bin/g++-wrapper" ;
+      }
+      else
+      {
+        errors.error "an internal error." ;
+      }
+    }
+    else if [ is-clang $(compiler) ]
+    {
+      if [ path.exists "$(compiler-prefix)/bin/clang++-wrapper" ]
+      {
+        result = "$(compiler-prefix)/bin/clang++-wrapper" ;
+      }
+      else
+      {
+        errors.error "an internal error." ;
+      }
+    }
+    else
+    {
+      errors.error "an internal error." ;
+    }
+  }
+  return [ path.native "$(result)" ] ;
+}
+
+rule prepend-shared-library-path-variable-command ( prefix : compiler : gcc-for-clang ? )
+{
+  if ! [ is-valid "$(compiler)" ]
+  {
+    errors.error "an internal error." ;
+  }
+  local prefix-leaf = [ get-prefix-leaf $(compiler) : $(gcc-for-clang) ] ;
+  local compiler-prefix = "$(prefix)/$(prefix-leaf)" ;
+  local shared-library-path ;
+  if [ os.on-windows ]
+  {
+    shared-library-path = "$(compiler-prefix)/bin" ;
+  }
+  else
+  {
+    shared-library-path = "$(compiler-prefix)/lib" ;
+  }
+  shared-library-path = [ path.native "$(shared-library-path)" ] ;
+  return [ common.prepend-path-variable-command [ os.shared-library-path-variable ] : "$(shared-library-path)" ] ;
 }

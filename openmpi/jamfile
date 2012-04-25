@@ -301,6 +301,9 @@ rule make-install ( targets * : sources * : properties * )
   local srcdir = "$(INTRO_ROOT_DIR)/openmpi-$(version)" ;
   SRCDIR on $(targets) = "$(srcdir)" ;
 
+  local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
+  OBJDIR on $(targets) = "$(objdir)" ;
+
   OPTIONS on $(targets) = ;
 
   # Set the '--build' and '--host' options for the 'configure' script.
@@ -323,29 +326,19 @@ rule make-install ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) += --enable-mpi-threads ;
 
-  if ! [ "$(INTRO_ROOT_DIR)/compilers.is-builtin-gcc" $(compiler) ]
+  # See https://github.com/Cryolite/intro/issues/12
+  if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
   {
-    if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
-    {
-      OPTIONS on $(targets) += CC=\"$(compiler-prefix)/bin/gcc-wrapper\" ;
-      OPTIONS on $(targets) += CXX=\"$(compiler-prefix)/bin/g++-wrapper\" ;
-    }
-    else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
-    {
-      OPTIONS on $(targets) += CC=\"$(compiler-prefix)/bin/clang-wrapper\" ;
-      OPTIONS on $(targets) += CXX=\"$(compiler-prefix)/bin/clang++-wrapper\" ;
-    }
-    else
-    {
-      errors.error "an internal error." ;
-    }
+    OPTIONS on $(targets) += --disable-visibility ;
   }
 
-  ENV_RUN_VARS on $(targets) = ;
-  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
-  {
-    ENV_RUN_VARS on $(targets) = "env PATH=\"$(compiler-prefix)/bin${PATH:+:$PATH}\"" ;
-  }
+  local cc = [ "$(INTRO_ROOT_DIR)/compilers.cc" "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
+  OPTIONS on $(targets) += "CC=\"$(cc)\"" ;
+
+  local cxx = [ "$(INTRO_ROOT_DIR)/compilers.cxx" "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
+  OPTIONS on $(targets) += "CXX=\"$(cxx)\"" ;
+
+  #PREPEND_SHARED_LIBRARY_PATH_VARIABLE_COMMAND on $(targets) = [ "$(INTRO_ROOT_DIR)/compilers.prepend-shared-library-path-variable-command" "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
 }
 actions make-install
 {
@@ -353,16 +346,15 @@ actions make-install
   [ -x "$(SRCDIR)/config/config.sub" ] || exit 1
   [ `"$(SRCDIR)/config/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit 1
 
-  # Set the absolute path to `objdir'.
-  objdir="$(INTRO_ROOT_DIR)/objdir"
+  # Clean up objdir `$(OBJDIR)'.
+  { mkdir -p "$(OBJDIR)" && ( cd "$(OBJDIR)" && rm -rf * ); } || exit 1
 
-  # Clean up the `objdir'.
-  { mkdir -p "$objdir" && ( cd "$objdir" && rm -rf * ); } || exit 1
+  $(PREPEND_SHARED_LIBRARY_PATH_VARIABLE_COMMAND)
 
   if [ -n "$(STREAM)" ]; then
-    ( cd "$objdir" && $(ENV_RUN_VARS) "$(SRCDIR)/configure" $(OPTIONS) >> "$(STREAM)" 2>&1 )
+    ( cd "$(OBJDIR)" && "$(SRCDIR)/configure" $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$objdir" && $(ENV_RUN_VARS) "$(SRCDIR)/configure" $(OPTIONS) )
+    ( cd "$(OBJDIR)" && "$(SRCDIR)/configure" $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'configure' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
@@ -371,12 +363,12 @@ actions make-install
   fi
 
   # Check the creation of `Makefile'.
-  [ -f "${objdir}/Makefile" ] || exit 1
+  [ -f "$(OBJDIR)/Makefile" ] || exit 1
 
   if [ -n "$(STREAM)" ]; then
-    ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
+    ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) )
+    ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
@@ -385,9 +377,9 @@ actions make-install
   fi
 
   if [ -n "$(STREAM)" ]; then
-    ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) check >> "$(STREAM)" 2>&1 )
+    ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) check >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) check )
+    ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) check )
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make check' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
@@ -396,9 +388,9 @@ actions make-install
   fi
 
   if [ -n "$(STREAM)" ]; then
-    ( cd "$objdir" && $(ENV_RUN_VARS) make install >> "$(STREAM)" 2>&1 )
+    ( cd "$(OBJDIR)" && make install >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$objdir" && $(ENV_RUN_VARS) make install )
+    ( cd "$(OBJDIR)" && make install )
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make install' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
@@ -408,8 +400,8 @@ actions make-install
 
   [ -f "$(<)" ] || exit 1
 
-  # Clean up the `objdir'.
-  rm -rf "$objdir" || exit 1
+  # Clean up objdir `$(OBJDIR)'.
+  rm -rf "$(OBJDIR)" || exit 1
 
   echo -n "Open MPI $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built." | $(AWACS)
   exit 0
