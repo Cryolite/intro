@@ -13,12 +13,18 @@ libdir="$(dirname "$dir")/lib"
 bindir="$(dirname "$dir")/bin"
 
 if uname | grep -Fq 'Linux'; then
-    env LD_RUN_PATH="${LD_RUN_PATH:+$LD_RUN_PATH:}$libdir" "${dir}/gcc" "$@"
+    LD_LIBRARY_PATH="${libdir}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+    export LD_LIBRARY_PATH
+    LD_RUN_PATH="${libdir}${LD_RUN_PATH:+:${LD_RUN_PATH}}"
+    export LD_RUN_PATH
 elif uname | grep -Fq 'CYGWIN'; then
-    env PATH="${PATH:+$PATH:}$bindir" "${dir}/gcc" "$@"
+    PATH="$bindir${PATH:+:${PATH}}"
+    export PATH
 else
     exit 1
 fi
+
+"${dir}/gcc" "$@"
 result=$?
 
 exit $result

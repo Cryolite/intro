@@ -4,6 +4,7 @@ import alias ;
 import errors ;
 import feature ;
 import make ;
+import path ;
 import "$(INTRO_ROOT_DIR)/compilers" ;
 
 
@@ -298,7 +299,10 @@ rule make-install ( targets * : sources * : properties * )
 
   # Set the path to the source directory.
   local srcdir = "$(INTRO_ROOT_DIR)/ppl-$(version)" ;
-  SRCDIR on $(targets) = "$(srcdir)" ;
+  SRCDIR on $(targets) = [ path.native "$(srcdir)" ] ;
+
+  local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
+  OBJDIR on $(targets) = [ path.native "$(objdir)" ] ;
 
   OPTIONS on $(targets) = ;
 
@@ -327,28 +331,13 @@ rule make-install ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) += --with-gmp=\"$(compiler-prefix)\" ;
 
-  if ! [ "$(INTRO_ROOT_DIR)/compilers.is-builtin-gcc" $(compiler) ]
-  {
-    if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
-    {
-      OPTIONS on $(targets) += CC=\"$(compiler-prefix)/bin/gcc-wrapper\" ;
-      OPTIONS on $(targets) += CXX=\"$(compiler-prefix)/bin/g++-wrapper\" ;
-    }
-    else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
-    {
-      OPTIONS on $(targets) += CC=\"$(compiler-prefix)/bin/clang-wrapper\" ;
-      OPTIONS on $(targets) += CXX=\"$(compiler-prefix)/bin/clang++-wrapper\" ;
-    }
-    else
-    {
-      errors.error "an internal error." ;
-    }
-  }
+  local cc = [ "$(INTRO_ROOT_DIR)/compilers.cc" "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
+  OPTIONS on $(targets) += "CC=\"$(cc)\"" ;
 
-  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
-  {
-    ENV_RUN_VARS on $(targets) = "env PATH=\"$(compiler-prefix)/bin${PATH:+:$PATH}\"" ;
-  }
+  local cxx = [ "$(INTRO_ROOT_DIR)/compilers.cxx" "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
+  OPTIONS on $(targets) += "CXX=\"$(cxx)\"" ;
+
+  PREPEND_SHARED_LIBRARY_PATH_VARIABLE_COMMAND on $(targets) = [ "$(INTRO_ROOT_DIR)/compilers.prepend-shared-library-path-variable-command" "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
 }
 actions make-install
 {
@@ -362,16 +351,15 @@ actions make-install
   [ -x "$(SRCDIR)/config.sub" ] || exit 1
   [ `"$(SRCDIR)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit 1
 
-  # Set the absolute path to `objdir'.
-  objdir="$(INTRO_ROOT_DIR)/objdir"
+  # Clean up objdir `$(OBJDIR)'.
+  { mkdir -p "$(OBJDIR)" && ( cd "$(OBJDIR)" && rm -rf * ); } || exit 1
 
-  # Clean up the `objdir'.
-  { mkdir -p "$objdir" && ( cd "$objdir" && rm -rf * ); } || exit 1
+  $(PREPEND_SHARED_LIBRARY_PATH_VARIABLE_COMMAND)
 
   if [ -n "$(STREAM)" ]; then
-    ( cd "$objdir" && $(ENV_RUN_VARS) "$(SRCDIR)/configure" $(OPTIONS) >> "$(STREAM)" 2>&1 )
+    ( cd "$(OBJDIR)" && "$(SRCDIR)/configure" $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$objdir" && $(ENV_RUN_VARS) "$(SRCDIR)/configure" $(OPTIONS) )
+    ( cd "$(OBJDIR)" && "$(SRCDIR)/configure" $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'configure' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
@@ -380,12 +368,12 @@ actions make-install
   fi
 
   # Check the creation of `Makefile'.
-  [ -f "${objdir}/Makefile" ] || exit 1
+  [ -f "$(OBJDIR)/Makefile" ] || exit 1
 
   if [ -n "$(STREAM)" ]; then
-    ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
+    ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) )
+    ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
@@ -396,12 +384,12 @@ actions make-install
   if [ -n "$(STREAM)" ]; then
     # 0.12 can't run `make check'. See https://www.cs.unipr.it/mantis/view.php?id=350.
     if [ $(VERSION) != 0.12 ]; then
-      ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) check >> "$(STREAM)" 2>&1 )
+      ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) check >> "$(STREAM)" 2>&1 )
     fi
   else
     # 0.12 can't run `make check'. See https://www.cs.unipr.it/mantis/view.php?id=350.
     if [ $(VERSION) != 0.12 ]; then
-      ( cd "$objdir" && $(ENV_RUN_VARS) make --jobs=$(CONCURRENCY) check )
+      ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) check )
     fi
   fi
   if [ $? -ne 0 ]; then
@@ -411,9 +399,9 @@ actions make-install
   fi
 
   if [ -n "$(STREAM)" ]; then
-    ( cd "$objdir" && $(ENV_RUN_VARS) make install >> "$(STREAM)" 2>&1 )
+    ( cd "$(OBJDIR)" && make install >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$objdir" && $(ENV_RUN_VARS) make install )
+    ( cd "$(OBJDIR)" && make install )
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make install' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
@@ -423,8 +411,8 @@ actions make-install
 
   [ -f "$(<)" ] || exit 1
 
-  # Clean up the `objdir'.
-  rm -rf "$objdir" || exit 1
+  # Clean up objdir `$(OBJDIR)'.
+  rm -rf "$(OBJDIR)" || exit 1
 
   echo -n "PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built." | $(AWACS)
   exit 0
@@ -458,6 +446,7 @@ rule install-req ( properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
   local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;

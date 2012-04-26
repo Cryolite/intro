@@ -451,26 +451,11 @@ rule cc ( prefix : compiler : gcc-for-clang ? )
   {
     if [ is-gcc $(compiler) ]
     {
-      if [ path.exists "$(compiler-prefix)/bin/gcc-wrapper" ]
-      {
-        result = "$(compiler-prefix)/bin/gcc-wrapper" ;
-      }
-      else
-      {
-        errors.error "an internal error." ;
-      }
+      result = "$(compiler-prefix)/bin/gcc-wrapper" ;
     }
     else if [ is-clang $(compiler) ]
     {
-      ECHO "$(compiler-prefix)/bin/clang" ;
-      if [ path.exists "$(compiler-prefix)/bin/clang-wrapper" ]
-      {
-        result = "$(compiler-prefix)/bin/clang-wrapper" ;
-      }
-      else
-      {
-        errors.error "an internal error." ;
-      }
+      result = "$(compiler-prefix)/bin/clang-wrapper" ;
     }
     else
     {
@@ -493,25 +478,11 @@ rule cxx ( prefix : compiler : gcc-for-clang ? )
   {
     if [ is-gcc $(compiler) ]
     {
-      if [ path.exists "$(compiler-prefix)/bin/g++-wrapper" ]
-      {
-        result = "$(compiler-prefix)/bin/g++-wrapper" ;
-      }
-      else
-      {
-        errors.error "an internal error." ;
-      }
+      result = "$(compiler-prefix)/bin/g++-wrapper" ;
     }
     else if [ is-clang $(compiler) ]
     {
-      if [ path.exists "$(compiler-prefix)/bin/clang++-wrapper" ]
-      {
-        result = "$(compiler-prefix)/bin/clang++-wrapper" ;
-      }
-      else
-      {
-        errors.error "an internal error." ;
-      }
+      result = "$(compiler-prefix)/bin/clang++-wrapper" ;
     }
     else
     {

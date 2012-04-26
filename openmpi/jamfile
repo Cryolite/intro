@@ -4,6 +4,7 @@ import alias ;
 import errors ;
 import feature ;
 import make ;
+import path ;
 import regex ;
 import "$(INTRO_ROOT_DIR)/compilers" ;
 
@@ -299,10 +300,10 @@ rule make-install ( targets * : sources * : properties * )
 
   # Set the path to the source directory.
   local srcdir = "$(INTRO_ROOT_DIR)/openmpi-$(version)" ;
-  SRCDIR on $(targets) = "$(srcdir)" ;
+  SRCDIR on $(targets) = [ path.native "$(srcdir)" ] ;
 
   local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
-  OBJDIR on $(targets) = "$(objdir)" ;
+  OBJDIR on $(targets) = [ path.native "$(objdir)" ] ;
 
   OPTIONS on $(targets) = ;
 
@@ -338,7 +339,7 @@ rule make-install ( targets * : sources * : properties * )
   local cxx = [ "$(INTRO_ROOT_DIR)/compilers.cxx" "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
   OPTIONS on $(targets) += "CXX=\"$(cxx)\"" ;
 
-  #PREPEND_SHARED_LIBRARY_PATH_VARIABLE_COMMAND on $(targets) = [ "$(INTRO_ROOT_DIR)/compilers.prepend-shared-library-path-variable-command" "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
+  PREPEND_SHARED_LIBRARY_PATH_VARIABLE_COMMAND on $(targets) = [ "$(INTRO_ROOT_DIR)/compilers.prepend-shared-library-path-variable-command" "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
 }
 actions make-install
 {
@@ -435,6 +436,7 @@ rule install-req ( properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
   local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;

@@ -184,45 +184,7 @@ rule make-install ( targets * : sources * : properties * )
   # find necessary libraries including `libstdc++.so' without specifying
   # these environment variables. `LD_RUN_PATH' does not work for this
   # purpose.
-  ENV_FOR_CONFIGURE on $(targets) = ;
-  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
-  {
-    ENV_FOR_CONFIGURE on $(targets) = "env PATH=\"${PATH:+$PATH:}$(compiler-prefix)/bin\"" ;
-  }
-  else
-  {
-    ENV_FOR_CONFIGURE on $(targets) = "env LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$(compiler-prefix)/lib\"" ;
-  }
-
-  ENV_FOR_MAKE on $(targets) = ;
-  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
-  {
-    ENV_FOR_MAKE on $(targets) = "env PATH=\"${PATH:+$PATH:}$(compiler-prefix)/bin\"" ;
-  }
-  else
-  {
-    ENV_FOR_MAKE on $(targets) = "env LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$(compiler-prefix)/lib\"" ;
-  }
-
-  ENV_FOR_MAKE_CHECK on $(targets) = ;
-  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
-  {
-    ENV_FOR_MAKE_CHECK on $(targets) = "env PATH=\"${PATH:+$PATH:}$(compiler-prefix)/bin\"" ;
-  }
-  else
-  {
-    ENV_FOR_MAKE_CHECK on $(targets) = "env LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$(compiler-prefix)/lib\"" ;
-  }
-
-  ENV_FOR_MAKE_INSTALL on $(targets) = ;
-  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
-  {
-    ENV_FOR_MAKE_INSTALL on $(targets) = "env PATH=\"${PATH:+$PATH:}$(compiler-prefix)/bin\"" ;
-  }
-  else
-  {
-    ENV_FOR_MAKE_INSTALL on $(targets) = "env LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH:+$LD_LIBRARY_PATH:}$(compiler-prefix)/lib\"" ;
-  }
+  PREPEND_SHARED_LIBRARY_PATH_VARIABLE_COMMAND on $(targets) = [ "$(INTRO_ROOT_DIR)/compilers.prepend-shared-library-path-variable-command" "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
 }
 actions make-install
 {
@@ -289,10 +251,12 @@ actions make-install
   # Clean up the $(OBJDIR).
   { mkdir -p "$(OBJDIR)" && ( cd "$(OBJDIR)" && rm -rf * ); } || exit 1
 
+  $(PREPEND_SHARED_LIBRARY_PATH_VARIABLE_COMMAND)
+
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(OBJDIR)" && $(ENV_FOR_CONFIGURE) "$(LLVM_DIR)/configure" $(OPTIONS) >> "$(STREAM)" 2>&1 )
+    ( cd "$(OBJDIR)" && "$(LLVM_DIR)/configure" $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(OBJDIR)" && $(ENV_FOR_CONFIGURE) "$(LLVM_DIR)/configure" $(OPTIONS) )
+    ( cd "$(OBJDIR)" && "$(LLVM_DIR)/configure" $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'configure' LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
@@ -304,9 +268,9 @@ actions make-install
   [ -f "$(OBJDIR)/Makefile" ] || exit 1
 
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(OBJDIR)" && $(ENV_FOR_MAKE) make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
+    ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(OBJDIR)" && $(ENV_FOR_MAKE) make --jobs=$(CONCURRENCY) )
+    ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make' LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
@@ -315,9 +279,9 @@ actions make-install
   fi
 
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(OBJDIR)" && $(ENV_FOR_MAKE_CHECK) make check >> "$(STREAM)" 2>&1 )
+    ( cd "$(OBJDIR)" && make check >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(OBJDIR)" && $(ENV_FOR_MAKE_CHECK) make check )
+    ( cd "$(OBJDIR)" && make check )
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make check' LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
@@ -326,9 +290,9 @@ actions make-install
   fi
 
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(OBJDIR)" && $(ENV_FOR_MAKE_INSTALL) make install >> "$(STREAM)" 2>&1 )
+    ( cd "$(OBJDIR)" && make install >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(OBJDIR)" && $(ENV_FOR_MAKE_INSTALL) make install )
+    ( cd "$(OBJDIR)" && make install )
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to 'make install' LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
