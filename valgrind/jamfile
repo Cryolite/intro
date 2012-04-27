@@ -1,11 +1,10 @@
-project intro/icu4c ;
+project intro/valgrind ;
 
 import alias ;
 import errors ;
 import feature ;
 import make ;
 import path ;
-import regex ;
 import "$(INTRO_ROOT_DIR)/compilers" ;
 
 
@@ -13,7 +12,7 @@ rule assert-specified ( feature : properties * )
 {
   local val = [ feature.get-values $(feature) : $(properties) ] ;
   if $(val) = unspecified {
-    errors.error $(feature) is not specified for ICU4C build. ;
+    errors.error $(feature) is not specified for Valgrind build. ;
   }
 }
 
@@ -21,7 +20,7 @@ rule assert-unspecified ( feature : properties * )
 {
   local val = [ feature.get-values $(feature) : $(properties) ] ;
   if $(val) != unspecified {
-    errors.error $(feature) is not valid for ICU4C build. ;
+    errors.error $(feature) is not valid for Valgrind build. ;
   }
 }
 
@@ -75,12 +74,8 @@ alias compiler-dep : : <conditional>@compiler-dep-req ;
 explicit compiler-dep ;
 
 
-for local version in $(ICU4C_VERSIONS)
-{
-  local version-string = [ regex.replace "$(version)" "\\." "_" ] ;
-  make "$(INTRO_ROOT_DIR)/icu4c-$(version-string)-src.tgz" : : @download ;
-  explicit "$(INTRO_ROOT_DIR)/icu4c-$(version-string)-src.tgz" ;
-}
+make "$(INTRO_ROOT_DIR)/valgrind-$(VALGRIND).tar.bz2" : : @download ;
+explicit "$(INTRO_ROOT_DIR)/valgrind-$(VALGRIND).tar.bz2" ;
 
 rule download ( targets * : sources * : properties * )
 {
@@ -106,17 +101,18 @@ rule download ( targets * : sources * : properties * )
   assert-unspecified <compiler>        : $(properties) ;
   assert-unspecified <compiler-hidden> : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
-  assert-specified   <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
   assert-unspecified <mpi>             : $(properties) ;
   assert-unspecified <mpi-hidden>      : $(properties) ;
   assert-unspecified <openmpi>         : $(properties) ;
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
-  local version = [ feature.get-values <icu4c-hidden> : $(properties) ] ;
+  assert-unspecified <valgrind>        : $(properties) ;
+  assert-specified   <valgrind-hidden> : $(properties) ;
+  local version = [ feature.get-values <valgrind-hidden> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
-  local version-string = [ regex.replace "$(version)" "\\." "_" ] ;
-  URL on $(targets) = http://download.icu-project.org/files/icu4c/$(version)/icu4c-$(version-string)-src.tgz ;
+  URL on $(targets) = http://valgrind.org/downloads/valgrind-$(version).tar.bz2 ;
 }
 actions download
 {
@@ -127,8 +123,8 @@ actions download
     ( cd "$(<:D)" && wget --quiet -- '$(URL)' )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to download ICU4C $(VERSION) tarball." 1>&2
-    echo -n "ERROR: failed to download ICU4C $(VERSION) tarball." | $(AWACS)
+    echo "ERROR: failed to download Valgrind $(VERSION) tarball." 1>&2
+    echo -n "ERROR: failed to download Valgrind $(VERSION) tarball." | $(AWACS)
     rm -rf "$(<)"
     exit 1
   fi
@@ -137,23 +133,19 @@ actions download
 }
 
 
-for local version in $(ICU4C_VERSIONS)
-{
-  # Use `readme.html' file as a target representing the completion of
-  # decompression action. It is suitable for the purpose because of the
-  # following reasons;
-  #
-  #   - The name of this file is considered stable even if the version
-  #     changes.
-  #   - This file won't be modified during the build procedure.
-  #
-  local version-string = [ regex.replace "$(version)" "\\." "_" ] ;
-  make "$(INTRO_ROOT_DIR)/icu-$(version)/readme.html"
-    : "$(INTRO_ROOT_DIR)/icu4c-$(version-string)-src.tgz"
-    : @expand
-    ;
-  explicit "$(INTRO_ROOT_DIR)/icu-$(version)/readme.html" ;
-}
+# Use `README' file as a target representing the completion of
+# decompression action. It is suitable for the purpose because of the
+# following reasons;
+#
+#   - The name of this file is considered stable even if the version
+#     changes.
+#   - This file won't be modified during the build procedure.
+#
+make "$(INTRO_ROOT_DIR)/valgrind-$(VALGRIND)/README"
+  : "$(INTRO_ROOT_DIR)/valgrind-$(VALGRIND).tar.bz2"
+  : @expand
+  ;
+explicit "$(INTRO_ROOT_DIR)/valgrind-$(VALGRIND)/README" ;
 
 rule expand ( targets * : sources * : properties * )
 {
@@ -183,35 +175,33 @@ rule expand ( targets * : sources * : properties * )
   assert-unspecified <compiler>        : $(properties) ;
   assert-unspecified <compiler-hidden> : $(properties) ;
   assert-unspecified <icu4c>           : $(properties) ;
-  assert-specified   <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
   assert-unspecified <mpi>             : $(properties) ;
   assert-unspecified <mpi-hidden>      : $(properties) ;
   assert-unspecified <openmpi>         : $(properties) ;
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
-  local version = [ feature.get-values <icu4c-hidden> : $(properties) ] ;
+  assert-unspecified <valgrind>        : $(properties) ;
+  assert-specified   <valgrind-hidden> : $(properties) ;
+  local version = [ feature.get-values <valgrind-hidden> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
 }
 actions expand
 {
   rm -rf "$(<:D)" || exit 1
-  rm -rf "$(INTRO_ROOT_DIR)/icu" || exit 1
   [ -f "$(>)" ] || exit 1
   if [ -n "$(STREAM)" ]; then
-    tar xzvf "$(>)" --directory="$(INTRO_ROOT_DIR)" >> "$(STREAM)" 2>&1
+    tar xjvf "$(>)" --directory="$(INTRO_ROOT_DIR)" >> "$(STREAM)" 2>&1
   else
-    tar xzf "$(>)" --directory="$(INTRO_ROOT_DIR)"
+    tar xjf "$(>)" --directory="$(INTRO_ROOT_DIR)"
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to expand ICU4C $(VERSION) tarball." 1>&2
-    echo -n "ERROR: failed to expand ICU4C $(VERSION) tarball." | $(AWACS)
+    echo "ERROR: failed to expand Valgrind $(VERSION) tarball." 1>&2
+    echo -n "ERROR: failed to expand Valgrind $(VERSION) tarball." | $(AWACS)
     rm -rf "$(<:D)"
-    rm -rf "$(INTRO_ROOT_DIR)/icu"
     exit 1
   fi
-  [ -d "$(INTRO_ROOT_DIR)/icu" ] || exit 1
-  mv "$(INTRO_ROOT_DIR)/icu" "$(<:D)" || exit 1
   # If the timestamp of the tarball's contents is restored, the modification
   # time of the source directory could be older than the one of the tarball.
   # Such behavior is not desirable because the decompression always happens.
@@ -241,7 +231,7 @@ rule srcdir-req ( properties * )
   assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-unspecified <compiler>        : $(properties) ;
   assert-unspecified <compiler-hidden> : $(properties) ;
-  assert-specified   <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
   assert-unspecified <mpi>             : $(properties) ;
   assert-unspecified <mpi-hidden>      : $(properties) ;
@@ -249,8 +239,10 @@ rule srcdir-req ( properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
-  local version = [ feature.get-values <icu4c> : $(properties) ] ;
-  return <source>"$(INTRO_ROOT_DIR)/icu-$(version)/readme.html/<icu4c>unspecified/<icu4c-hidden>$(version)" ;
+  assert-specified   <valgrind>        : $(properties) ;
+  assert-unspecified <valgrind-hidden> : $(properties) ;
+  local version = [ feature.get-values <valgrind> : $(properties) ] ;
+  return <source>"$(INTRO_ROOT_DIR)/valgrind-$(version)/README/<valgrind>unspecified/<valgrind-hidden>$(version)" ;
 }
 
 alias srcdir : : <conditional>@srcdir-req ;
@@ -261,12 +253,13 @@ for local compiler in $(COMPILERS)
 {
   local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
   local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-  make "$(compiler-prefix)/include/unicode/uchar.h"
-    : compiler-dep/<icu4c>unspecified
-      srcdir/<triplet>unspecified/<multilib-hidden>unspecified/<compiler>unspecified
+  make "$(compiler-prefix)/include/valgrind/valgrind.h"
+    : compiler-dep/<mpi>unspecified/<openmpi>unspecified/<valgrind>unspecified
+      ../openmpi//install/<valgrind>unspecified
+      srcdir/<triplet>unspecified/<multilib-hidden>unspecified/<compiler>unspecified/<mpi>unspecified/<openmpi>unspecified
     : @make-install
     ;
-  explicit "$(compiler-prefix)/include/unicode/uchar.h" ;
+  explicit "$(compiler-prefix)/include/valgrind/valgrind.h" ;
 }
 
 rule make-install ( targets * : sources * : properties * )
@@ -288,24 +281,26 @@ rule make-install ( targets * : sources * : properties * )
   assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-specified   <compiler>        : $(properties) ;
   assert-unspecified <compiler-hidden> : $(properties) ;
-  assert-specified   <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
-  assert-unspecified <mpi>             : $(properties) ;
+  assert-specified   <mpi>             : $(properties) ;
   assert-unspecified <mpi-hidden>      : $(properties) ;
-  assert-unspecified <openmpi>         : $(properties) ;
+  #assert-specified   <openmpi>         : $(properties) ;
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  assert-specified   <valgrind>        : $(properties) ;
+  assert-unspecified <valgrind-hidden> : $(properties) ;
 
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(compiler) ] ;
   COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
 
-  local version = [ feature.get-values <icu4c> : $(properties) ] ;
+  local version = [ feature.get-values <valgrind> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
 
   # Set the path to the source directory.
-  local srcdir = "$(INTRO_ROOT_DIR)/icu-$(version)" ;
+  local srcdir = "$(INTRO_ROOT_DIR)/valgrind-$(version)" ;
   SRCDIR on $(targets) = [ path.native "$(srcdir)" ] ;
 
   local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
@@ -313,55 +308,25 @@ rule make-install ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) = ;
 
-  OPTIONS on $(targets) += --enable-debug ;
-
-  local triplet = [ feature.get-values <triplet> : $(properties) ] ;
-  if $(triplet) = i686-pc-cygwin
-  {
-    OPTIONS on $(targets) += Cygwin ;
-  }
-  else if $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
-  {
-    OPTIONS on $(targets) += MinGW ;
-  }
-  else if $(triplet) = i686-pc-linux-gnu || $(triplet) = x86_64-unknown-linux-gnu
-  {
-    OPTIONS on $(targets) += Linux ;
-  }
-  else
-  {
-    errors.error "an internal error." ;
-  }
+  # Set the '--prefix' option for the 'configure' script.
+  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
+  ECHO compiler: $(compiler) ;
+  ECHO GCC_FOR_CLANG: $(GCC_FOR_CLANG) ;
+  ECHO prefix-leaf: $(prefix-leaf) ;
+  ECHO compiler-prefix: $(compiler-prefix) ;
+  #errors.error END ;
+  OPTIONS on $(targets) += "--prefix=\"$(compiler-prefix)\"" ;
 
   # Set the '--build' and '--host' options for the 'configure' script.
+  local triplet = [ feature.get-values <triplet> : $(properties) ] ;
   TRIPLET on $(targets) = $(triplet) ;
   OPTIONS on $(targets) += --build=$(triplet) ;
   OPTIONS on $(targets) += --host=$(triplet) ;
 
-  # Set the '--prefix' option for the 'configure' script.
-  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
-  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-  OPTIONS on $(targets) += --prefix=\"$(compiler-prefix)\" ;
+  OPTIONS on $(targets) += --enable-tls ;
 
-  OPTIONS on $(targets) += --enable-release ;
-
-  OPTIONS on $(targets) += --enable-static ;
-  OPTIONS on $(targets) += --enable-shared ;
-
-  OPTIONS on $(targets) += --enable-threads ;
-
-  if $(triplet) = i686-pc-linux-gnu || $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32
-  {
-    OPTIONS on $(targets) += --with-library-bits=32 ;
-  }
-  else if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32
-  {
-    OPTIONS on $(targets) += --with-library-bits=64 ;
-  }
-  else
-  {
-    errors.error "an internal error." ;
-  }
+  OPTIONS on $(targets) += "--with-mpicc=\"$(compiler-prefix)/bin/mpicc\"" ;
 
   local cc = [ "$(INTRO_ROOT_DIR)/compilers.cc" "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
   OPTIONS on $(targets) += "CC=\"$(cc)\"" ;
@@ -373,23 +338,28 @@ rule make-install ( targets * : sources * : properties * )
 }
 actions make-install
 {
-  [ -x "$(SRCDIR)/source/runConfigureICU" ] || exit 1
-  chmod +x "$(SRCDIR)/source/config.sub" || exit 1
-  [ `"$(SRCDIR)/source/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit 1
-
   # Clean up objdir `$(OBJDIR)'.
   { mkdir -p "$(OBJDIR)" && ( cd "$(OBJDIR)" && rm -rf * ); } || exit 1
+
+  # Valgrind sources should compile in the `SRCDIR', not `OBJDIR' that is
+  # different from `SRCDIR'. So, let's first copy all the contents of
+  # `SRCDIR' to `OBJDIR'.
+  cp -rT "$(SRCDIR)" "$(OBJDIR)" || exit 1
+
+  [ -x "$(OBJDIR)/configure" ] || exit 1
+  [ -x "$(OBJDIR)/config.sub" ] || exit 1
+  [ `"$(OBJDIR)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit 1
 
   $(PREPEND_SHARED_LIBRARY_PATH_VARIABLE_COMMAND)
 
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(OBJDIR)" && "$(SRCDIR)/source/runConfigureICU" $(OPTIONS) >> "$(STREAM)" 2>&1 )
+    ( cd "$(OBJDIR)" && "./configure" $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(OBJDIR)" && "$(SRCDIR)/source/runConfigureICU" $(OPTIONS) )
+    ( cd "$(OBJDIR)" && "./configure" $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'runConfigureICU' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'runConfigureICU' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'configure' Valgrind $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'configure' Valgrind $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
 
@@ -402,21 +372,19 @@ actions make-install
     ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'make' Valgrind $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make' Valgrind $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
 
   if [ -n "$(STREAM)" ]; then
-    # `make check' of ICU4C does not support parallel build.
-    ( cd "$(OBJDIR)" && make check >> "$(STREAM)" 2>&1 )
+    ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) check >> "$(STREAM)" 2>&1 )
   else
-    # `make check' of ICU4C does not support parallel build.
-    ( cd "$(OBJDIR)" && make check )
+    ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) check )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make check' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make check' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'make check' Valgrind $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make check' Valgrind $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
 
@@ -426,17 +394,25 @@ actions make-install
     ( cd "$(OBJDIR)" && make install )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make install' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make install' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to 'make install' Valgrind $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to 'make install' Valgrind $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
+
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) regtest 2>&1 | tee regtest.log >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) regtest 2>&1 | tee regtest.log )
+  fi
+  # `make regtest' usually fails, so they are treated as just information.
+  echo -n "INFO: 'make regtest' Valgrind $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." `grep -Eo "^==.*==$" "$(OBJDIR)/regtest.log"` | $(AWACS)
 
   [ -f "$(<)" ] || exit 1
 
   # Clean up objdir `$(OBJDIR)'.
   rm -rf "$(OBJDIR)" || exit 1
 
-  echo -n "ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built." | $(AWACS)
+  echo -n "Valgrind $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built." | $(AWACS)
   exit 0
 }
 
@@ -460,19 +436,21 @@ rule install-req ( properties * )
   assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-specified   <compiler>        : $(properties) ;
   assert-unspecified <compiler-hidden> : $(properties) ;
-  assert-specified   <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
   assert-unspecified <icu4c-hidden>    : $(properties) ;
-  assert-unspecified <mpi>             : $(properties) ;
+  assert-specified   <mpi>             : $(properties) ;
   assert-unspecified <mpi-hidden>      : $(properties) ;
-  assert-unspecified <openmpi>         : $(properties) ;
+  #assert-specified   <openmpi>         : $(properties) ;
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  assert-specified   <valgrind>        : $(properties) ;
+  assert-unspecified <valgrind-hidden> : $(properties) ;
 
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
   local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-  return <source>"$(compiler-prefix)/include/unicode/uchar.h" ;
+  return <source>"$(compiler-prefix)/include/valgrind/valgrind.h" ;
 }
 
 alias install : : <conditional>@install-req ;

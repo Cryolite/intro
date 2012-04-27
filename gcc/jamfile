@@ -523,7 +523,7 @@ actions make-install
   echo "echo original options for PPL configure script: \$@"                    >> "$(SRCDIR)/ppl/configure"
   echo "dir=\`dirname \"\$0\"\`"                                                >> "$(SRCDIR)/ppl/configure"
   #echo "\"\${dir}/real-configure\" --with-gmp-build=\"$(OBJDIR)/gmp\" \"\$@\"" >> "$(SRCDIR)/ppl/configure"
-  echo  "\"\${dir}/real-configure\" --srcdir="$(SRCDIR)/ppl" --build=$(TRIPLET) --host=$(TRIPLET) --disable-coverage --enable-static --disable-shared --with-gmp-build=\"$(OBJDIR)/gmp\"" >> "$(SRCDIR)/ppl/configure"
+  echo  "\"\${dir}/real-configure\" --srcdir=\"$(SRCDIR)/ppl\" --build=$(TRIPLET) --host=$(TRIPLET) --disable-coverage --enable-static --disable-shared --with-gmp-build=\"$(OBJDIR)/gmp\"" >> "$(SRCDIR)/ppl/configure"
   chmod +x "$(SRCDIR)/ppl/configure"
 
 
@@ -541,7 +541,7 @@ actions make-install
   echo "echo original options for CLooG configure script: \$@"                    >> "$(SRCDIR)/cloog/configure"
   echo "dir=\`dirname \"\$0\"\`"                                                  >> "$(SRCDIR)/cloog/configure"
   #echo "\"\${dir}/real-configure\" --with-gmp-builddir=\"$(OBJDIR)/gmp\" \"\$@\"" >> "$(SRCDIR)/cloog/configure"
-  echo "\"\${dir}/real-configure\" --srcdir=$(SRCDIR)/cloog --build=$(TRIPLET) --host=$(TRIPLET) --enable-static --disable-shared --with-gnu-ld --with-gmp-builddir=\"$(OBJDIR)/gmp\"" >> "$(SRCDIR)/cloog/configure"
+  echo "\"\${dir}/real-configure\" --srcdir=\"$(SRCDIR)/cloog\" --build=$(TRIPLET) --host=$(TRIPLET) --enable-static --disable-shared --with-gnu-ld --with-gmp-builddir=\"$(OBJDIR)/gmp\"" >> "$(SRCDIR)/cloog/configure"
   chmod +x "$(SRCDIR)/cloog/configure"
 
 

@@ -19,8 +19,9 @@ local .cloog-latest ;
 local .icu4c-latest ;
 local .openmpi-latest ;
 local .boost-latest ;
+local .valgrind-latest ;
 
-rule get-boost-latest-version ( )
+local rule get-boost-latest-version ( )
 {
   if ! $(.boost-latest)
   {
@@ -33,7 +34,7 @@ rule get-boost-latest-version ( )
   return $(.boost-latest) ;
 }
 
-rule get-binutils-latest-version ( )
+local rule get-binutils-latest-version ( )
 {
   if ! $(.binutils-latest)
   {
@@ -46,7 +47,7 @@ rule get-binutils-latest-version ( )
   return $(.binutils-latest) ;
 }
 
-rule get-gmp-latest-version ( )
+local rule get-gmp-latest-version ( )
 {
   if ! $(.gmp-latest)
   {
@@ -59,7 +60,7 @@ rule get-gmp-latest-version ( )
   return $(.gmp-latest) ;
 }
 
-rule get-mpfr-latest-version ( )
+local rule get-mpfr-latest-version ( )
 {
   if ! $(.mpfr-latest)
   {
@@ -72,7 +73,7 @@ rule get-mpfr-latest-version ( )
   return $(.mpfr-latest) ;
 }
 
-rule get-mpc-latest-version ( )
+local rule get-mpc-latest-version ( )
 {
   if ! $(.mpc-latest)
   {
@@ -85,7 +86,7 @@ rule get-mpc-latest-version ( )
   return $(.mpc-latest) ;
 }
 
-rule get-ppl-latest-version ( )
+local rule get-ppl-latest-version ( )
 {
   if ! $(.ppl-latest)
   {
@@ -98,7 +99,7 @@ rule get-ppl-latest-version ( )
   return $(.ppl-latest) ;
 }
 
-rule get-cloog-latest-version ( )
+local rule get-cloog-latest-version ( )
 {
   if ! $(.cloog-latest)
   {
@@ -111,7 +112,7 @@ rule get-cloog-latest-version ( )
   return $(.cloog-latest) ;
 }
 
-rule get-icu4c-latest-version ( )
+local rule get-icu4c-latest-version ( )
 {
   if ! $(.icu4c-latest)
   {
@@ -124,7 +125,7 @@ rule get-icu4c-latest-version ( )
   return $(.icu4c-latest) ;
 }
 
-rule get-openmpi-latest-version ( )
+local rule get-openmpi-latest-version ( )
 {
   if ! $(.openmpi-latest)
   {
@@ -135,6 +136,19 @@ rule get-openmpi-latest-version ( )
     }
   }
   return $(.openmpi-latest) ;
+}
+
+local rule get-valgrind-latest-version ( )
+{
+  if ! $(.valgrind-latest)
+  {
+    .valgrind-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/valgrind/latest.sh\" || echo -n error" ] ;
+    if $(.valgrind-latest) = error
+    {
+      errors.error "failed to extract Valgrind latest version." ;
+    }
+  }
+  return $(.valgrind-latest) ;
 }
 
 
@@ -563,6 +577,25 @@ if $(clang) = yes && [ option.get disable-clang : : IMPLIED ] = IMPLIED
 ECHO clang... $(clang) ;
 
 
+local valgrind = [ option.get enable-valgrind : : latest ] ;
+if $(valgrind) = latest
+{
+  valgrind = [ get-valgrind-latest-version ] ;
+}
+if $(valgrind)
+{
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(valgrind)" : 1 ]
+  {
+    errors.error an invalid value `$(valgrind)' for `--enable-valgrind'. ;
+  }
+  ECHO valgrind... $(valgrind) ;
+}
+else
+{
+  ECHO valgrind... N/A ;
+}
+
+
 local concurrency = [ option.get concurrency : 1 : IMPLIED ] ;
 if $(concurrency) = IMPLIED
 {
@@ -707,6 +740,12 @@ if $(boost-versions)
   ECHO BOOST_VERSIONS... $(BOOST_VERSIONS) ;
 }
 
+if $(valgrind)
+{
+  constant VALGRIND : $(valgrind) ;
+  ECHO VALGRIND... $(valgrind) ;
+}
+
 constant CONCURRENCY : $(concurrency) ;
 ECHO CONCURRENCY... $(CONCURRENCY) ;
 
@@ -787,13 +826,18 @@ else
   feature openmpi-hidden : [ feature.values <openmpi> ] : propagated incidental ;
 }
 
-feature boost        : unspecified $(boost-versions)       : propagated            ;
-feature boost-hidden : [ feature.values <boost> ] : propagated incidental ;
+feature boost        : unspecified $(boost-versions) : propagated            ;
+feature boost-hidden : [ feature.values <boost> ]    : propagated incidental ;
 
-if $(clang) = yes {
+feature valgrind        : unspecified $(valgrind)       : propagated            ;
+feature valgrind-hidden : [ feature.values <valgrind> ] : propagated incidental ;
+
+if $(clang) = yes
+{
   clang = "clang//install/<multilib-hidden>$(multilib)" ;
 }
-else {
+else
+{
   clang = ;
 }
 
@@ -818,6 +862,7 @@ for local enabled-compiler in $(enabled-compilers)
         openmpi//install/<multilib-hidden>$(multilib)/<mpi>openmpi/<openmpi>$(OPENMPI)
         boost//install/<multilib-hidden>$(multilib)/<icu4c>$(icu4c)/<mpi>openmpi/<openmpi>$(OPENMPI)/<boost>$(boost)
         $(clang)
+        valgrind//install/<multilib-hidden>$(multilib)/<mpi>openmpi/<openmpi>$(OPENMPI)/<valgrind>$(valgrind)
       : <triplet>$(triplet)
         <compiler>$(enabled-compiler)
       ;
@@ -835,6 +880,7 @@ for local enabled-compiler in $(enabled-compilers)
         icu4c//install/<multilib-hidden>$(multilib)/<icu4c>$(icu4c)
         openmpi//install/<multilib-hidden>$(multilib)/<mpi>openmpi/<openmpi>$(OPENMPI)
         boost//install/<multilib-hidden>$(multilib)/<icu4c>$(icu4c)/<mpi>openmpi/<openmpi>$(OPENMPI)/<boost>$(boost)
+        valgrind//install/<multilib-hidden>$(multilib)/<mpi>openmpi/<openmpi>$(OPENMPI)/<valgrind>$(valgrind)
       : <triplet>$(triplet)
         <compiler>$(enabled-compiler)
       ;

@@ -186,9 +186,9 @@ actions install
 
   # Build release version libraries with LTO options.
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=release cflags=-flto cxxflags="-std=c++0x" linkflags="-O3 -flto" $(OPTIONS) >> "$(STREAM)" 2>&1 )
+    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=release cflags=-flto cxxflags="-std=c++0x" linkflags=-O3 linkflags=-flto $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=release cflags=-flto cxxflags="-std=c++0x" linkflags="-O3 -flto" $(OPTIONS) )
+    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=release cflags=-flto cxxflags="-std=c++0x" linkflags=-O3 linkflags=-flto $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to build Boost $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2

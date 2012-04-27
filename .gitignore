@@ -32,4 +32,6 @@
 /boost_*.tar.gz
 /boost_*.tar.bz2
 /llvm/
+/valgrind-*.tar.bz2
+/valgrind-*/
 *.log

@@ -246,9 +246,9 @@ actions make-install
 
   # Extract the revision number of Clang.
   clang_rev=`( cd "$(CLANG_DIR)" && { env LANG=C svn info || exit 1; } | { grep -E 'Revision: [[:digit:]]+' || exit 1; } | { grep -oE '[[:digit:]]+' || exit 1; } )`
-  [ $? -eq 0 ] || 1
+  [ $? -eq 0 ] || exit 1
 
-  # Clean up the $(OBJDIR).
+  # Clean up objdir `$(OBJDIR)'.
   { mkdir -p "$(OBJDIR)" && ( cd "$(OBJDIR)" && rm -rf * ); } || exit 1
 
   $(PREPEND_SHARED_LIBRARY_PATH_VARIABLE_COMMAND)
@@ -310,7 +310,7 @@ actions make-install
   # Check the creation of `clang++-wrapper'.
   [ -x "$(<)" ] || exit 1
 
-  # Clean up the "$(OBJDIR)".
+  # Clean up objdir "$(OBJDIR)".
   rm -rf "$(OBJDIR)" || exit 1
 
   echo -n "LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built." | $(AWACS)
