@@ -311,11 +311,6 @@ rule make-install ( targets * : sources * : properties * )
   # Set the '--prefix' option for the 'configure' script.
   local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
   local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-  ECHO compiler: $(compiler) ;
-  ECHO GCC_FOR_CLANG: $(GCC_FOR_CLANG) ;
-  ECHO prefix-leaf: $(prefix-leaf) ;
-  ECHO compiler-prefix: $(compiler-prefix) ;
-  #errors.error END ;
   OPTIONS on $(targets) += "--prefix=\"$(compiler-prefix)\"" ;
 
   # Set the '--build' and '--host' options for the 'configure' script.

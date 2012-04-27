@@ -316,7 +316,7 @@ rule make-install ( targets * : sources * : properties * )
   # Set the '--prefix' option for the 'configure' script.
   local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
   local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-  OPTIONS on $(targets) += --prefix=\"$(compiler-prefix)\" ;
+  OPTIONS on $(targets) += "--prefix=\"$(compiler-prefix)\"" ;
 
   # Set the link variants for the 'configure' script.
   if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32

@@ -144,7 +144,7 @@ rule install ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) += -sICU_PATH=\"$(compiler-prefix)\" ;
 
-  OPTIONS on $(targets) += --stagedir=\"$(compiler-prefix)\" ;
+  OPTIONS on $(targets) += "--stagedir=\"$(compiler-prefix)\"" ;
   OPTIONS on $(targets) += --build-type=complete ;
   OPTIONS on $(targets) += --layout=versioned ;
   OPTIONS on $(targets) += --without-mpi ;
