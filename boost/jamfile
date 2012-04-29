@@ -162,6 +162,8 @@ rule install ( targets * : sources * : properties * )
     errors.error "an internal error." ;
   }
 
+  OPTIONS on $(targets) += "linkflags=-Wl,-rpath=\"$(compiler-prefix)/lib\"" ;
+
   OPTIONS on $(targets) += stage ;
 }
 actions install
