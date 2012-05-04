@@ -23,7 +23,7 @@ local clang-latest-paths ;
 
 rule get-gcc-path ( ph )
 {
-  local tmp = [ SHELL "env LANG=C \"$(ph)/bin/g++-wrapper\" --version | head --lines=1" ] ;
+  local tmp = [ SHELL "[ -x \"$(ph)/bin/g++-wrapper\" ] && env LANG=C \"$(ph)/bin/g++-wrapper\" --version | head --lines=1" ] ;
   local ver-date = [ regex.match "([0-9]+\\.[0-9]+\\.[0-9]+) ([0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]) \\(((experimental)|(prerelease))\\)" : "$(tmp)" : 1 2 ] ;
   local result ;
   if $(ver-date[1]) && $(ver-date[2])
@@ -51,7 +51,7 @@ rule get-gcc-path ( ph )
 
 rule get-clang-path ( ph )
 {
-  local tmp = [ SHELL "env LANG=C \"$(ph)/bin/clang++-wrapper\" --version | head --lines=1" ] ;
+  local tmp = [ SHELL "[ -x \"$(ph)/bin/clang++-wrapper\" ] && env LANG=C \"$(ph)/bin/clang++-wrapper\" --version | head --lines=1" ] ;
   local ver-rev = [ regex.match "^clang version ([0-9]+\\.[0-9]+) \\(trunk ([0-9]+)\\)" : "$(tmp)" : 1 2 ] ;
   local result ;
   if $(ver-rev[1]) && $(ver-rev[2])
@@ -102,8 +102,6 @@ rule get-clang-path ( ph )
     }
 
     if [ regex.match "^($(prefix)/clang-)" : "$(ver-prefix)" : 1 ]
-    #if [ SHELL "[ -x \"$(ver-prefix)/bin/clang++-wrapper\" ] && echo -n SUCCESS" ] = SUCCESS &&
-    #   [ SHELL "[ -x \"$(ver-prefix)/bin/g++-wrapper\" ] && echo -n SUCCESS" ] != SUCCESS
     {
       local gcc-path = [ get-gcc-path "$(ver-prefix)" ] ;
       local clang-path = [ get-clang-path "$(ver-prefix)" ] ;
@@ -501,7 +499,7 @@ rule declare-libs ( libdir : version )
   lib gmp   : : <name>ERROR   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>static <runtime-link>shared ;
   lib gmp   : : <name>gmp     <search>"$(libdir)" <toolset-gcc:version>$(version) <link>static <runtime-link>static ;
 
-  lib mpfr  : : <name>mpfr    <search>"$(libidr)" <toolset-gcc:version>$(version) <link>shared <runtime-link>shared <use>gmp ;
+  lib mpfr  : : <name>mpfr    <search>"$(libdir)" <toolset-gcc:version>$(version) <link>shared <runtime-link>shared <use>gmp ;
   lib mpfr  : : <name>ERROR   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>shared <runtime-link>static <use>gmp ;
   lib mpfr  : : <name>ERROR   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>static <runtime-link>shared <use>gmp : : <library>gmp ;
   lib mpfr  : : <name>mpfr    <search>"$(libdir)" <toolset-gcc:version>$(version) <link>static <runtime-link>static <use>gmp : : <library>gmp ;
@@ -541,125 +539,326 @@ rule declare-libs ( libdir : version )
   lib icutu : : <name>ERROR   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>static <runtime-link>shared <use>icuin <use>icuuc <use>icudt : : <library>icuin <library>icuuc <library>icudt ;
   lib icutu : : <name>icutu   <search>"$(libdir)" <toolset-gcc:version>$(version) <link>static <runtime-link>static <use>icuin <use>icuuc <use>icudt : : <library>icuin <library>icuuc <library>icudt ;
 
-  for local lib-name in date_time exception math_c99 math_c99f math_c99l math_tr1 math_tr1f math_tr1l prg_exec_monitor program_options random serialization signals test_exec_monitor unit_test_framework
-  {
-    lib boost_$(lib-name)
-      :
-      : <name>boost_$(lib-name) <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
-        <use>boost_headers
-      ;
-  }
-
   lib boost_chrono
     :
-    : <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
       <use>boost_headers
       <use>boost_system
     :
-    : <link>static:<library>boost_system
+    : <define>BOOST_ALL_NO_LIB
+      <link>shared:<define>BOOST_CHRONO_DYN_LINK
+      <link>static:<library>boost_system
+    ;
+
+  lib boost_date_time
+    :
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
+      <use>boost_headers
+    :
+    : <define>BOOST_ALL_NO_LIB
+      <link>shared:<define>BOOST_DATE_TIME_DYN_LINK
+    ;
+
+  lib boost_exception
+    :
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
+      <use>boost_headers
+    :
+    : <define>BOOST_ALL_NO_LIB
     ;
 
   lib boost_filesystem
     :
-    : <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
       <use>boost_headers
       <use>boost_system
     :
     : <define>BOOST_FILESYSTEM_NO_DEPRECATED
+      <define>BOOST_ALL_NO_LIB
+      <link>shared:<define>BOOST_FILESYSTEM_DYN_LINK
       <link>static:<library>boost_system
     ;
 
   lib boost_graph
     :
-    : <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
       <use>boost_headers
       <use>boost_regex
     :
-    : <link>static:<library>boost_regex
+    : <define>BOOST_ALL_NO_LIB
+      <link>shared:<define>BOOST_GRAPH_DYN_LINK
+      <link>static:<library>boost_regex
     ;
 
   lib boost_graph_parallel
     :
-    : <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
       <use>boost_headers
       <use>boost_mpi
       <use>boost_serialization
     :
-    : <link>static:<library>boost_mpi
+    : <define>BOOST_ALL_NO_LIB
+      <link>shared:<define>BOOST_GRAPH_DYN_LINK
+      <link>static:<library>boost_mpi
       <link>static:<library>boost_serialization
     ;
 
   lib boost_iostreams
     :
-    : <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
       <use>boost_headers
       <use>z
       <use>bz2
     :
-    : <link>static:<library>z
+    : <define>BOOST_ALL_NO_LIB
+      <link>shared:<define>BOOST_IOSTREAMS_DYN_LINK
+      <link>static:<library>z
       <link>static:<library>bz2
+    ;
+
+  lib boost_locale
+    :
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
+      <use>boost_headers
+      <use>libicudt
+      <use>libicuuc
+      <use>libicuin
+      <use>boost_thread
+    :
+    : <define>BOOST_ALL_NO_LIB
+      <link>shared:<define>BOOST_LOCALE_DYN_LINK
+      <link>static:<library>libicudt
+      <link>static:<library>libicuuc
+      <link>static:<library>libicuin
+      <link>static:<library>boost_thread
+    ;
+
+  lib boost_math_c99
+    :
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
+      <use>boost_headers
+    :
+    : <define>BOOST_ALL_NO_LIB
+    ;
+
+  lib boost_math_c99f
+    :
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
+      <use>boost_headers
+    :
+    : <define>BOOST_ALL_NO_LIB
+    ;
+
+  lib boost_math_c99l
+    :
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
+      <use>boost_headers
+    :
+    : <define>BOOST_ALL_NO_LIB
+    ;
+
+  lib boost_math_tr1
+    :
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
+      <use>boost_headers
+    :
+    : <define>BOOST_ALL_NO_LIB
+      <link>shared:<define>BOOST_MATH_TR1_DYN_LINK
+    ;
+
+  lib boost_math_tr1f
+    :
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
+      <use>boost_headers
+    :
+    : <define>BOOST_ALL_NO_LIB
+      <link>shared:<define>BOOST_MATH_TR1_DYN_LINK
+    ;
+
+  lib boost_math_tr1l
+    :
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
+      <use>boost_headers
+    :
+    : <define>BOOST_ALL_NO_LIB
+      <link>shared:<define>BOOST_MATH_TR1_DYN_LINK
     ;
 
   lib boost_mpi
     :
-    : <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
       <use>/mpi//mpi
       <use>boost_headers
       <use>boost_serialization
     :
-    : <library>/mpi//mpi
+    : <define>BOOST_ALL_NO_LIB
+      <link>shared:<define>BOOST_MPI_DYN_LINK
+      <library>/mpi//mpi
       <link>static:<library>boost_serialization
+    ;
+
+  lib boost_prg_exec_monitor
+    :
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
+      <use>boost_headers
+    :
+    : <define>BOOST_ALL_NO_LIB
+    ;
+
+  lib boost_program_options
+    :
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
+      <use>boost_headers
+    :
+    : <define>BOOST_ALL_NO_LIB
+      <link>shared:<define>BOOST_PROGRAM_OPTIONS_DYN_LINK
     ;
 
   lib boost_python
     :
-    : <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
       <use>boost_headers
       <use>/python//python
     :
-    : <library>/python//python
+    : <define>BOOST_ALL_NO_LIB
+      <link>shared:<define>BOOST_PYTHON_DYN_LINK
+      <library>/python//python
+    ;
+
+  lib boost_random
+    :
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
+      <use>boost_headers
+    :
+    : <define>BOOST_ALL_NO_LIB
+      <link>shared:<define>BOOST_RANDOM_DYN_LINK
     ;
 
   lib boost_regex
     :
-    : <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
       <use>boost_headers
       <use>icudt
       <use>icuuc
       <use>icuin
     :
-    : <link>static:<library>icudt
+    : <define>BOOST_ALL_NO_LIB
+      <link>shared:<define>BOOST_REGEX_DYN_LINK
+      <link>static:<library>icudt
       <link>static:<library>icuuc
       <link>static:<library>icuin
     ;
 
+  lib boost_serialization
+    :
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
+      <use>boost_headers
+    :
+    : <define>BOOST_ALL_NO_LIB
+      <link>shared:<define>BOOST_SERIALIZATION_DYN_LINK
+    ;
+
+  lib boost_signals
+    :
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
+      <use>boost_headers
+    :
+    : <define>BOOST_ALL_NO_LIB
+      <link>shared:<define>BOOST_SIGNALS_DYN_LINK
+    ;
+
   lib boost_system
     :
-    : <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
       <use>boost_headers
     :
     : <define>BOOST_SYSTEM_NO_DEPRECATED
+      <define>BOOST_ALL_NO_LIB
+      <link>shared:<define>BOOST_SYSTEM_DYN_LINK
+    ;
+
+  lib boost_test_exec_monitor
+    :
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
+      <use>boost_headers
+    :
+    : <define>BOOST_ALL_NO_LIB
+      <link>shared:<define>BOOST_TEST_DYN_LINK
     ;
 
   lib boost_thread
     :
-    : <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
       <use>boost_headers
       <use>boost_system
     :
-    : <link>static:<library>boost_system
+    : <define>BOOST_ALL_NO_LIB
+      <link>shared:<define>BOOST_THREAD_DYN_LINK
+      <link>static:<library>boost_system
+    ;
+
+  lib boost_timer
+    :
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
+      <use>boost_headers
+      <use>boost_chrono
+      <use>boost_system
+    :
+    : <define>BOOST_ALL_NO_LIB
+      <link>shared:<define>BOOST_TIMER_DYN_LINK
+      <link>static:<library>boost_chrono
+      <link>static:<library>boost_system
+    ;
+
+  lib boost_unit_test_framework
+    :
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
+      <use>boost_headers
+    :
+    : <define>BOOST_ALL_NO_LIB
+      <link>shared:<define>BOOST_TEST_DYN_LINK
     ;
 
   lib boost_wave
     :
-    : <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
       <use>boost_headers
       <use>boost_date_time
       <use>boost_filesystem
       <use>boost_system
       <use>boost_thread
     :
-    : <link>static:<library>boost_date_time
+    : <define>BOOST_ALL_NO_LIB
+      <link>shared:<define>BOOST_WAVE_DYN_LINK
+      <link>static:<library>boost_date_time
       <link>static:<library>boost_filesystem
       <link>static:<library>boost_system
       <link>static:<library>boost_thread
@@ -667,12 +866,20 @@ rule declare-libs ( libdir : version )
 
   lib boost_wserialization
     :
-    : <search>$(libdir) <tag>@boost-tag <toolset-gcc:version>$(version)
+    : <tag>@boost-tag
+      <toolset-gcc:version>$(version)
       <use>boost_headers
       <use>boost_serialization
     :
-    : <link>static:<library>boost_serialization
+    : <define>BOOST_ALL_NO_LIB
+      <link>static:<library>boost_serialization
     ;
+
+  #BOOST_ARCHIVE_DYN_LINK
+  #BOOST_ASIO_DYN_LINK
+  #BOOST_EX_CHRONO_DYN_LINK
+  #BOOST_IOSTREAMS_DETAIL_CONFIG_DYN_LINK
+  #BOOST_MPI_PYTHON_DYN_LINK
 }
 
 for local gcc-path in $(gcc-paths) $(gcc-latest-paths) $(clang-paths) $(clang-latest-paths)
@@ -685,5 +892,86 @@ for local gcc-path in $(gcc-paths) $(gcc-latest-paths) $(clang-paths) $(clang-la
     ver = $(tmp[2]) ;
   }
 
-  declare-libs [ path.make "$(ph:D)/../lib" ] : $(ver) ;
+  local libdir = [ path.make "$(ph:D)/../lib" ] ;
+  declare-libs "$(libdir)" : $(ver) ;
+
+  alias memcheck
+    :
+    : <toolset-gcc:version>$(ver)
+    :
+    : <testing.launcher>"$(ph:D)/valgrind --quiet --error-exitcode=1 --leak-check=full"
+    ;
 }
+
+feature.feature libstdc++-debug-mode
+  : off on
+  : propagated composite
+  ;
+feature.compose <libstdc++-debug-mode>on
+  : <define>_GLIBCXX_DEBUG
+    <define>_GLIBCXX_DEBUG_PEDANTIC
+  ;
+
+feature.feature libstdc++-debug-binary
+  : off on
+  : propagated composite
+  ;
+feature.compose <libstdc++-debug-binary>on
+  : <linkflags>-Sdebug-libstdc++
+  ;
+
+feature.feature libstdc++-link
+  : shared static
+  : propagated composite
+  ;
+feature.compose <libstdc++-link>static
+  : <linkflags>-Sstatic-libstdc++
+  ;
+
+feature.feature mudflap
+  : off on
+  : propagated composite
+  ;
+feature.compose <mudflap>on
+  : <link>static
+    <cflags>-fmudflap
+    <linkflags>-fmudflap
+    <testing.launcher>"env MUDFLAP_OPTIONS=-viol-segv"
+  ;
+
+feature.feature ssp
+  : off on all
+  : propagated composite
+  ;
+feature.compose <ssp>on
+  : <cflags>-fstack-protector
+    <linkflags>-fstack-protector
+  ;
+feature.compose <ssp>all
+  : <cflags>-fstack-protector-all
+    <linkflags>-fstack-protector-all
+  ;
+
+feature.feature memcheck
+  : off on
+  : composite
+  ;
+feature.compose <memcheck>on
+  : <source>/site-config//memcheck
+  ;
+
+feature.feature catchsegv
+  : off on
+  : composite
+  ;
+feature.compose <catchsegv>on
+  : <testing.launcher>"env SEGFAULT_SIGNALS=all catchsegv"
+  ;
+
+variant lto
+  : release
+  : <cflags>-flto
+    <linkflags>-flto
+    <linkflags>-O3
+    <linkflags>-Wno-inline
+  ;
