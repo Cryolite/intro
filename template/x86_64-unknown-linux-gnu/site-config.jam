@@ -912,22 +912,6 @@ feature.compose <libstdc++-debug-mode>on
     <define>_GLIBCXX_DEBUG_PEDANTIC
   ;
 
-feature.feature libstdc++-debug-binary
-  : off on
-  : propagated composite
-  ;
-feature.compose <libstdc++-debug-binary>on
-  : <linkflags>-Sdebug-libstdc++
-  ;
-
-feature.feature libstdc++-link
-  : shared static
-  : propagated composite
-  ;
-feature.compose <libstdc++-link>static
-  : <linkflags>-Sstatic-libstdc++
-  ;
-
 feature.feature mudflap
   : off on
   : propagated composite

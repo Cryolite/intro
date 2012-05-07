@@ -628,7 +628,9 @@ actions make-install
 
 
   # Install the wrapper scripts.
-  install --mode=755 "$(INTRO_ROOT_DIR)/gcc/gcc-wrapper" "$(INTRO_ROOT_DIR)/gcc/g++-wrapper" "$(COMPILER_PREFIX)/bin"
+  install --mode=755 "$(INTRO_ROOT_DIR)/template/$(TRIPLET)/gcc-wrapper" "$(COMPILER_PREFIX)/bin"         \
+    && install --mode=755 "$(INTRO_ROOT_DIR)/template/$(TRIPLET)/g++-wrapper" "$(COMPILER_PREFIX)/bin"    \
+    && install --mode=755 "$(INTRO_ROOT_DIR)/template/$(TRIPLET)/hack-gcc-specs" "$(COMPILER_PREFIX)/bin"
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to install the wrapper scripts for $(COMPILER_DESCRIPTION) ($(TRIPLET))." 1>&2
     echo -n "ERROR: failed to install the wrapper scripts for $(COMPILER_DESCRIPTION) ($(TRIPLET))." | $(AWACS)
