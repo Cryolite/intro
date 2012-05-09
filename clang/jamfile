@@ -138,6 +138,9 @@ rule make-install ( targets * : sources * : properties * )
   local clang-dir = "$(llvm-dir)/tools/clang" ;
   CLANG_DIR on $(targets) = "$(clang-dir)" ;
 
+  local compiler-rt-dir = "$(llvm-dir)/projects/compiler-rt" ;
+  COMPILER_RT_DIR on $(targets) = "$(compiler-rt-dir)" ;
+
   local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
   OBJDIR on $(targets) = "$(objdir)" ;
 
@@ -222,14 +225,29 @@ actions make-install
     [ -d "$(CLANG_DIR)" ] || exit 1
   fi
 
+  if [ ! -d "$(COMPILER_RT_DIR)" ]; then
+    if [ -n "$(STREAM)" ]; then
+      ( cd "$(INTRO_ROOT_DIR)/llvm/projects" && svn checkout http://llvm.org/svn/llvm-project/compiler-rt/trunk compiler-rt >> "$(STREAM)" 2>&1 )
+    else
+      ( cd "$(INTRO_ROOT_DIR)/llvm/projects" && svn checkout http://llvm.org/svn/llvm-project/compiler-rt/trunk compiler-rt )
+    fi
+    if [ $? -ne 0 ]; then
+      ( cd "$(INTRO_ROOT_DIR)/llvm/projects" && rm -rf compiler-rt )
+      echo "ERROR: failed to 'svn checkout' Compiler-RT repository." 1>&2
+      echo -n "ERROR: failed to 'svn checkout' Compiler-RT repository." | $(AWACS)
+      exit 1
+    fi
+    [ -d "$(COMPILER_RT_DIR)" ] || exit 1
+  fi
+
   if [ -n "$(STREAM)" ]; then
     ( cd "$(LLVM_DIR)" && svn update >> "$(STREAM)" 2>&1 )
   else
     ( cd "$(LLVM_DIR)" && svn update )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'svn update' LLVM repository." 1>&2
-    echo -n "ERROR: failed to 'svn update' LLVM repository." | $(AWACS)
+    echo "ERROR: failed to \`svn update' LLVM repository." 1>&2
+    echo -n "ERROR: failed to \`svn update' LLVM repository." | $(AWACS)
     exit 1
   fi
 
@@ -239,8 +257,19 @@ actions make-install
     ( cd "$(CLANG_DIR)" && svn update )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'svn update' Clang repository." 1>&2
-    echo -n "ERROR: failed to 'svn update' Clang repository." | $(AWACS)
+    echo "ERROR: failed to \`svn update' Clang repository." 1>&2
+    echo -n "ERROR: failed to \`svn update' Clang repository." | $(AWACS)
+    exit 1
+  fi
+
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(COMPILER_RT_DIR)" && svn update >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(COMPILER_RT_DIR)" && svn update )
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to \`svn update' Compiler-RT repository." 1>&2
+    echo -n "ERROR: failed to \`svn update' Compiler-RT repository." | $(AWACS)
     exit 1
   fi
 
