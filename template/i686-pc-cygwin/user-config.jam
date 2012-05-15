@@ -34,8 +34,8 @@
 #   http://boost.org/boost-build2/doc/html/bbv2/advanced.html#bbv2.advanced.jam_language
 #
 
-
 import errors ;
+import modules ;
 import path ;
 import regex ;
 
@@ -43,53 +43,30 @@ local home = [ modules.peek : HOME ] ;
 
 # Modify the following lines.
 local prefix = "$(home)/local" ;
-local boost-version = 1.47 ;
 
 
-# ------------------
-# GCC configuration.
-# ------------------
+# --------------------------
+# GCC & Clang configuration.
+# --------------------------
 
-# Configure specific gcc version, giving alternative name to use.
+using gcc ;
+
+for local path-ver in $(INTRO_GCC_PATHS) $(INTRO_GCC_LATEST_PATHS) $(INTRO_CLANG_PATHS) $(INTRO_CLANG_LATEST_PATHS)
 {
-  local gcc-vers ;
-  for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
-    local ver = [ regex.match "^$(prefix)/([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : "$(ph)" : 1 ] ;
-    if $(ver) {
-      local result = [ SHELL "which \"$(ph)/bin/g++\" >/dev/null 2>/dev/null; if [ $? -eq 0 ]; then /usr/bin/echo -n \"INUMIMI\"; fi" ] ;
-      if [ MATCH ".*(INUMIMI).*" : "$(result)" ] {
-        ECHO "using gcc   : $(ver) : \"$(ph)/bin/g++\" ;" ;
-        using gcc : $(ver) : "$(ph)/bin/g++" ;
-        gcc-vers += $(ver) ;
-      }
-    }
+  local ph = ;
+  local ver = ;
+  local rev = ;
+  {
+    local tmp = [ regex.split "$(path-ver)" "," ] ;
+    ph = "$(tmp[1])" ;
+    ver = $(tmp[2]) ;
   }
-
-  # Configure gcc (default version).
-  local gcc-builtin = [ SHELL "/usr/bin/g++ --version | /usr/bin/grep -E '^g\\+\\+ .* [[:digit:]]+\\.[[:digit:]]+\\.[[:digit:]]+$'" ] ;
-  gcc-builtin = [ regex.match "([0123456789]+\\.[0123456789]+\\.[0123456789]+)" : "$(gcc-builtin)" : 1 ] ;
-  if $(gcc-builtin) {
-    if ! ( $(gcc-builtin) in $(gcc-vers) ) {
-      ECHO "using gcc   :       : \"/usr/bin/g++\" ;" ;
-      using gcc : : /usr/bin/g++ ;
-    }
+  if ! "$(ph)" || ! $(ver)
+  {
+    errors.error "an internal error." ;
   }
-}
-
-
-# --------------------
-# Clang configuration.
-# --------------------
-
-for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
-  local ver = [ regex.match "^$(prefix)/([0123456789]+\\.[0123456789]+\\.[0123456789]+)$" : "$(ph)" : 1 ] ;
-  if $(ver) {
-    local result = [ SHELL "which \"$(ph)/bin/clang++\" >/dev/null 2>/dev/null; if [ $? -eq 0 ]; then /usr/bin/echo -n \"INUMIMI\"; fi" ] ;
-    if [ MATCH ".*(INUMIMI).*" : "$(result)" ] {
-      ECHO "using clang : : \"$(ph)/bin/clang++-wrapper\" ;" ;
-      using clang :       : "$(ph)/bin/clang++-wrapper" ;
-    }
-  }
+  using gcc : $(ver) : "$(ph)" ;
+  ECHO $(ver) $(ph) ;
 }
 
 
@@ -137,43 +114,10 @@ for local ph in [ path.glob "$(prefix)" : "*.*.*" ] {
 # Python configuration.
 # ---------------------
 
+#using python ;
+
 # Configure specific Python version.
 # using python : 3.1 : /usr/bin/python3 : /usr/include/python3.1 : /usr/lib ;
-
-
-# ------------------
-# MPI configuration.
-# ------------------
-
-if [ path.exists "/cygdrive/c/Program Files (x86)/MPICH2/include/mpi.h" ] {
-  using mpi
-    :
-    : <include>"/cygdrive/c/Program Files (x86)/MPICH2/include"
-      <library-path>"/cygdrive/c/Program Files (x86)/MPICH2/lib"
-      <find-static-library>mpi
-    ;
-}
-else {
-  using mpi
-    :
-    : <include>"/cygdrive/c/Program Files/MPICH2/include"
-      <library-path>"/cygdrive/c/Program Files/MPICH2/lib"
-      <find-static-library>mpi
-    ;
-}
-
-
-# --------------------
-# Boost configuration.
-# --------------------
-
-using boost
-  : $(boost-version)
-  : <include>"$(prefix)/boost/latest"
-    <library>"$(prefix)/boost/latest/stage/lib"
-  ;
-import boost ;
-boost.use-project ;
 
 
 # -----------------------

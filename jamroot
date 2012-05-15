@@ -185,7 +185,7 @@ if ! $(prefix)
 ECHO prefix... $(prefix) ;
 
 
-binutils = [ option.get with-binutils : latest : IMPLIED ] ;
+binutils = [ option.get with-binutils : system : IMPLIED ] ;
 if $(binutils) = IMPLIED
 {
   errors.error no value specified for `--with-binutils'. ;
@@ -194,7 +194,7 @@ if $(binutils) = latest
 {
   binutils = [ get-binutils-latest-version ] ;
 }
-if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(binutils)" : 1 ]
+if $(binutils) != system && ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(binutils)" : 1 ]
 {
   errors.error an invalid value `$(binutils)' for `--with-binutils'. ;
 }
@@ -261,7 +261,7 @@ if ! $(mpc-for-gcc) in $(mpc-versions)
 ECHO mpc-for-gcc... $(mpc-for-gcc) ;
 
 
-local ppl-for-gcc = [ option.get with-ppl-for-gcc : latest : IMPLIED ] ;
+local ppl-for-gcc = [ option.get with-ppl-for-gcc : system : IMPLIED ] ;
 if $(ppl-for-gcc) = IMPLIED
 {
   errors.error "`--with-ppl-for-gcc' should be specified with a value." ;
@@ -270,18 +270,18 @@ if $(ppl-for-gcc) = latest
 {
   ppl-for-gcc = [ get-ppl-latest-version ] ;
 }
-if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(ppl-for-gcc)" : 1 ]
+if $(ppl-for-gcc) != system && ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(ppl-for-gcc)" : 1 ]
 {
   errors.error "an invalid value `$(ppl-for-gcc)' for `--with-ppl-for-gcc'." ;
 }
-if ! $(ppl-for-gcc) in $(ppl-versions)
+if $(ppl-for-gcc) != system && ! $(ppl-for-gcc) in $(ppl-versions)
 {
   ppl-versions += $(ppl-for-gcc) ;
 }
 ECHO ppl-for-gcc... $(ppl-for-gcc) ;
 
 
-local cloog-for-gcc = [ option.get with-cloog-for-gcc : latest : IMPLIED ] ;
+local cloog-for-gcc = [ option.get with-cloog-for-gcc : system : IMPLIED ] ;
 if $(cloog-for-gcc) = IMPLIED
 {
   errors.error "`--with-cloog-for-gcc' should be specified with a value." ;
@@ -290,11 +290,11 @@ if $(cloog-for-gcc) = latest
 {
   cloog-for-gcc = [ get-cloog-latest-version ] ;
 }
-if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(cloog-for-gcc)" : 1 ]
+if $(cloog-for-gcc) != system && ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(cloog-for-gcc)" : 1 ]
 {
   errors.error "an invalid value `$(cloog-for-gcc)' for `--with-cloog-for-gcc'." ;
 }
-if ! $(cloog-for-gcc) in $(cloog-versions)
+if $(cloog-for-gcc) != system && ! $(cloog-for-gcc) in $(cloog-versions)
 {
   cloog-versions += $(cloog-for-gcc) ;
 }
@@ -560,7 +560,7 @@ else
 }
 
 
-local clang = [ option.get enable-clang : yes : yes ] ;
+local clang = [ option.get enable-clang : no : yes ] ;
 if ! $(clang) in no yes
 {
   errors.error "ERROR: `$(clang)' is a wrong value for `--enable-clang' option.\n"
@@ -573,6 +573,10 @@ if [ option.get disable-clang : IMPLIED : IMPLIED ] != IMPLIED
 if $(clang) = yes && [ option.get disable-clang : : IMPLIED ] = IMPLIED
 {
   errors.error "ERROR: both `--enable-clang' and `--disable-clang' are specified." ;
+}
+if $(clang) = no
+{
+  clang = ;
 }
 ECHO clang... $(clang) ;
 
@@ -587,6 +591,10 @@ if $(valgrind)
   if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(valgrind)" : 1 ]
   {
     errors.error an invalid value `$(valgrind)' for `--enable-valgrind'. ;
+  }
+  if $(triplet) != i686-pc-linux-gnu && $(triplet) != x86_64-unknown-linux-gnu
+  {
+    errors.error "ERROR: $(triplet): Valgrind is not supported" ;
   }
   ECHO valgrind... $(valgrind) ;
 }
@@ -649,6 +657,10 @@ ECHO TRIPLET... $(TRIPLET) ;
 constant PREFIX : $(prefix) ;
 ECHO PREFIX... $(PREFIX) ;
 
+if $(binutils) = system
+{
+  binutils = ;
+}
 if $(binutils)
 {
   constant BINUTILS : $(binutils) ;
@@ -656,7 +668,7 @@ if $(binutils)
 }
 else
 {
-  errors.error unimplemented. Check 'gcc/jamfile'. ;
+  ECHO BINUTILS... N/A ;
 }
 
 if $(gmp-for-gcc)
@@ -677,16 +689,32 @@ if $(mpc-for-gcc)
   ECHO MPC_FOR_GCC... $(MPC_FOR_GCC) ;
 }
 
+if $(ppl-for-gcc) = system
+{
+  ppl-for-gcc = ;
+}
 if $(ppl-for-gcc)
 {
   constant PPL_FOR_GCC : $(ppl-for-gcc) ;
   ECHO PPL_FOR_GCC... $(PPL_FOR_GCC) ;
 }
+else
+{
+  ECHO PPL_FOR_GCC... N/A ;
+}
 
+if $(cloog-for-gcc) = system
+{
+  cloog-for-gcc = ;
+}
 if $(cloog-for-gcc)
 {
   constant CLOOG_FOR_GCC : $(cloog-for-gcc) ;
   ECHO CLOOG_FOR_GCC... $(CLOOG_FOR_GCC) ;
+}
+else
+{
+  ECHO CLOOG_FOR_GCC... N/A ;
 }
 
 if $(gcc-for-clang)
@@ -707,7 +735,7 @@ if $(gmp-versions)
 if $(mpfr-versions)
 {
   constant MPFR_VERSIONS : $(mpfr-versions) ;
-  ECHO MPFR_VERSIONS... $(MPFR_VERSIONS) ;
+  ECHO MPFR_VERSIONS... $(MPFR_VERSIONS:J=,) ;
 }
 
 if $(mpc-versions)
@@ -719,13 +747,21 @@ if $(mpc-versions)
 if $(ppl-versions)
 {
   constant PPL_VERSIONS : $(ppl-versions) ;
-  ECHO PPL_VERSIONS... $(PPL_VERSIONS) ;
+  ECHO PPL_VERSIONS... $(PPL_VERSIONS:J=,) ;
+}
+else
+{
+  ECHO PPL_VERSIONS... N/A ;
 }
 
 if $(cloog-versions)
 {
   constant CLOOG_VERSIONS : $(cloog-versions) ;
-  ECHO CLOOG_VERSIONS... $(CLOOG_VERSIONS) ;
+  ECHO CLOOG_VERSIONS... $(CLOOG_VERSIONS:J=,) ;
+}
+else
+{
+  ECHO CLOOG_VERSIONS... N/A ;
 }
 
 if $(icu4c-versions)
@@ -765,7 +801,8 @@ if $(stream)
   constant STREAM : $(stream) ;
   ECHO STREAM... $(STREAM) ;
 }
-else {
+else
+{
   constant STREAM : "" ;
   ECHO STREAM... N/A ;
 }
@@ -805,7 +842,8 @@ feature mpi        : unspecified openmpi mpich2 : propagated            ;
 feature mpi-hidden : [ feature.values <mpi> ]   : propagated incidental ;
 
 local openmpi = unspecified ;
-if $(mpi) = openmpi {
+if $(mpi) = openmpi
+{
   openmpi = [ SHELL "\"$(INTRO_ROOT_DIR)/openmpi-latest.sh\" || echo -n 'error'" ] ;
   if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : $(openmpi) : 1 ]
   {
@@ -841,9 +879,9 @@ else
   clang = ;
 }
 
-if $(triplet) = i686-pc-cygwin && $(clang) {
-  errors.error "Sorry, but there is a problem in building Clang by the GCC current release on i686-pc-cygwin." ;
-}
+#if $(triplet) = i686-pc-cygwin && $(clang) {
+#  errors.error "Sorry, but there is a problem in building Clang by the GCC current release on i686-pc-cygwin." ;
+#}
 
 for local enabled-compiler in $(enabled-compilers)
 {
@@ -859,10 +897,10 @@ for local enabled-compiler in $(enabled-compilers)
         ppl//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<ppl>$(ppl)
         cloog//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<cloog>$(cloog)
         icu4c//install/<multilib-hidden>$(multilib)/<icu4c>$(icu4c)
-        openmpi//install/<multilib-hidden>$(multilib)/<mpi>openmpi/<openmpi>$(OPENMPI)
-        boost//install/<multilib-hidden>$(multilib)/<icu4c>$(icu4c)/<mpi>openmpi/<openmpi>$(OPENMPI)/<boost>$(boost)
+        openmpi//install/<multilib-hidden>$(multilib)/<mpi>$(mpi)/<openmpi>$(OPENMPI)
+        boost//install/<multilib-hidden>$(multilib)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
         $(clang)
-        valgrind//install/<multilib-hidden>$(multilib)/<mpi>openmpi/<openmpi>$(OPENMPI)/<valgrind>$(valgrind)
+        valgrind//install/<multilib-hidden>$(multilib)/<mpi>$(mpi)/<openmpi>$(openmpi)/<valgrind>$(valgrind)
       : <triplet>$(triplet)
         <compiler>$(enabled-compiler)
       ;
@@ -878,9 +916,9 @@ for local enabled-compiler in $(enabled-compilers)
         ppl//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<ppl>$(ppl)
         cloog//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<cloog>$(cloog)
         icu4c//install/<multilib-hidden>$(multilib)/<icu4c>$(icu4c)
-        openmpi//install/<multilib-hidden>$(multilib)/<mpi>openmpi/<openmpi>$(OPENMPI)
-        boost//install/<multilib-hidden>$(multilib)/<icu4c>$(icu4c)/<mpi>openmpi/<openmpi>$(OPENMPI)/<boost>$(boost)
-        valgrind//install/<multilib-hidden>$(multilib)/<mpi>openmpi/<openmpi>$(OPENMPI)/<valgrind>$(valgrind)
+        openmpi//install/<multilib-hidden>$(multilib)/<mpi>$(mpi)/<openmpi>$(OPENMPI)
+        boost//install/<multilib-hidden>$(multilib)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
+        valgrind//install/<multilib-hidden>$(multilib)/<mpi>$(mpi)/<openmpi>$(openmpi)/<valgrind>$(valgrind)
       : <triplet>$(triplet)
         <compiler>$(enabled-compiler)
       ;
