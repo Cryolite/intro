@@ -86,12 +86,23 @@ for local compiler in $(COMPILERS)
       errors.error "an internal error." ;
     }
     local boost-abi-tag = [ regex.replace $(boost-abi-version) "\\." "_" ] ;
-    make "$(compiler-prefix)/lib/libboost_regex-$(compiler-abi-tag)-$(boost-abi-tag).so.$(boost)"
-      : compiler-dep/<icu4c>unspecified/<mpi>unspecified/<openmpi>unspecified/<boost>unspecified
-        ../icu4c//install/<mpi>unspecified/<openmpi>unspecified/<boost>unspecified
-        ../openmpi//install/<icu4c>unspecified/<boost>unspecified
-      : @install
-      ;
+    if $(OPENMPI)
+    {
+      make "$(compiler-prefix)/lib/libboost_regex-$(compiler-abi-tag)-$(boost-abi-tag).so.$(boost)"
+        : compiler-dep/<icu4c>unspecified/<mpi>unspecified/<openmpi>unspecified/<boost>unspecified
+          ../icu4c//install/<mpi>unspecified/<openmpi>unspecified/<boost>unspecified
+          ../openmpi//install/<icu4c>unspecified/<boost>unspecified
+        : @install
+        ;
+    }
+    else
+    {
+      make "$(compiler-prefix)/lib/libboost_regex-$(compiler-abi-tag)-$(boost-abi-tag).so.$(boost)"
+        : compiler-dep/<icu4c>unspecified/<mpi>unspecified/<openmpi>unspecified/<boost>unspecified
+          ../icu4c//install/<mpi>unspecified/<openmpi>unspecified/<boost>unspecified
+        : @install
+        ;
+    }
     explicit "$(compiler-prefix)/lib/libboost_regex-$(compiler-abi-tag)-$(boost-abi-tag).so.$(boost)" ;
   }
 }
@@ -162,9 +173,9 @@ rule install ( targets * : sources * : properties * )
     errors.error "an internal error." ;
   }
 
-  OPTIONS on $(targets) += "linkflags=-Wl,-rpath=\"$(compiler-prefix)/lib\"" ;
-
   OPTIONS on $(targets) += stage ;
+
+  CLEANUP_COMMAND on $(targets) = "rm -rf \"$(boost-root)/bin.v2/libs/*/build/`\"$(INTRO_ROOT_DIR)/boost/toolset.sh\" \"$(compiler-prefix)/bin/g++-wrapper\"`\"" ;
 }
 actions install
 {
@@ -174,34 +185,41 @@ actions install
     exit 1
   fi
 
+  result=0
+
   # Build debug version libraries.
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=debug cxxflags="-std=c++0x" $(OPTIONS) >> "$(STREAM)" 2>&1 )
+    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=debug runtime-link=shared cxxflags="-std=c++0x" $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=debug cxxflags="-std=c++0x" $(OPTIONS) )
+    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=debug runtime-link=shared cxxflags="-std=c++0x" $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to build Boost $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to build Boost $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
-    exit 1
+    echo "ERROR: failed to build Boost $(VERSION) (debug build) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to build Boost $(VERSION) (debug build) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    result=1
   fi
 
   # Build release version libraries with LTO options.
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=release cflags=-flto cxxflags="-std=c++0x" linkflags=-O3 linkflags=-flto $(OPTIONS) >> "$(STREAM)" 2>&1 )
+    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=release runtime-link=shared cflags=-flto cxxflags="-std=c++0x" linkflags=-O3 linkflags=-flto $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=release cflags=-flto cxxflags="-std=c++0x" linkflags=-O3 linkflags=-flto $(OPTIONS) )
+    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=release runtime-link=shared cflags=-flto cxxflags="-std=c++0x" linkflags=-O3 linkflags=-flto $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to build Boost $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to build Boost $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to build Boost $(VERSION) (release build with LTO support) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to build Boost $(VERSION) (release build with LTO support) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    result=1
+  fi
+
+  if [ $result -ne 0 ]; then
+    touch --no-create --date='2000/1/1' "$(<)"
     exit 1
   fi
 
   [ -x "$(<)" ] || exit 1
 
   # Clean up the build directory.
-  rm -rf "$(BOOST_ROOT)/bin.v2"
+  $(CLEANUP_COMMAND)
 
   echo -n "Boost $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built." | $(AWACS)
   exit 0

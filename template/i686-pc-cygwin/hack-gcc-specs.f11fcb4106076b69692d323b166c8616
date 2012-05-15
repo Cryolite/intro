@@ -1,0 +1,51 @@
+#!/bin/sh
+
+# For GCC 4.7.0.
+
+if which dirname 1>/dev/null 2>&1; then
+  :
+else
+  echo "$0: error: dirname: command not found" >&2
+  exit 1
+fi
+
+if which pwd 1>/dev/null 2>&1; then
+  :
+else
+  echo "$0: error: pwd: command not found" >&2
+  exit 1
+fi
+
+bindir=`(cd \`dirname "$0"\`; pwd)`
+libdir="`dirname "$bindir"`/lib"
+
+if which "${bindir}/gcc" 1>/dev/null 2>&1; then
+  :
+else
+  echo "$0: error: ${bindir}/gcc: command not found" >&2
+  exit 1
+fi
+
+specs=`"${bindir}/gcc" -dumpspecs`
+
+if which sed 1>/dev/null 2>&1; then
+  :
+else
+  echo "$0: error: sed: command not found" >&2
+  exit 1
+fi
+
+
+specs=`echo "$specs" | sed -e '/^\*cpp_options:$/N;s/^\*cpp_options:\n\(.*\)/*cpp_options:\n%{fmudflap|fmudflapth:%e-fmudflap and -fmudflapth are not available on Cygwin} \1/'`
+
+
+specs=`echo "$specs" | sed -e '/^\*cpp_unique_options:$/N;s/^\*cpp_unique_options:\n\(.*\)/*cpp_unique_options:\n%{fmudflap|fmudflapth:%e-fmudflap and -fmudflapth are not available on Cygwin} \1/'`
+
+
+specs=`echo "$specs" | sed -e '/^\*cc1_options:$/N;s/^\*cc1_options:\n\(.*\)/*cc1_options:\n%{fmudflap|fmudflapth:%e-fmudflap and -fmudflapth are not available on Cygwin} \1/'`
+
+
+specs=`echo "$specs" | sed -e '/^\*link_command:$/N;s/^\*link_command:\n\(.*\)/*link_command:\n%{fmudflap|fmudflapth:%e-fmudflap and -fmudflapth are not available on Cygwin} \1/'`
+
+
+echo "$specs"

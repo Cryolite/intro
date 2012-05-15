@@ -32,10 +32,10 @@ else
   exit 1
 fi
 
-if which "${bindir}/g++" 1>/dev/null 2>&1; then
+if which "${bindir}/gcc" 1>/dev/null 2>&1; then
   :
 else
-  echo "$0: error: ${bindir}/g++: command not found" 1>&2
+  echo "$0: error: ${bindir}/gcc: command not found" 1>&2
   exit 1
 fi
 
@@ -48,10 +48,10 @@ fi
 
 specs=`mktemp` || exit
 
-LD_LIBRARY_PATH="$LD_LIBRARY_PATH${LD_LIBRARY_PATH:+:}$libdir"
-export LD_LIBRARY_PATH
+PATH="$PATH${PATH:+:}$bindir"
+export PATH
 
-{ "${bindir}/hack-gcc-specs" > "$specs"; } && "${bindir}/g++" -specs="$specs" "$@" -Wl,-rpath="$libdir"
+{ "${bindir}/hack-gcc-specs" > "$specs"; } && "${bindir}/gcc" -specs="$specs" "$@"
 result=$?
 
 rm -f "$specs"

@@ -1,60 +1,57 @@
-#! /bin/sh
+#!/bin/sh
 
-if ! which dirname 1>/dev/null 2>&1; then
-  echo "$0: error: dirname: command not found" >&2
+if which dirname 1>/dev/null 2>&1; then
+  :
+else
+  echo "$0: error: dirname: command not found" 1>&2
   exit 1
 fi
 
-if ! which pwd 1>/dev/null 2>&1; then
-  echo "$0: error: pwd: command not found" >&2
+if which pwd 1>/dev/null 2>&1; then
+  :
+else
+  echo "$0: error: pwd: command not found" 1>&2
   exit 1
 fi
 
 bindir=`(cd \`dirname "$0"\`; pwd)`
 dir=`dirname "$bindir"`
-libdir="$dir/lib"
+libdir="${dir}/lib"
 
-if ! which uname 1>/dev/null 2>&1; then
-  echo "$0: error: uname: command not found" >&2
-  exit 1
-fi
-
-if ! which grep 1>/dev/null 2>&1; then
-  echo "$0: error: grep: command not found" >&2
-  exit 1
-fi
-
-if uname | grep -Fq 'Linux'; then
-  LD_LIBRARY_PATH="${LD_LIBRARY_PATH:+${LD_LIBRARY_PATH}:}$libdir"
-  export LD_LIBRARY_PATH
-elif uname | grep -Fq 'CYGWIN'; then
-  PATH="${PATH:+${PATH}:}$bindir"
-  export PATH
+if which mktemp 1>/dev/null 2>&1; then
+  :
 else
-  echo "$0: error: unknown system" >&2
+  echo "$0: error: mktemp: command not found" 1>&2
   exit 1
 fi
 
-if ! which mktemp 1>/dev/null 2>&1; then
-  echo "$0: error: mktemp: command not found" >&2
+if which "${bindir}/hack-gcc-specs" 1>/dev/null 2>&1; then
+  :
+else
+  echo "$0: error: ${bindir}/hack-gcc-specs: command not found" 1>&2
   exit 1
 fi
 
-if ! which "$bindir/hack-gcc-specs" >/dev/null 2>&1; then
-  echo "$0: error: $bindir/hack-gcc-specs: command not found" >&2
+if which "${bindir}/gcc" 1>/dev/null 2>&1; then
+  :
+else
+  echo "$0: error: ${bindir}/gcc: command not found" 1>&2
   exit 1
 fi
 
-if ! which "$bindir/g++" 1>/dev/null 2>&1; then
-  echo "$0: error: $bindir/g++: command not found" >&2
+if which rm 1>/dev/null 2>&1; then
+  :
+else
+  echo "$0: error: rm: command not found" 1>&2
   exit 1
 fi
 
 specs=`mktemp` || exit
 
-"$bindir/hack-gcc-specs" > "$specs" || exit
+LD_LIBRARY_PATH="$LD_LIBRARY_PATH${LD_LIBRARY_PATH:+:}$libdir"
+export LD_LIBRARY_PATH
 
-"$bindir/gcc" -specs="$specs" "$@" -Wl,-rpath="$libdir"
+{ "${bindir}/hack-gcc-specs" > "$specs"; } && "${bindir}/gcc" -specs="$specs" "$@" -Wl,-rpath="$libdir"
 result=$?
 
 rm -f "$specs"

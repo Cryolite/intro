@@ -48,10 +48,10 @@ fi
 
 specs=`mktemp` || exit
 
-LD_LIBRARY_PATH="$LD_LIBRARY_PATH${LD_LIBRARY_PATH:+:}$libdir"
-export LD_LIBRARY_PATH
+PATH="$PATH${PATH:+:}$bindir"
+export PATH
 
-{ "${bindir}/hack-gcc-specs" > "$specs"; } && "${bindir}/g++" -specs="$specs" "$@" -Wl,-rpath="$libdir"
+{ "${bindir}/hack-gcc-specs" > "$specs"; } && "${bindir}/g++" -specs="$specs" "$@"
 result=$?
 
 rm -f "$specs"
