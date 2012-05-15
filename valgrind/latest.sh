@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/bin/sh
 
 uri='http://valgrind.org/downloads/current.html'
 
