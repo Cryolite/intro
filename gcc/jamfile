@@ -496,11 +496,11 @@ actions make-install
     if [ ! -e '$(SRCDIR)/gmp/real-configure' ]; then
       ( cd '$(SRCDIR)' && mv gmp/configure gmp/real-configure ) || exit 1
     fi
-    echo '#!/bin/sh'                                           >  '$(SRCDIR)/gmp/configure'
-    echo ''                                                    >> '$(SRCDIR)/gmp/configure'
-    echo 'echo original options for GMP configure script: \$@' >> '$(SRCDIR)/gmp/configure'
-    echo 'dir=\`dirname \"\$0\"\`'                             >> '$(SRCDIR)/gmp/configure'
-    echo '\"\${dir}/real-configure\" --srcdir=\'$(SRCDIR)/gmp\' --build=$(TRIPLET) --host=$(TRIPLET) --enable-cxx --enable-static --disable-shared' >> '$(SRCDIR)/gmp/configure'
+    echo '#!/usr/bin/env sh'                                  >  '$(SRCDIR)/gmp/configure'
+    echo ''                                                   >> '$(SRCDIR)/gmp/configure'
+    echo 'echo original options for GMP configure script: $@' >> '$(SRCDIR)/gmp/configure'
+    echo 'dir=`dirname "$0"`'                                 >> '$(SRCDIR)/gmp/configure'
+    echo '"${dir}/real-configure" --srcdir='\''$(SRCDIR)/gmp'\'' --build=$(TRIPLET) --host=$(TRIPLET) --enable-cxx --enable-static --disable-shared' >> '$(SRCDIR)/gmp/configure'
     chmod +x '$(SRCDIR)/gmp/configure'
   else
     # Restore the hacked configure script.
@@ -526,11 +526,11 @@ actions make-install
     if [ ! -e '$(SRCDIR)/ppl/real-configure' ]; then
       ( cd '$(SRCDIR)' && mv ppl/configure ppl/real-configure ) || exit 1
     fi
-    echo '#!/bin/sh'                                           >  '$(SRCDIR)/ppl/configure'
-    echo ''                                                    >> '$(SRCDIR)/ppl/configure'
-    echo 'echo original options for PPL configure script: \$@' >> '$(SRCDIR)/ppl/configure'
-    echo 'dir=\`dirname \"\$0\"\`'                             >> '$(SRCDIR)/ppl/configure'
-    echo '\"\${dir}/real-configure\" --srcdir=\'$(SRCDIR)/ppl\' --build=$(TRIPLET) --host=$(TRIPLET) --disable-coverage --enable-static --disable-shared --with-gmp-build=\'$(OBJDIR)/gmp\'' >> '$(SRCDIR)/ppl/configure'
+    echo '#!/usr/bin/env sh'                                  >  '$(SRCDIR)/ppl/configure'
+    echo ''                                                   >> '$(SRCDIR)/ppl/configure'
+    echo 'echo original options for PPL configure script: $@' >> '$(SRCDIR)/ppl/configure'
+    echo 'dir=`dirname "$0"`'                                 >> '$(SRCDIR)/ppl/configure'
+    echo '"${dir}/real-configure" --srcdir='\''$(SRCDIR)/ppl'\'' --build=$(TRIPLET) --host=$(TRIPLET) --disable-coverage --enable-static --disable-shared --with-gmp-build='\''$(OBJDIR)/gmp'\' >> '$(SRCDIR)/ppl/configure'
     chmod +x '$(SRCDIR)/ppl/configure'
   else
     # Restore the hacked configure script.
@@ -551,11 +551,11 @@ actions make-install
     if [ ! -e '$(SRCDIR)/cloog/real-configure' ]; then
       ( cd '$(SRCDIR)' && mv cloog/configure cloog/real-configure ) || exit 1
     fi
-    echo '#!/bin/sh'                                             >  '$(SRCDIR)/cloog/configure'
-    echo ''                                                      >> '$(SRCDIR)/cloog/configure'
-    echo 'echo original options for CLooG configure script: \$@' >> '$(SRCDIR)/cloog/configure'
-    echo 'dir=\`dirname \"\$0\"\`'                               >> '$(SRCDIR)/cloog/configure'
-    echo '\"\${dir}/real-configure\" --srcdir=\'$(SRCDIR)/cloog\' --build=$(TRIPLET) --host=$(TRIPLET) --enable-static --disable-shared --with-gnu-ld --with-gmp-builddir=\'$(OBJDIR)/gmp\'' >> '$(SRCDIR)/cloog/configure'
+    echo '#!/usr/bin/env sh'                                    >  '$(SRCDIR)/cloog/configure'
+    echo ''                                                     >> '$(SRCDIR)/cloog/configure'
+    echo 'echo original options for CLooG configure script: $@' >> '$(SRCDIR)/cloog/configure'
+    echo 'dir=`dirname "$0"`'                                   >> '$(SRCDIR)/cloog/configure'
+    echo '"${dir}/real-configure" --srcdir='\''$(SRCDIR)/cloog'\'' --build=$(TRIPLET) --host=$(TRIPLET) --enable-static --disable-shared --with-gnu-ld --with-gmp-builddir='\''$(OBJDIR)/gmp'\''' >> '$(SRCDIR)/cloog/configure'
     chmod +x '$(SRCDIR)/cloog/configure'
   else
     # Restore the hacked configure script.
@@ -645,7 +645,7 @@ actions make-install
 
   # Install the wrapper scripts.
   specs_sum=`'$(COMPILER_PREFIX)/bin/gcc' -dumpspecs | sed -e '/^\*version:$/N;s/^\*version:\n[[:digit:]]\{1,\}\(\.[[:digit:]]\{1,\}\)\{2\}/*version:\nx.y.z/' | md5sum - | cut --delimiter=' ' --fields=1`
-  install --mode=755 "$(INTRO_ROOT_DIR)/templates/$(TRIPLET)/hack-gcc-specs.$specs_sum" '$(COMPILER_PREFIX)/bin/hack-gcc-specs' \
+  install --mode=755 "$(INTRO_ROOT_DIR)/template/$(TRIPLET)/hack-gcc-specs.$specs_sum" '$(COMPILER_PREFIX)/bin/hack-gcc-specs' \
     && install --mode=755 '$(INTRO_ROOT_DIR)/template/$(TRIPLET)/gcc-wrapper' '$(COMPILER_PREFIX)/bin'                          \
     && install --mode=755 '$(INTRO_ROOT_DIR)/template/$(TRIPLET)/g++-wrapper' '$(COMPILER_PREFIX)/bin'
   if [ $? -ne 0 ]; then
@@ -661,7 +661,7 @@ actions make-install
   rm -rf '$(OBJDIR)' || exit 1
 
   echo -n "$(COMPILER_DESCRIPTION) ($(TRIPLET)) was successfully built." | $(AWACS)
-  echo -n "NOTE: Binutils\ $(BINUTILS), GMP $(GMP_FOR_GCC), MPFR $(MPFR_FOR_GCC), MPC $(MPC_FOR_GCC), PPL\ $(PPL_FOR_GCC), CLooG\ $(CLOOG_FOR_GCC) were bootstrapped alongside." | $(AWACS)
+  echo -n "NOTE: Binutils $(BINUTILS), GMP $(GMP_FOR_GCC), MPFR $(MPFR_FOR_GCC), MPC $(MPC_FOR_GCC), PPL $(PPL_FOR_GCC), CLooG $(CLOOG_FOR_GCC) were bootstrapped alongside." | $(AWACS)
   exit 0
 }
 

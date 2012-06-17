@@ -1,0 +1,139 @@
+#!/bin/sh
+
+if which dirname 1>/dev/null 2>&1; then
+  :
+else
+  echo "$0: error: dirname: command not found" >&2
+  exit 1
+fi
+
+if which pwd 1>/dev/null 2>&1; then
+  :
+else
+  echo "$0: error: pwd: command not found" >&2
+  exit 1
+fi
+
+bindir=`(cd \`dirname "$0"\`; pwd)`
+libdir="`dirname "$bindir"`/lib"
+
+if which "${bindir}/gcc" 1>/dev/null 2>&1; then
+  :
+else
+  echo "$0: error: ${bindir}/gcc: command not found" >&2
+  exit 1
+fi
+
+specs=`"${bindir}/gcc" -dumpspecs`
+
+if which sed 1>/dev/null 2>&1; then
+  :
+else
+  echo "$0: error: sed: command not found" >&2
+  exit 1
+fi
+
+
+cpp_options_prologue=`echo "$specs" | sed '/^\*cpp_options:$/q'`
+cpp_options_epilogue=`echo "$specs" | sed '1,/^\*cpp_options:$/d'`
+cpp_options=`echo "$cpp_options_epilogue" | sed '1q'`
+cpp_options_epilogue=`echo "$cpp_options_epilogue" | sed -n '2,$p'`
+
+if echo "$cpp_options" | grep -Fq ' %{f*} '; then
+  :
+else
+  echo "$0: error: cannot hack GCC spec file" 1>&2
+  exit 1
+fi
+
+cpp_options=`echo "$cpp_options" | sed 's/ %{f\*} / %{f*} %{fmudflap:%{pthread:-fmudflapth}} /'`
+specs=`echo "$cpp_options_prologue
+$cpp_options
+$cpp_options_epilogue"`
+
+
+cpp_unique_options_prologue=`echo "$specs" | sed '/^\*cpp_unique_options:$/q'`
+cpp_unique_options_epilogue=`echo "$specs" | sed '1,/^\*cpp_unique_options:$/d'`
+cpp_unique_options=`echo "$cpp_unique_options_epilogue" | sed '1q'`
+cpp_unique_options_epilogue=`echo "$cpp_unique_options_epilogue" | sed -n '2,$p'`
+
+if echo "$cpp_unique_options" | grep -Fq ' %{fmudflap:-D_MUDFLAP -include mf-runtime.h} '; then
+  :
+else
+  echo "$0: error: cannot hack GCC spec file" 1>&2
+  exit 1
+fi
+
+cpp_unique_options=`echo "$cpp_unique_options" \
+                      | sed 's/ %{fmudflap:-D_MUDFLAP -include mf-runtime\.h} / %{fmudflap:-D_MUDFLAP %{pthread:-D_MUDFLAPTH} -include mf-runtime.h} /'`
+specs=`echo "$cpp_unique_options_prologue
+$cpp_unique_options
+$cpp_unique_options_epilogue"`
+
+
+cc1_options_prologue=`echo "$specs" | sed '/^\*cc1_options:$/q'`
+cc1_options_epilogue=`echo "$specs" | sed '1,/^\*cc1_options:$/d'`
+cc1_options=`echo "$cc1_options_epilogue" | sed '1q'`
+cc1_options_epilogue=`echo "$cc1_options_epilogue" | sed -n '2,$p'`
+
+if echo "$cc1_options" | grep -Fq ' %{f*} '; then
+  :
+else
+  echo "$0: error: cannot hack GCC spec file" 1>&2
+  exit 1
+fi
+
+cc1_options=`echo "$cc1_options" \
+               | sed 's/\(.*\)/%{fmudflap|fmudflapth:%{fpic|fPIC:%e-fmudflap or -fmudflapth is not compatible with -fpic or -fPIC}} \1/' \
+               | sed 's/ %{f\*} / %{f*} %{fmudflap:%{pthread:-fmudflapth}} /'`
+specs=`echo "$cc1_options_prologue
+$cc1_options
+$cc1_options_epilogue"`
+
+
+mfwrap_prologue=`echo "$specs" | sed '/^\*mfwrap:$/q'`
+mfwrap_epilogue=`echo "$specs" | sed '1,/^\*mfwrap:$/d'`
+mfwrap=`echo "$mfwrap_epilogue" | sed '1q'`
+mfwrap_epilogue=`echo "$mfwrap_epilogue" | sed -n '2,$p'`
+
+if echo "$mfwrap" | grep -Fq '%{fmudflapth: --wrap=pthread_create}'; then
+  :
+else
+  echo "$0: error: cannot hack GCC spec file" 1>&2
+  exit 1
+fi
+
+mfwrap=`echo "$mfwrap" \
+          | sed 's/%{fmudflapth: --wrap=pthread_create}/%{fmudflap:%{pthread: --wrap=pthread_create}} %{fmudflapth: --wrap=pthread_create}/'`
+specs=`echo "$mfwrap_prologue
+$mfwrap
+$mfwrap_epilogue"`
+
+
+link_command_prologue=`echo "$specs" | sed '/^\*link_command:$/q'`
+link_command_epilogue=`echo "$specs" | sed '1,/^\*link_command:$/d'`
+link_command=`echo "$link_command_epilogue" | sed '1q'`
+link_command_epilogue=`echo "$link_command_epilogue" | sed -n '2,$p'`
+
+if echo "$link_command" | grep -Fq ' %(linker) '; then
+  :
+else
+  echo "$0: error: cannot hack GCC spec file" 1>&2
+  exit 1
+fi
+
+if echo "$link_command" | grep -Fq ' %o '; then
+  :
+else
+  echo "$0: error: cannot hack GCC spec file" 1>&2
+  exit 1
+fi
+
+link_command=`echo "$link_command" \
+                | sed 's/ %o / %o %{fmudflap:%{!fmudflapth:%{pthread:-lmudflapth;:-lmudflap}}} %{fmudflapth:-lmudflapth} /'`
+specs=`echo "$link_command_prologue
+$link_command
+$link_command_epilogue"`
+
+
+echo "$specs"

@@ -2,7 +2,7 @@
 
 uri='http://valgrind.org/downloads/current.html'
 
-src=`curl --silent "$uri" || exit 1`
+src=`curl --silent "$uri"` || exit 1
 src=`echo "$src" | { grep -Eo 'valgrind-[[:digit:]]+(\.[[:digit:]]+){0,2}\.tar\.bz2' || exit 1; }`
 src=`echo "$src" | { grep -Eo '^valgrind-[[:digit:]]+(\.[[:digit:]]+){0,2}' || exit 1; }`
 src=`echo "$src" | { grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,2}$' || exit 1; }`
