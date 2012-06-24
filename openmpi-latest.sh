@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env sh
 
 src=`curl --silent -L 'http://www.open-mpi.org/software/'` || exit 1
 src=`echo "$src" | { grep -Eo 'openmpi-[[:digit:]]+(\.[[:digit:]]+){0,2}\.tar\.((gz)|(bz2))' || exit 1; }`
