@@ -335,7 +335,8 @@ rule get-clang-path ( ph )
     }
     else
     {
-      ver = $(clang-path[2])_$(clang-path[3]) ;
+      ver = [ regex.match "^([0-9]+\\.[0-9]+)\\.[0-9]+$" : $(clang-path[2]) : 1 ] ;
+      ver = $(ver)_$(clang-path[3]) ;
     }
     if $(clang-path[6]) != 99999999
     {
@@ -903,6 +904,17 @@ for local gcc-path in $(gcc-paths) $(gcc-latest-paths) $(clang-paths) $(clang-la
     ;
 }
 
+feature.feature correct-call-stack
+  : off on
+  : propagated composite
+  ;
+feature.compose <correct-call-stack>on
+  : <cflags>-fno-omit-frame-pointer
+    <cflags>-fno-optimize-sibling-calls
+    <linkflags>-fno-omit-frame-pointer
+    <linkflags>-fno-optimize-sibling-calls
+  ;
+
 feature.feature libstdc++-debug-mode
   : off on
   : propagated composite
@@ -920,7 +932,6 @@ feature.compose <mudflap>on
   : <link>static
     <cflags>-fmudflap
     <linkflags>-fmudflap
-    <testing.launcher>"env MUDFLAP_OPTIONS=-viol-segv"
   ;
 
 feature.feature ssp
@@ -934,22 +945,6 @@ feature.compose <ssp>on
 feature.compose <ssp>all
   : <cflags>-fstack-protector-all
     <linkflags>-fstack-protector-all
-  ;
-
-feature.feature memcheck
-  : off on
-  : composite
-  ;
-feature.compose <memcheck>on
-  : <source>/site-config//memcheck
-  ;
-
-feature.feature catchsegv
-  : off on
-  : composite
-  ;
-feature.compose <catchsegv>on
-  : <testing.launcher>"env SEGFAULT_SIGNALS=all catchsegv"
   ;
 
 variant lto

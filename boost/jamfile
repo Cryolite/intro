@@ -199,15 +199,87 @@ actions install
     result=1
   fi
 
+  # Build debug version libraries with mudflap.
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=debug link=static runtime-link=shared cxxflags="-std=c++0x" mudflap=on $(OPTIONS) --buildid=mf >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=debug link=static runtime-link=shared cxxflags="-std=c++0x" mudflap=on $(OPTIONS) --buildid=mf )
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to build Boost $(VERSION) (debug build with mudflap) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to build Boost $(VERSION) (debug build with mudflap) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    result=1
+  fi
+
+  # Build debug version libraries with libstdc++ debug mode.
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=debug runtime-link=shared cxxflags="-std=c++0x" libstdc++-debug-mode=on $(OPTIONS) --buildid=dm >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=debug runtime-link=shared cxxflags="-std=c++0x" libstdc++-debug-mode=on $(OPTIONS) --buildid=dm )
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to build Boost $(VERSION) (debug build with libstdc++ debug mode) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to build Boost $(VERSION) (debug build with libstdc++ debug mode) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    result=1
+  fi
+
+  # Build debug version libraries with mudflap and libstdc++ debug mode.
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=debug link=static runtime-link=shared cxxflags="-std=c++0x" mudflap=on libstdc++-debug-mode=on $(OPTIONS) --buildid=mf-dm >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=debug link=static runtime-link=shared cxxflags="-std=c++0x" mudflap=on libstdc++-debug-mode=on $(OPTIONS) --buildid=mf-dm )
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to build Boost $(VERSION) (debug build with mudflap and libstdc++ debug mode) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to build Boost $(VERSION) (debug build with mudflap and libstdc++ debug mode) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    result=1
+  fi
+
   # Build release version libraries with LTO options.
   if [ -n "$(STREAM)" ]; then
-    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=release runtime-link=shared cflags=-flto cxxflags="-std=c++0x" linkflags=-O3 linkflags=-flto $(OPTIONS) >> "$(STREAM)" 2>&1 )
+    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=release runtime-link=shared cxxflags="-std=c++0x" cflags=-flto linkflags=-O3 linkflags=-flto $(OPTIONS) >> "$(STREAM)" 2>&1 )
   else
-    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=release runtime-link=shared cflags=-flto cxxflags="-std=c++0x" linkflags=-O3 linkflags=-flto $(OPTIONS) )
+    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=release runtime-link=shared cxxflags="-std=c++0x" cflags=-flto linkflags=-O3 linkflags=-flto $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
     echo "ERROR: failed to build Boost $(VERSION) (release build with LTO support) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
     echo -n "ERROR: failed to build Boost $(VERSION) (release build with LTO support) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    result=1
+  fi
+
+  # Build release version libraries with mudflap.
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=release link=static runtime-link=shared cxxflags="-std=c++0x" debug-symbols=on correct-call-stack=on mudflap=on $(OPTIONS) --buildid=mf >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=release link=static runtime-link=shared cxxflags="-std=c++0x" debug-symbols=on correct-call-stack=on mudflap=on $(OPTIONS) --buildid=mf )
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to build Boost $(VERSION) (release build with mudflap) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to build Boost $(VERSION) (release build with mudflap) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    result=1
+  fi
+
+  # Build release version libraries with libstdc++ debug mode.
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=release runtime-link=shared cxxflags="-std=c++0x" debug-symbols=on correct-call-stack=on libstdc++-debug-mode=on $(OPTIONS) --buildid=dm >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=release runtime-link=shared cxxflags="-std=c++0x" debug-symbols=on correct-call-stack=on libstdc++-debug-mode=on $(OPTIONS) --buildid=dm )
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to build Boost $(VERSION) (release build with libstdc++ debug mode) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to build Boost $(VERSION) (release build with libstdc++ debug mode) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    result=1
+  fi
+
+  # Build release version libraries with mudflap and libstdc++ debug mode.
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=release link=static runtime-link=shared cxxflags="-std=c++0x" debug-symbols=on correct-call-stack=on mudflap=on libstdc++-debug-mode=on $(OPTIONS) --buildid=mf-dm >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) variant=release link=static runtime-link=shared cxxflags="-std=c++0x" debug-symbols=on correct-call-stack=on mudflap=on libstdc++-debug-mode=on $(OPTIONS) --buildid=mf-dm )
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to build Boost $(VERSION) (release build with mudflap and libstdc++ debug mode) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to build Boost $(VERSION) (release build with mudflap and libstdc++ debug mode) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     result=1
   fi
 
