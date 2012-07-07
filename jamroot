@@ -103,7 +103,7 @@ local rule get-cloog-latest-version ( )
 {
   if ! $(.cloog-latest)
   {
-    .cloog-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/cloog-latest.sh\" || echo -n error" ] ;
+    .cloog-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/cloog/latest.sh\" || echo -n error" ] ;
     if $(.cloog-latest) = error
     {
       errors.error "failed to extract CLooG latest version." ;
@@ -310,7 +310,7 @@ if $(gcc-for-clang)
 {
   if ! [ "$(INTRO_ROOT_DIR)/compilers.is-valid" "$(gcc-for-clang)" ]
   {
-    errors.error "an invalid value `$(gcc-for-clang' for `--with-gcc-for-clang'." ;
+    errors.error "an invalid value `$(gcc-for-clang)' for `--with-gcc-for-clang'." ;
   }
   ECHO gcc-for-clang... $(gcc-for-clang) ;
   if ! $(gcc-for-clang) in $(compilers)

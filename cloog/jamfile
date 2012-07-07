@@ -113,8 +113,7 @@ rule download ( targets * : sources * : properties * )
   assert-unspecified <boost-hidden>    : $(properties) ;
   local version = [ feature.get-values <cloog-hidden> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
-  URL on $(targets) = http://ftp.dti.ad.jp/pub/lang/gcc/infrastructure/cloog-$(version).tar.gz ;
-  #URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/gcc/infrastructure/cloog-$(version).tar.gz ;
+  URL on $(targets) = http://www.bastoul.net/cloog/pages/download/cloog-$(version).tar.gz ;
 }
 actions download
 {
