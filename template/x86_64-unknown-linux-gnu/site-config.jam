@@ -461,6 +461,8 @@ rule boost-tag ( name : type ? : property-set )
   local layout      = [ $(property-set).get <boost-layout> ] ;
   local version-tag = [ regex.replace [ regex.match "^([0-9]+\\.[0-9]+)\\.[0-9]+$" : $(version) : 1 ] "\\." "_" ] ;
   local build-id    = [ $(property-set).get <boost-build-id> ] ;
+  local mudflap     = [ $(property-set).get <mudflap> ] ;
+  local libstdc++-debug-mode = [ $(property-set).get <libstdc++-debug-mode> ] ;
   local result ;
   if $(layout) = versioned
   {
@@ -468,13 +470,21 @@ rule boost-tag ( name : type ? : property-set )
       <base> <toolset> <threading> <runtime> -$(version-tag)
       -$(build-id)
       : $(name) : $(type) : $(property-set) ] ;
+    if $(mudflap) = "on"
+    {
+      result = $(result)-mf ;
+    }
+    if $(libstdc++-debug-mode) = "on"
+    {
+      result = $(result)-dm ;
+    }
   }
   else if $(layout) = tagged
   {
     result = [ common.format-name
       <base> <threading> <runtime>
       -$(build-id)
-      : $(name) : $(type) : $(property-set) ] ;            
+      : $(name) : $(type) : $(property-set) ] ;
   }
   else if $(layout) = system
   {
@@ -486,11 +496,14 @@ rule boost-tag ( name : type ? : property-set )
   else
   {
     ECHO "error: invalid layout '$(layout:E=)'" ;
-    EXIT ;               
+    EXIT ;
   }
 
   return $(result) ;
 }
+
+lib z ;
+lib bz2 ;
 
 rule declare-libs ( libdir : version )
 {
@@ -896,12 +909,12 @@ for local gcc-path in $(gcc-paths) $(gcc-latest-paths) $(clang-paths) $(clang-la
   local libdir = [ path.make "$(ph:D)/../lib" ] ;
   declare-libs "$(libdir)" : $(ver) ;
 
-  alias memcheck
-    :
-    : <toolset-gcc:version>$(ver)
-    :
-    : <testing.launcher>"$(ph:D)/valgrind --quiet --error-exitcode=1 --leak-check=full"
-    ;
+  #alias memcheck
+  #  :
+  #  : <toolset-gcc:version>$(ver)
+  #  :
+  #  : <testing.launcher>"$(ph:D)/valgrind --quiet --error-exitcode=1 --leak-check=full"
+  #  ;
 }
 
 feature.feature correct-call-stack
@@ -945,6 +958,15 @@ feature.compose <ssp>on
 feature.compose <ssp>all
   : <cflags>-fstack-protector-all
     <linkflags>-fstack-protector-all
+  ;
+
+feature.feature address-sanitizer
+  : off on
+  : propagated composite
+  ;
+feature.compose <address-sanitizer>on
+  : <cflags>-faddress-sanitizer
+    <linkflags>-faddress-sanitizer
   ;
 
 variant lto
