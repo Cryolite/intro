@@ -15,6 +15,7 @@ local .gmp-latest ;
 local .mpfr-latest ;
 local .mpc-latest ;
 local .ppl-latest ;
+local .isl-latest ;
 local .cloog-latest ;
 local .icu4c-latest ;
 local .openmpi-latest ;
@@ -99,6 +100,19 @@ local rule get-ppl-latest-version ( )
   return $(.ppl-latest) ;
 }
 
+local rule get-isl-latest-version ( )
+{
+  if ! $(.isl-latest)
+  {
+    .isl-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/isl/latest.sh\" || echo -n error" ] ;
+    if $(.isl-latest) = error
+    {
+      errors.error "failed to extract islL latest version." ;
+    }
+  }
+  return $(.isl-latest) ;
+}
+
 local rule get-cloog-latest-version ( )
 {
   if ! $(.cloog-latest)
@@ -159,6 +173,7 @@ local gmp-versions ;
 local mpfr-versions ;
 local mpc-versions ;
 local ppl-versions ;
+local isl-versions ;
 local cloog-versions ;
 local icu4c-versions ;
 local openmpi-versions ;
@@ -279,6 +294,26 @@ if $(ppl-for-gcc) != system && ! $(ppl-for-gcc) in $(ppl-versions)
   ppl-versions += $(ppl-for-gcc) ;
 }
 ECHO ppl-for-gcc... $(ppl-for-gcc) ;
+
+
+local isl-for-gcc = [ option.get with-isl-for-gcc : system : IMPLIED ] ;
+if $(isl-for-gcc) = IMPLIED
+{
+  errors.error "`--with-isl-for-gcc' should be specified with a value." ;
+}
+if $(isl-for-gcc) = latest
+{
+  isl-for-gcc = [ get-isl-latest-version ] ;
+}
+if $(isl-for-gcc) != system && ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(isl-for-gcc)" : 1 ]
+{
+  errors.error "an invalid value `$(isl-for-gcc)' for `--with-isl-for-gcc'." ;
+}
+if $(isl-for-gcc) != system && ! $(isl-for-gcc) in $(isl-versions)
+{
+  isl-versions += $(isl-for-gcc) ;
+}
+ECHO isl-for-gcc... $(isl-for-gcc) ;
 
 
 local cloog-for-gcc = [ option.get with-cloog-for-gcc : system : IMPLIED ] ;
@@ -480,6 +515,34 @@ if $(ppl)
 }
 
 
+local isl = [ option.get enable-isl : : latest ] ;
+if $(isl) = latest
+{
+  isl = [ get-isl-latest-version ] ;
+}
+if $(isl)
+{
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(isl)" : 1 ]
+  {
+    errors.error "an invalid value `$(isl)' for `--enable-isl'." ;
+  }
+  if ! $(isl) in $(isl-versions)
+  {
+    isl-versions += $(isl) ;
+  }
+  ECHO isl... $(isl) ;
+  if ! $(gmp)
+  {
+    gmp = [ get-gmp-latest-version ] ;
+    if ! $(gmp) in $(gmp-versions)
+    {
+      gmp-versions += $(gmp) ;
+    }
+    ECHO gmp... $(gmp) (implied by --enable-isl) ;
+  }
+}
+
+
 local cloog = [ option.get enable-cloog : : latest ] ;
 if $(cloog) = latest
 {
@@ -668,6 +731,7 @@ if $(binutils)
 }
 else
 {
+  constant BINUTILS : "" ;
   ECHO BINUTILS... N/A ;
 }
 
@@ -676,17 +740,32 @@ if $(gmp-for-gcc)
   constant GMP_FOR_GCC : $(gmp-for-gcc) ;
   ECHO GMP_FOR_GCC... $(GMP_FOR_GCC) ;
 }
+else
+{
+  constant GMP_FOR_GCC : "" ;
+  ECHO GMP_FOR_GCC... N/A ;
+}
 
 if $(mpfr-for-gcc)
 {
   constant MPFR_FOR_GCC : $(mpfr-for-gcc) ;
   ECHO MPFR_FOR_GCC... $(MPFR_FOR_GCC) ;
 }
+else
+{
+  constant MPFR_FOR_GCC : "" ;
+  ECHO MPFR_FOR_GCC... N/A ;
+}
 
 if $(mpc-for-gcc)
 {
   constant MPC_FOR_GCC : $(mpc-for-gcc) ;
   ECHO MPC_FOR_GCC... $(MPC_FOR_GCC) ;
+}
+else
+{
+  constant MPC_FOR_GCC : "" ;
+  ECHO MPC_FOR_GCC... N/A ;
 }
 
 if $(ppl-for-gcc) = system
@@ -700,7 +779,23 @@ if $(ppl-for-gcc)
 }
 else
 {
+  constant PPL_FOR_GCC : "" ;
   ECHO PPL_FOR_GCC... N/A ;
+}
+
+if $(isl-for-gcc) = system
+{
+  isl-for-gcc = ;
+}
+if $(isl-for-gcc)
+{
+  constant ISL_FOR_GCC : $(isl-for-gcc) ;
+  ECHO ISL_FOR_GCC... $(ISL_FOR_GCC) ;
+}
+else
+{
+  constant ISL_FOR_GCC : "" ;
+  ECHO ISL_FOR_GCC... N/A ;
 }
 
 if $(cloog-for-gcc) = system
@@ -714,6 +809,7 @@ if $(cloog-for-gcc)
 }
 else
 {
+  constant CLOOG_FOR_GCC : "" ;
   ECHO CLOOG_FOR_GCC... N/A ;
 }
 
@@ -752,6 +848,16 @@ if $(ppl-versions)
 else
 {
   ECHO PPL_VERSIONS... N/A ;
+}
+
+if $(isl-versions)
+{
+  constant ISL_VERSIONS : $(isl-versions) ;
+  ECHO ISL_VERSIONS... $(ISL=VERSIONS:J=,) ;
+}
+else
+{
+  ECHO ISL_VERSIONS... N/A ;
 }
 
 if $(cloog-versions)
@@ -829,6 +935,9 @@ feature mpc-hidden : [ feature.values <mpc> ]    : propagated incidental ;
 feature ppl        : unspecified $(ppl-versions) : propagated            ;
 feature ppl-hidden : [ feature.values <ppl> ]    : propagated incidental ;
 
+feature isl        : unspecified $(isl-versions) : propagated            ;
+feature isl-hidden : [ feature.values <isl> ]    : propagated incidental ;
+
 feature cloog        : unspecified $(cloog-versions) : propagated            ;
 feature cloog-hidden : [ feature.values <cloog> ]    : propagated incidental ;
 
@@ -879,10 +988,6 @@ else
   clang = ;
 }
 
-#if $(triplet) = i686-pc-cygwin && $(clang) {
-#  errors.error "Sorry, but there is a problem in building Clang by the GCC current release on i686-pc-cygwin." ;
-#}
-
 for local enabled-compiler in $(enabled-compilers)
 {
   if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" "$(enabled-compiler)" ]
@@ -895,7 +1000,8 @@ for local enabled-compiler in $(enabled-compilers)
         mpfr//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr>$(mpfr)
         mpc//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
         ppl//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<ppl>$(ppl)
-        cloog//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<cloog>$(cloog)
+        isl//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<isl>$(isl)
+        cloog//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<isl>$(isl)/<cloog>$(cloog)
         icu4c//install/<multilib-hidden>$(multilib)/<icu4c>$(icu4c)
         openmpi//install/<multilib-hidden>$(multilib)/<mpi>$(mpi)/<openmpi>$(OPENMPI)
         boost//install/<multilib-hidden>$(multilib)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
@@ -914,7 +1020,8 @@ for local enabled-compiler in $(enabled-compilers)
         mpfr//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr>$(mpfr)
         mpc//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
         ppl//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<ppl>$(ppl)
-        cloog//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<cloog>$(cloog)
+        isl//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<isl>$(isl)
+        cloog//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<isl>$(isl)/<cloog>$(cloog)
         icu4c//install/<multilib-hidden>$(multilib)/<icu4c>$(icu4c)
         openmpi//install/<multilib-hidden>$(multilib)/<mpi>$(mpi)/<openmpi>$(OPENMPI)
         boost//install/<multilib-hidden>$(multilib)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)

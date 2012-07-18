@@ -46,6 +46,9 @@ else
   exit 1
 fi
 
+ulimit -t 300
+ulimit -m 2097152
+
 specs=`mktemp` || exit
 
 LD_LIBRARY_PATH="$LD_LIBRARY_PATH${LD_LIBRARY_PATH:+:}$libdir"

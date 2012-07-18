@@ -40,6 +40,8 @@ rule compiler-dep-req ( properties * )
   assert-unspecified <mpc-hidden>      : $(properties) ;
   assert-unspecified <ppl>             : $(properties) ;
   assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <isl>             : $(properties) ;
+  assert-unspecified <isl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-specified   <compiler>        : $(properties) ;
@@ -99,6 +101,8 @@ rule download ( targets * : sources * : properties * )
   assert-unspecified <mpc-hidden>      : $(properties) ;
   assert-unspecified <ppl>             : $(properties) ;
   assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <isl>             : $(properties) ;
+  assert-unspecified <isl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
   assert-specified   <cloog-hidden>    : $(properties) ;
   assert-unspecified <compiler>        : $(properties) ;
@@ -174,6 +178,8 @@ rule expand ( targets * : sources * : properties * )
   assert-unspecified <mpc-hidden>      : $(properties) ;
   assert-unspecified <ppl>             : $(properties) ;
   assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <isl>             : $(properties) ;
+  assert-unspecified <isl-hidden>      : $(properties) ;
   assert-unspecified <cloog>           : $(properties) ;
   assert-specified   <cloog-hidden>    : $(properties) ;
   assert-unspecified <compiler>        : $(properties) ;
@@ -229,6 +235,8 @@ rule srcdir-req ( properties * )
   assert-unspecified <mpc-hidden>      : $(properties) ;
   assert-unspecified <ppl>             : $(properties) ;
   assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <isl>             : $(properties) ;
+  assert-unspecified <isl-hidden>      : $(properties) ;
   assert-specified   <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-unspecified <compiler>        : $(properties) ;
@@ -254,9 +262,10 @@ for local compiler in $(COMPILERS)
   local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
   local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
   make "$(compiler-prefix)/include/cloog/cloog.h"
-    : compiler-dep/<gmp>unspecified/<cloog>unspecified
-      ../gmp//install/<cloog>unspecified
-      srcdir/<triplet>unspecified/<multilib-hidden>unspecified/<gmp>unspecified/<compiler>unspecified
+    : compiler-dep/<gmp>unspecified/<isl>unspecified/<cloog>unspecified
+      ../gmp//install/<isl>unspecified/<cloog>unspecified
+      ../isl//install/<cloog>unspecified
+      srcdir/<triplet>unspecified/<multilib-hidden>unspecified/<gmp>unspecified/<isl>unspecified/<compiler>unspecified
     : @make-install
     ;
   explicit "$(compiler-prefix)/include/cloog/cloog.h" ;
@@ -277,6 +286,8 @@ rule make-install ( targets * : sources * : properties * )
   assert-unspecified <mpc-hidden>      : $(properties) ;
   assert-unspecified <ppl>             : $(properties) ;
   assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-specified   <isl>             : $(properties) ;
+  assert-unspecified <isl-hidden>      : $(properties) ;
   assert-specified   <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-specified   <compiler>        : $(properties) ;
@@ -306,31 +317,38 @@ rule make-install ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) = ;
 
+  # Set the '--prefix' option for the 'configure' script.
+  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
+  OPTIONS on $(targets) += "--prefix=\"$(compiler-prefix)\"" ;
+
   # Set the '--build' and '--host' options for the 'configure' script.
   local triplet = [ feature.get-values <triplet> : $(properties) ] ;
   TRIPLET on $(targets) = $(triplet) ;
   OPTIONS on $(targets) += --build=$(triplet) ;
   OPTIONS on $(targets) += --host=$(triplet) ;
 
-  # Set the '--prefix' option for the 'configure' script.
-  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
-  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-  OPTIONS on $(targets) += "--prefix=\"$(compiler-prefix)\"" ;
-
   # Set the link variants for the 'configure' script.
   if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
   {
-    OPTIONS on $(targets) += --disable-static ;
     OPTIONS on $(targets) += --enable-shared ;
+    OPTIONS on $(targets) += --disable-static ;
   }
   else
   {
-    OPTIONS on $(targets) += --enable-static ;
     OPTIONS on $(targets) += --enable-shared ;
+    OPTIONS on $(targets) += --enable-static ;
   }
 
   OPTIONS on $(targets) += --with-gmp=system ;
-  OPTIONS on $(targets) += --with-gmp-prefix=\"$(compiler-prefix)\" ;
+  OPTIONS on $(targets) += --with-gmp-prefix='$(compiler-prefix)' ;
+
+  OPTIONS on $(targets) += --with-isl=system ;
+  OPTIONS on $(targets) += --with-isl-prefix='$(compiler-prefix)' ;
+
+  OPTIONS on $(targets) += --with-osl=no ;
+
+  OPTIONS on $(targets) += --with-bits=gmp ;
 
   local cc = [ "$(INTRO_ROOT_DIR)/compilers.cc" "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
   OPTIONS on $(targets) += "CC=\"$(cc)\"" ;
@@ -427,6 +445,8 @@ rule install-req ( properties * )
   assert-unspecified <mpc-hidden>      : $(properties) ;
   assert-unspecified <ppl>             : $(properties) ;
   assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-specified   <isl>             : $(properties) ;
+  assert-unspecified <isl-hidden>      : $(properties) ;
   assert-specified   <cloog>           : $(properties) ;
   assert-unspecified <cloog-hidden>    : $(properties) ;
   assert-specified   <compiler>        : $(properties) ;

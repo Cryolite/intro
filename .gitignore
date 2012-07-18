@@ -18,6 +18,9 @@
 /ppl-*.tar.gz
 /ppl-*.tar.bz2
 /ppl-*/
+/isl-*.tar.gz
+/isl-*.tar.bz2
+/isl-*/
 /cloog-*.tar.gz
 /cloog-*.tar.bz2
 /cloog-*/
