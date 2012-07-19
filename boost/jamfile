@@ -158,6 +158,7 @@ rule install ( targets * : sources * : properties * )
   OPTIONS on $(targets) += "--stagedir=\"$(compiler-prefix)\"" ;
   OPTIONS on $(targets) += --build-type=complete ;
   OPTIONS on $(targets) += --layout=versioned ;
+  OPTIONS on $(targets) += --without-locale ;
   OPTIONS on $(targets) += --without-mpi ;
 
   if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
