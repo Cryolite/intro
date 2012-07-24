@@ -651,7 +651,15 @@ if $(valgrind) = latest
 }
 if $(valgrind)
 {
-  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(valgrind)" : 1 ]
+  if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(valgrind)" : 1 ]
+  {
+    # Do nothing.
+  }
+  else if $(valgrind) = trunk
+  {
+    # Do nothing.
+  }
+  else
   {
     errors.error an invalid value `$(valgrind)' for `--enable-valgrind'. ;
   }
@@ -886,6 +894,10 @@ if $(valgrind)
 {
   constant VALGRIND : $(valgrind) ;
   ECHO VALGRIND... $(valgrind) ;
+}
+else
+{
+  ECHO VALGRIND... N/A ;
 }
 
 constant CONCURRENCY : $(concurrency) ;
