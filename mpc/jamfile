@@ -113,24 +113,32 @@ rule download ( targets * : sources * : properties * )
   assert-unspecified <boost-hidden>    : $(properties) ;
   local version = [ feature.get-values <mpc-hidden> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
-  URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/mpc/mpc-$(version).tar.gz ;
-  #URL on $(targets) = http://www.multiprecision.org/mpc/download/mpc-$(version).tar.gz ;
+  URLS on $(targets) = "'http://ftp.tsukuba.wide.ad.jp/software/mpc/mpc-$(version).tar.gz' \\
+                        'http://www.multiprecision.org/mpc/download/mpc-$(version).tar.gz' \\
+                        'http://ftp.dti.ad.jp/pub/lang/gcc/infrastructure/mpc-$(version).tar.gz'" ;
 }
 actions download
 {
   rm -rf "$(<)" || exit 1
-  if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)" && wget -- '$(URL)' >> "$(STREAM)" 2>&1 )
-  else
-    ( cd "$(<:D)" && wget --quiet -- '$(URL)' )
-  fi
-  if [ $? -ne 0 ]; then
+
+  for url in $(URLS) ; do
+    if [ -n "$(STREAM)" ]; then
+      ( cd "$(<:D)" && wget -- "$url" >> "$(STREAM)" 2>&1 )
+    else
+      ( cd "$(<:D)" && wget --quiet -- "$url" )
+    fi
+    if [ $? -eq 0 ]; then
+      break
+    fi
+  done
+
+  if [ ! -f "$(<)" ]; then
     echo "ERROR: failed to download MPC $(VERSION) tarball." 1>&2
     echo -n "ERROR: failed to download MPC $(VERSION) tarball." | $(AWACS)
     rm -rf "$(<)"
     exit 1
   fi
-  [ -f "$(<)" ] || exit 1
+
   exit 0
 }
 

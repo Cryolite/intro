@@ -110,25 +110,33 @@ rule download ( targets * : sources * : properties * )
   assert-unspecified <boost-hidden>    : $(properties) ;
   local version = [ feature.get-values <binutils-hidden> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
-  URL on $(targets) = http://ftp.nara.wide.ad.jp/pub/GNU/gnu/binutils/binutils-$(version).tar.bz2 ;
-  #URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/binutils/binutils-$(version).tar.bz2 ;
-  #URL on $(targets) = http://core.ring.gr.jp/pub/GNU/binutils/binutils-$(version).tar.bz2 ;
+  URLS on $(targets) = "'http://ftp.nara.wide.ad.jp/pub/GNU/gnu/binutils/binutils-$(version).tar.bz2' \\
+                        'http://ftp.tsukuba.wide.ad.jp/software/binutils/binutils-$(version).tar.bz2' \\
+                        'http://ftp.jaist.ac.jp/pub/GNU/binutils/binutils-$(version).tar.bz2'         \\
+                        'ftp://sourceware.org/pub/binutils/snapshots/binutils-$(version).tar.bz2'"    ;
 }
 actions download
 {
-  rm -rf "$(<)" || exit 1
-  if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)" && wget -- '$(URL)' >> "$(STREAM)" 2>&1 )
-  else
-    ( cd "$(<:D)" && wget --quiet -- '$(URL)' )
-  fi
-  if [ $? -ne 0 ]; then
-    echo "ERROR: failed to download Binutils $(VERSION) tarball." 1>&2
-    echo -n "ERROR: failed to download Binutils $(VERSION) tarball." | $(AWACS)
-    rm -rf "$(<)"
+  rm -rf '$(<)' || exit 1
+
+  for url in $(URLS) ; do
+    if [ -n '$(STREAM)' ]; then
+      ( cd '$(<:D)' && wget -- "$url" >> '$(STREAM)' 2>&1 )
+    else
+      ( cd '$(<:D)' && wget --quiet -- "$url" )
+    fi
+    if [ $? -eq 0 ]; then
+      break
+    fi
+  done
+
+  if [ ! -f '$(<)' ]; then
+    echo    'ERROR: failed to download Binutils $(VERSION) tarball.' 1>&2
+    echo -n 'ERROR: failed to download Binutils $(VERSION) tarball.' | $(AWACS)
+    rm -rf '$(<)'
     exit 1
   fi
-  [ -f "$(<)" ] || exit 1
+
   exit 0
 }
 
