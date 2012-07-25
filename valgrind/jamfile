@@ -52,6 +52,9 @@ rule compiler-dep-req ( properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  assert-unspecified <valgrind>        : $(properties) ;
+  assert-unspecified <valgrind-hidden> : $(properties) ;
+
   local multilib = [ feature.get-values <multilib-hidden> : $(properties) ] ;
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local result ;
@@ -110,6 +113,7 @@ rule download ( targets * : sources * : properties * )
   assert-unspecified <boost-hidden>    : $(properties) ;
   assert-unspecified <valgrind>        : $(properties) ;
   assert-specified   <valgrind-hidden> : $(properties) ;
+
   local version = [ feature.get-values <valgrind-hidden> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
   URL on $(targets) = http://valgrind.org/downloads/valgrind-$(version).tar.bz2 ;
@@ -133,19 +137,22 @@ actions download
 }
 
 
-# Use `README' file as a target representing the completion of
-# decompression action. It is suitable for the purpose because of the
-# following reasons;
-#
-#   - The name of this file is considered stable even if the version
-#     changes.
-#   - This file won't be modified during the build procedure.
-#
-make "$(INTRO_ROOT_DIR)/valgrind-$(VALGRIND)/README"
-  : "$(INTRO_ROOT_DIR)/valgrind-$(VALGRIND).tar.bz2"
-  : @expand
-  ;
-explicit "$(INTRO_ROOT_DIR)/valgrind-$(VALGRIND)/README" ;
+if $(VALGRIND) != trunk
+{
+  # Use `README' file as a target representing the completion of
+  # decompression action. It is suitable for the purpose because of the
+  # following reasons;
+  #
+  #   - The name of this file is considered stable even if the version
+  #     changes.
+  #   - This file won't be modified during the build procedure.
+  #
+  make "$(INTRO_ROOT_DIR)/valgrind-$(VALGRIND)/README"
+    : "$(INTRO_ROOT_DIR)/valgrind-$(VALGRIND).tar.bz2"
+    : @expand
+    ;
+  explicit "$(INTRO_ROOT_DIR)/valgrind-$(VALGRIND)/README" ;
+}
 
 rule expand ( targets * : sources * : properties * )
 {
@@ -184,6 +191,7 @@ rule expand ( targets * : sources * : properties * )
   assert-unspecified <boost-hidden>    : $(properties) ;
   assert-unspecified <valgrind>        : $(properties) ;
   assert-specified   <valgrind-hidden> : $(properties) ;
+
   local version = [ feature.get-values <valgrind-hidden> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
 }
@@ -208,6 +216,84 @@ actions expand
   # Therefore, `touch' is required.
   touch --no-create "$(<)"
   [ -f "$(<)" ] || exit 1
+  exit 0
+}
+
+
+if $(VALGRIND) = trunk
+{
+  make "$(INTRO_ROOT_DIR)/valgrind-trunk/README"
+    : # no source
+    : @checkout-trunk
+    ;
+  explicit "$(INTRO_ROOT_DIR)/valgrind-trunk/README" ;
+  always "$(INTRO_ROOT_DIR)/valgrind-trunk/README" ;
+}
+
+rule checkout-trunk ( targets * : sources * : properties * )
+{
+  assert-unspecified <triplet>         : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
+  assert-unspecified <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+  assert-unspecified <valgrind>        : $(properties) ;
+  assert-specified   <valgrind-hidden> : $(properties) ;
+}
+actions checkout-trunk
+{
+  if [ -d '$(INTRO_ROOT_DIR)/valgrind-trunk' ]; then
+    ( cd '$(INTRO_ROOT_DIR)' && rm -rf valgrind-trunk )
+  fi
+  [ ! -d '$(INTRO_ROOT_DIR)/valgrind-trunk' ] || exit 1
+
+  if [ -n '$(STREAM)' ]; then
+    ( cd '$(INTRO_ROOT_DIR)' && svn checkout svn://svn.valgrind.org/valgrind/trunk valgrind-trunk >> '$(STREAM)' 2>&1 )
+  else
+    ( cd '$(INTRO_ROOT_DIR)' && svn checkout svn://svn.valgrind.org/valgrind/trunk valgrind-trunk )
+  fi
+  if [ $? -ne 0 ]; then
+    ( cd '$(INTRO_ROOT_DIR)' && rm -rf valgrind-trunk )
+    echo    "ERROR: failed to \`svn checkout' Valgrind repository." 1>&2
+    echo -n "ERROR: failed to \`svn checkout' Valgrind repository." | $(AWACS)
+    exit 1
+  fi
+  [ -d '$(INTRO_ROOT_DIR)/valgrind-trunk' ] || exit 1
+
+  if [ -n '$(STREAM)' ]; then
+    ( cd '$(INTRO_ROOT_DIR)/valgrind-trunk' && ./autogen.sh >> '$(STREAM)' 2>&1 )
+  else
+    ( cd '$(INTRO_ROOT_DIR)/valgrind-trunk' && ./autogen.sh )
+  fi
+  if [ $? -ne 0 ]; then
+    ( cd '$(INTRO_ROOT_DIR)' && rm -rf valgrind-trunk )
+    echo    "ERROR: failed to \`autogen.sh' Valgrind repository." 1>&2
+    echo -n "ERROR: failed to \`autogen.sh' Valgrind repository." | $(AWACS)
+    exit 1
+  fi
+
+  [ -f '$(<)' ] || exit 1
+
   exit 0
 }
 
@@ -241,6 +327,7 @@ rule srcdir-req ( properties * )
   assert-unspecified <boost-hidden>    : $(properties) ;
   assert-specified   <valgrind>        : $(properties) ;
   assert-unspecified <valgrind-hidden> : $(properties) ;
+
   local version = [ feature.get-values <valgrind> : $(properties) ] ;
   return <source>"$(INTRO_ROOT_DIR)/valgrind-$(version)/README/<valgrind>unspecified/<valgrind-hidden>$(version)" ;
 }

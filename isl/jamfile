@@ -54,6 +54,9 @@ rule compiler-dep-req ( properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  assert-unspecified <valgrind>        : $(properties) ;
+  assert-unspecified <valgrind-hidden> : $(properties) ;
+
   local multilib = [ feature.get-values <multilib-hidden> : $(properties) ] ;
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local result ;
@@ -115,6 +118,9 @@ rule download ( targets * : sources * : properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  assert-unspecified <valgrind>        : $(properties) ;
+  assert-unspecified <valgrind-hidden> : $(properties) ;
+
   local version = [ feature.get-values <isl-hidden> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
   URL on $(targets) = "http://ftp.tsukuba.wide.ad.jp/software/gcc/infrastructure/isl-$(version).tar.bz2" ;
@@ -193,6 +199,9 @@ rule expand ( targets * : sources * : properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  assert-unspecified <valgrind>        : $(properties) ;
+  assert-unspecified <valgrind-hidden> : $(properties) ;
+
   local version = [ feature.get-values <isl-hidden> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
 }
@@ -250,6 +259,9 @@ rule srcdir-req ( properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  assert-unspecified <valgrind>        : $(properties) ;
+  assert-unspecified <valgrind-hidden> : $(properties) ;
+
   local version = [ feature.get-values <isl> : $(properties) ] ;
   return <source>"$(INTRO_ROOT_DIR)/isl-$(version)/ChangeLog/<isl>unspecified/<isl-hidden>$(version)" ;
 }
@@ -300,6 +312,8 @@ rule make-install ( targets * : sources * : properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  assert-unspecified <valgrind>        : $(properties) ;
+  assert-unspecified <valgrind-hidden> : $(properties) ;
 
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(compiler) ] ;
@@ -459,6 +473,8 @@ rule install-req ( properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  assert-unspecified <valgrind>        : $(properties) ;
+  assert-unspecified <valgrind-hidden> : $(properties) ;
 
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;

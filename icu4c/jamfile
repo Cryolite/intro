@@ -53,6 +53,9 @@ rule compiler-dep-req ( properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  assert-unspecified <valgrind>        : $(properties) ;
+  assert-unspecified <valgrind-hidden> : $(properties) ;
+
   local multilib = [ feature.get-values <multilib-hidden> : $(properties) ] ;
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local result ;
@@ -113,6 +116,9 @@ rule download ( targets * : sources * : properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  assert-unspecified <valgrind>        : $(properties) ;
+  assert-unspecified <valgrind-hidden> : $(properties) ;
+
   local version = [ feature.get-values <icu4c-hidden> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
   local version-string = [ regex.replace "$(version)" "\\." "_" ] ;
@@ -190,6 +196,9 @@ rule expand ( targets * : sources * : properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  assert-unspecified <valgrind>        : $(properties) ;
+  assert-unspecified <valgrind-hidden> : $(properties) ;
+
   local version = [ feature.get-values <icu4c-hidden> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
 }
@@ -249,6 +258,9 @@ rule srcdir-req ( properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  assert-unspecified <valgrind>        : $(properties) ;
+  assert-unspecified <valgrind-hidden> : $(properties) ;
+
   local version = [ feature.get-values <icu4c> : $(properties) ] ;
   return <source>"$(INTRO_ROOT_DIR)/icu-$(version)/readme.html/<icu4c>unspecified/<icu4c-hidden>$(version)" ;
 }
@@ -296,6 +308,8 @@ rule make-install ( targets * : sources * : properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  assert-unspecified <valgrind>        : $(properties) ;
+  assert-unspecified <valgrind-hidden> : $(properties) ;
 
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(compiler) ] ;
@@ -473,6 +487,8 @@ rule install-req ( properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  assert-unspecified <valgrind>        : $(properties) ;
+  assert-unspecified <valgrind-hidden> : $(properties) ;
 
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;

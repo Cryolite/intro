@@ -63,6 +63,9 @@ rule download ( targets * : sources * : properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  assert-unspecified <valgrind>        : $(properties) ;
+  assert-unspecified <valgrind-hidden> : $(properties) ;
+
   local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
   if ! [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" "$(compiler)" ]
   {
@@ -157,6 +160,9 @@ rule expand ( targets * : sources * : properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  assert-unspecified <valgrind>        : $(properties) ;
+  assert-unspecified <valgrind-hidden> : $(properties) ;
+
   local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
   if ! [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" "$(compiler)" ]
   {
@@ -219,6 +225,9 @@ rule srcdir-req ( properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  assert-unspecified <valgrind>        : $(properties) ;
+  assert-unspecified <valgrind-hidden> : $(properties) ;
+
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   if ! [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" "$(compiler)" ]
   {
@@ -321,6 +330,8 @@ rule make-install ( targets * : sources * : properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  assert-unspecified <valgrind>        : $(properties) ;
+  assert-unspecified <valgrind-hidden> : $(properties) ;
 
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local version ;
@@ -584,6 +595,9 @@ rule install-req ( properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  assert-unspecified <valgrind>        : $(properties) ;
+  assert-unspecified <valgrind-hidden> : $(properties) ;
+
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
   local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
