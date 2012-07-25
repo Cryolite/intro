@@ -623,25 +623,31 @@ else
 }
 
 
-local clang = [ option.get enable-clang : no : yes ] ;
-if ! $(clang) in no yes
+local clang = [ option.get enable-clang : : latest ] ;
+if $(clang) = latest
 {
-  errors.error "ERROR: `$(clang)' is a wrong value for `--enable-clang' option.\n"
-               "             Allowed values are `yes' and `no'." ;
+  clang = [ "$(INTRO_ROOT_DIR)/compilers.get-clang-latest-version" ] ;
 }
-if [ option.get disable-clang : IMPLIED : IMPLIED ] != IMPLIED
+if $(clang)
 {
-  errors.error "ERROR: No value for `--disable-clang' is allowed." ;
+  if [ regex.match "^([0-9]+\\.[0-9]+)$" : "$(clang)" : 1 ]
+  {
+    # Do nothing.
+  }
+  else if $(clang) = trunk
+  {
+    # Do nothing.
+  }
+  else
+  {
+    errors.error "an invalid value `$(clang)' for `--enable-clang' option.\n" ;
+  }
+  ECHO clang... $(clang) ;
 }
-if $(clang) = yes && [ option.get disable-clang : : IMPLIED ] = IMPLIED
+else
 {
-  errors.error "ERROR: both `--enable-clang' and `--disable-clang' are specified." ;
+  ECHO clang... N/A ;
 }
-if $(clang) = no
-{
-  clang = ;
-}
-ECHO clang... $(clang) ;
 
 
 local valgrind = [ option.get enable-valgrind : : latest ] ;
@@ -890,6 +896,16 @@ if $(boost-versions)
   ECHO BOOST_VERSIONS... $(BOOST_VERSIONS) ;
 }
 
+if $(clang)
+{
+  constant CLANG : $(clang) ;
+  ECHO CLANG... $(clang) ;
+}
+else
+{
+  ECHO CLANG... N/A ;
+}
+
 if $(valgrind)
 {
   constant VALGRIND : $(valgrind) ;
@@ -988,17 +1004,11 @@ else
 feature boost        : unspecified $(boost-versions) : propagated            ;
 feature boost-hidden : [ feature.values <boost> ]    : propagated incidental ;
 
+feature clang        : unspecified $(clang)       : propagated            ;
+feature clang-hidden : [ feature.values <clang> ] : propagated incidental ;
+
 feature valgrind        : unspecified $(valgrind)       : propagated            ;
 feature valgrind-hidden : [ feature.values <valgrind> ] : propagated incidental ;
-
-if $(clang) = yes
-{
-  clang = "clang//install/<multilib-hidden>$(multilib)" ;
-}
-else
-{
-  clang = ;
-}
 
 for local enabled-compiler in $(enabled-compilers)
 {
@@ -1017,7 +1027,7 @@ for local enabled-compiler in $(enabled-compilers)
         icu4c//install/<multilib-hidden>$(multilib)/<icu4c>$(icu4c)
         openmpi//install/<multilib-hidden>$(multilib)/<mpi>$(mpi)/<openmpi>$(OPENMPI)
         boost//install/<multilib-hidden>$(multilib)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
-        $(clang)
+        clang//install/<multilib-hidden>$(multilib)/<clang>$(clang)
         valgrind//install/<multilib-hidden>$(multilib)/<mpi>$(mpi)/<openmpi>$(openmpi)/<valgrind>$(valgrind)
       : <triplet>$(triplet)
         <compiler>$(enabled-compiler)

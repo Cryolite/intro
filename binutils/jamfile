@@ -110,6 +110,8 @@ rule download ( targets * : sources * : properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  assert-unspecified <clang>           : $(properties) ;
+  assert-unspecified <clang-hidden>    : $(properties) ;
   assert-unspecified <valgrind>        : $(properties) ;
   assert-unspecified <valgrind-hidden> : $(properties) ;
   local version = [ feature.get-values <binutils-hidden> : $(properties) ] ;

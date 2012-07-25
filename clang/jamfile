@@ -51,6 +51,8 @@ rule gcc-dep-req ( properties * )
   assert-unspecified <openmpi-hidden>  : $(properties) ;
   assert-unspecified <boost>           : $(properties) ;
   assert-unspecified <boost-hidden>    : $(properties) ;
+  assert-unspecified <clang>           : $(properties) ;
+  assert-unspecified <clang-hidden>    : $(properties) ;
   assert-unspecified <valgrind>        : $(properties) ;
   assert-unspecified <valgrind-hidden> : $(properties) ;
 
@@ -80,13 +82,197 @@ alias gcc-dep : : <conditional>@gcc-dep-req ;
 explicit gcc-dep ;
 
 
+make "$(INTRO_ROOT_DIR)/llvm/README.txt"
+  : # no source
+  : @update-trunk
+  ;
+explicit "$(INTRO_ROOT_DIR)/llvm/README.txt" ;
+always "$(INTRO_ROOT_DIR)/llvm/README.txt" ;
+
+rule update-trunk ( targets * : sources * : properties * )
+{
+  assert-unspecified <triplet>         : $(properties) ;
+  assert-unspecified <multilib>        : $(properties) ;
+  assert-unspecified <multilib-hidden> : $(properties) ;
+  assert-unspecified <binutils>        : $(properties) ;
+  assert-unspecified <binutils-hidden> : $(properties) ;
+  assert-unspecified <gmp>             : $(properties) ;
+  assert-unspecified <gmp-hidden>      : $(properties) ;
+  assert-unspecified <mpfr>            : $(properties) ;
+  assert-unspecified <mpfr-hidden>     : $(properties) ;
+  assert-unspecified <mpc>             : $(properties) ;
+  assert-unspecified <mpc-hidden>      : $(properties) ;
+  assert-unspecified <ppl>             : $(properties) ;
+  assert-unspecified <ppl-hidden>      : $(properties) ;
+  assert-unspecified <isl>             : $(properties) ;
+  assert-unspecified <isl-hidden>      : $(properties) ;
+  assert-unspecified <cloog>           : $(properties) ;
+  assert-unspecified <cloog-hidden>    : $(properties) ;
+  assert-unspecified <compiler>        : $(properties) ;
+  assert-unspecified <compiler-hidden> : $(properties) ;
+  assert-unspecified <icu4c>           : $(properties) ;
+  assert-unspecified <icu4c-hidden>    : $(properties) ;
+  assert-unspecified <mpi>             : $(properties) ;
+  assert-unspecified <mpi-hidden>      : $(properties) ;
+  assert-unspecified <openmpi>         : $(properties) ;
+  assert-unspecified <openmpi-hidden>  : $(properties) ;
+  assert-unspecified <boost>           : $(properties) ;
+  assert-unspecified <boost-hidden>    : $(properties) ;
+
+  local llvm-dir = "$(INTRO_ROOT_DIR)/llvm" ;
+  LLVM_DIR on $(targets) = "$(llvm-dir)" ;
+
+  local clang-dir = "$(llvm-dir)/tools/clang" ;
+  CLANG_DIR on $(targets) = "$(clang-dir)" ;
+
+  local compiler-rt-dir = "$(llvm-dir)/projects/compiler-rt" ;
+  COMPILER_RT_DIR on $(targets) = "$(compiler-rt-dir)" ;
+}
+actions update-trunk
+{
+  if [ ! -d "$(LLVM_DIR)" ]; then
+    if [ -n "$(STREAM)" ]; then
+      ( cd "$(INTRO_ROOT_DIR)" && svn checkout http://llvm.org/svn/llvm-project/llvm/trunk llvm >> "$(STREAM)" 2>&1 )
+    else
+      ( cd "$(INTRO_ROOT_DIR)" && svn checkout http://llvm.org/svn/llvm-project/llvm/trunk llvm )
+    fi
+    if [ $? -ne 0 ]; then
+      ( cd "$(INTRO_ROOT_DIR)" && rm -rf llvm )
+      echo "ERROR: failed to \`svn checkout' LLVM repository." 1>&2
+      echo -n "ERROR: failed to \`svn checkout' LLVM repository." | $(AWACS)
+      exit 1
+    fi
+    [ -d "$(LLVM_DIR)" ] || exit 1
+  fi
+
+  if [ ! -d "$(CLANG_DIR)" ]; then
+    if [ -n "$(STREAM)" ]; then
+      ( cd "$(INTRO_ROOT_DIR)/llvm/tools" && svn checkout http://llvm.org/svn/llvm-project/cfe/trunk clang >> "$(STREAM)" 2>&1 )
+    else
+      ( cd "$(INTRO_ROOT_DIR)/llvm/tools" && svn checkout http://llvm.org/svn/llvm-project/cfe/trunk clang )
+    fi
+    if [ $? -ne 0 ]; then
+      ( cd "$(INTRO_ROOT_DIR)/llvm/tools" && rm -rf clang )
+      echo "ERROR: failed to \`svn checkout' Clang repository." 1>&2
+      echo -n "ERROR: failed to \`svn checkout' Clang repository." | $(AWACS)
+      exit 1
+    fi
+    [ -d "$(CLANG_DIR)" ] || exit 1
+  fi
+
+  if [ ! -d "$(COMPILER_RT_DIR)" ]; then
+    if [ -n "$(STREAM)" ]; then
+      ( cd "$(INTRO_ROOT_DIR)/llvm/projects" && svn checkout http://llvm.org/svn/llvm-project/compiler-rt/trunk compiler-rt >> "$(STREAM)" 2>&1 )
+    else
+      ( cd "$(INTRO_ROOT_DIR)/llvm/projects" && svn checkout http://llvm.org/svn/llvm-project/compiler-rt/trunk compiler-rt )
+    fi
+    if [ $? -ne 0 ]; then
+      ( cd "$(INTRO_ROOT_DIR)/llvm/projects" && rm -rf compiler-rt )
+      echo "ERROR: failed to \`svn checkout' Compiler-RT repository." 1>&2
+      echo -n "ERROR: failed to \`svn checkout' Compiler-RT repository." | $(AWACS)
+      exit 1
+    fi
+    [ -d "$(COMPILER_RT_DIR)" ] || exit 1
+  fi
+
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(LLVM_DIR)" && svn update >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(LLVM_DIR)" && svn update )
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to \`svn update' LLVM repository." 1>&2
+    echo -n "ERROR: failed to \`svn update' LLVM repository." | $(AWACS)
+    exit 1
+  fi
+
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(CLANG_DIR)" && svn update >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(CLANG_DIR)" && svn update )
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to \`svn update' Clang repository." 1>&2
+    echo -n "ERROR: failed to \`svn update' Clang repository." | $(AWACS)
+    exit 1
+  fi
+
+  if [ -n "$(STREAM)" ]; then
+    ( cd "$(COMPILER_RT_DIR)" && svn update >> "$(STREAM)" 2>&1 )
+  else
+    ( cd "$(COMPILER_RT_DIR)" && svn update )
+  fi
+  if [ $? -ne 0 ]; then
+    echo "ERROR: failed to \`svn update' Compiler-RT repository." 1>&2
+    echo -n "ERROR: failed to \`svn update' Compiler-RT repository." | $(AWACS)
+    exit 1
+  fi
+
+  touch --no-create "$(<)"
+  [ -f "$(<)" ] || exit 1
+  exit 0
+}
+
+
+alias srcdirs ;
+explicit srcdirs ;
+
+
+rule source-dispatch ( properties * )
+{
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local clang = [ feature.get-values <clang> : $(properties) ] ;
+  local result ;
+  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
+  {
+    if $(clang) = unspecified
+    {
+      errors.error "an internal error" ;
+    }
+
+    if $(clang) = trunk
+    {
+      result = <source>"$(INTRO_ROOT_DIR)"/llvm/README.txt/<triplet>unspecified/<multilib-hidden>unspecified/<compiler>unspecified ;
+    }
+    else
+    {
+      errors.error "sorry: unimplemented" ;
+      result = <source>srcdirs/<triplet>unspecified/<multilib-hidden>unspecified/<compiler>unspecified ;
+    }
+  }
+  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
+  {
+    if $(clang) != unspecified
+    {
+      errors.error "an internal error" ;
+    }
+
+    if $(compiler) = clang-trunk
+    {
+      result = <source>"$(INTRO_ROOT_DIR)"/llvm/README.txt/<triplet>unspecified/<multilib-hidden>unspecified/<compiler>unspecified ;
+    }
+    else
+    {
+      errors.error "sorry: unimplemented" ;
+      result = <source>srcdirs/<triplet>unspecified/<multilib-hidden>unspecified/<compiler>unspecified ;
+    }
+  }
+  else
+  {
+    errors.error "an internal error" ;
+  }
+  return $(result) ;
+}
+
 for local compiler in $(COMPILERS)
 {
   local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" "$(compiler)" : "$(GCC_FOR_CLANG)" ] ;
   local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
   make "$(compiler-prefix)/bin/clang++-wrapper"
-    : gcc-dep
+    : gcc-dep/<clang>unspecified
+      #"$(INTRO_ROOT_DIR)"/llvm/README.txt/<triplet>unspecified/<multilib-hidden>unspecified/<compiler>unspecified
     : @make-install
+    : <conditional>@source-dispatch
     ;
   explicit "$(compiler-prefix)/bin/clang++-wrapper" ;
 }
@@ -143,9 +329,6 @@ rule make-install ( targets * : sources * : properties * )
   local clang-dir = "$(llvm-dir)/tools/clang" ;
   CLANG_DIR on $(targets) = "$(clang-dir)" ;
 
-  local compiler-rt-dir = "$(llvm-dir)/projects/compiler-rt" ;
-  COMPILER_RT_DIR on $(targets) = "$(compiler-rt-dir)" ;
-
   local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
   OBJDIR on $(targets) = "$(objdir)" ;
 
@@ -196,87 +379,9 @@ rule make-install ( targets * : sources * : properties * )
 }
 actions make-install
 {
-  if [ ! -d "$(LLVM_DIR)" ]; then
-    if [ -n "$(STREAM)" ]; then
-      ( cd "$(INTRO_ROOT_DIR)" && svn checkout http://llvm.org/svn/llvm-project/llvm/trunk llvm >> "$(STREAM)" 2>&1 )
-    else
-      ( cd "$(INTRO_ROOT_DIR)" && svn checkout http://llvm.org/svn/llvm-project/llvm/trunk llvm )
-    fi
-    if [ $? -ne 0 ]; then
-      ( cd "$(INTRO_ROOT_DIR)" && rm -rf llvm )
-      echo "ERROR: failed to 'svn checkout' LLVM repository." 1>&2
-      echo -n "ERROR: failed to 'svn checkout' LLVM repository." | $(AWACS)
-      exit 1
-    fi
-    [ -d "$(LLVM_DIR)" ] || exit 1
-  fi
-
   [ -x "$(LLVM_DIR)/autoconf/config.sub" ] || exit 1
   [ `"$(LLVM_DIR)/autoconf/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit 1
   [ -x "$(LLVM_DIR)/configure" ] || exit 1
-
-  if [ ! -d "$(CLANG_DIR)" ]; then
-    if [ -n "$(STREAM)" ]; then
-      ( cd "$(INTRO_ROOT_DIR)/llvm/tools" && svn checkout http://llvm.org/svn/llvm-project/cfe/trunk clang >> "$(STREAM)" 2>&1 )
-    else
-      ( cd "$(INTRO_ROOT_DIR)/llvm/tools" && svn checkout http://llvm.org/svn/llvm-project/cfe/trunk clang )
-    fi
-    if [ $? -ne 0 ]; then
-      ( cd "$(INTRO_ROOT_DIR)/llvm/tools" && rm -rf clang )
-      echo "ERROR: failed to 'svn checkout' Clang repository." 1>&2
-      echo -n "ERROR: failed to 'svn checkout' Clang repository." | $(AWACS)
-      exit 1
-    fi
-    [ -d "$(CLANG_DIR)" ] || exit 1
-  fi
-
-  if [ ! -d "$(COMPILER_RT_DIR)" ]; then
-    if [ -n "$(STREAM)" ]; then
-      ( cd "$(INTRO_ROOT_DIR)/llvm/projects" && svn checkout http://llvm.org/svn/llvm-project/compiler-rt/trunk compiler-rt >> "$(STREAM)" 2>&1 )
-    else
-      ( cd "$(INTRO_ROOT_DIR)/llvm/projects" && svn checkout http://llvm.org/svn/llvm-project/compiler-rt/trunk compiler-rt )
-    fi
-    if [ $? -ne 0 ]; then
-      ( cd "$(INTRO_ROOT_DIR)/llvm/projects" && rm -rf compiler-rt )
-      echo "ERROR: failed to 'svn checkout' Compiler-RT repository." 1>&2
-      echo -n "ERROR: failed to 'svn checkout' Compiler-RT repository." | $(AWACS)
-      exit 1
-    fi
-    [ -d "$(COMPILER_RT_DIR)" ] || exit 1
-  fi
-
-  if [ -n "$(STREAM)" ]; then
-    ( cd "$(LLVM_DIR)" && svn update >> "$(STREAM)" 2>&1 )
-  else
-    ( cd "$(LLVM_DIR)" && svn update )
-  fi
-  if [ $? -ne 0 ]; then
-    echo "ERROR: failed to \`svn update' LLVM repository." 1>&2
-    echo -n "ERROR: failed to \`svn update' LLVM repository." | $(AWACS)
-    exit 1
-  fi
-
-  if [ -n "$(STREAM)" ]; then
-    ( cd "$(CLANG_DIR)" && svn update >> "$(STREAM)" 2>&1 )
-  else
-    ( cd "$(CLANG_DIR)" && svn update )
-  fi
-  if [ $? -ne 0 ]; then
-    echo "ERROR: failed to \`svn update' Clang repository." 1>&2
-    echo -n "ERROR: failed to \`svn update' Clang repository." | $(AWACS)
-    exit 1
-  fi
-
-  if [ -n "$(STREAM)" ]; then
-    ( cd "$(COMPILER_RT_DIR)" && svn update >> "$(STREAM)" 2>&1 )
-  else
-    ( cd "$(COMPILER_RT_DIR)" && svn update )
-  fi
-  if [ $? -ne 0 ]; then
-    echo "ERROR: failed to \`svn update' Compiler-RT repository." 1>&2
-    echo -n "ERROR: failed to \`svn update' Compiler-RT repository." | $(AWACS)
-    exit 1
-  fi
 
   # Extract the revision number of Clang.
   clang_rev=`( cd "$(CLANG_DIR)" && { env LANG=C svn info || exit 1; } | { grep -E 'Revision: [[:digit:]]+' || exit 1; } | { grep -oE '[[:digit:]]+' || exit 1; } )`
@@ -293,8 +398,8 @@ actions make-install
     ( cd "$(OBJDIR)" && "$(LLVM_DIR)/configure" $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'configure' LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'configure' LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to \`configure' LLVM & Clang Rev.$clang_rev ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to \`configure' LLVM & Clang Rev.$clang_rev ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
 
@@ -307,8 +412,8 @@ actions make-install
     ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make' LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make' LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to \`make' LLVM & Clang Rev.$clang_rev ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to \`make' LLVM & Clang Rev.$clang_rev ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
 
@@ -318,8 +423,8 @@ actions make-install
     ( cd "$(OBJDIR)" && make check )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make check' LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make check' LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to \`make check' LLVM & Clang Rev.$clang_rev ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to \`make check' LLVM & Clang Rev.$clang_rev ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
 
@@ -329,15 +434,15 @@ actions make-install
     ( cd "$(OBJDIR)" && make install )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make install' LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make install' LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to \`make install' LLVM & Clang Rev.$clang_rev ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to \`make install' LLVM & Clang Rev.$clang_rev ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
 
   install --mode=755 "$(INTRO_ROOT_DIR)/clang/clang-wrapper" "$(INTRO_ROOT_DIR)/clang/clang++-wrapper" "$(COMPILER_PREFIX)/bin"
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to install the wrapper scripts for LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to install the wrapper scripts for LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo "ERROR: failed to install the wrapper scripts for LLVM & Clang Rev.$clang_rev ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to install the wrapper scripts for LLVM & Clang Rev.$clang_rev ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
 
@@ -347,7 +452,7 @@ actions make-install
   # Clean up objdir "$(OBJDIR)".
   rm -rf "$(OBJDIR)" || exit 1
 
-  echo -n "LLVM & Clang Rev.${clang_rev} ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built." | $(AWACS)
+  echo -n "LLVM & Clang Rev.$clang_rev ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built." | $(AWACS)
   exit 0
 }
 
