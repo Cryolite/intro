@@ -359,7 +359,8 @@ rule get-clang-path ( ph )
     }
     else
     {
-      ver = $(clang-latest-path[2])_$(clang-latest-path[3]) ;
+      ver = [ regex.match "^([0-9]+\\.[0-9]+)\\.[0-9]+$" : $(clang-latest-path[2]) : 1 ] ;
+      ver = $(ver)_$(clang-latest-path[3]) ;
     }
     ver = $(ver)_$(clang-latest-path[5]) ;
     clang-latest-paths-tmp += "$(clang-latest-path[1])",$(ver) ;
