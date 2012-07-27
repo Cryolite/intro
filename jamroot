@@ -178,6 +178,7 @@ local cloog-versions ;
 local icu4c-versions ;
 local openmpi-versions ;
 local boost-versions ;
+local clang-versions ;
 
 
 local triplet = [ option.get triplet ] ;
@@ -374,6 +375,21 @@ for local enabled-compiler in $(enabled-compilers)
   }
   if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(enabled-compiler) ]
   {
+    if $(enabled-compiler) = clang-trunk
+    {
+      if ! trunk in $(clang-versions)
+      {
+        clang-versions += trunk ;
+      }
+    }
+    else
+    {
+      local version = [ "$(INTRO_ROOT_DIR)/compilers.get-version" $(enabled-compiler) ] ;
+      if ! $(version) in $(clang-versions)
+      {
+        clang-versions += $(version) ;
+      }
+    }
     if ! $(gcc-for-clang)
     {
       gcc-for-clang = gcc-current ;
@@ -643,6 +659,10 @@ if $(clang)
     errors.error "an invalid value `$(clang)' for `--enable-clang' option.\n" ;
   }
   ECHO clang... $(clang) ;
+  if ! $(clang) in $(clang-versions)
+  {
+    clang-versions += $(clang) ;
+  }
 }
 else
 {
@@ -904,6 +924,16 @@ if $(clang)
 else
 {
   ECHO CLANG... N/A ;
+}
+
+if $(clang-versions)
+{
+  constant CLANG_VERSIONS : $(clang-versions) ;
+  ECHO CLANG_VERSIONS... $(clang-versions) ;
+}
+else
+{
+  ECHO CLANG_VERSIONS... N/A ;
 }
 
 if $(valgrind)

@@ -262,23 +262,32 @@ rule checkout-trunk ( targets * : sources * : properties * )
 }
 actions checkout-trunk
 {
-  if [ -d '$(INTRO_ROOT_DIR)/valgrind-trunk' ]; then
-    ( cd '$(INTRO_ROOT_DIR)' && rm -rf valgrind-trunk )
+  if [ ! -f '$(INTRO_ROOT_DIR)/valgrind-trunk/README' ]; then
+    if [ -n '$(STREAM)' ]; then
+      ( cd '$(INTRO_ROOT_DIR)' && svn checkout svn://svn.valgrind.org/valgrind/trunk valgrind-trunk >> '$(STREAM)' 2>&1 )
+    else
+      ( cd '$(INTRO_ROOT_DIR)' && svn checkout svn://svn.valgrind.org/valgrind/trunk valgrind-trunk )
+    fi
+    if [ $? -ne 0 ]; then
+      ( cd '$(INTRO_ROOT_DIR)' && rm -rf valgrind-trunk )
+      echo    "ERROR: failed to \`svn checkout' Valgrind repository." 1>&2
+      echo -n "ERROR: failed to \`svn checkout' Valgrind repository." | $(AWACS)
+      exit 1
+    fi
+    [ -f '$(INTRO_ROOT_DIR)/valgrind-trunk/README' ] || exit 1
   fi
-  [ ! -d '$(INTRO_ROOT_DIR)/valgrind-trunk' ] || exit 1
 
   if [ -n '$(STREAM)' ]; then
-    ( cd '$(INTRO_ROOT_DIR)' && svn checkout svn://svn.valgrind.org/valgrind/trunk valgrind-trunk >> '$(STREAM)' 2>&1 )
+    ( cd '$(INTRO_ROOT_DIR)/valgrind-trunk' && svn update >> '$(STREAM)' 2>&1 )
   else
-    ( cd '$(INTRO_ROOT_DIR)' && svn checkout svn://svn.valgrind.org/valgrind/trunk valgrind-trunk )
+    ( cd '$(INTRO_ROOT_DIR)/valgrind-trunk' && svn update )
   fi
   if [ $? -ne 0 ]; then
     ( cd '$(INTRO_ROOT_DIR)' && rm -rf valgrind-trunk )
-    echo    "ERROR: failed to \`svn checkout' Valgrind repository." 1>&2
-    echo -n "ERROR: failed to \`svn checkout' Valgrind repository." | $(AWACS)
+    echo    "ERROR: failed to \`svn update' Valgrind repository." 1>&2
+    echo -n "ERROR: failed to \`svn update' Valgrind repository." | $(AWACS)
     exit 1
   fi
-  [ -d '$(INTRO_ROOT_DIR)/valgrind-trunk' ] || exit 1
 
   if [ -n '$(STREAM)' ]; then
     ( cd '$(INTRO_ROOT_DIR)/valgrind-trunk' && ./autogen.sh >> '$(STREAM)' 2>&1 )
