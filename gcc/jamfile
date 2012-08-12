@@ -380,8 +380,8 @@ rule make-install ( targets * : sources * : properties * )
   OPTIONS on $(targets) += "--prefix=\"$(compiler-prefix)\"" ;
 
   # Set the build variants of runtime libraries.
-  OPTIONS on $(targets) += --enable-static ;
   OPTIONS on $(targets) += --enable-shared ;
+  OPTIONS on $(targets) += --enable-static ;
 
   # Set the linker configuration to be used by the installed GCC front-end.
   #
@@ -392,15 +392,16 @@ rule make-install ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --enable-ld=default ;
   OPTIONS on $(targets) += --enable-gold ;
 
-  local multilib = [ feature.get-values <multilib> : $(properties) ] ;
-  if $(multilib) = yes
-  {
-    OPTIONS on $(targets) += --enable-multilib ;
-  }
-  else
-  {
-    OPTIONS on $(targets) += --disable-multilib ;
-  }
+  OPTIONS on $(targets) += --enable-multilib ;
+  #local multilib = [ feature.get-values <multilib> : $(properties) ] ;
+  #if $(multilib) = yes
+  #{
+  #  OPTIONS on $(targets) += --enable-multilib ;
+  #}
+  #else
+  #{
+  #  OPTIONS on $(targets) += --disable-multilib ;
+  #}
 
   if $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
   {
@@ -447,6 +448,8 @@ rule make-install ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) += --enable-libssp ;
 
+  OPTIONS on $(targets) += --enable-libquadmath ;
+
   if $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
   {
     # The target is `*-w64-mingw32.'
@@ -466,18 +469,28 @@ rule make-install ( targets * : sources * : properties * )
   }
   # `--with-dwarf2' is not supported on `x86_64-w64-mingw32' targets.
 
-  if $(multilib) = yes
+  if $(triplet) = x86_64-unknown-linux-gnu
   {
-    if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32
-    {
-      OPTIONS on $(targets) += --enable-targets=all ;
-    }
+    OPTIONS on $(targets) += --enable-targets=x86_64-unknown-linux-gnu,i686-pc-linux-gnu ;
   }
+  else if $(triplet) = x86_64-w64-mingw32
+  {
+    OPTIONS on $(targets) += --enable-targets=x86_64-w64-mingw32,i686-w64-mingw32 ;
+  }
+  #if $(multilib) = yes
+  #{
+  #  if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32
+  #  {
+  #    OPTIONS on $(targets) += --enable-targets=all ;
+  #  }
+  #}
 
   if $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
   {
     OPTIONS on $(targets) += --disable-win32-registry ;
   }
+
+  #OPTIONS on $(targets) += --enable-checking=all ;
 
   OPTIONS on $(targets) += --disable-nls ;
 
@@ -508,6 +521,8 @@ rule make-install ( targets * : sources * : properties * )
   OPTIONS on $(targets) += --enable-libstdcxx-time=yes ;
 
   OPTIONS on $(targets) += --enable-libstdcxx-debug ;
+
+  #OPTIONS on $(targets) += --enable-concept-checks ;
 
   if $(PPL_FOR_GCC) && $(CLOOG_FOR_GCC)
   {
