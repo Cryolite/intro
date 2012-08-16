@@ -40,6 +40,8 @@ rule compiler-dep-req ( properties * )
   assert-unspecified <mpc-hidden>         : $(properties) ;
   assert-unspecified <ppl>                : $(properties) ;
   assert-unspecified <ppl-hidden>         : $(properties) ;
+  assert-unspecified <isl>                : $(properties) ;
+  assert-unspecified <isl-hidden>         : $(properties) ;
   assert-unspecified <cloog>              : $(properties) ;
   assert-unspecified <cloog-hidden>       : $(properties) ;
   assert-specified   <compiler>           : $(properties) ;
@@ -102,6 +104,8 @@ rule download ( targets * : sources * : properties * )
   assert-unspecified <mpc-hidden>         : $(properties) ;
   assert-unspecified <ppl>                : $(properties) ;
   assert-unspecified <ppl-hidden>         : $(properties) ;
+  assert-unspecified <isl>                : $(properties) ;
+  assert-unspecified <isl-hidden>         : $(properties) ;
   assert-unspecified <cloog>              : $(properties) ;
   assert-unspecified <cloog-hidden>       : $(properties) ;
   assert-unspecified <compiler>           : $(properties) ;
@@ -181,6 +185,8 @@ rule expand ( targets * : sources * : properties * )
   assert-unspecified <mpc-hidden>         : $(properties) ;
   assert-unspecified <ppl>                : $(properties) ;
   assert-unspecified <ppl-hidden>         : $(properties) ;
+  assert-unspecified <isl>                : $(properties) ;
+  assert-unspecified <isl-hidden>         : $(properties) ;
   assert-unspecified <cloog>              : $(properties) ;
   assert-unspecified <cloog-hidden>       : $(properties) ;
   assert-unspecified <compiler>           : $(properties) ;
@@ -239,6 +245,8 @@ rule srcdir-req ( properties * )
   assert-unspecified <mpc-hidden>         : $(properties) ;
   assert-unspecified <ppl>                : $(properties) ;
   assert-unspecified <ppl-hidden>         : $(properties) ;
+  assert-unspecified <isl>                : $(properties) ;
+  assert-unspecified <isl-hidden>         : $(properties) ;
   assert-unspecified <cloog>              : $(properties) ;
   assert-unspecified <cloog-hidden>       : $(properties) ;
   assert-unspecified <compiler>           : $(properties) ;
@@ -290,6 +298,8 @@ rule make-install ( targets * : sources * : properties * )
   assert-unspecified <mpc-hidden>         : $(properties) ;
   assert-unspecified <ppl>                : $(properties) ;
   assert-unspecified <ppl-hidden>         : $(properties) ;
+  assert-unspecified <isl>                : $(properties) ;
+  assert-unspecified <isl-hidden>         : $(properties) ;
   assert-unspecified <cloog>              : $(properties) ;
   assert-unspecified <cloog-hidden>       : $(properties) ;
   assert-specified   <compiler>           : $(properties) ;
@@ -437,6 +447,8 @@ rule install-req ( properties * )
   assert-unspecified <mpc-hidden>         : $(properties) ;
   assert-unspecified <ppl>                : $(properties) ;
   assert-unspecified <ppl-hidden>         : $(properties) ;
+  assert-unspecified <isl>                : $(properties) ;
+  assert-unspecified <isl-hidden>         : $(properties) ;
   assert-unspecified <cloog>              : $(properties) ;
   assert-unspecified <cloog-hidden>       : $(properties) ;
   assert-specified   <compiler>           : $(properties) ;
