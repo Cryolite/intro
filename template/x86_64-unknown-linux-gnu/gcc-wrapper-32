@@ -54,7 +54,7 @@ specs=`mktemp` || exit
 LD_LIBRARY_PATH="$LD_LIBRARY_PATH${LD_LIBRARY_PATH:+:}$libdir"
 export LD_LIBRARY_PATH
 
-{ "$bindir/hack-gcc-specs" > "$specs"; } && "$bindir/gcc" -specs="$specs" "$@" -Wl,-rpath="$libdir"
+{ "$bindir/hack-gcc-specs" > "$specs"; } && "$bindir/gcc" -specs="$specs" -m32 "$@" -Wl,-rpath="$libdir"
 result=$?
 
 rm -f "$specs"

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env sh
 
 if which dirname 1>/dev/null 2>&1; then
   :
@@ -16,7 +16,7 @@ fi
 
 bindir=`(cd \`dirname "$0"\`; pwd)`
 dir=`dirname "$bindir"`
-libdir="${dir}/lib"
+libdir="$dir/lib"
 
 if which mktemp 1>/dev/null 2>&1; then
   :
@@ -25,17 +25,17 @@ else
   exit 1
 fi
 
-if which "${bindir}/hack-gcc-specs" 1>/dev/null 2>&1; then
+if which "$bindir/hack-gcc-specs" 1>/dev/null 2>&1; then
   :
 else
-  echo "$0: error: ${bindir}/hack-gcc-specs: command not found" 1>&2
+  echo "$0: error: $bindir/hack-gcc-specs: command not found" 1>&2
   exit 1
 fi
 
-if which "${bindir}/g++" 1>/dev/null 2>&1; then
+if which "$bindir/g++" 1>/dev/null 2>&1; then
   :
 else
-  echo "$0: error: ${bindir}/g++: command not found" 1>&2
+  echo "$0: error: $bindir/g++: command not found" 1>&2
   exit 1
 fi
 
@@ -54,7 +54,7 @@ specs=`mktemp` || exit
 LD_LIBRARY_PATH="$LD_LIBRARY_PATH${LD_LIBRARY_PATH:+:}$libdir"
 export LD_LIBRARY_PATH
 
-{ "${bindir}/hack-gcc-specs" > "$specs"; } && "${bindir}/g++" -specs="$specs" "$@" -Wl,-rpath="$libdir"
+{ "$bindir/hack-gcc-specs" > "$specs"; } && "$bindir/g++" -specs="$specs" "$@" -Wl,-rpath="$libdir"
 result=$?
 
 rm -f "$specs"

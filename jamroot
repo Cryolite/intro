@@ -403,20 +403,20 @@ for local enabled-compiler in $(enabled-compilers)
 }
 
 
-local multilib = [ option.get enable-multilib : no : yes ] ;
-if ! $(multilib) in no yes
+local multitarget = [ option.get enable-multitarget : yes : yes ] ;
+if ! $(multitarget) in no yes
 {
-  errors.error "ERROR: `$(multilib)' is a wrong value for `--enable-multilib' option." ;
+  errors.error "ERROR: `$(multitarget)' is a wrong value for `--enable-multitarget' option." ;
 }
-if [ option.get disable-multilib : IMPLIED : IMPLIED ] != IMPLIED
+if [ option.get disable-multitarget : IMPLIED : IMPLIED ] != IMPLIED
 {
-  errors.error "no value for `--disable-multilib' is allowed." ;
+  errors.error "no value for `--disable-multitarget' is allowed." ;
 }
-if $(multilib) = yes && [ option.get disable-multilib : : INUMIMI ] = INUMIMI
+if $(multitarget) = yes && [ option.get disable-multitarget : : INUMIMI ] = INUMIMI
 {
-  errors.error "ERROR: both `--enable-multilib' and `--disable-multilib' are specified." ;
+  errors.error "ERROR: both `--enable-multitarget' and `--disable-multitarget' are specified." ;
 }
-ECHO multilib... $(multilib) ;
+ECHO multitarget... $(multitarget) ;
 
 
 local gmp = [ option.get enable-gmp : : latest ] ;
@@ -975,8 +975,8 @@ else
 
 feature triplet : unspecified i686-pc-linux-gnu i686-pc-cygwin i686-w64-mingw32 x86_64-unknown-linux-gnu x86_64-w64-mingw32 : propagated ;
 
-feature multilib        : unspecified no yes            : propagated            ;
-feature multilib-hidden : [ feature.values <multilib> ] : propagated incidental ;
+feature multitarget        : unspecified no yes               : propagated            ;
+feature multitarget-hidden : [ feature.values <multitarget> ] : propagated incidental ;
 
 feature binutils        : unspecified $(binutils)       : propagated            ;
 feature binutils-hidden : [ feature.values <binutils> ] : propagated incidental ;
@@ -1047,18 +1047,18 @@ for local enabled-compiler in $(enabled-compilers)
     for local boost in $(boost-versions)
     {
       alias $(enabled-compiler)
-      : gcc//install/<multilib>$(multilib)
-        gmp//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)
-        mpfr//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr>$(mpfr)
-        mpc//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
-        ppl//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<ppl>$(ppl)
-        isl//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<isl>$(isl)
-        cloog//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<isl>$(isl)/<cloog>$(cloog)
-        icu4c//install/<multilib-hidden>$(multilib)/<icu4c>$(icu4c)
-        openmpi//install/<multilib-hidden>$(multilib)/<mpi>$(mpi)/<openmpi>$(OPENMPI)
-        boost//install/<multilib-hidden>$(multilib)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
-        clang//install/<multilib-hidden>$(multilib)/<clang>$(clang)
-        valgrind//install/<multilib-hidden>$(multilib)/<mpi>$(mpi)/<openmpi>$(openmpi)/<valgrind>$(valgrind)
+      : gcc//install/<multitarget>$(multitarget)
+        gmp//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)
+        mpfr//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<mpfr>$(mpfr)
+        mpc//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
+        ppl//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<ppl>$(ppl)
+        isl//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<isl>$(isl)
+        cloog//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<isl>$(isl)/<cloog>$(cloog)
+        icu4c//install/<multitarget-hidden>$(multitarget)/<icu4c>$(icu4c)
+        openmpi//install/<multitarget-hidden>$(multitarget)/<mpi>$(mpi)/<openmpi>$(OPENMPI)
+        boost//install/<multitarget-hidden>$(multitarget)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
+        clang//install/<multitarget-hidden>$(multitarget)/<clang>$(clang)
+        valgrind//install/<multitarget-hidden>$(multitarget)/<mpi>$(mpi)/<openmpi>$(openmpi)/<valgrind>$(valgrind)
       : <triplet>$(triplet)
         <compiler>$(enabled-compiler)
       ;
@@ -1067,17 +1067,17 @@ for local enabled-compiler in $(enabled-compilers)
   else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" "$(enabled-compiler)" ]
   {
     alias $(enabled-compiler)
-      : clang//install/<multilib-hidden>$(multilib)
-        gmp//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)
-        mpfr//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr>$(mpfr)
-        mpc//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
-        ppl//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<ppl>$(ppl)
-        isl//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<isl>$(isl)
-        cloog//install/<multilib-hidden>$(multilib)/<gmp>$(gmp)/<isl>$(isl)/<cloog>$(cloog)
-        icu4c//install/<multilib-hidden>$(multilib)/<icu4c>$(icu4c)
-        openmpi//install/<multilib-hidden>$(multilib)/<mpi>$(mpi)/<openmpi>$(OPENMPI)
-        boost//install/<multilib-hidden>$(multilib)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
-        valgrind//install/<multilib-hidden>$(multilib)/<mpi>$(mpi)/<openmpi>$(openmpi)/<valgrind>$(valgrind)
+      : clang//install/<multitarget-hidden>$(multitarget)
+        gmp//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)
+        mpfr//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<mpfr>$(mpfr)
+        mpc//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
+        ppl//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<ppl>$(ppl)
+        isl//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<isl>$(isl)
+        cloog//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<isl>$(isl)/<cloog>$(cloog)
+        icu4c//install/<multitarget-hidden>$(multitarget)/<icu4c>$(icu4c)
+        openmpi//install/<multitarget-hidden>$(multitarget)/<mpi>$(mpi)/<openmpi>$(OPENMPI)
+        boost//install/<multitarget-hidden>$(multitarget)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
+        valgrind//install/<multitarget-hidden>$(multitarget)/<mpi>$(mpi)/<openmpi>$(openmpi)/<valgrind>$(valgrind)
       : <triplet>$(triplet)
         <compiler>$(enabled-compiler)
       ;

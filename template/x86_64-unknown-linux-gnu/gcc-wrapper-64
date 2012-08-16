@@ -16,7 +16,7 @@ fi
 
 bindir=`(cd \`dirname "$0"\`; pwd)`
 dir=`dirname "$bindir"`
-libdir="$dir/lib"
+libdir="$dir/lib64"
 
 if which mktemp 1>/dev/null 2>&1; then
   :
