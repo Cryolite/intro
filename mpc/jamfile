@@ -37,7 +37,7 @@ rule compiler-dep-req ( properties * )
   assert-unspecified <mpfr>               : $(properties) ;
   assert-unspecified <mpfr-hidden>        : $(properties) ;
   assert-unspecified <mpc>                : $(properties) ;
-  assert-unspecified <mpc-hidden>         : $(properties) ;
+  assert-specified   <mpc-hidden>         : $(properties) ;
   assert-unspecified <ppl>                : $(properties) ;
   assert-unspecified <ppl-hidden>         : $(properties) ;
   assert-unspecified <isl>                : $(properties) ;
@@ -249,8 +249,8 @@ rule srcdir-req ( properties * )
   assert-unspecified <gmp-hidden>         : $(properties) ;
   assert-unspecified <mpfr>               : $(properties) ;
   assert-unspecified <mpfr-hidden>        : $(properties) ;
-  assert-specified   <mpc>                : $(properties) ;
-  assert-unspecified <mpc-hidden>         : $(properties) ;
+  #assert-unspecified <mpc>                : $(properties) ;
+  assert-specified   <mpc-hidden>         : $(properties) ;
   assert-unspecified <ppl>                : $(properties) ;
   assert-unspecified <ppl-hidden>         : $(properties) ;
   assert-unspecified <isl>                : $(properties) ;
@@ -270,8 +270,8 @@ rule srcdir-req ( properties * )
   assert-unspecified <valgrind>           : $(properties) ;
   assert-unspecified <valgrind-hidden>    : $(properties) ;
 
-  local version = [ feature.get-values <mpc> : $(properties) ] ;
-  return <source>"$(INTRO_ROOT_DIR)/mpc-$(version)/README/<mpc>unspecified/<mpc-hidden>$(version)" ;
+  local version = [ feature.get-values <mpc-hidden> : $(properties) ] ;
+  return <source>"$(INTRO_ROOT_DIR)/mpc-$(version)/README" ;
 }
 
 alias srcdir : : <conditional>@srcdir-req ;
@@ -283,11 +283,12 @@ for local compiler in $(COMPILERS)
   local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
   local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
   make "$(compiler-prefix)/include/mpc.h"
-    : compiler-dep/<gmp>unspecified/<mpfr>unspecified/<mpc>unspecified
-      ../gmp//install/<mpfr>unspecified/<mpc>unspecified
-      ../mpfr//install/<mpc>unspecified
+    : compiler-dep/<gmp>unspecified/<mpfr>unspecified
+      ../gmp//install/<mpfr>unspecified
+      ../mpfr//install
       srcdir/<triplet>unspecified/<multitarget-hidden>unspecified/<gmp>unspecified/<mpfr>unspecified/<compiler>unspecified
     : @make-install
+    : $(USE_MPC)
     ;
   explicit "$(compiler-prefix)/include/mpc.h" ;
 }
@@ -304,7 +305,7 @@ rule make-install ( targets * : sources * : properties * )
   assert-specified   <mpfr>               : $(properties) ;
   assert-unspecified <mpfr-hidden>        : $(properties) ;
   assert-specified   <mpc>                : $(properties) ;
-  assert-unspecified <mpc-hidden>         : $(properties) ;
+  assert-specified   <mpc-hidden>         : $(properties) ;
   assert-unspecified <ppl>                : $(properties) ;
   assert-unspecified <ppl-hidden>         : $(properties) ;
   assert-unspecified <isl>                : $(properties) ;
@@ -453,8 +454,8 @@ rule install-req ( properties * )
   assert-unspecified <gmp-hidden>         : $(properties) ;
   assert-specified   <mpfr>               : $(properties) ;
   assert-unspecified <mpfr-hidden>        : $(properties) ;
-  assert-specified   <mpc>                : $(properties) ;
-  assert-unspecified <mpc-hidden>         : $(properties) ;
+  assert-unspecified <mpc>                : $(properties) ;
+  assert-specified   <mpc-hidden>         : $(properties) ;
   assert-unspecified <ppl>                : $(properties) ;
   assert-unspecified <ppl-hidden>         : $(properties) ;
   assert-unspecified <isl>                : $(properties) ;

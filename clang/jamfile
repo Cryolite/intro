@@ -37,7 +37,7 @@ rule gcc-dep-req ( properties * )
   assert-unspecified <mpfr>               : $(properties) ;
   assert-unspecified <mpfr-hidden>        : $(properties) ;
   assert-unspecified <mpc>                : $(properties) ;
-  assert-unspecified <mpc-hidden>         : $(properties) ;
+  assert-specified   <mpc-hidden>         : $(properties) ;
   assert-unspecified <ppl>                : $(properties) ;
   assert-unspecified <ppl-hidden>         : $(properties) ;
   assert-unspecified <isl>                : $(properties) ;
@@ -157,7 +157,7 @@ rule download ( targets * : sources * : properties * )
   assert-unspecified <mpfr>               : $(properties) ;
   assert-unspecified <mpfr-hidden>        : $(properties) ;
   assert-unspecified <mpc>                : $(properties) ;
-  assert-unspecified <mpc-hidden>         : $(properties) ;
+  assert-specified   <mpc-hidden>         : $(properties) ;
   assert-unspecified <ppl>                : $(properties) ;
   assert-unspecified <ppl-hidden>         : $(properties) ;
   assert-unspecified <isl>                : $(properties) ;
@@ -278,7 +278,7 @@ rule expand ( targets * : sources * : properties * )
   assert-unspecified <mpfr>               : $(properties) ;
   assert-unspecified <mpfr-hidden>        : $(properties) ;
   assert-unspecified <mpc>                : $(properties) ;
-  assert-unspecified <mpc-hidden>         : $(properties) ;
+  assert-specified   <mpc-hidden>         : $(properties) ;
   assert-unspecified <ppl>                : $(properties) ;
   assert-unspecified <ppl-hidden>         : $(properties) ;
   assert-unspecified <isl>                : $(properties) ;
@@ -396,7 +396,7 @@ rule update-trunk ( targets * : sources * : properties * )
   assert-unspecified <mpfr>               : $(properties) ;
   assert-unspecified <mpfr-hidden>        : $(properties) ;
   assert-unspecified <mpc>                : $(properties) ;
-  assert-unspecified <mpc-hidden>         : $(properties) ;
+  assert-specified   <mpc-hidden>         : $(properties) ;
   assert-unspecified <ppl>                : $(properties) ;
   assert-unspecified <ppl-hidden>         : $(properties) ;
   assert-unspecified <isl>                : $(properties) ;
@@ -525,7 +525,7 @@ rule srcdir-req ( properties * )
   assert-unspecified <mpfr>               : $(properties) ;
   assert-unspecified <mpfr-hidden>        : $(properties) ;
   assert-unspecified <mpc>                : $(properties) ;
-  assert-unspecified <mpc-hidden>         : $(properties) ;
+  assert-specified   <mpc-hidden>         : $(properties) ;
   assert-unspecified <ppl>                : $(properties) ;
   assert-unspecified <ppl-hidden>         : $(properties) ;
   assert-unspecified <isl>                : $(properties) ;
@@ -584,7 +584,7 @@ rule make-install ( targets * : sources * : properties * )
   assert-unspecified <mpfr>               : $(properties) ;
   assert-unspecified <mpfr-hidden>        : $(properties) ;
   assert-unspecified <mpc>                : $(properties) ;
-  assert-unspecified <mpc-hidden>         : $(properties) ;
+  assert-specified   <mpc-hidden>         : $(properties) ;
   assert-unspecified <ppl>                : $(properties) ;
   assert-unspecified <ppl-hidden>         : $(properties) ;
   assert-unspecified <isl>                : $(properties) ;
@@ -776,7 +776,7 @@ rule install-req ( properties * )
   assert-unspecified <mpfr>               : $(properties) ;
   assert-unspecified <mpfr-hidden>        : $(properties) ;
   assert-unspecified <mpc>                : $(properties) ;
-  assert-unspecified <mpc-hidden>         : $(properties) ;
+  assert-specified   <mpc-hidden>         : $(properties) ;
   assert-unspecified <ppl>                : $(properties) ;
   assert-unspecified <ppl-hidden>         : $(properties) ;
   assert-unspecified <isl>                : $(properties) ;

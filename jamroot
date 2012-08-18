@@ -987,8 +987,15 @@ feature gmp-hidden : [ feature.values <gmp> ]    : propagated incidental ;
 feature mpfr        : unspecified $(mpfr-versions) : propagated            ;
 feature mpfr-hidden : [ feature.values <mpfr> ]    : propagated incidental ;
 
-feature mpc        : unspecified $(mpc-versions) : propagated            ;
+feature mpc        : unspecified $(mpc-versions) :                       ;
 feature mpc-hidden : [ feature.values <mpc> ]    : propagated incidental ;
+
+local use-mpc ;
+for local val in [ feature.values <mpc> ]
+{
+  use-mpc += <mpc-hidden>$(val):<mpc>$(val) ;
+}
+constant USE_MPC : $(use-mpc) ;
 
 feature ppl        : unspecified $(ppl-versions) : propagated            ;
 feature ppl-hidden : [ feature.values <ppl> ]    : propagated incidental ;
@@ -1050,7 +1057,7 @@ for local enabled-compiler in $(enabled-compilers)
       : gcc//install/<multitarget>$(multitarget)
         gmp//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)
         mpfr//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<mpfr>$(mpfr)
-        mpc//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
+        mpc//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<mpfr>$(mpfr)
         ppl//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<ppl>$(ppl)
         isl//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<isl>$(isl)
         cloog//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<isl>$(isl)/<cloog>$(cloog)
@@ -1061,6 +1068,7 @@ for local enabled-compiler in $(enabled-compilers)
         valgrind//install/<multitarget-hidden>$(multitarget)/<mpi>$(mpi)/<openmpi>$(openmpi)/<valgrind>$(valgrind)
       : <triplet>$(triplet)
         <compiler>$(enabled-compiler)
+        <mpc-hidden>$(mpc)
       ;
     }
   }
@@ -1070,7 +1078,7 @@ for local enabled-compiler in $(enabled-compilers)
       : clang//install/<multitarget-hidden>$(multitarget)
         gmp//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)
         mpfr//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<mpfr>$(mpfr)
-        mpc//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<mpfr>$(mpfr)/<mpc>$(mpc)
+        mpc//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<mpfr>$(mpfr)
         ppl//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<ppl>$(ppl)
         isl//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<isl>$(isl)
         cloog//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<isl>$(isl)/<cloog>$(cloog)
@@ -1080,6 +1088,7 @@ for local enabled-compiler in $(enabled-compilers)
         valgrind//install/<multitarget-hidden>$(multitarget)/<mpi>$(mpi)/<openmpi>$(openmpi)/<valgrind>$(valgrind)
       : <triplet>$(triplet)
         <compiler>$(enabled-compiler)
+        <mpc-hidden>$(mpc)
       ;
   }
   else
