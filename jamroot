@@ -978,39 +978,96 @@ feature triplet : unspecified i686-pc-linux-gnu i686-pc-cygwin i686-w64-mingw32 
 feature multitarget        : unspecified no yes               : propagated            ;
 feature multitarget-hidden : [ feature.values <multitarget> ] : propagated incidental ;
 
-feature binutils        : unspecified $(binutils)       : propagated            ;
+feature binutils        : unspecified $(binutils)       :                       ;
 feature binutils-hidden : [ feature.values <binutils> ] : propagated incidental ;
+{
+  local use-binutils ;
+  for local val in [ feature.values <binutils> ]
+  {
+    use-binutils += <binutils-hidden>$(val):<binutils>$(val) ;
+  }
+  constant USE_BINUTILS : $(use-binutils) ;
+}
 
-feature gmp        : unspecified $(gmp-versions) : propagated            ;
+feature gmp        : unspecified $(gmp-versions) :                       ;
 feature gmp-hidden : [ feature.values <gmp> ]    : propagated incidental ;
+{
+  local use-gmp ;
+  for local val in [ feature.values <gmp> ]
+  {
+    use-gmp += <gmp-hidden>$(val):<gmp>$(val) ;
+  }
+  constant USE_GMP : $(use-gmp) ;
+}
 
-feature mpfr        : unspecified $(mpfr-versions) : propagated            ;
+feature mpfr        : unspecified $(mpfr-versions) :                       ;
 feature mpfr-hidden : [ feature.values <mpfr> ]    : propagated incidental ;
+{
+  local use-mpfr ;
+  for local val in [ feature.values <mpfr> ]
+  {
+    use-mpfr += <mpfr-hidden>$(val):<mpfr>$(val) ;
+  }
+  constant USE_MPFR : $(use-mpfr) ;
+}
 
 feature mpc        : unspecified $(mpc-versions) :                       ;
 feature mpc-hidden : [ feature.values <mpc> ]    : propagated incidental ;
-
-local use-mpc ;
-for local val in [ feature.values <mpc> ]
 {
-  use-mpc += <mpc-hidden>$(val):<mpc>$(val) ;
+  local use-mpc ;
+  for local val in [ feature.values <mpc> ]
+  {
+    use-mpc += <mpc-hidden>$(val):<mpc>$(val) ;
+  }
+  constant USE_MPC : $(use-mpc) ;
 }
-constant USE_MPC : $(use-mpc) ;
 
-feature ppl        : unspecified $(ppl-versions) : propagated            ;
+feature ppl        : unspecified $(ppl-versions) :                       ;
 feature ppl-hidden : [ feature.values <ppl> ]    : propagated incidental ;
+{
+  local use-ppl ;
+  for local val in [ feature.values <ppl> ]
+  {
+    use-ppl += <ppl-hidden>$(val):<ppl>$(val) ;
+  }
+  constant USE_PPL : $(use-ppl) ;
+}
 
-feature isl        : unspecified $(isl-versions) : propagated            ;
+feature isl        : unspecified $(isl-versions) :                       ;
 feature isl-hidden : [ feature.values <isl> ]    : propagated incidental ;
+{
+  local use-isl ;
+  for local val in [ feature.values <isl> ]
+  {
+    use-isl += <isl-hidden>$(val):<isl>$(val) ;
+  }
+  constant USE_ISL : $(use-isl) ;
+}
 
-feature cloog        : unspecified $(cloog-versions) : propagated            ;
+feature cloog        : unspecified $(cloog-versions) :                       ;
 feature cloog-hidden : [ feature.values <cloog> ]    : propagated incidental ;
+{
+  local use-cloog ;
+  for local val in [ feature.values <cloog> ]
+  {
+    use-cloog += <cloog-hidden>$(val):<cloog>$(val) ;
+  }
+  constant USE_CLOOG : $(use-cloog) ;
+}
 
 feature compiler        : unspecified $(compilers) : propagated            ;
 feature compiler-hidden : [ feature.values <compiler> ] : propagated incidental ;
 
-feature icu4c        : unspecified $(icu4c-versions) : propagated            ;
+feature icu4c        : unspecified $(icu4c-versions) :                       ;
 feature icu4c-hidden : [ feature.values <icu4c> ]    : propagated incidental ;
+{
+  local use-icu4c ;
+  for local val in [ feature.values <icu4c> ]
+  {
+    use-icu4c += <icu4c-hidden>$(val):<icu4c>$(val) ;
+  }
+  constant USE_ICU4C : $(use-icu4c) ;
+}
 
 feature mpi        : unspecified openmpi mpich2 : propagated            ;
 feature mpi-hidden : [ feature.values <mpi> ]   : propagated incidental ;
@@ -1038,37 +1095,105 @@ else
   feature openmpi-hidden : [ feature.values <openmpi> ] : propagated incidental ;
 }
 
-feature boost        : unspecified $(boost-versions) : propagated            ;
+feature boost        : unspecified $(boost-versions) :                       ;
 feature boost-hidden : [ feature.values <boost> ]    : propagated incidental ;
+{
+  local use-boost ;
+  for local val in [ feature.values <boost> ]
+  {
+    use-boost += <boost-hidden>$(val):<boost>$(val) ;
+  }
+  constant USE_BOOST : $(use-boost) ;
+}
 
-feature clang        : unspecified $(clang)       : propagated            ;
+feature clang        : unspecified $(clang)       :                       ;
 feature clang-hidden : [ feature.values <clang> ] : propagated incidental ;
+{
+  local use-clang ;
+  for local val in [ feature.values <clang> ]
+  {
+    use-clang += <clang-hidden>$(val):<clang>$(val) ;
+  }
+  constant USE_CLANG : $(use-clang) ;
+}
 
-feature valgrind        : unspecified $(valgrind)       : propagated            ;
+feature valgrind        : unspecified $(valgrind)       :                       ;
 feature valgrind-hidden : [ feature.values <valgrind> ] : propagated incidental ;
+{
+  local use-valgrind ;
+  for local val in [ feature.values <valgrind> ]
+  {
+    use-valgrind += <valgrind-hidden>$(val):<valgrind>$(val) ;
+  }
+  constant USE_VALGRIND : $(use-valgrind) ;
+}
 
 for local enabled-compiler in $(enabled-compilers)
 {
+  local srcs ;
+  if $(gmp)
+  {
+    srcs += gmp//install/<multitarget-hidden>$(multitarget) ;
+  }
+  if $(mpfr)
+  {
+    srcs += mpfr//install/<multitarget-hidden>$(multitarget) ;
+  }
+  if $(mpc)
+  {
+    srcs += mpc//install/<multitarget-hidden>$(multitarget) ;
+  }
+  if $(ppl)
+  {
+    srcs += ppl//install/<multitarget-hidden>$(multitarget) ;
+  }
+  if $(isl)
+  {
+    srcs += isl//install/<multitarget-hidden>$(multitarget) ;
+  }
+  if $(cloog)
+  {
+    srcs += cloog//install/<multitarget-hidden>$(multitarget) ;
+  }
+  if $(icu4c)
+  {
+    srcs += icu4c//install/<multitarget-hidden>$(multitarget) ;
+  }
+  if $(boost)
+  {
+    srcs += boost//install/<multitarget-hidden>$(multitarget)/<mpi>$(mpi)/<openmpi>$(openmpi) ;
+  }
+  if $(valgrind)
+  {
+    srcs += valgrind//install/<multitarget-hidden>$(multitarget)/<mpi>$(mpi)/<openmpi>$(openmpi) ;
+  }
+
   if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" "$(enabled-compiler)" ]
   {
     for local boost in $(boost-versions)
     {
+      if $(clang)
+      {
+        srcs += clang//install/<multitarget-hidden>$(multitarget) ;
+      }
+
       alias $(enabled-compiler)
       : gcc//install/<multitarget>$(multitarget)
-        gmp//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)
-        mpfr//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<mpfr>$(mpfr)
-        mpc//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<mpfr>$(mpfr)
-        ppl//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<ppl>$(ppl)
-        isl//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<isl>$(isl)
-        cloog//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<isl>$(isl)/<cloog>$(cloog)
-        icu4c//install/<multitarget-hidden>$(multitarget)/<icu4c>$(icu4c)
+        $(srcs)
         openmpi//install/<multitarget-hidden>$(multitarget)/<mpi>$(mpi)/<openmpi>$(OPENMPI)
-        boost//install/<multitarget-hidden>$(multitarget)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
-        clang//install/<multitarget-hidden>$(multitarget)/<clang>$(clang)
-        valgrind//install/<multitarget-hidden>$(multitarget)/<mpi>$(mpi)/<openmpi>$(openmpi)/<valgrind>$(valgrind)
       : <triplet>$(triplet)
         <compiler>$(enabled-compiler)
+        <binutils-hidden>$(binutils)
+        <gmp-hidden>$(gmp)
+        <mpfr-hidden>$(mpfr)
         <mpc-hidden>$(mpc)
+        <ppl-hidden>$(ppl)
+        <isl-hidden>$(isl)
+        <cloog-hidden>$(cloog)
+        <icu4c-hidden>$(icu4c)
+        <boost-hidden>$(boost)
+        <clang-hidden>$(clang)
+        <valgrind-hidden>$(valgrind)
       ;
     }
   }
@@ -1076,19 +1201,20 @@ for local enabled-compiler in $(enabled-compilers)
   {
     alias $(enabled-compiler)
       : clang//install/<multitarget-hidden>$(multitarget)
-        gmp//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)
-        mpfr//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<mpfr>$(mpfr)
-        mpc//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<mpfr>$(mpfr)
-        ppl//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<ppl>$(ppl)
-        isl//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<isl>$(isl)
-        cloog//install/<multitarget-hidden>$(multitarget)/<gmp>$(gmp)/<isl>$(isl)/<cloog>$(cloog)
-        icu4c//install/<multitarget-hidden>$(multitarget)/<icu4c>$(icu4c)
+        $(srcs)
         openmpi//install/<multitarget-hidden>$(multitarget)/<mpi>$(mpi)/<openmpi>$(OPENMPI)
-        boost//install/<multitarget-hidden>$(multitarget)/<icu4c>$(icu4c)/<mpi>$(mpi)/<openmpi>$(openmpi)/<boost>$(boost)
-        valgrind//install/<multitarget-hidden>$(multitarget)/<mpi>$(mpi)/<openmpi>$(openmpi)/<valgrind>$(valgrind)
       : <triplet>$(triplet)
         <compiler>$(enabled-compiler)
+        <binutils-hidden>$(binutils)
+        <gmp-hidden>$(gmp)
+        <mpfr-hidden>$(mpfr)
         <mpc-hidden>$(mpc)
+        <ppl-hidden>$(ppl)
+        <isl-hidden>$(isl)
+        <cloog-hidden>$(cloog)
+        <icu4c-hidden>$(icu4c)
+        <boost-hidden>$(boost)
+        <valgrind-hidden>$(valgrind)
       ;
   }
   else

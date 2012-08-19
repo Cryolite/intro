@@ -25,37 +25,20 @@ rule assert-unspecified ( feature : properties * )
 }
 
 
+
 rule compiler-dep-req ( properties * )
 {
   assert-specified   <triplet>            : $(properties) ;
   assert-unspecified <multitarget>        : $(properties) ;
   assert-specified   <multitarget-hidden> : $(properties) ;
-  assert-unspecified <binutils>           : $(properties) ;
-  assert-unspecified <binutils-hidden>    : $(properties) ;
-  assert-unspecified <gmp>                : $(properties) ;
-  assert-unspecified <gmp-hidden>         : $(properties) ;
-  assert-unspecified <mpfr>               : $(properties) ;
-  assert-unspecified <mpfr-hidden>        : $(properties) ;
-  assert-unspecified <mpc>                : $(properties) ;
-  assert-specified   <mpc-hidden>         : $(properties) ;
-  assert-unspecified <ppl>                : $(properties) ;
-  assert-unspecified <ppl-hidden>         : $(properties) ;
-  assert-unspecified <isl>                : $(properties) ;
-  assert-unspecified <isl-hidden>         : $(properties) ;
-  assert-unspecified <cloog>              : $(properties) ;
-  assert-unspecified <cloog-hidden>       : $(properties) ;
   assert-specified   <compiler>           : $(properties) ;
   assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <icu4c>              : $(properties) ;
-  assert-unspecified <icu4c-hidden>       : $(properties) ;
   assert-unspecified <mpi>                : $(properties) ;
   assert-unspecified <mpi-hidden>         : $(properties) ;
   assert-unspecified <openmpi>            : $(properties) ;
   assert-unspecified <openmpi-hidden>     : $(properties) ;
-  assert-unspecified <boost>              : $(properties) ;
-  assert-unspecified <boost-hidden>       : $(properties) ;
   assert-unspecified <valgrind>           : $(properties) ;
-  assert-unspecified <valgrind-hidden>    : $(properties) ;
+  assert-specified   <valgrind-hidden>    : $(properties) ;
 
   local multitarget = [ feature.get-values <multitarget-hidden> : $(properties) ] ;
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
@@ -79,6 +62,7 @@ alias compiler-dep : : <conditional>@compiler-dep-req ;
 explicit compiler-dep ;
 
 
+
 make "$(INTRO_ROOT_DIR)/valgrind-$(VALGRIND).tar.bz2" : : @download ;
 explicit "$(INTRO_ROOT_DIR)/valgrind-$(VALGRIND).tar.bz2" ;
 
@@ -91,30 +75,12 @@ rule download ( targets * : sources * : properties * )
   assert-unspecified <triplet>            : $(properties) ;
   assert-unspecified <multitarget>        : $(properties) ;
   assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-unspecified <binutils>           : $(properties) ;
-  assert-unspecified <binutils-hidden>    : $(properties) ;
-  assert-unspecified <gmp>                : $(properties) ;
-  assert-unspecified <gmp-hidden>         : $(properties) ;
-  assert-unspecified <mpfr>               : $(properties) ;
-  assert-unspecified <mpfr-hidden>        : $(properties) ;
-  assert-unspecified <mpc>                : $(properties) ;
-  assert-specified   <mpc-hidden>         : $(properties) ;
-  assert-unspecified <ppl>                : $(properties) ;
-  assert-unspecified <ppl-hidden>         : $(properties) ;
-  assert-unspecified <isl>                : $(properties) ;
-  assert-unspecified <isl-hidden>         : $(properties) ;
-  assert-unspecified <cloog>              : $(properties) ;
-  assert-unspecified <cloog-hidden>       : $(properties) ;
   assert-unspecified <compiler>           : $(properties) ;
   assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <icu4c>              : $(properties) ;
-  assert-unspecified <icu4c-hidden>       : $(properties) ;
   assert-unspecified <mpi>                : $(properties) ;
   assert-unspecified <mpi-hidden>         : $(properties) ;
   assert-unspecified <openmpi>            : $(properties) ;
   assert-unspecified <openmpi-hidden>     : $(properties) ;
-  assert-unspecified <boost>              : $(properties) ;
-  assert-unspecified <boost-hidden>       : $(properties) ;
   assert-unspecified <valgrind>           : $(properties) ;
   assert-specified   <valgrind-hidden>    : $(properties) ;
 
@@ -139,6 +105,7 @@ actions download
   [ -f "$(<)" ] || exit 1
   exit 0
 }
+
 
 
 if $(VALGRIND) != trunk
@@ -171,30 +138,12 @@ rule expand ( targets * : sources * : properties * )
   assert-unspecified <triplet>            : $(properties) ;
   assert-unspecified <multitarget>        : $(properties) ;
   assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-unspecified <binutils>           : $(properties) ;
-  assert-unspecified <binutils-hidden>    : $(properties) ;
-  assert-unspecified <gmp>                : $(properties) ;
-  assert-unspecified <gmp-hidden>         : $(properties) ;
-  assert-unspecified <mpfr>               : $(properties) ;
-  assert-unspecified <mpfr-hidden>        : $(properties) ;
-  assert-unspecified <mpc>                : $(properties) ;
-  assert-specified   <mpc-hidden>         : $(properties) ;
-  assert-unspecified <ppl>                : $(properties) ;
-  assert-unspecified <ppl-hidden>         : $(properties) ;
-  assert-unspecified <isl>                : $(properties) ;
-  assert-unspecified <isl-hidden>         : $(properties) ;
-  assert-unspecified <cloog>              : $(properties) ;
-  assert-unspecified <cloog-hidden>       : $(properties) ;
   assert-unspecified <compiler>           : $(properties) ;
   assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <icu4c>              : $(properties) ;
-  assert-unspecified <icu4c-hidden>       : $(properties) ;
   assert-unspecified <mpi>                : $(properties) ;
   assert-unspecified <mpi-hidden>         : $(properties) ;
   assert-unspecified <openmpi>            : $(properties) ;
   assert-unspecified <openmpi-hidden>     : $(properties) ;
-  assert-unspecified <boost>              : $(properties) ;
-  assert-unspecified <boost-hidden>       : $(properties) ;
   assert-unspecified <valgrind>           : $(properties) ;
   assert-specified   <valgrind-hidden>    : $(properties) ;
 
@@ -226,6 +175,7 @@ actions expand
 }
 
 
+
 if $(VALGRIND) = trunk
 {
   make "$(INTRO_ROOT_DIR)/valgrind-trunk/README"
@@ -241,30 +191,12 @@ rule checkout-trunk ( targets * : sources * : properties * )
   assert-unspecified <triplet>            : $(properties) ;
   assert-unspecified <multitarget>        : $(properties) ;
   assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-unspecified <binutils>           : $(properties) ;
-  assert-unspecified <binutils-hidden>    : $(properties) ;
-  assert-unspecified <gmp>                : $(properties) ;
-  assert-unspecified <gmp-hidden>         : $(properties) ;
-  assert-unspecified <mpfr>               : $(properties) ;
-  assert-unspecified <mpfr-hidden>        : $(properties) ;
-  assert-unspecified <mpc>                : $(properties) ;
-  assert-specified   <mpc-hidden>         : $(properties) ;
-  assert-unspecified <ppl>                : $(properties) ;
-  assert-unspecified <ppl-hidden>         : $(properties) ;
-  assert-unspecified <isl>                : $(properties) ;
-  assert-unspecified <isl-hidden>         : $(properties) ;
-  assert-unspecified <cloog>              : $(properties) ;
-  assert-unspecified <cloog-hidden>       : $(properties) ;
   assert-unspecified <compiler>           : $(properties) ;
   assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <icu4c>              : $(properties) ;
-  assert-unspecified <icu4c-hidden>       : $(properties) ;
   assert-unspecified <mpi>                : $(properties) ;
   assert-unspecified <mpi-hidden>         : $(properties) ;
   assert-unspecified <openmpi>            : $(properties) ;
   assert-unspecified <openmpi-hidden>     : $(properties) ;
-  assert-unspecified <boost>              : $(properties) ;
-  assert-unspecified <boost-hidden>       : $(properties) ;
   assert-unspecified <valgrind>           : $(properties) ;
   assert-specified   <valgrind-hidden>    : $(properties) ;
 }
@@ -315,44 +247,28 @@ actions checkout-trunk
 }
 
 
+
 rule srcdir-req ( properties * )
 {
   assert-unspecified <triplet>            : $(properties) ;
   assert-unspecified <multitarget>        : $(properties) ;
   assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-unspecified <binutils>           : $(properties) ;
-  assert-unspecified <binutils-hidden>    : $(properties) ;
-  assert-unspecified <gmp>                : $(properties) ;
-  assert-unspecified <gmp-hidden>         : $(properties) ;
-  assert-unspecified <mpfr>               : $(properties) ;
-  assert-unspecified <mpfr-hidden>        : $(properties) ;
-  assert-unspecified <mpc>                : $(properties) ;
-  assert-specified   <mpc-hidden>         : $(properties) ;
-  assert-unspecified <ppl>                : $(properties) ;
-  assert-unspecified <ppl-hidden>         : $(properties) ;
-  assert-unspecified <isl>                : $(properties) ;
-  assert-unspecified <isl-hidden>         : $(properties) ;
-  assert-unspecified <cloog>              : $(properties) ;
-  assert-unspecified <cloog-hidden>       : $(properties) ;
   assert-unspecified <compiler>           : $(properties) ;
   assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <icu4c>              : $(properties) ;
-  assert-unspecified <icu4c-hidden>       : $(properties) ;
   assert-unspecified <mpi>                : $(properties) ;
   assert-unspecified <mpi-hidden>         : $(properties) ;
   assert-unspecified <openmpi>            : $(properties) ;
   assert-unspecified <openmpi-hidden>     : $(properties) ;
-  assert-unspecified <boost>              : $(properties) ;
-  assert-unspecified <boost-hidden>       : $(properties) ;
-  assert-specified   <valgrind>           : $(properties) ;
-  assert-unspecified <valgrind-hidden>    : $(properties) ;
+  assert-unspecified <valgrind>           : $(properties) ;
+  assert-specified   <valgrind-hidden>    : $(properties) ;
 
-  local version = [ feature.get-values <valgrind> : $(properties) ] ;
-  return <source>"$(INTRO_ROOT_DIR)/valgrind-$(version)/README/<valgrind>unspecified/<valgrind-hidden>$(version)" ;
+  local version = [ feature.get-values <valgrind-hidden> : $(properties) ] ;
+  return <source>"$(INTRO_ROOT_DIR)/valgrind-$(version)/README" ;
 }
 
 alias srcdir : : <conditional>@srcdir-req ;
 explicit srcdir ;
+
 
 
 for local compiler in $(COMPILERS)
@@ -360,10 +276,11 @@ for local compiler in $(COMPILERS)
   local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
   local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
   make "$(compiler-prefix)/include/valgrind/valgrind.h"
-    : compiler-dep/<mpi>unspecified/<openmpi>unspecified/<valgrind>unspecified
-      ../openmpi//install/<valgrind>unspecified
+    : compiler-dep/<mpi>unspecified/<openmpi>unspecified
+      ../openmpi//install
       srcdir/<triplet>unspecified/<multitarget-hidden>unspecified/<compiler>unspecified/<mpi>unspecified/<openmpi>unspecified
     : @make-install
+    : $(USE_VALGRIND)
     ;
   explicit "$(compiler-prefix)/include/valgrind/valgrind.h" ;
 }
@@ -373,32 +290,14 @@ rule make-install ( targets * : sources * : properties * )
   assert-specified   <triplet>            : $(properties) ;
   assert-unspecified <multitarget>        : $(properties) ;
   assert-specified   <multitarget-hidden> : $(properties) ;
-  assert-unspecified <binutils>           : $(properties) ;
-  assert-unspecified <binutils-hidden>    : $(properties) ;
-  assert-unspecified <gmp>                : $(properties) ;
-  assert-unspecified <gmp-hidden>         : $(properties) ;
-  assert-unspecified <mpfr>               : $(properties) ;
-  assert-unspecified <mpfr-hidden>        : $(properties) ;
-  assert-unspecified <mpc>                : $(properties) ;
-  assert-specified   <mpc-hidden>         : $(properties) ;
-  assert-unspecified <ppl>                : $(properties) ;
-  assert-unspecified <ppl-hidden>         : $(properties) ;
-  assert-unspecified <isl>                : $(properties) ;
-  assert-unspecified <isl-hidden>         : $(properties) ;
-  assert-unspecified <cloog>              : $(properties) ;
-  assert-unspecified <cloog-hidden>       : $(properties) ;
   assert-specified   <compiler>           : $(properties) ;
   assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <icu4c>              : $(properties) ;
-  assert-unspecified <icu4c-hidden>       : $(properties) ;
   assert-specified   <mpi>                : $(properties) ;
   assert-unspecified <mpi-hidden>         : $(properties) ;
   #assert-specified   <openmpi>            : $(properties) ;
   assert-unspecified <openmpi-hidden>     : $(properties) ;
-  assert-unspecified <boost>              : $(properties) ;
-  assert-unspecified <boost-hidden>       : $(properties) ;
   assert-specified   <valgrind>           : $(properties) ;
-  assert-unspecified <valgrind-hidden>    : $(properties) ;
+  assert-specified   <valgrind-hidden>    : $(properties) ;
 
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(compiler) ] ;
@@ -523,37 +422,20 @@ actions make-install
 }
 
 
+
 rule install-req ( properties * )
 {
   assert-specified   <triplet>            : $(properties) ;
   assert-unspecified <multitarget>        : $(properties) ;
   assert-specified   <multitarget-hidden> : $(properties) ;
-  assert-unspecified <binutils>           : $(properties) ;
-  assert-unspecified <binutils-hidden>    : $(properties) ;
-  assert-unspecified <gmp>                : $(properties) ;
-  assert-unspecified <gmp-hidden>         : $(properties) ;
-  assert-unspecified <mpfr>               : $(properties) ;
-  assert-unspecified <mpfr-hidden>        : $(properties) ;
-  assert-unspecified <mpc>                : $(properties) ;
-  assert-specified   <mpc-hidden>         : $(properties) ;
-  assert-unspecified <ppl>                : $(properties) ;
-  assert-unspecified <ppl-hidden>         : $(properties) ;
-  assert-unspecified <isl>                : $(properties) ;
-  assert-unspecified <isl-hidden>         : $(properties) ;
-  assert-unspecified <cloog>              : $(properties) ;
-  assert-unspecified <cloog-hidden>       : $(properties) ;
   assert-specified   <compiler>           : $(properties) ;
   assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <icu4c>              : $(properties) ;
-  assert-unspecified <icu4c-hidden>       : $(properties) ;
   assert-specified   <mpi>                : $(properties) ;
   assert-unspecified <mpi-hidden>         : $(properties) ;
   #assert-specified   <openmpi>            : $(properties) ;
   assert-unspecified <openmpi-hidden>     : $(properties) ;
-  assert-unspecified <boost>              : $(properties) ;
-  assert-unspecified <boost-hidden>       : $(properties) ;
-  assert-specified   <valgrind>           : $(properties) ;
-  assert-unspecified <valgrind-hidden>    : $(properties) ;
+  assert-unspecified <valgrind>           : $(properties) ;
+  assert-specified   <valgrind-hidden>    : $(properties) ;
 
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
