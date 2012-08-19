@@ -35,8 +35,8 @@ rule compiler-dep-req ( properties * )
   assert-unspecified <compiler-hidden>    : $(properties) ;
   assert-unspecified <icu4c>              : $(properties) ;
   assert-specified   <icu4c-hidden>       : $(properties) ;
-  assert-unspecified <mpi>                : $(properties) ;
-  assert-unspecified <mpi-hidden>         : $(properties) ;
+  assert-unspecified <mpi-backend>        : $(properties) ;
+  assert-unspecified <mpi-backend-hidden> : $(properties) ;
   assert-unspecified <openmpi>            : $(properties) ;
   assert-unspecified <openmpi-hidden>     : $(properties) ;
   assert-unspecified <boost>              : $(properties) ;
@@ -80,8 +80,8 @@ for local compiler in $(COMPILERS)
     if $(OPENMPI)
     {
       make "$(compiler-prefix)/lib/libboost_regex-$(compiler-abi-tag)-$(boost-abi-tag).so.$(boost)"
-        : compiler-dep/<mpi>unspecified/<openmpi>unspecified
-          ../icu4c//install/<mpi>unspecified/<openmpi>unspecified
+        : compiler-dep/<mpi-backend>unspecified/<openmpi>unspecified
+          ../icu4c//install/<mpi-backend>unspecified/<openmpi>unspecified
           ../openmpi//install
         : @install
         : $(USE_ICU4C)
@@ -91,8 +91,8 @@ for local compiler in $(COMPILERS)
     else
     {
       make "$(compiler-prefix)/lib/libboost_regex-$(compiler-abi-tag)-$(boost-abi-tag).so.$(boost)"
-        : compiler-dep/<mpi>unspecified/<openmpi>unspecified
-          ../icu4c//install/<mpi>unspecified/<openmpi>unspecified
+        : compiler-dep/<mpi-backend>unspecified/<openmpi>unspecified
+          ../icu4c//install/<mpi-backend>unspecified/<openmpi>unspecified
         : @install
         : $(USE_ICU4C)
           $(USE_BOOST)
@@ -111,8 +111,8 @@ rule install ( targets * : sources * : properties * )
   assert-unspecified <compiler-hidden>    : $(properties) ;
   assert-specified   <icu4c>              : $(properties) ;
   assert-specified   <icu4c-hidden>       : $(properties) ;
-  assert-specified   <mpi>                : $(properties) ;
-  assert-unspecified <mpi-hidden>         : $(properties) ;
+  assert-specified   <mpi-backend>        : $(properties) ;
+  assert-unspecified <mpi-backend-hidden> : $(properties) ;
   #assert-specified   <openmpi>            : $(properties) ;
   assert-unspecified <openmpi-hidden>     : $(properties) ;
   assert-specified   <boost>              : $(properties) ;
@@ -207,8 +207,8 @@ rule install-req ( properties * )
   assert-unspecified <compiler-hidden>    : $(properties) ;
   assert-unspecified <icu4c>              : $(properties) ;
   assert-specified   <icu4c-hidden>       : $(properties) ;
-  assert-specified   <mpi>                : $(properties) ;
-  assert-unspecified <mpi-hidden>         : $(properties) ;
+  assert-specified   <mpi-backend>        : $(properties) ;
+  assert-unspecified <mpi-backend-hidden> : $(properties) ;
   #assert-specified   <openmpi>            : $(properties) ;
   assert-unspecified <openmpi-hidden>     : $(properties) ;
   assert-unspecified <boost>              : $(properties) ;

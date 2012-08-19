@@ -34,8 +34,8 @@ rule compiler-dep-req ( properties * )
   assert-specified   <multitarget-hidden> : $(properties) ;
   assert-specified   <compiler>           : $(properties) ;
   assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <mpi>                : $(properties) ;
-  assert-unspecified <mpi-hidden>         : $(properties) ;
+  assert-unspecified <mpi-backend>        : $(properties) ;
+  assert-unspecified <mpi-backend-hidden> : $(properties) ;
   assert-unspecified <openmpi>            : $(properties) ;
   assert-unspecified <openmpi-hidden>     : $(properties) ;
 
@@ -79,8 +79,8 @@ rule download ( targets * : sources * : properties * )
   assert-unspecified <multitarget-hidden> : $(properties) ;
   assert-unspecified <compiler>           : $(properties) ;
   assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <mpi>                : $(properties) ;
-  assert-unspecified <mpi-hidden>         : $(properties) ;
+  assert-unspecified <mpi-backend>        : $(properties) ;
+  assert-unspecified <mpi-backend-hidden> : $(properties) ;
   assert-unspecified <openmpi>            : $(properties) ;
   assert-specified   <openmpi-hidden>     : $(properties) ;
 
@@ -141,8 +141,8 @@ rule expand ( targets * : sources * : properties * )
   assert-unspecified <multitarget-hidden> : $(properties) ;
   assert-unspecified <compiler>           : $(properties) ;
   assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <mpi>                : $(properties) ;
-  assert-unspecified <mpi-hidden>         : $(properties) ;
+  assert-unspecified <mpi-backend>        : $(properties) ;
+  assert-unspecified <mpi-backend-hidden> : $(properties) ;
   assert-unspecified <openmpi>            : $(properties) ;
   assert-specified   <openmpi-hidden>     : $(properties) ;
 
@@ -182,8 +182,8 @@ rule srcdir-req ( properties * )
   assert-unspecified <multitarget-hidden> : $(properties) ;
   assert-unspecified <compiler>           : $(properties) ;
   assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <mpi>                : $(properties) ;
-  assert-unspecified <mpi-hidden>         : $(properties) ;
+  assert-unspecified <mpi-backend>        : $(properties) ;
+  assert-unspecified <mpi-backend-hidden> : $(properties) ;
   assert-specified   <openmpi>            : $(properties) ;
   assert-unspecified <openmpi-hidden>     : $(properties) ;
 
@@ -201,8 +201,8 @@ for local compiler in $(COMPILERS)
   local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
   local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
   make "$(compiler-prefix)/include/mpi.h"
-    : compiler-dep/<mpi>unspecified/<openmpi>unspecified
-      srcdir/<triplet>unspecified/<multitarget-hidden>unspecified/<compiler>unspecified/<mpi>unspecified
+    : compiler-dep/<mpi-backend>unspecified/<openmpi>unspecified
+      srcdir/<triplet>unspecified/<multitarget-hidden>unspecified/<compiler>unspecified/<mpi-backend>unspecified
     : @make-install
     ;
   explicit "$(compiler-prefix)/include/mpi.h" ;
@@ -215,8 +215,8 @@ rule make-install ( targets * : sources * : properties * )
   assert-specified   <multitarget-hidden> : $(properties) ;
   assert-specified   <compiler>           : $(properties) ;
   assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-specified   <mpi>                : $(properties) ;
-  assert-unspecified <mpi-hidden>         : $(properties) ;
+  assert-specified   <mpi-backend>        : $(properties) ;
+  assert-unspecified <mpi-backend-hidden> : $(properties) ;
   assert-specified   <openmpi>            : $(properties) ;
   assert-unspecified <openmpi-hidden>     : $(properties) ;
 
@@ -346,8 +346,8 @@ rule install-req ( properties * )
   assert-specified   <multitarget-hidden> : $(properties) ;
   assert-specified   <compiler>           : $(properties) ;
   assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-specified   <mpi>                : $(properties) ;
-  assert-unspecified <mpi-hidden>         : $(properties) ;
+  assert-specified   <mpi-backend>        : $(properties) ;
+  assert-unspecified <mpi-backend-hidden> : $(properties) ;
   assert-specified   <openmpi>            : $(properties) ;
   assert-unspecified <openmpi-hidden>     : $(properties) ;
 

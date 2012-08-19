@@ -603,17 +603,17 @@ if ! $(icu4c) in $(icu4c-versions)
 ECHO icu4c... $(icu4c) ;
 
 
-local mpi = [ option.get with-mpi : unspecified : IMPLIED ] ;
-if $(mpi) = IMPLIED
+local mpi-backend = [ option.get with-mpi-backend : unspecified : IMPLIED ] ;
+if $(mpi-backend) = IMPLIED
 {
-  errors.error "ERROR: No value is specified for `--with-mpi' option." ;
+  errors.error "ERROR: No value is specified for `--with-mpi-backend' option." ;
 }
-if ! $(mpi) in openmpi mpich2 unspecified
+if ! $(mpi-backend) in openmpi mpich2 unspecified
 {
-  errors.error "ERROR: `$(mpi)' is a wrong value for `--with-mpi' option.\n"
-               "             Allowed values are `openmpi' and `mpich2'." ;
+  errors.error "ERROR: `$(mpi-backend)' is a wrong value for `--with-mpi-backend' option.\n"
+               "             Allowed values are `openmpi' or `mpich2'." ;
 }
-ECHO mpi... $(mpi) ;
+ECHO mpi backend... $(mpi-backend) ;
 
 
 local boost = [ option.get enable-boost : latest : latest ] ;
@@ -1069,11 +1069,11 @@ feature icu4c-hidden : [ feature.values <icu4c> ]    : propagated incidental ;
   constant USE_ICU4C : $(use-icu4c) ;
 }
 
-feature mpi        : unspecified openmpi mpich2 : propagated            ;
-feature mpi-hidden : [ feature.values <mpi> ]   : propagated incidental ;
+feature mpi-backend        : unspecified openmpi mpich2         : propagated            ;
+feature mpi-backend-hidden : [ feature.values <mpi-backend> ]   : propagated incidental ;
 
 local openmpi = unspecified ;
-if $(mpi) = openmpi
+if $(mpi-backend) = openmpi
 {
   openmpi = [ SHELL "\"$(INTRO_ROOT_DIR)/openmpi-latest.sh\" || echo -n 'error'" ] ;
   if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : $(openmpi) : 1 ]
@@ -1161,11 +1161,11 @@ for local enabled-compiler in $(enabled-compilers)
   }
   if $(boost)
   {
-    srcs += boost//install/<multitarget-hidden>$(multitarget)/<mpi>$(mpi)/<openmpi>$(openmpi) ;
+    srcs += boost//install/<multitarget-hidden>$(multitarget)/<mpi-backend>$(mpi-backend)/<openmpi>$(openmpi) ;
   }
   if $(valgrind)
   {
-    srcs += valgrind//install/<multitarget-hidden>$(multitarget)/<mpi>$(mpi)/<openmpi>$(openmpi) ;
+    srcs += valgrind//install/<multitarget-hidden>$(multitarget)/<mpi-backend>$(mpi-backend)/<openmpi>$(openmpi) ;
   }
 
   if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" "$(enabled-compiler)" ]
@@ -1180,7 +1180,7 @@ for local enabled-compiler in $(enabled-compilers)
       alias $(enabled-compiler)
       : gcc//install/<multitarget>$(multitarget)
         $(srcs)
-        openmpi//install/<multitarget-hidden>$(multitarget)/<mpi>$(mpi)/<openmpi>$(OPENMPI)
+        openmpi//install/<multitarget-hidden>$(multitarget)/<mpi-backend>$(mpi-backend)/<openmpi>$(OPENMPI)
       : <triplet>$(triplet)
         <compiler>$(enabled-compiler)
         <binutils-hidden>$(binutils)
@@ -1202,7 +1202,7 @@ for local enabled-compiler in $(enabled-compilers)
     alias $(enabled-compiler)
       : clang//install/<multitarget-hidden>$(multitarget)
         $(srcs)
-        openmpi//install/<multitarget-hidden>$(multitarget)/<mpi>$(mpi)/<openmpi>$(OPENMPI)
+        openmpi//install/<multitarget-hidden>$(multitarget)/<mpi-backend>$(mpi-backend)/<openmpi>$(OPENMPI)
       : <triplet>$(triplet)
         <compiler>$(enabled-compiler)
         <binutils-hidden>$(binutils)

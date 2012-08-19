@@ -33,8 +33,8 @@ rule compiler-dep-req ( properties * )
   assert-specified   <multitarget-hidden> : $(properties) ;
   assert-specified   <compiler>           : $(properties) ;
   assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <mpi>                : $(properties) ;
-  assert-unspecified <mpi-hidden>         : $(properties) ;
+  assert-unspecified <mpi-backend>        : $(properties) ;
+  assert-unspecified <mpi-backend-hidden> : $(properties) ;
   assert-unspecified <openmpi>            : $(properties) ;
   assert-unspecified <openmpi-hidden>     : $(properties) ;
   assert-unspecified <valgrind>           : $(properties) ;
@@ -77,8 +77,8 @@ rule download ( targets * : sources * : properties * )
   assert-unspecified <multitarget-hidden> : $(properties) ;
   assert-unspecified <compiler>           : $(properties) ;
   assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <mpi>                : $(properties) ;
-  assert-unspecified <mpi-hidden>         : $(properties) ;
+  assert-unspecified <mpi-backend>        : $(properties) ;
+  assert-unspecified <mpi-backend-hidden> : $(properties) ;
   assert-unspecified <openmpi>            : $(properties) ;
   assert-unspecified <openmpi-hidden>     : $(properties) ;
   assert-unspecified <valgrind>           : $(properties) ;
@@ -140,8 +140,8 @@ rule expand ( targets * : sources * : properties * )
   assert-unspecified <multitarget-hidden> : $(properties) ;
   assert-unspecified <compiler>           : $(properties) ;
   assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <mpi>                : $(properties) ;
-  assert-unspecified <mpi-hidden>         : $(properties) ;
+  assert-unspecified <mpi-backend>        : $(properties) ;
+  assert-unspecified <mpi-backend-hidden> : $(properties) ;
   assert-unspecified <openmpi>            : $(properties) ;
   assert-unspecified <openmpi-hidden>     : $(properties) ;
   assert-unspecified <valgrind>           : $(properties) ;
@@ -193,8 +193,8 @@ rule checkout-trunk ( targets * : sources * : properties * )
   assert-unspecified <multitarget-hidden> : $(properties) ;
   assert-unspecified <compiler>           : $(properties) ;
   assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <mpi>                : $(properties) ;
-  assert-unspecified <mpi-hidden>         : $(properties) ;
+  assert-unspecified <mpi-backend>        : $(properties) ;
+  assert-unspecified <mpi-backend-hidden> : $(properties) ;
   assert-unspecified <openmpi>            : $(properties) ;
   assert-unspecified <openmpi-hidden>     : $(properties) ;
   assert-unspecified <valgrind>           : $(properties) ;
@@ -255,8 +255,8 @@ rule srcdir-req ( properties * )
   assert-unspecified <multitarget-hidden> : $(properties) ;
   assert-unspecified <compiler>           : $(properties) ;
   assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <mpi>                : $(properties) ;
-  assert-unspecified <mpi-hidden>         : $(properties) ;
+  assert-unspecified <mpi-backend>        : $(properties) ;
+  assert-unspecified <mpi-backend-hidden> : $(properties) ;
   assert-unspecified <openmpi>            : $(properties) ;
   assert-unspecified <openmpi-hidden>     : $(properties) ;
   assert-unspecified <valgrind>           : $(properties) ;
@@ -276,9 +276,9 @@ for local compiler in $(COMPILERS)
   local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
   local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
   make "$(compiler-prefix)/include/valgrind/valgrind.h"
-    : compiler-dep/<mpi>unspecified/<openmpi>unspecified
+    : compiler-dep/<mpi-backend>unspecified/<openmpi>unspecified
       ../openmpi//install
-      srcdir/<triplet>unspecified/<multitarget-hidden>unspecified/<compiler>unspecified/<mpi>unspecified/<openmpi>unspecified
+      srcdir/<triplet>unspecified/<multitarget-hidden>unspecified/<compiler>unspecified/<mpi-backend>unspecified/<openmpi>unspecified
     : @make-install
     : $(USE_VALGRIND)
     ;
@@ -292,8 +292,8 @@ rule make-install ( targets * : sources * : properties * )
   assert-specified   <multitarget-hidden> : $(properties) ;
   assert-specified   <compiler>           : $(properties) ;
   assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-specified   <mpi>                : $(properties) ;
-  assert-unspecified <mpi-hidden>         : $(properties) ;
+  assert-specified   <mpi-backend>        : $(properties) ;
+  assert-unspecified <mpi-backend-hidden> : $(properties) ;
   #assert-specified   <openmpi>            : $(properties) ;
   assert-unspecified <openmpi-hidden>     : $(properties) ;
   assert-specified   <valgrind>           : $(properties) ;
@@ -430,8 +430,8 @@ rule install-req ( properties * )
   assert-specified   <multitarget-hidden> : $(properties) ;
   assert-specified   <compiler>           : $(properties) ;
   assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-specified   <mpi>                : $(properties) ;
-  assert-unspecified <mpi-hidden>         : $(properties) ;
+  assert-specified   <mpi-backend>        : $(properties) ;
+  assert-unspecified <mpi-backend-hidden> : $(properties) ;
   #assert-specified   <openmpi>            : $(properties) ;
   assert-unspecified <openmpi-hidden>     : $(properties) ;
   assert-unspecified <valgrind>           : $(properties) ;
