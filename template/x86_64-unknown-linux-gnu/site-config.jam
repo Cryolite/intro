@@ -918,6 +918,25 @@ for local gcc-path in $(gcc-paths) $(gcc-latest-paths) $(clang-paths) $(clang-la
   #  ;
 }
 
+feature.feature std
+  : c++03 c++11
+  : propagated composite implicit
+  ;
+feature.compose <std>c++03
+  : <cxxflags>-std=c++03
+  ;
+feature.compose <std>c++11
+  : <cxxflags>-std=c++0x
+  ;
+
+variant lto
+  : release
+  : <cflags>-flto
+    <linkflags>-flto
+    <linkflags>-O3
+    <linkflags>-Wno-inline
+  ;
+
 feature.feature correct-call-stack
   : off on
   : propagated composite
@@ -927,25 +946,6 @@ feature.compose <correct-call-stack>on
     <cflags>-fno-optimize-sibling-calls
     <linkflags>-fno-omit-frame-pointer
     <linkflags>-fno-optimize-sibling-calls
-  ;
-
-feature.feature libstdc++-debug-mode
-  : off on
-  : propagated composite
-  ;
-feature.compose <libstdc++-debug-mode>on
-  : <define>_GLIBCXX_DEBUG
-    <define>_GLIBCXX_DEBUG_PEDANTIC
-  ;
-
-feature.feature mudflap
-  : off on
-  : propagated composite
-  ;
-feature.compose <mudflap>on
-  : <link>static
-    <cflags>-fmudflap
-    <linkflags>-fmudflap
   ;
 
 feature.feature ssp
@@ -961,6 +961,16 @@ feature.compose <ssp>all
     <linkflags>-fstack-protector-all
   ;
 
+feature.feature mudflap
+  : off on
+  : propagated composite
+  ;
+feature.compose <mudflap>on
+  : <link>static
+    <cflags>-fmudflap
+    <linkflags>-fmudflap
+  ;
+
 feature.feature address-sanitizer
   : off on
   : propagated composite
@@ -970,10 +980,11 @@ feature.compose <address-sanitizer>on
     <linkflags>-faddress-sanitizer
   ;
 
-variant lto
-  : release
-  : <cflags>-flto
-    <linkflags>-flto
-    <linkflags>-O3
-    <linkflags>-Wno-inline
+feature.feature libstdc++-debug-mode
+  : off on
+  : propagated composite
+  ;
+feature.compose <libstdc++-debug-mode>on
+  : <define>_GLIBCXX_DEBUG
+    <define>_GLIBCXX_DEBUG_PEDANTIC
   ;

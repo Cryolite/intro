@@ -64,6 +64,31 @@ explicit compiler-dep ;
 
 
 
+rule openmpi-conditional ( properties * )
+{
+  assert-specified   <triplet>            : $(properties) ;
+  assert-unspecified <multitarget>        : $(properties) ;
+  assert-specified   <multitarget-hidden> : $(properties) ;
+  assert-specified   <compiler>           : $(properties) ;
+  assert-unspecified <compiler-hidden>    : $(properties) ;
+  #assert-specified   <icu4c>              : $(properties) ;
+  assert-specified   <icu4c-hidden>       : $(properties) ;
+  assert-specified   <mpi-backend>        : $(properties) ;
+  assert-unspecified <mpi-backend-hidden> : $(properties) ;
+  #assert-specified   <openmpi>            : $(properties) ;
+  assert-unspecified <openmpi-hidden>     : $(properties) ;
+  #assert-specified   <boost>              : $(properties) ;
+  assert-specified   <boost-hidden>       : $(properties) ;
+
+  local openmpi = [ feature.get-values <openmpi> : $(properties) ] ;
+  local result ;
+  if $(openmpi) != unspecified
+  {
+    result += <source>../openmpi//install ;
+  }
+  return $(result) ;
+}
+
 for local compiler in $(COMPILERS)
 {
   for local boost in $(BOOST_VERSIONS)
@@ -77,27 +102,15 @@ for local compiler in $(COMPILERS)
       errors.error "an internal error." ;
     }
     local boost-abi-tag = [ regex.replace $(boost-abi-version) "\\." "_" ] ;
-    if $(OPENMPI)
-    {
-      make "$(compiler-prefix)/lib/libboost_regex-$(compiler-abi-tag)-$(boost-abi-tag).so.$(boost)"
-        : compiler-dep/<mpi-backend>unspecified/<openmpi>unspecified
-          ../icu4c//install/<mpi-backend>unspecified/<openmpi>unspecified
-          ../openmpi//install
-        : @install
-        : $(USE_ICU4C)
-          $(USE_BOOST)
-        ;
-    }
-    else
-    {
-      make "$(compiler-prefix)/lib/libboost_regex-$(compiler-abi-tag)-$(boost-abi-tag).so.$(boost)"
-        : compiler-dep/<mpi-backend>unspecified/<openmpi>unspecified
-          ../icu4c//install/<mpi-backend>unspecified/<openmpi>unspecified
-        : @install
-        : $(USE_ICU4C)
-          $(USE_BOOST)
-        ;
-    }
+    make "$(compiler-prefix)/lib/libboost_regex-$(compiler-abi-tag)-$(boost-abi-tag).so.$(boost)"
+      : compiler-dep/<mpi-backend>unspecified/<openmpi>unspecified
+        ../icu4c//install/<mpi-backend>unspecified/<openmpi>unspecified
+        ../openmpi//install
+      : @install
+      : $(USE_ICU4C)
+        <conditional>@openmpi-conditional
+        $(USE_BOOST)
+      ;
     explicit "$(compiler-prefix)/lib/libboost_regex-$(compiler-abi-tag)-$(boost-abi-tag).so.$(boost)" ;
   }
 }

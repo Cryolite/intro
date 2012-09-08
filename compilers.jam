@@ -1,5 +1,6 @@
 import common ;
 import errors ;
+import feature ;
 import os ;
 import path ;
 import regex ;
@@ -391,6 +392,53 @@ rule get-prefix-leaf ( compiler : gcc-for-clang ? )
   return $(result) ;
 }
 
+rule get-compiler-prefix ( prefix : compiler : gcc-for-clang ? )
+{
+  if ! [ is-valid $(compiler) ]
+  {
+    errors.error "an internal error" ;
+  }
+  if $(gcc-for-clang)
+  {
+    if ! [ is-valid $(gcc-for-clang) ]
+    {
+      errors.error "" ;
+    }
+  }
+  local prefix-leaf = [ get-prefix-leaf $(compiler) : $(gcc-for-clang) ] ;
+  return "$(prefix)/$(prefix-leaf)" ;
+}
+
+rule get-gcc-path ( prefix : compiler : gcc-for-clang ? )
+{
+  local result ;
+  if [ is-gcc $(compiler) ]
+  {
+    if $(gcc-for-clang)
+    {
+      errors.error "an internal error." ;
+    }
+    local prefix-leaf = [ get-prefix-leaf $(compiler) : $(gcc-for-clang) ] ;
+    local compiler-prefix = "$(prefix)/$(prefix-leaf)" ;
+    result = "$(compiler-prefix)/bin/gcc-wrapper" ;
+  }
+  else if [ is-clang $(compiler) ]
+  {
+    if ! $(gcc-for-clang)
+    {
+      errors.error "an internal error." ;
+    }
+    local prefix-leaf = [ get-prefix-leaf $(compiler) : $(gcc-for-clang) ] ;
+    local compiler-prefix = "$(prefix)/$(prefix-leaf)" ;
+    result = "$(compiler-prefix)/bin/gcc-wrapper" ;
+  }
+  else
+  {
+    errors.error "`<compiler>$(compiler)' is not valid." ;
+  }
+  return $(result) ;
+}
+
 rule get-compiler-description ( compiler )
 {
   if ! [ is-valid "$(compiler)" ]
@@ -420,6 +468,354 @@ rule get-compiler-description ( compiler )
     errors.error "an internal error." ;
   }
   return $(result) ;
+}
+
+rule get-property-path ( properties * )
+{
+  local build                = [ feature.get-values <triplet>              : $(properties) ] ;
+  local host                 = $(triplet) ;
+  local compiler             = [ feature.get-values <compiler>             : $(properties) ] ;
+  local std                  = [ feature.get-values <std>                  : $(properties) ] ;
+  local address-model        ;
+  local variant              = [ feature.get-values <variant>              : $(properties) ] ;
+  local mudflap              = [ feature.get-values <mudflap>              : $(properties) ] ;
+  local address-sanitizer    = [ feature.get-values <address-sanitizer>    : $(properties) ] ;
+  local libstdcxx-debug-mode = [ feature.get-values <libstdc++-debug-mode> : $(properties) ] ;
+  local result ;
+  if $(build) = x86_64-unknown-linux-gnu && $(host) = i686-pc-linux-gnu
+  {
+    address-model = 32 ;
+  }
+  else if $(build) = x86_64-w64-mingw32 && $(host) = i686-w64-mingw32
+  {
+    address-model = 32 ;
+  }
+  if $(variant) = debug
+  {
+    result = debug ;
+  }
+  else if $(variant) = release
+  {
+    result = release ;
+  }
+  else if $(variant) = lto
+  {
+    result = lto ;
+  }
+  else
+  {
+    errors.error "`<variant>$(variant)' is not valid" ;
+  }
+  if $(address-model) = 32
+  {
+    result = $(result)/address-model-32 ;
+  }
+  if $(address-sanitizer) = off
+  {
+    # Do nothing.
+  }
+  else if $(address-sanitizer) = "on"
+  {
+    if ! [ is-clang $(compiler) ]
+    {
+      errors.error "`<address-sanitizer>on' is specified for non-Clang compiler `$(compiler)'" ;
+    }
+    result = $(result)/address-sanitizer-on ;
+  }
+  else
+  {
+    errors.error "`<address-sanitizer>$(address-sanitizer)' is not valid" ;
+  }
+  if $(libstdcxx-debug-mode) = off
+  {
+    # Do nothing.
+  }
+  else if $(libstdcxx-debug-mode) = "on"
+  {
+    result = $(result)/libstdc++-debug-mode-on ;
+  }
+  else
+  {
+    errors.error "`<libstdc++-debug-mode>$(libstdcxx-debug-mode)' is not valid" ;
+  }
+  if $(mudflap) = off
+  {
+    # Do nothing.
+  }
+  else if $(mudflap) = "on"
+  {
+    if ! [ is-gcc $(compiler) ]
+    {
+      errors.error "`<mudflap>on' is specified for non-GCC compiler `$(compiler)'" ;
+    }
+    result = $(result)/mudflap-on ;
+  }
+  else
+  {
+    errors.error "`<mudflap>$(mudflap)' is not valid" ;
+  }
+  if $(std) = c++11
+  {
+    result = $(result)/c++11 ;
+  }
+  return $(result) ;
+}
+
+rule get-bindir ( prefix : properties * : gcc-for-clang ? )
+{
+  local multitarget = [ feature.get-values <multitarget> : $(properties) ] ;
+  local result = [ get-property-path $(properties) ] ;
+  if $(multitarget) = yes
+  {
+    if [ regex.match "(/address-model-32)" : $(result) : 1 ]
+    {
+      result = [ regex.match "(.*)/address-model-32(.*)" : $(result) : 1 2 ] ;
+      result = bin/32/$(result:J=) ;
+    }
+    else
+    {
+      result = bin/$(result) ;
+    }
+  }
+  else
+  {
+    result = bin/$(result) ;
+  }
+  if [ regex.match "(/release)" : $(result) : 1 ]
+  {
+    result = [ regex.match "(.*)/release(.*)" : $(result) : 1 2 ] ;
+    result = $(result:J=) ;
+  }
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local prefix-leaf = [ get-prefix-leaf $(compiler) : $(gcc-for-clang) ] ;
+  return $(prefix)/$(prefix-leaf)/$(result) ;
+}
+
+rule get-libdir ( prefix : properties * : gcc-for-clang ? )
+{
+  local multitarget = yes ; #[ feature.get-values <multitarget> : $(properties) ] ;
+  local result = [ get-property-path $(properties) ] ;
+  if $(multitarget) = yes
+  {
+    if [ regex.match "(/address-model-32)" : $(result) : 1 ]
+    {
+      result = [ regex.match "(.*)/address-model-32(.*)" : $(result) : 1 2 ] ;
+      result = lib/$(result:J=) ;
+    }
+    else
+    {
+      result = lib64/$(result) ;
+    }
+  }
+  else
+  {
+    result = lib/$(result) ;
+  }
+  if [ regex.match "(/release)" : $(result) : 1 ]
+  {
+    result = [ regex.match "(.*)/release(.*)" : $(result) : 1 2 ] ;
+    result = $(result:J=) ;
+  }
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local prefix-leaf = [ get-prefix-leaf $(compiler) : $(gcc-for-clang) ] ;
+  return $(prefix)/$(prefix-leaf)/$(result) ;
+}
+
+rule get-includedir ( prefix : properties * : gcc-for-clang ? )
+{
+  local multitarget = [ feature.get-values <multitarget> : $(properties) ] ;
+  local result = [ get-property-path $(properties) ] ;
+  if $(multitarget) = yes
+  {
+    if [ regex.match "(/address-model-32)" : $(result) : 1 ]
+    {
+      result = [ regex.match "(.*)/address-model-32(.*)" : $(result) : 1 2 ] ;
+      result = include/32/$(result:J=) ;
+    }
+    else
+    {
+      result = include/$(result) ;
+    }
+  }
+  else
+  {
+    result = include/$(result) ;
+  }
+  if [ regex.match "(/release)" : $(result) : 1 ]
+  {
+    result = [ regex.match "(.*)/release(.*)" : $(result) : 1 2 ] ;
+    result = $(result:J=) ;
+  }
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local prefix-leaf = [ get-prefix-leaf $(compiler) : $(gcc-for-clang) ] ;
+  return $(prefix)/$(prefix-leaf)/$(result) ;
+}
+
+rule get-cc ( prefix : properties * : gcc-for-clang ? )
+{
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  if ! [ is-valid "$(compiler)" ]
+  {
+    errors.error "an internal error." ;
+  }
+  local prefix-leaf = [ get-prefix-leaf $(compiler) : $(gcc-for-clang) ] ;
+  local compiler-prefix = "$(prefix)/$(prefix-leaf)" ;
+  local result ;
+  if ! [ is-builtin-gcc $(compiler) ]
+  {
+    if [ is-gcc $(compiler) ]
+    {
+      result = "$(compiler-prefix)/bin/gcc-wrapper" ;
+    }
+    else if [ is-clang $(compiler) ]
+    {
+      result = "$(compiler-prefix)/bin/clang-wrapper" ;
+    }
+    else
+    {
+      errors.error "an internal error." ;
+    }
+  }
+  return "$(result)" ;
+}
+
+rule get-cflags ( properties * )
+{
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local property-path = [ get-property-path $(properties) ] ;
+  local result ;
+  if [ regex.match "^(debug)" : $(property-path) : 1 ]
+  {
+    result += "-O0" ;
+    result += "-g" ;
+    result += "-fno-inline" ;
+  }
+  else if [ regex.match "^(release)" : $(property-path) : 1 ]
+  {
+    result += "-O3" ;
+    result += "-finline-functions" ;
+    result += "-Wno-inline" ;
+    result += "-march=native" ;
+  }
+  else if [ regex.match "^(lto)" : $(property-path) : 1 ]
+  {
+    result += "-O3" ;
+    result += "-finline-functions" ;
+    result += "-Wno-inline" ;
+    result += "-flto" ;
+    result += "-march=native" ;
+  }
+  else
+  {
+    errors.error "an internal error" ;
+  }
+  if [ regex.match "(/mudflap-on)" : $(property-path) : 1 ]
+  {
+    if ! [ is-gcc $(compiler) ]
+    {
+      errors.error "`<mudflap>on' is specified for a compiler other than GCC" ;
+    }
+    errors.error "sorry, mudflap support has not been implemented yet" ;
+  }
+  if [ regex.match "(/address-sanitizer-on)" : $(property-path) : 1 ]
+  {
+    if ! [ is-clang $(compiler) ]
+    {
+      errors.error "`<address-sanitizer>on' is specified for non-Clang compiler" ;
+    }
+    result += "-faddress-sanitizer" ;
+  }
+  return "$(result:J= )" ;
+}
+
+rule get-cxx ( prefix : properties * : gcc-for-clang ? )
+{
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  if ! [ is-valid "$(compiler)" ]
+  {
+    errors.error "an internal error." ;
+  }
+  local prefix-leaf = [ get-prefix-leaf "$(compiler)" : $(gcc-for-clang) ] ;
+  local compiler-prefix = "$(prefix)/$(prefix-leaf)" ;
+  local result ;
+  if ! [ is-builtin-gcc $(compiler) ]
+  {
+    if [ is-gcc $(compiler) ]
+    {
+      result = "$(compiler-prefix)/bin/g++-wrapper" ;
+    }
+    else if [ is-clang $(compiler) ]
+    {
+      result = "$(compiler-prefix)/bin/clang++-wrapper" ;
+    }
+    else
+    {
+      errors.error "an internal error." ;
+    }
+  }
+  return "$(result)" ;
+}
+
+rule get-cxxflags ( properties * )
+{
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local property-path = [ get-property-path $(properties) ] ;
+  local result ;
+  if [ regex.match "^(debug)" : $(property-path) : 1 ]
+  {
+    result += "-O0" ;
+    result += "-g" ;
+    result += "-fno-inline" ;
+  }
+  else if [ regex.match "^(release)" : $(property-path) : 1 ]
+  {
+    result += "-O3" ;
+    result += "-finline-functions" ;
+    result += "-Wno-inline" ;
+    result += "-march=native" ;
+  }
+  else if [ regex.match "^(lto)" : $(property-path) : 1 ]
+  {
+    result += "-O3" ;
+    result += "-finline-functions" ;
+    result += "-Wno-inline" ;
+    result += "-flto" ;
+    result += "-march=native" ;
+  }
+  else
+  {
+    errors.error "an internal error" ;
+  }
+  if [ regex.match "(/c\\+\\+11)" : $(property-path) : 1 ]
+  {
+    result += "-std=c++0x" ;
+  }
+  else
+  {
+    result += "-std=c++03" ;
+  }
+  if [ regex.match "(/mudflap-on)" : $(property-path) : 1 ]
+  {
+    if ! [ is-gcc $(compiler) ]
+    {
+      errors.error "`<mudflap>on' is specified for a compiler other than GCC" ;
+    }
+    errors.error "sorry, mudflap support has not been implemented yet" ;
+  }
+  if [ regex.match "(/address-sanitizer-on)" : $(property-path) : 1 ]
+  {
+    if ! [ is-clang $(compiler) ]
+    {
+      errors.error "`<address-sanitizer>on' is specified for a compiler other than Clang" ;
+    }
+    result += "-faddress-sanitizer" ;
+  }
+  if [ regex.match "(/libstdc\\+\\+-debug-mode-on)" : $(property-path) : 1 ]
+  {
+    result += "-D_GLIBCXX_DEBUG" ;
+    result += "-D_GLIBCXX_DEBUG_PEDANTIC" ;
+  }
+  return "$(result:J= )" ;
 }
 
 rule get-toolset ( compiler : gcc-for-clang ? )
@@ -534,6 +930,70 @@ rule cxx ( prefix : compiler : gcc-for-clang ? )
   return [ path.native "$(result)" ] ;
 }
 
+rule get-environment-commands ( prefix : properties * : gcc-for-clang ? )
+{
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local compiler-prefix = [ get-compiler-prefix "$(prefix)" : $(compiler) : $(gcc-for-clang) ] ;
+  local is-debug ;
+  if [ feature.get-values <variant> : $(properties) ] = debug
+  {
+    is-debug = yes ;
+  }
+  local default-bindir = "$(compiler-prefix)/bin" ;
+  local bindir = [ get-bindir $(prefix) : $(properties) : $(gcc-for-clang) ] ;
+  local libdir = [ get-libdir $(prefix) : $(properties) : $(gcc-for-clang) ] ;
+  local default-libdir ;
+  if [ regex.match "(/lib64)" : "$(libdir)" : 1 ]
+  {
+    default-libdir = "$(compiler-prefix)/lib64" ;
+  }
+  else
+  {
+    default-libdir = "$(compiler-prefix)/lib" ;
+  }
+  local default-debug-libdir ;
+  if $(is-debug)
+  {
+    default-debug-libdir = "$(default-libdir)/debug" ;
+  }
+  local includedir = [ get-includedir $(prefix) : $(properties) : $(gcc-for-clang) ] ;
+  local commands ;
+  if $(build) in x86_64-unknown-linux-gnu i686-pc-linux-gnu
+  {
+    commands += "PATH=\"$(default-bindir)\$\{PATH\:\+\:\$PATH\}\"" ;
+    commands += "export PATH" ;
+    if $(is-debug)
+    {
+      commands += "LD_LIBRARY_PATH=\"$(libdir):$(default-debug-libdir):$(default-libdir)\$\{LD_LIBRARY_PATH\:\+\:\$LD_LIBRARY_PATH\}\"" ;
+      commands += "export LD_LIBRARY_PATH" ;
+      commands += "LD_RUN_PATH=\"$(libdir):$(default-debug-libdir):$(default-libdir)\$\{LD_RUN_PATH\:\+\:\$LD_RUN_PATH\}\"" ;
+      commands += "export LD_RUN_PATH" ;
+    }
+    else
+    {
+      commands += "LD_LIBRARY_PATH=\"$(libdir):$(default-libdir)\$\{LD_LIBRARY_PATH\:\+\:\$LD_LIBRARY_PATH\}\"" ;
+      commands += "export LD_LIBRARY_PATH" ;
+      commands += "LD_RUN_PATH=\"$(libdir):$(default-libdir)\$\{LD_RUN_PATH\:\+\:\$LD_RUN_PATH\}\"" ;
+      commands += "export LD_RUN_PATH" ;
+    }
+  }
+  else if $(build) in x86_64-w64-mingw32 i686-w64-mingw32 i686-pc-cygwin
+  {
+    commands += "PATH=\"$(libdir)\;$(bindir)\$\{PATH\:\+\;\$PATH}\"" ;
+    commands += "export PATH" ;
+  }
+  else
+  {
+    errors.error "`<build>$(build)' is not valid" ;
+  }
+  commands += "CPATH=\"$(includedir)\$\{CPATH\:\+\:\$CPATH\}\"" ;
+  commands += "export CPATH" ;
+  commands += "LIBRARY_PATH=\"$(libdir)\$\{LIBRARY_PATH\:\+\:\$LIBRARY_PATH\}\"" ;
+  commands += "export LIBRARY_PATH" ;
+  commands = $(commands:J="\n") ;
+  return $(commands) ;
+}
+
 rule prepend-shared-library-path-variable-command ( prefix : compiler : gcc-for-clang ? )
 {
   if ! [ is-valid "$(compiler)" ]
@@ -549,7 +1009,7 @@ rule prepend-shared-library-path-variable-command ( prefix : compiler : gcc-for-
   }
   else
   {
-    shared-library-path = "$(compiler-prefix)/lib" ;
+    shared-library-path = "$(compiler-prefix)/lib64" ;
   }
   shared-library-path = [ path.native "$(shared-library-path)" ] ;
   return [ common.prepend-path-variable-command [ os.shared-library-path-variable ] : "$(shared-library-path)" ] ;

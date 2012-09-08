@@ -62,11 +62,8 @@ explicit compiler-dep ;
 
 
 
-for local version in $(OPENMPI_VERSIONS)
-{
-  make "$(INTRO_ROOT_DIR)/openmpi-$(version).tar.bz2" : : @download ;
-  explicit "$(INTRO_ROOT_DIR)/openmpi-$(version).tar.bz2" ;
-}
+make "$(INTRO_ROOT_DIR)/openmpi-$(OPENMPI).tar.bz2" : : @download ;
+explicit "$(INTRO_ROOT_DIR)/openmpi-$(OPENMPI).tar.bz2" ;
 
 rule download ( targets * : sources * : properties * )
 {
@@ -109,22 +106,19 @@ actions download
 
 
 
-for local version in $(OPENMPI_VERSIONS)
-{
-  # Use `README' file as a target representing the completion of
-  # decompression action. It is suitable for the purpose because of the
-  # following reasons;
-  #
-  #   - The name of this file is considered stable even if the version
-  #     changes.
-  #   - This file won't be modified during the build procedure.
-  #
-  make "$(INTRO_ROOT_DIR)/openmpi-$(version)/README"
-    : "$(INTRO_ROOT_DIR)/openmpi-$(version).tar.bz2"
-    : @expand
-    ;
-  explicit "$(INTRO_ROOT_DIR)/openmpi-$(version)/README" ;
-}
+# Use `README' file as a target representing the completion of
+# decompression action. It is suitable for the purpose because of the
+# following reasons;
+#
+#   - The name of this file is considered stable even if the version
+#     changes.
+#   - This file won't be modified during the build procedure.
+#
+make "$(INTRO_ROOT_DIR)/openmpi-$(OPENMPI)/README"
+  : "$(INTRO_ROOT_DIR)/openmpi-$(OPENMPI).tar.bz2"
+  : @expand
+  ;
+explicit "$(INTRO_ROOT_DIR)/openmpi-$(OPENMPI)/README" ;
 
 rule expand ( targets * : sources * : properties * )
 {
@@ -188,7 +182,7 @@ rule srcdir-req ( properties * )
   assert-unspecified <openmpi-hidden>     : $(properties) ;
 
   local version = [ feature.get-values <openmpi> : $(properties) ] ;
-  return <source>"$(INTRO_ROOT_DIR)/openmpi-$(version)/README/<openmpi>unspecified/<openmpi-hidden>$(version)" ;
+  return <source>"$(INTRO_ROOT_DIR)/openmpi-$(version)/README/<openmpi>unspecified/<openmpi-hidden>$(version)/$(DEFAULT_PROPERTIES)" ;
 }
 
 alias srcdir : : <conditional>@srcdir-req ;

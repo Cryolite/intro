@@ -180,6 +180,8 @@ fi
 # `$objdir/gmp' during the bootstrap procedure, whereas `<gmpxx.h>'
 # resides in `$srcdir/gmp'. So, `CPATH' environment variable is set
 # to include the paths to those header files.
+LD_LIBRARY_PATH="$objdir/prev-opcodes/.libs:$objdir/prev-bfd/.libs${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH
 if [ -n "$stream" ]; then
     ( cd "$objdir" && env CPATH="$objdir/gmp:$srcdir/gmp${CPATH:+:$CPATH}" LD_RUN_PATH="$libdir${LD_RUN_PATH:+:$LD_RUN_PATH}" make --jobs=$concurrency >> "$stream" 2>&1 )
     if [ $? -ne 0 ]; then
@@ -238,42 +240,21 @@ fi
 
 
 # Install the modified specfile and wrapper scripts.
-install --mode=755 "$intro_root_dir/template/$triplet/hack-gcc-specs" "$compiler_prefix/bin"
+install --mode=755 "${intro_root_dir}/template/$triplet/hack-gcc-specs" "${compiler_prefix}/bin"
 if [ $? -ne 0 ]; then
     echo    "ERROR: failed to install the modified specfile for $compiler_description ($triplet)." 1>&2
     echo -n "ERROR: failed to install the modified specfile for $compiler_description ($triplet)." | eval $awacs
     exit 1
 fi
-if [ $multitarget = yes ]; then
-    install --mode=755 "$intro_root_dir/template/$triplet/gcc-wrapper-64" "$compiler_prefix/bin/gcc-wrapper"
-    if [ $? -ne 0 ]; then
-        echo    "ERROR: failed to install the wrapper scripts for $compiler_description ($triplet)." 1>&2
-        echo -n "ERROR: failed to install the wrapper scripts for $compiler_description ($triplet)." | eval $awacs
-        exit 1
-    fi
-    install --mode=755 "$intro_root_dir/template/$triplet/gcc-wrapper-32" "$compiler_prefix/bin/gcc-wrapper-32"
-    if [ $? -ne 0 ]; then
-        echo    "ERROR: failed to install the wrapper scripts for $compiler_description ($triplet)." 1>&2
-        echo -n "ERROR: failed to install the wrapper scripts for $compiler_description ($triplet)." | eval $awacs
-        exit 1
-    fi
-    install --mode=755 "$intro_root_dir/template/$triplet/g++-wrapper-64" "$compiler_prefix/bin/g++-wrapper"
-    if [ $? -ne 0 ]; then
-        echo    "ERROR: failed to install the wrapper scripts for $compiler_description ($triplet)." 1>&2
-        echo -n "ERROR: failed to install the wrapper scripts for $compiler_description ($triplet)." | eval $awacs
-        exit 1
-    fi
-    install --mode=755 "$intro_root_dir/template/$triplet/g++-wrapper-32" "$compiler_prefix/bin/g++-wrapper-32"
-    if [ $? -ne 0 ]; then
-        echo    "ERROR: failed to install the wrapper scripts for $compiler_description ($triplet)." 1>&2
-        echo -n "ERROR: failed to install the wrapper scripts for $compiler_description ($triplet)." | eval $awacs
-        exit 1
-    fi
-else
-    install --mode=755 "$intro_root_dir/template/$triplet/gcc-wrapper" "$intro_root_dir/template/$triplet/g++-wrapper" "$compiler_prefix/bin"
-    if [ $? -ne 0 ]; then
-        echo    "ERROR: failed to install the wrapper scripts for $compiler_description ($triplet)." 1>&2
-        echo -n "ERROR: failed to install the wrapper scripts for $compiler_description ($triplet)." | eval $awacs
-        exit 1
-    fi
+install --mode=755 "${intro_root_dir}/template/$triplet/gcc-wrapper" "${compiler_prefix}/bin"
+if [ $? -ne 0 ]; then
+    echo    "ERROR: failed to install \`gcc-wrapper' wrapper script to \`${compiler_prefix}/bin' for $compiler_description ($triplet)." 1>&2
+    echo -n "ERROR: failed to install \`gcc-wrapper' wrapper script to \`${compiler_prefix}/bin' for $compiler_description ($triplet)." | eval $awacs
+    exit 1
+fi
+install --mode=755 "${intro_root_dir}/template/$triplet/g++-wrapper" "${compiler_prefix}/bin"
+if [ $? -ne 0 ]; then
+    echo    "ERROR: failed to install \`g++-wrapper' wrapper script to \`${compiler_prefix}/bin' for $compiler_description ($triplet)." 1>&2
+    echo -n "ERROR: failed to install \`g++-wrapper' wrapper script to \`${compiler_prefix}/bin' for $compiler_description ($triplet)." | eval $awacs
+    exit 1
 fi

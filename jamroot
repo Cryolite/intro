@@ -176,7 +176,6 @@ local ppl-versions ;
 local isl-versions ;
 local cloog-versions ;
 local icu4c-versions ;
-local openmpi-versions ;
 local boost-versions ;
 local clang-versions ;
 
@@ -587,20 +586,38 @@ if $(cloog)
 }
 
 
-local icu4c = [ option.get with-icu4c : latest : latest ] ;
+local icu4c = [ option.get with-icu4c : : latest ] ;
 if $(icu4c) = latest
 {
   icu4c = [ get-icu4c-latest-version ] ;
 }
-if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)?)$" : $(icu4c) : 1 ]
+if $(icu4c)
 {
-  errors.error "an invalid value `$(icu4c)' for `--with-icu4c'." ;
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)?)$" : $(icu4c) : 1 ]
+  {
+    errors.error "an invalid value `$(icu4c)' for `--with-icu4c'." ;
+  }
+  if ! $(icu4c) in $(icu4c-versions)
+  {
+    icu4c-versions += $(icu4c) ;
+  }
+  ECHO icu4c... $(icu4c) ;
 }
-if ! $(icu4c) in $(icu4c-versions)
+
+
+local openmpi = [ option.get enable-openmpi : : latest ] ;
+if $(openmpi) = latest
 {
-  icu4c-versions += $(icu4c) ;
+  openmpi = [ get-openmpi-latest-version ] ;
 }
-ECHO icu4c... $(icu4c) ;
+if $(openmpi)
+{
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : $(openmpi) : 1 ]
+  {
+    errors.error "an invalid value `$(openmpi)' for `--enable-openmpi'." ;
+  }
+  ECHO openmpi... $(openmpi) ;
+}
 
 
 local mpi-backend = [ option.get with-mpi-backend : unspecified : IMPLIED ] ;
@@ -612,6 +629,14 @@ if ! $(mpi-backend) in openmpi mpich2 unspecified
 {
   errors.error "ERROR: `$(mpi-backend)' is a wrong value for `--with-mpi-backend' option.\n"
                "             Allowed values are `openmpi' or `mpich2'." ;
+}
+if $(mpi-backend) = openmpi
+{
+  if ! $(openmpi)
+  {
+    openmpi = [ get-openmpi-latest-version ] ;
+    ECHO openmpi... $(openmpi) (implied by --with-mpi-backend=openmpi) ;
+  }
 }
 ECHO mpi backend... $(mpi-backend) ;
 
@@ -745,7 +770,11 @@ else
 
 
 
-project intro : build-dir bin ;
+project intro
+  : default-build
+    <variant>release
+  : build-dir bin
+  ;
 
 
 constant TRIPLET : $(triplet) ;
@@ -909,6 +938,20 @@ if $(icu4c-versions)
   constant ICU4C_VERSIONS : $(icu4c-versions) ;
   ECHO ICU4C_VERSIONS... $(ICU4C_VERSIONS) ;
 }
+else
+{
+  ECHO ICU4C_VERSIONS... N/A ;
+}
+
+if $(openmpi)
+{
+  constant OPENMPI : $(openmpi) ;
+  ECHO OPENMPI... $(OPENMPI) ;
+}
+else
+{
+  ECHO OPENMPI... N/A ;
+}
 
 if $(boost-versions)
 {
@@ -1069,31 +1112,11 @@ feature icu4c-hidden : [ feature.values <icu4c> ]    : propagated incidental ;
   constant USE_ICU4C : $(use-icu4c) ;
 }
 
+feature openmpi        : unspecified $(openmpi)       : propagated            ;
+feature openmpi-hidden : [ feature.values <openmpi> ] : propagated incidental ;
+
 feature mpi-backend        : unspecified openmpi mpich2         : propagated            ;
 feature mpi-backend-hidden : [ feature.values <mpi-backend> ]   : propagated incidental ;
-
-local openmpi = unspecified ;
-if $(mpi-backend) = openmpi
-{
-  openmpi = [ SHELL "\"$(INTRO_ROOT_DIR)/openmpi-latest.sh\" || echo -n 'error'" ] ;
-  if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : $(openmpi) : 1 ]
-  {
-    constant OPENMPI : $(openmpi) ;
-    constant OPENMPI_VERSIONS : $(openmpi) ;
-    ECHO OPENMPI_VERSIONS... $(OPENMPI_VERSIONS) ;
-    feature openmpi        : unspecified $(openmpi)       : propagated            ;
-    feature openmpi-hidden : [ feature.values <openmpi> ] : propagated incidental ;
-  }
-  else
-  {
-    errors.error "ERROR: failed to extract OpenMPI latest version." ;
-  }
-}
-else
-{
-  feature openmpi        : unspecified                  : propagated            ;
-  feature openmpi-hidden : [ feature.values <openmpi> ] : propagated incidental ;
-}
 
 feature boost        : unspecified $(boost-versions) :                       ;
 feature boost-hidden : [ feature.values <boost> ]    : propagated incidental ;
@@ -1127,6 +1150,8 @@ feature valgrind-hidden : [ feature.values <valgrind> ] : propagated incidental 
   }
   constant USE_VALGRIND : $(use-valgrind) ;
 }
+
+constant DEFAULT_PROPERTIES : "<std>c++03/<variant>debug/<ssp>off/<mudflap>off/<address-sanitizer>off/<libstdc++-debug-mode>off" ;
 
 for local enabled-compiler in $(enabled-compilers)
 {

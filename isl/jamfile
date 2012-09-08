@@ -76,8 +76,8 @@ rule download ( targets * : sources * : properties * )
   assert-unspecified <triplet>            : $(properties) ;
   assert-unspecified <multitarget>        : $(properties) ;
   assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-unspecified <gmp>                : $(properties) ;
-  assert-specified   <gmp-hidden>         : $(properties) ;
+  #assert-unspecified <gmp>                : $(properties) ;
+  #assert-specified   <gmp-hidden>         : $(properties) ;
   assert-unspecified <isl>                : $(properties) ;
   assert-specified   <isl-hidden>         : $(properties) ;
   assert-unspecified <compiler>           : $(properties) ;
@@ -138,8 +138,8 @@ rule expand ( targets * : sources * : properties * )
   assert-unspecified <triplet>            : $(properties) ;
   assert-unspecified <multitarget>        : $(properties) ;
   assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-unspecified <gmp>                : $(properties) ;
-  assert-specified   <gmp-hidden>         : $(properties) ;
+  #assert-unspecified <gmp>                : $(properties) ;
+  #assert-specified   <gmp-hidden>         : $(properties) ;
   assert-unspecified <isl>                : $(properties) ;
   assert-specified   <isl-hidden>         : $(properties) ;
   assert-unspecified <compiler>           : $(properties) ;
@@ -179,15 +179,15 @@ rule srcdir-req ( properties * )
   assert-unspecified <triplet>            : $(properties) ;
   assert-unspecified <multitarget>        : $(properties) ;
   assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-unspecified <gmp>                : $(properties) ;
-  assert-specified   <gmp-hidden>         : $(properties) ;
+  #assert-unspecified <gmp>                : $(properties) ;
+  #assert-specified   <gmp-hidden>         : $(properties) ;
   assert-unspecified <isl>                : $(properties) ;
   assert-specified   <isl-hidden>         : $(properties) ;
   assert-unspecified <compiler>           : $(properties) ;
   assert-unspecified <compiler-hidden>    : $(properties) ;
 
   local version = [ feature.get-values <isl-hidden> : $(properties) ] ;
-  return <source>"$(INTRO_ROOT_DIR)/isl-$(version)/ChangeLog" ;
+  return <source>"$(INTRO_ROOT_DIR)/isl-$(version)/ChangeLog/$(DEFAULT_PROPERTIES)" ;
 }
 
 alias srcdir : : <conditional>@srcdir-req ;

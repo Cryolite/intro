@@ -78,10 +78,10 @@ rule download ( targets * : sources * : properties * )
   assert-unspecified <triplet>            : $(properties) ;
   assert-unspecified <multitarget>        : $(properties) ;
   assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-unspecified <gmp>                : $(properties) ;
-  assert-specified   <gmp-hidden>         : $(properties) ;
-  assert-unspecified <mpfr>               : $(properties) ;
-  assert-specified   <mpfr-hidden>        : $(properties) ;
+  #assert-unspecified <gmp>                : $(properties) ;
+  #assert-specified   <gmp-hidden>         : $(properties) ;
+  #assert-unspecified <mpfr>               : $(properties) ;
+  #assert-specified   <mpfr-hidden>        : $(properties) ;
   assert-unspecified <mpc>                : $(properties) ;
   assert-specified   <mpc-hidden>         : $(properties) ;
   assert-unspecified <compiler>           : $(properties) ;
@@ -150,10 +150,10 @@ rule expand ( targets * : sources * : properties * )
   assert-unspecified <triplet>            : $(properties) ;
   assert-unspecified <multitarget>        : $(properties) ;
   assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-unspecified <gmp>                : $(properties) ;
-  assert-specified   <gmp-hidden>         : $(properties) ;
-  assert-unspecified <mpfr>               : $(properties) ;
-  assert-specified   <mpfr-hidden>        : $(properties) ;
+  #assert-unspecified <gmp>                : $(properties) ;
+  #assert-specified   <gmp-hidden>         : $(properties) ;
+  #assert-unspecified <mpfr>               : $(properties) ;
+  #assert-specified   <mpfr-hidden>        : $(properties) ;
   assert-unspecified <mpc>                : $(properties) ;
   assert-specified   <mpc-hidden>         : $(properties) ;
   assert-unspecified <compiler>           : $(properties) ;
@@ -193,17 +193,17 @@ rule srcdir-req ( properties * )
   assert-unspecified <triplet>            : $(properties) ;
   assert-unspecified <multitarget>        : $(properties) ;
   assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-unspecified <gmp>                : $(properties) ;
-  assert-specified   <gmp-hidden>         : $(properties) ;
-  assert-unspecified <mpfr>               : $(properties) ;
-  assert-specified   <mpfr-hidden>        : $(properties) ;
+  #assert-unspecified <gmp>                : $(properties) ;
+  #assert-specified   <gmp-hidden>         : $(properties) ;
+  #assert-unspecified <mpfr>               : $(properties) ;
+  #assert-specified   <mpfr-hidden>        : $(properties) ;
   assert-unspecified <mpc>                : $(properties) ;
   assert-specified   <mpc-hidden>         : $(properties) ;
   assert-unspecified <compiler>           : $(properties) ;
   assert-unspecified <compiler-hidden>    : $(properties) ;
 
   local version = [ feature.get-values <mpc-hidden> : $(properties) ] ;
-  return <source>"$(INTRO_ROOT_DIR)/mpc-$(version)/README" ;
+  return <source>"$(INTRO_ROOT_DIR)/mpc-$(version)/README/$(DEFAULT_PROPERTIES)" ;
 }
 
 alias srcdir : : <conditional>@srcdir-req ;

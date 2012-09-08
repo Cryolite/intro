@@ -166,7 +166,7 @@ rule srcdir-req ( properties * )
     errors.error "an internal error." ;
   }
   local version = [ "$(INTRO_ROOT_DIR)/compilers.get-version" $(compiler) ] ;
-  return <source>"$(INTRO_ROOT_DIR)/gcc-$(version)/README/<compiler>unspecified/<compiler-hidden>$(compiler)" ;
+  return <source>"$(INTRO_ROOT_DIR)/gcc-$(version)/README/<compiler>unspecified/<compiler-hidden>$(compiler)/$(DEFAULT_PROPERTIES)" ;
 }
 
 alias srcdir : : <conditional>@srcdir-req ;
@@ -497,7 +497,7 @@ rule install-req ( properties * )
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
   local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-  return <source>"$(compiler-prefix)/bin/g++-wrapper" ;
+  return <source>"$(compiler-prefix)/bin/g++-wrapper/$(DEFAULT_PROPERTIES)" ;
 }
 
 alias install : : <conditional>@install-req ;

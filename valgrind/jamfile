@@ -263,7 +263,7 @@ rule srcdir-req ( properties * )
   assert-specified   <valgrind-hidden>    : $(properties) ;
 
   local version = [ feature.get-values <valgrind-hidden> : $(properties) ] ;
-  return <source>"$(INTRO_ROOT_DIR)/valgrind-$(version)/README" ;
+  return <source>"$(INTRO_ROOT_DIR)/valgrind-$(version)/README/$(DEFAULT_PROPERTIES)" ;
 }
 
 alias srcdir : : <conditional>@srcdir-req ;

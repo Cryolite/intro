@@ -186,7 +186,7 @@ rule srcdir-req ( properties * )
   assert-unspecified <compiler-hidden>    : $(properties) ;
 
   local version = [ feature.get-values <ppl-hidden> : $(properties) ] ;
-  return <source>"$(INTRO_ROOT_DIR)/ppl-$(version)/README" ;
+  return <source>"$(INTRO_ROOT_DIR)/ppl-$(version)/README/$(DEFAULT_PROPERTIES)" ;
 }
 
 alias srcdir : : <conditional>@srcdir-req ;

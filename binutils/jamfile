@@ -181,7 +181,7 @@ rule srcdir-req ( properties * )
   assert-unspecified <compiler-hidden>    : $(properties) ;
 
   local version = [ feature.get-values <binutils-hidden> : $(properties) ] ;
-  return <source>"$(INTRO_ROOT_DIR)/binutils-$(version)/README" ;
+  return <source>"$(INTRO_ROOT_DIR)/binutils-$(version)/README/$(DEFAULT_PROPERTIES)" ;
 }
 
 alias srcdir : : <conditional>@srcdir-req ;

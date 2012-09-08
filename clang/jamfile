@@ -431,7 +431,7 @@ rule srcdir-req ( properties * )
 
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local version = [ get-version $(properties) ] ;
-  return "<source>$(INTRO_ROOT_DIR)/llvm-$(version)/README.txt/<compiler>unspecified/<compiler-hidden>$(compiler)" ;
+  return "<source>$(INTRO_ROOT_DIR)/llvm-$(version)/README.txt/<compiler>unspecified/<compiler-hidden>$(compiler)/$(DEFAULT_PROPERTIES)" ;
 }
 
 alias srcdir

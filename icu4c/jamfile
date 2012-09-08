@@ -186,7 +186,7 @@ rule srcdir-req ( properties * )
   assert-specified   <icu4c-hidden>       : $(properties) ;
 
   local version = [ feature.get-values <icu4c-hidden> : $(properties) ] ;
-  return <source>"$(INTRO_ROOT_DIR)/icu-$(version)/readme.html" ;
+  return <source>"$(INTRO_ROOT_DIR)/icu-$(version)/readme.html/$(DEFAULT_PROPERTIES)" ;
 }
 
 alias srcdir : : <conditional>@srcdir-req ;

@@ -15,8 +15,7 @@ else
 fi
 
 bindir=`(cd \`dirname "$0"\`; pwd)`
-dir=`dirname "$bindir"`
-libdir="$dir/lib"
+prefix=`dirname "$bindir"`
 
 if which mktemp 1>/dev/null 2>&1; then
   :
@@ -51,10 +50,7 @@ ulimit -m 2097152
 
 specs=`mktemp` || exit
 
-LD_LIBRARY_PATH="$LD_LIBRARY_PATH${LD_LIBRARY_PATH:+:}$libdir"
-export LD_LIBRARY_PATH
-
-{ "$bindir/hack-gcc-specs" > "$specs"; } && "$bindir/gcc" -specs="$specs" "$@" -Wl,-rpath="$libdir"
+{ "$bindir/hack-gcc-specs" > "$specs"; } && "$bindir/gcc" -specs="$specs" "$@"
 result=$?
 
 rm -f "$specs"
