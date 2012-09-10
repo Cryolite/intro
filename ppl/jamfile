@@ -5,7 +5,19 @@ import errors ;
 import feature ;
 import make ;
 import path ;
-import "$(INTRO_ROOT_DIR)/compilers" ;
+import "$(INTRO_ROOT_DIR)/compilers"
+  : is-gcc
+    is-clang
+    get-compiler-description
+    get-compiler-prefix
+    get-libdir
+    get-includedir
+    get-cc
+    get-cflags
+    get-cxx
+    get-cxxflags
+    get-environment-commands
+  ;
 
 
 rule assert-specified ( feature : properties * )
@@ -41,11 +53,11 @@ rule compiler-dep-req ( properties * )
   local multitarget = [ feature.get-values <multitarget-hidden> : $(properties) ] ;
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local result ;
-  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
+  if [ is-gcc $(compiler) ]
   {
     result = <source>../gcc//install/<multitarget>$(multitarget)/<multitarget-hidden>unspecified ;
   }
-  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
+  else if [ is-clang $(compiler) ]
   {
     result = <source>../clang//install ;
   }
@@ -89,19 +101,19 @@ rule download ( targets * : sources * : properties * )
 }
 actions download
 {
-  rm -rf "$(<)" || exit 1
-  if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)" && wget -- '$(URL)' >> "$(STREAM)" 2>&1 )
+  rm -rf '$(<)' || exit 1
+  if [ -n '$(STREAM)' ]; then
+    ( cd '$(<:D)' && wget -- '$(URL)' >> '$(STREAM)' 2>&1 )
   else
-    ( cd "$(<:D)" && wget --quiet -- '$(URL)' )
+    ( cd '$(<:D)' && wget --quiet -- '$(URL)' )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to download PPL $(VERSION) tarball." 1>&2
-    echo -n "ERROR: failed to download PPL $(VERSION) tarball." | $(AWACS)
-    rm -rf "$(<)"
+    echo    'ERROR: failed to download PPL $(VERSION) tarball.' 1>&2
+    echo -n 'ERROR: failed to download PPL $(VERSION) tarball.' | $(AWACS)
+    rm -rf '$(<)'
     exit 1
   fi
-  [ -f "$(<)" ] || exit 1
+  [ -f '$(<)' ] || exit 1
   exit 0
 }
 
@@ -149,25 +161,25 @@ rule expand ( targets * : sources * : properties * )
 }
 actions expand
 {
-  rm -rf "$(<:D)" || exit 1
-  [ -f "$(>)" ] || exit 1
-  if [ -n "$(STREAM)" ]; then
-    tar xjvf "$(>)" --directory="$(INTRO_ROOT_DIR)" >> "$(STREAM)" 2>&1
+  rm -rf '$(<:D)' || exit 1
+  [ -f '$(>)' ] || exit 1
+  if [ -n '$(STREAM)' ]; then
+    tar xjvf '$(>)' --directory='$(INTRO_ROOT_DIR)' >> '$(STREAM)' 2>&1
   else
-    tar xjf "$(>)" --directory="$(INTRO_ROOT_DIR)"
+    tar xjf '$(>)' --directory='$(INTRO_ROOT_DIR)'
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to expand PPL $(VERSION) tarball." 1>&2
-    echo -n "ERROR: failed to expand PPL $(VERSION) tarball." | $(AWACS)
-    rm -rf "$(<:D)"
+    echo    'ERROR: failed to expand PPL $(VERSION) tarball.' 1>&2
+    echo -n 'ERROR: failed to expand PPL $(VERSION) tarball.' | $(AWACS)
+    rm -rf '$(<:D)'
     exit 1
   fi
   # If the timestamp of the tarball's contents is restored, the modification
   # time of the source directory could be older than the one of the tarball.
   # Such behavior is not desirable because the decompression always happens.
   # Therefore, `touch' is required.
-  touch --no-create "$(<)"
-  [ -f "$(<)" ] || exit 1
+  touch --no-create '$(<)'
+  [ -f '$(<)' ] || exit 1
   exit 0
 }
 
@@ -194,20 +206,22 @@ explicit srcdir ;
 
 
 
-for local compiler in $(COMPILERS)
+rule location-conditional ( properties * )
 {
-  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
-  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-  make "$(compiler-prefix)/include/ppl.hh"
-    : compiler-dep
-      ../gmp//install
-      srcdir/<triplet>unspecified/<multitarget-hidden>unspecified/<compiler>unspecified
-    : @make-install
-    : $(USE_GMP)
-      $(USE_PPL)
-    ;
-  explicit "$(compiler-prefix)/include/ppl.hh" ;
+  local includedir = [ get-includedir "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
+  return <location>"$(includedir)" ;
 }
+
+make ppl.hh
+  : compiler-dep
+    ../gmp//install
+    srcdir/<triplet>unspecified/<multitarget-hidden>unspecified/<compiler>unspecified
+  : @make-install
+  : $(USE_GMP)
+    $(USE_PPL)
+    <conditional>@location-conditional
+  ;
+explicit ppl.hh ;
 
 rule make-install ( targets * : sources * : properties * )
 {
@@ -222,7 +236,7 @@ rule make-install ( targets * : sources * : properties * )
   assert-unspecified <compiler-hidden>    : $(properties) ;
 
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(compiler) ] ;
+  local compiler-description = [ get-compiler-description $(compiler) ] ;
   COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
 
   local version = [ feature.get-values <ppl> : $(properties) ] ;
@@ -237,136 +251,189 @@ rule make-install ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) = ;
 
-  # Set the '--build' and '--host' options for the 'configure' script.
+  # Set the `--prefix' option for the `configure' script.
+  local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local compiler-prefix-native = [ path.native "$(compiler-prefix)" ] ;
+  OPTIONS on $(targets) += "--prefix='$(compiler-prefix-native)'" ;
+
+  # Set the `--libdir' option for the `configure' script.
+  local libdir = [ get-libdir "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
+  local libdir-native = [ path.native "$(libdir)" ] ;
+  OPTIONS on $(targets) += "--libdir='$(libdir-native)'" ;
+
+  # Set the `--includedir' option for the `configure' script.
+  local includedir = [ get-includedir "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
+  local includedir-native = [ path.native "$(includedir)" ] ;
+  OPTIONS on $(targets) += "--includedir='$(includedir-native)'" ;
+
+  # Set the `--build' and `--host' options for the `configure' script.
   local triplet = [ feature.get-values <triplet> : $(properties) ] ;
   TRIPLET on $(targets) = $(triplet) ;
   OPTIONS on $(targets) += --build=$(triplet) ;
   OPTIONS on $(targets) += --host=$(triplet) ;
 
-  # Set the '--prefix' option for the 'configure' script.
-  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
-  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-  OPTIONS on $(targets) += "--prefix=\"$(compiler-prefix)\"" ;
+  local variant = [ feature.get-values <variant> : $(properties) ] ;
+  if $(variant) = debug
+  {
+    OPTIONS on $(targets) += --enable-debugging ;
+    OPTIONS on $(targets) += --enable-assertions ;
+    OPTIONS on $(targets) += --enable-more-assertions ;
+  }
+  else if $(variant) = profile
+  {
+    OPTIONS on $(targets) += --enable-profiling ;
+  }
+
+  OPTIONS on $(targets) += --enable-pch ;
 
   # Set the link variants for the 'configure' script.
   if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
   {
-    OPTIONS on $(targets) += --disable-static ;
     OPTIONS on $(targets) += --enable-shared ;
+    OPTIONS on $(targets) += --disable-static ;
   }
   else
   {
-    OPTIONS on $(targets) += --enable-static ;
     OPTIONS on $(targets) += --enable-shared ;
+    OPTIONS on $(targets) += --enable-static ;
   }
 
-  OPTIONS on $(targets) += --with-gmp=\"$(compiler-prefix)\" ;
+  local cc = [ get-cc "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
+  cc = [ path.native "$(cc)" ] ;
+  OPTIONS on $(targets) += "--with-cc='$(cc)'" ;
 
-  local cc = [ "$(INTRO_ROOT_DIR)/compilers.cc" "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
-  OPTIONS on $(targets) += "CC=\"$(cc)\"" ;
+  local cflags = [ get-cflags $(properties) ] ;
+  if $(cflags)
+  {
+    if [ feature.get-values <variant> : $(properties) ] = lto
+    {
+      OPTIONS on $(targets) += "CFLAGS='$(cflags) -frounding-math -Wall'" ;
+    }
+    else
+    {
+      OPTIONS on $(targets) += "CFLAGS='$(cflags) -g -frounding-math -Wall'" ;
+    }
+  }
 
-  local cxx = [ "$(INTRO_ROOT_DIR)/compilers.cxx" "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
-  OPTIONS on $(targets) += "CXX=\"$(cxx)\"" ;
+  local cxx = [ get-cxx "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
+  cxx = [ path.native "$(cxx)" ] ;
+  OPTIONS on $(targets) += "--with-cxx='$(cxx)'" ;
 
-  PREPEND_SHARED_LIBRARY_PATH_VARIABLE_COMMAND on $(targets) = [ "$(INTRO_ROOT_DIR)/compilers.prepend-shared-library-path-variable-command" "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
+  # Default `CXXFLAGS' seems `-g -O2 -frounding-math -W -Wall'.
+  # When `--enable-profiling' is specified, `-pg -DPPL_PROFILING=1' is added to `CXXFLAGS'.
+  local cxxflags = [ get-cxxflags $(properties) ] ;
+  if $(cxxflags)
+  {
+    # The build of PPL requires GNU extensions.
+    local std = [ feature.get-values <std> : $(properties) ] ;
+    if $(std) = c++03
+    {
+      cxxflags = "$(cxxflags) -std=gnu++03" ;
+    }
+    else if $(std) = c++11
+    {
+      cxxflags = "$(cxxflags) -std=gnu++0x" ;
+    }
+    else
+    {
+      error "`<std>$(std)' is not valid" ;
+    }
+    if $(variant) != lto
+    {
+      # `-g' is default but it is not compatible with `-flto'.
+      cxxflags = "$(cxxflags) -g" ;
+    }
+    if $(variant) = profile
+    {
+      cxxflags = "$(cxxflags) -pg -DPPL_PROFILING=1" ;
+    }
+    cxxflags = "$(cxxflags) -frounding-math -Wall" ;
+    OPTIONS on $(targets) += "CXXFLAGS='$(cxxflags)'" ;
+  }
+
+  local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
+  ENVIRONMENT_COMMANDS on $(targets) = "$(environment-commands)" ;
 }
 actions make-install
 {
   # Restore the hacked configure script. See also `../gcc/jamfile'.
-  if [ -e "$(SRCDIR)/real-configure" ]; then
-    [ ! -x "$(SRCDIR)/real-configure" ] && exit 1
-    mv -f "$(SRCDIR)/real-configure" "$(SRCDIR)/configure" || exit 1
+  if [ -e '$(SRCDIR)/real-configure' ]; then
+    [ ! -x '$(SRCDIR)/real-configure' ] && exit 1
+    mv -f '$(SRCDIR)/real-configure' '$(SRCDIR)/configure' || exit 1
   fi
 
-  [ -x "$(SRCDIR)/configure" ] || exit 1
-  [ -x "$(SRCDIR)/config.sub" ] || exit 1
-  [ `"$(SRCDIR)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit 1
+  [ -x '$(SRCDIR)/configure' ] || exit 1
+  [ -x '$(SRCDIR)/config.sub' ] || exit 1
+  [ `'$(SRCDIR)/config.sub' $(TRIPLET)` = $(TRIPLET) ] || exit 1
 
   # Clean up objdir `$(OBJDIR)'.
-  { mkdir -p "$(OBJDIR)" && ( cd "$(OBJDIR)" && rm -rf * ); } || exit 1
+  { mkdir -p '$(OBJDIR)' && ( cd '$(OBJDIR)' && rm -rf * ); } || exit 1
 
-  $(PREPEND_SHARED_LIBRARY_PATH_VARIABLE_COMMAND)
+  $(ENVIRONMENT_COMMANDS)
 
-  if [ -n "$(STREAM)" ]; then
-    ( cd "$(OBJDIR)" && "$(SRCDIR)/configure" $(OPTIONS) >> "$(STREAM)" 2>&1 )
+  if [ -n '$(STREAM)' ]; then
+    ( cd '$(OBJDIR)' && '$(SRCDIR)/configure' $(OPTIONS) >> '$(STREAM)' 2>&1 )
   else
-    ( cd "$(OBJDIR)" && "$(SRCDIR)/configure" $(OPTIONS) )
+    ( cd '$(OBJDIR)' && '$(SRCDIR)/configure' $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'configure' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'configure' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`configure' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to \`configure' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
 
   # Check the creation of `Makefile'.
-  [ -f "$(OBJDIR)/Makefile" ] || exit 1
+  [ -f '$(OBJDIR)/Makefile' ] || exit 1
 
-  if [ -n "$(STREAM)" ]; then
-    ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
+  if [ -n '$(STREAM)' ]; then
+    ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) >> '$(STREAM)' 2>&1 )
   else
-    ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) )
+    ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`make' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to \`make' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
 
-  if [ -n "$(STREAM)" ]; then
+  if [ -n '$(STREAM)' ]; then
     # 0.12 can't run `make check'. See https://www.cs.unipr.it/mantis/view.php?id=350.
     if [ $(VERSION) != 0.12 ]; then
-      ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) check >> "$(STREAM)" 2>&1 )
+      ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) check >> '$(STREAM)' 2>&1 )
     fi
   else
     # 0.12 can't run `make check'. See https://www.cs.unipr.it/mantis/view.php?id=350.
     if [ $(VERSION) != 0.12 ]; then
-      ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) check )
+      ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) check )
     fi
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make check' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make check' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`make check' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to \`make check' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
 
-  if [ -n "$(STREAM)" ]; then
-    ( cd "$(OBJDIR)" && make install >> "$(STREAM)" 2>&1 )
+  if [ -n '$(STREAM)' ]; then
+    ( cd '$(OBJDIR)' && make install >> '$(STREAM)' 2>&1 )
   else
-    ( cd "$(OBJDIR)" && make install )
+    ( cd '$(OBJDIR)' && make install )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make install' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make install' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`make install' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to \`make install' PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
 
-  [ -f "$(<)" ] || exit 1
+  [ -f '$(<)' ] || exit 1
 
   # Clean up objdir `$(OBJDIR)'.
-  rm -rf "$(OBJDIR)" || exit 1
+  rm -rf '$(OBJDIR)' || exit 1
 
-  echo -n "PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built." | $(AWACS)
+  echo -n 'PPL $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built.' | $(AWACS)
   exit 0
 }
 
 
-rule install-req ( properties * )
-{
-  assert-specified   <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-specified   <multitarget-hidden> : $(properties) ;
-  assert-unspecified <gmp>                : $(properties) ;
-  assert-specified   <gmp-hidden>         : $(properties) ;
-  assert-unspecified <ppl>                : $(properties) ;
-  assert-specified   <ppl-hidden>         : $(properties) ;
-  assert-specified   <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
 
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
-  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-  return <source>"$(compiler-prefix)/include/ppl.hh" ;
-}
-
-alias install : : <conditional>@install-req ;
+alias install : ppl.hh ;
 explicit install ;

@@ -243,6 +243,7 @@ rule make-install ( targets * : sources * : properties * )
   # Set the `--prefix' option for the `configure' script.
   local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
   local compiler-prefix-native = [ path.native "$(compiler-prefix)" ] ;
+  COMPILER_PREFIX on $(targets) += "$(compiler-prefix-native)" ;
   OPTIONS on $(targets) += "--prefix='$(compiler-prefix-native)'" ;
 
   # Set the `--libdir' option for the `configure' script.
@@ -368,11 +369,11 @@ actions make-install
     exit 1
   fi
 
-  # `gmp.h' is deployed to `(PREFIX)/include' even if `--includedir' is
+  # `gmp.h' is deployed to `(COMPILER_PREFIX)/include' even if `--includedir' is
   # explicitly specified. So, hack is needed to deploy `gmp.h' to
   # `(INCLUDEDIR)/gmp.h'.
-  if [ '$(INCLUDEDIR)' != '$(PREFIX)/include' ]; then
-    mv -f '$(PREFIX)/include/gmp.h' '$(INCLUDEDIR)'
+  if [ '$(INCLUDEDIR)' != '$(COMPILER_PREFIX)/include' ]; then
+    mv -f '$(COMPILER_PREFIX)/include/gmp.h' '$(INCLUDEDIR)'
     if [ $? -ne 0 ]; then
       echo    "ERROR: failed to move \`gmp.h' to \`INCLUDEDIR' for GMP $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
       echo -n "ERROR: failed to move \`gmp.h' to \`INCLUDEDIR' for GMP $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
