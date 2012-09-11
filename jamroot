@@ -595,7 +595,7 @@ if $(cloog)
 }
 
 
-local icu4c = [ option.get with-icu4c : : latest ] ;
+local icu4c = [ option.get enable-icu4c : : latest ] ;
 if $(icu4c) = latest
 {
   icu4c = [ get-icu4c-latest-version ] ;
@@ -604,7 +604,7 @@ if $(icu4c)
 {
   if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)?)$" : $(icu4c) : 1 ]
   {
-    errors.error "an invalid value `$(icu4c)' for `--with-icu4c'." ;
+    errors.error "an invalid value `$(icu4c)' for `--enable-icu4c'." ;
   }
   if ! $(icu4c) in $(icu4c-versions)
   {

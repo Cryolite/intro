@@ -10,6 +10,7 @@ import "$(INTRO_ROOT_DIR)/compilers"
     is-clang
     get-compiler-description
     get-compiler-prefix
+    get-bindir
     get-libdir
     get-includedir
     get-cc
@@ -267,6 +268,11 @@ rule make-install ( targets * : sources * : properties * )
   local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
   local compiler-prefix-native = [ path.native "$(compiler-prefix)" ] ;
   OPTIONS on $(targets) += "--prefix='$(compiler-prefix-native)'" ;
+
+  # Set `--bindir' option for `configure' script.
+  local bindir = [ get-bindir "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
+  local bindir-native = [ path.native "$(bindir)" ] ;
+  OPTIONS on $(targets) += "--bindir='$(bindir-native)'" ;
 
   # Set the `--libdir' option for the `configure' script.
   local libdir = [ get-libdir "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
