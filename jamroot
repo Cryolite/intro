@@ -639,6 +639,10 @@ if ! $(mpi-backend) in openmpi mpich2 unspecified
   errors.error "ERROR: `$(mpi-backend)' is a wrong value for `--with-mpi-backend' option.\n"
                "             Allowed values are `openmpi' or `mpich2'." ;
 }
+if $(mpi-backend) = unspecified && $(openmpi)
+{
+  mpi-backend = openmpi ;
+}
 if $(mpi-backend) = openmpi
 {
   if ! $(openmpi)
@@ -650,18 +654,21 @@ if $(mpi-backend) = openmpi
 ECHO mpi backend... $(mpi-backend) ;
 
 
-local boost = [ option.get enable-boost : latest : latest ] ;
+local boost = [ option.get enable-boost : : latest ] ;
 if $(boost) = latest
 {
   boost = [ get-boost-latest-version ] ;
 }
-if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(boost)" : 1 ]
+if $(boost)
 {
-  errors.error "an invalid value `$(boost)' for `--enable-boost'." ;
-}
-if ! $(boost) in $(boost-versions)
-{
-  boost-versions += $(boost) ;
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(boost)" : 1 ]
+  {
+    errors.error "an invalid value `$(boost)' for `--enable-boost'." ;
+  }
+  if ! $(boost) in $(boost-versions)
+  {
+    boost-versions += $(boost) ;
+  }
 }
 if $(boost-versions)
 {
@@ -1204,13 +1211,13 @@ for local enabled-compiler in $(enabled-compilers)
 
   if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" "$(enabled-compiler)" ]
   {
-    for local boost in $(boost-versions)
+    if $(clang)
     {
-      if $(clang)
-      {
-        srcs += clang//install/<multitarget-hidden>$(multitarget) ;
-      }
+      srcs += clang//install/<multitarget-hidden>$(multitarget) ;
+    }
 
+    if ! $(boost-versions)
+    {
       alias $(enabled-compiler)
       : gcc//install/<multitarget>$(multitarget)
         $(srcs)
@@ -1225,10 +1232,33 @@ for local enabled-compiler in $(enabled-compilers)
         <isl-hidden>$(isl)
         <cloog-hidden>$(cloog)
         <icu4c-hidden>$(icu4c)
-        <boost-hidden>$(boost)
         <clang-hidden>$(clang)
         <valgrind-hidden>$(valgrind)
       ;
+    }
+    else
+    {
+      for local boost in $(boost-versions)
+      {
+        alias $(enabled-compiler)
+        : gcc//install/<multitarget>$(multitarget)
+          $(srcs)
+          openmpi//install/<multitarget-hidden>$(multitarget)/<mpi-backend>$(mpi-backend)/<openmpi>$(OPENMPI)
+        : <triplet>$(triplet)
+          <compiler>$(enabled-compiler)
+          <binutils-hidden>$(binutils)
+          <gmp-hidden>$(gmp)
+          <mpfr-hidden>$(mpfr)
+          <mpc-hidden>$(mpc)
+          <ppl-hidden>$(ppl)
+          <isl-hidden>$(isl)
+          <cloog-hidden>$(cloog)
+          <icu4c-hidden>$(icu4c)
+          <boost-hidden>$(boost)
+          <clang-hidden>$(clang)
+          <valgrind-hidden>$(valgrind)
+        ;
+      }
     }
   }
   else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" "$(enabled-compiler)" ]
