@@ -5,7 +5,19 @@ import errors ;
 import feature ;
 import make ;
 import path ;
-import "$(INTRO_ROOT_DIR)/compilers" ;
+import "$(INTRO_ROOT_DIR)/compilers"
+  : is-gcc
+    is-clang
+    get-compiler-description
+    get-compiler-prefix
+    get-libdir
+    get-includedir
+    get-cc
+    get-cflags
+    get-cxx
+    get-cxxflags
+    get-environment-commands
+  ;
 
 
 rule assert-specified ( feature : properties * )
@@ -43,11 +55,11 @@ rule compiler-dep-req ( properties * )
   local multitarget = [ feature.get-values <multitarget-hidden> : $(properties) ] ;
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local result ;
-  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
+  if [ is-gcc $(compiler) ]
   {
     result = <source>../gcc//install/<multitarget>$(multitarget)/<multitarget-hidden>unspecified ;
   }
-  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
+  else if [ is-clang $(compiler) ]
   {
     result = <source>../clang//install ;
   }
@@ -93,19 +105,19 @@ rule download ( targets * : sources * : properties * )
 }
 actions download
 {
-  rm -rf "$(<)" || exit 1
-  if [ -n "$(STREAM)" ]; then
-    ( cd "$(<:D)" && wget -- '$(URL)' >> "$(STREAM)" 2>&1 )
+  rm -rf '$(<)' || exit 1
+  if [ -n '$(STREAM)' ]; then
+    ( cd '$(<:D)' && wget -- '$(URL)' >> '$(STREAM)' 2>&1 )
   else
-    ( cd "$(<:D)" && wget --quiet -- '$(URL)' )
+    ( cd '$(<:D)' && wget --quiet -- '$(URL)' )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to download CLooG $(VERSION) tarball." 1>&2
-    echo -n "ERROR: failed to download CLooG $(VERSION) tarball." | $(AWACS)
-    rm -rf "$(<)"
+    echo    'ERROR: failed to download CLooG $(VERSION) tarball.' 1>&2
+    echo -n 'ERROR: failed to download CLooG $(VERSION) tarball.' | $(AWACS)
+    rm -rf '$(<)'
     exit 1
   fi
-  [ -f "$(<)" ] || exit 1
+  [ -f '$(<)' ] || exit 1
   exit 0
 }
 
@@ -155,25 +167,25 @@ rule expand ( targets * : sources * : properties * )
 }
 actions expand
 {
-  rm -rf "$(<:D)" || exit 1
-  [ -f "$(>)" ] || exit 1
-  if [ -n "$(STREAM)" ]; then
-    tar xzvf "$(>)" --directory="$(INTRO_ROOT_DIR)" >> "$(STREAM)" 2>&1
+  rm -rf '$(<:D)' || exit 1
+  [ -f '$(>)' ] || exit 1
+  if [ -n '$(STREAM)' ]; then
+    tar xzvf '$(>)' --directory='$(INTRO_ROOT_DIR)' >> '$(STREAM)' 2>&1
   else
-    tar xzf "$(>)" --directory="$(INTRO_ROOT_DIR)"
+    tar xzf '$(>)' --directory='$(INTRO_ROOT_DIR)'
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to expand CLooG $(VERSION) tarball." 1>&2
-    echo -n "ERROR: failed to expand CLooG $(VERSION) tarball." | $(AWACS)
-    rm -rf "$(<:D)"
+    echo    'ERROR: failed to expand CLooG $(VERSION) tarball.' 1>&2
+    echo -n 'ERROR: failed to expand CLooG $(VERSION) tarball.' | $(AWACS)
+    rm -rf '$(<:D)'
     exit 1
   fi
   # If the timestamp of the tarball's contents is restored, the modification
   # time of the source directory could be older than the one of the tarball.
   # Such behavior is not desirable because the decompression always happens.
   # Therefore, `touch' is required.
-  touch --no-create "$(<)"
-  [ -f "$(<)" ] || exit 1
+  touch --no-create '$(<)'
+  [ -f '$(<)' ] || exit 1
   exit 0
 }
 
@@ -202,22 +214,24 @@ explicit srcdir ;
 
 
 
-for local compiler in $(COMPILERS)
+rule location-conditional ( properties * )
 {
-  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
-  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-  make "$(compiler-prefix)/include/cloog/cloog.h"
-    : compiler-dep
-      ../gmp//install
-      ../isl//install
-      srcdir/<triplet>unspecified/<multitarget-hidden>unspecified/<compiler>unspecified
-    : @make-install
-    : $(USE_GMP)
-      $(USE_ISL)
-      $(USE_CLOOG)
-    ;
-  explicit "$(compiler-prefix)/include/cloog/cloog.h" ;
+  local includedir = [ get-includedir "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
+  return <location>"$(includedir)" ;
 }
+
+make cloog/cloog.h
+  : compiler-dep
+    ../gmp//install
+    ../isl//install
+    srcdir/<triplet>unspecified/<multitarget-hidden>unspecified/<compiler>unspecified
+  : @make-install
+  : $(USE_GMP)
+    $(USE_ISL)
+    $(USE_CLOOG)
+    <conditional>@location-conditional
+  ;
+explicit cloog/cloog.h ;
 
 rule make-install ( targets * : sources * : properties * )
 {
@@ -234,7 +248,7 @@ rule make-install ( targets * : sources * : properties * )
   assert-unspecified <compiler-hidden>    : $(properties) ;
 
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(compiler) ] ;
+  local compiler-description = [ get-compiler-description $(compiler) ] ;
   COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
 
   local version = [ feature.get-values <cloog> : $(properties) ] ;
@@ -249,12 +263,22 @@ rule make-install ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) = ;
 
-  # Set the '--prefix' option for the 'configure' script.
-  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
-  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-  OPTIONS on $(targets) += "--prefix=\"$(compiler-prefix)\"" ;
+  # Set the `--prefix' option for the `configure' script.
+  local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local compiler-prefix-native = [ path.native "$(compiler-prefix)" ] ;
+  OPTIONS on $(targets) += "--prefix='$(compiler-prefix-native)'" ;
 
-  # Set the '--build' and '--host' options for the 'configure' script.
+  # Set the `--libdir' option for the `configure' script.
+  local libdir = [ get-libdir "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
+  local libdir-native = [ path.native "$(libdir)" ] ;
+  OPTIONS on $(targets) += "--libdir='$(libdir-native)'" ;
+
+  # Set the `--includedir' option for the `configure' script.
+  local includedir = [ get-includedir "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
+  local includedir-native = [ path.native "$(includedir)" ] ;
+  OPTIONS on $(targets) += "--includedir='$(includedir-native)'" ;
+
+  # Set the `--build' and `--host' options for the `configure' script.
   local triplet = [ feature.get-values <triplet> : $(properties) ] ;
   TRIPLET on $(targets) = $(triplet) ;
   OPTIONS on $(targets) += --build=$(triplet) ;
@@ -272,116 +296,114 @@ rule make-install ( targets * : sources * : properties * )
     OPTIONS on $(targets) += --enable-static ;
   }
 
-  OPTIONS on $(targets) += --with-gmp=system ;
-  OPTIONS on $(targets) += --with-gmp-prefix='$(compiler-prefix)' ;
-
-  OPTIONS on $(targets) += --with-isl=system ;
-  OPTIONS on $(targets) += --with-isl-prefix='$(compiler-prefix)' ;
-
   OPTIONS on $(targets) += --with-osl=no ;
 
   OPTIONS on $(targets) += --with-bits=gmp ;
 
-  local cc = [ "$(INTRO_ROOT_DIR)/compilers.cc" "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
-  OPTIONS on $(targets) += "CC=\"$(cc)\"" ;
+  local cc = [ get-cc "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
+  cc = [ path.native "$(cc)" ] ;
+  OPTIONS on $(targets) += "CC='$(cc)'" ;
 
-  local cxx = [ "$(INTRO_ROOT_DIR)/compilers.cxx" "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
-  OPTIONS on $(targets) += "CXX=\"$(cxx)\"" ;
+  # Default `CFLAGS' seems `-O3 -fomit-frame-pointer -malign-double -fstrict-aliasing -ffast-math'.
+  local cflags = [ get-cflags $(properties) ] ;
+  if $(cflags)
+  {
+    if [ feature.get-values <variant> : $(properties) ] != debug
+    {
+      cflags = "$(cflags) -fomit-frame-pointer -malign-double -fstrict-aliasing -ffast-math" ;
+    }
+    OPTIONS on $(targets) += "CFLAGS='$(cflags)'" ;
+  }
 
-  PREPEND_SHARED_LIBRARY_PATH_VARIABLE_COMMAND on $(targets) = [ "$(INTRO_ROOT_DIR)/compilers.prepend-shared-library-path-variable-command" "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local cxx = [ get-cxx "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
+  cxx = [ path.native "$(cxx)" ] ;
+  OPTIONS on $(targets) += "CXX='$(cxx)'" ;
+
+  local cxxflags = [ get-cxxflags $(properties) ] ;
+  if $(cxxflags)
+  {
+    if [ feature.get-values <variant> : $(properties) ] != debug
+    {
+      cxxflags = "$(cxxflags) -fomit-frame-pointer -malign-double -fstrict-aliasing -ffast-math" ;
+    }
+    OPTIONS on $(targets) += "CXXFLAGS='$(cxxflags)'" ;
+  }
+
+  local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
+  ENVIRONMENT_COMMANDS on $(targets) = "$(environment-commands)" ;
 }
 actions make-install
 {
   # Restore the hacked configure script. See also `../gcc/jamfile'.
-  if [ -e "$(SRCDIR)/real-configure" ]; then
-    [ ! -x "$(SRCDIR)/real-configure" ] && exit 1
-    mv -f "$(SRCDIR)/real-configure" "$(SRCDIR)/configure" || exit 1
+  if [ -e '$(SRCDIR)/real-configure' ]; then
+    [ ! -x '$(SRCDIR)/real-configure' ] && exit 1
+    mv -f '$(SRCDIR)/real-configure' '$(SRCDIR)/configure' || exit 1
   fi
 
-  [ -x "$(SRCDIR)/configure" ] || exit 1
+  [ -x '$(SRCDIR)/configure' ] || exit 1
 
   # Clean up objdir `$(OBJDIR)'.
-  { mkdir -p "$(OBJDIR)" && ( cd "$(OBJDIR)" && rm -rf * ); } || exit 1
+  { mkdir -p '$(OBJDIR)' && ( cd '$(OBJDIR)' && rm -rf * ); } || exit 1
 
-  $(PREPEND_SHARED_LIBRARY_PATH_VARIABLE_COMMAND)
+  $(ENVIRONMENT_COMMANDS)
 
-  if [ -n "$(STREAM)" ]; then
-    ( cd "$(OBJDIR)" && "$(SRCDIR)/configure" $(OPTIONS) >> "$(STREAM)" 2>&1 )
+  if [ -n '$(STREAM)' ]; then
+    ( cd '$(OBJDIR)' && '$(SRCDIR)/configure' $(OPTIONS) >> '$(STREAM)' 2>&1 )
   else
-    ( cd "$(OBJDIR)" && "$(SRCDIR)/configure" $(OPTIONS) )
+    ( cd '$(OBJDIR)' && '$(SRCDIR)/configure' $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'configure' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'configure' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`configure' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to \`configure' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
 
   # Check the creation of `Makefile'.
-  [ -f "$(OBJDIR)/Makefile" ] || exit 1
+  [ -f '$(OBJDIR)/Makefile' ] || exit 1
 
-  if [ -n "$(STREAM)" ]; then
-    ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
+  if [ -n '$(STREAM)' ]; then
+    ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) >> '$(STREAM)' 2>&1 )
   else
-    ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) )
+    ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`make' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to \`make' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
 
-  if [ -n "$(STREAM)" ]; then
-    ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) check >> "$(STREAM)" 2>&1 )
+  if [ -n '$(STREAM)' ]; then
+    ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) check >> '$(STREAM)' 2>&1 )
   else
-    ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) check )
+    ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) check )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make check' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make check' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`make check' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to \`make check' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
 
-  if [ -n "$(STREAM)" ]; then
-    ( cd "$(OBJDIR)" && make install >> "$(STREAM)" 2>&1 )
+  if [ -n '$(STREAM)' ]; then
+    ( cd '$(OBJDIR)' && make install >> '$(STREAM)' 2>&1 )
   else
-    ( cd "$(OBJDIR)" && make install )
+    ( cd '$(OBJDIR)' && make install )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make install' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make install' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`make install' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+    echo -n "ERROR: failed to \`make install' CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
     exit 1
   fi
 
-  [ -f "$(<)" ] || exit 1
+  [ -f '$(<)' ] || exit 1
 
   # Clean up objdir `$(OBJDIR)'.
-  rm -rf "$(OBJDIR)" || exit 1
+  rm -rf '$(OBJDIR)' || exit 1
 
-  echo -n "CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built." | $(AWACS)
+  echo -n 'CLooG $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built.' | $(AWACS)
   exit 0
 }
 
 
 
-rule install-req ( properties * )
-{
-  assert-specified   <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-specified   <multitarget-hidden> : $(properties) ;
-  assert-unspecified <gmp>                : $(properties) ;
-  assert-specified   <gmp-hidden>         : $(properties) ;
-  assert-unspecified <isl>                : $(properties) ;
-  assert-specified   <isl-hidden>         : $(properties) ;
-  assert-unspecified <cloog>              : $(properties) ;
-  assert-specified   <cloog-hidden>       : $(properties) ;
-  assert-specified   <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
-  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-  return <source>"$(compiler-prefix)/include/cloog/cloog.h" ;
-}
-
-alias install : : <conditional>@install-req ;
+alias install : cloog/cloog.h ;
 explicit install ;

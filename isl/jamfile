@@ -290,11 +290,11 @@ rule make-install ( targets * : sources * : properties * )
     OPTIONS on $(targets) += "--with-clang=system" ;
   }
 
-  # Default `CC' seems `-O3 -fomit-frame-pointer -malign-double -fstrict-aliasing -ffast-math'.
   local cc = [ get-cc "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
   cc = [ path.native "$(cc)" ] ;
   OPTIONS on $(targets) += "CC='$(cc)'" ;
 
+  # Default `CFLAGS' seems `-O3 -fomit-frame-pointer -malign-double -fstrict-aliasing -ffast-math'.
   local cflags = [ get-cflags $(properties) ] ;
   if $(cflags)
   {

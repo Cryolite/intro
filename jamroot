@@ -583,6 +583,15 @@ if $(cloog)
     }
     ECHO gmp... $(gmp) (implied by --enable-cloog) ;
   }
+  if ! $(isl)
+  {
+    isl = [ get-isl-latest-version ] ;
+    if ! $(isl) in $(isl-versions)
+    {
+      isl-versions += $(isl) ;
+    }
+    ECHO isl... $(isl) (implied by --enable-cloog) ;
+  }
 }
 
 
