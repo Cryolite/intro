@@ -960,22 +960,18 @@ rule get-environment-commands ( prefix : properties * : gcc-for-clang ? )
   local commands ;
   if $(build) in x86_64-unknown-linux-gnu i686-pc-linux-gnu
   {
-    commands += "PATH=\"$(default-bindir)\$\{PATH\:\+\:\$PATH\}\"" ;
+    commands += "PATH=\"$(default-bindir)${PATH:+:$PATH}\"" ;
     commands += "export PATH" ;
-    if $(is-debug)
+    commands += "LD_LIBRARY_PATH=\"$(default-libdir)${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"" ;
+    if $(is-debug) && "$(default-debug-libdir)" != "$(default-libdir)"
     {
-      commands += "LD_LIBRARY_PATH=\"$(libdir):$(default-debug-libdir):$(default-libdir)\$\{LD_LIBRARY_PATH\:\+\:\$LD_LIBRARY_PATH\}\"" ;
-      commands += "export LD_LIBRARY_PATH" ;
-      commands += "LD_RUN_PATH=\"$(libdir):$(default-debug-libdir):$(default-libdir)\$\{LD_RUN_PATH\:\+\:\$LD_RUN_PATH\}\"" ;
-      commands += "export LD_RUN_PATH" ;
+      commands += "LD_LIBRARY_PATH=\"$(default-debug-libdir):$LD_LIBRARY_PATH\"" ;
     }
-    else
+    if "$(libdir)" != "$(default-libdir)" && "$(libdir)" != "$(default-debug-libdir)"
     {
-      commands += "LD_LIBRARY_PATH=\"$(libdir):$(default-libdir)\$\{LD_LIBRARY_PATH\:\+\:\$LD_LIBRARY_PATH\}\"" ;
-      commands += "export LD_LIBRARY_PATH" ;
-      commands += "LD_RUN_PATH=\"$(libdir):$(default-libdir)\$\{LD_RUN_PATH\:\+\:\$LD_RUN_PATH\}\"" ;
-      commands += "export LD_RUN_PATH" ;
+      commands += "LD_LIBRARY_PATH=\"$(libdir):$LD_LIBRARY_PATH\"" ;
     }
+    commands += "export LD_LIBRARY_PATH" ;
   }
   else if $(build) in x86_64-w64-mingw32 i686-w64-mingw32 i686-pc-cygwin
   {
@@ -986,12 +982,12 @@ rule get-environment-commands ( prefix : properties * : gcc-for-clang ? )
   {
     errors.error "`<build>$(build)' is not valid" ;
   }
-  commands += "CPATH=\"$(includedir)\$\{CPATH\:\+\:\$CPATH\}\"" ;
+  commands += "CPATH=\"$(includedir)${CPATH:+:$CPATH}\"" ;
   commands += "export CPATH" ;
-  commands += "LIBRARY_PATH=\"$(libdir)\$\{LIBRARY_PATH\:\+\:\$LIBRARY_PATH\}\"" ;
+  commands += "LIBRARY_PATH=\"$(libdir)${LIBRARY_PATH:+:$LIBRARY_PATH}\"" ;
   commands += "export LIBRARY_PATH" ;
-  commands = $(commands:J="\n") ;
-  return $(commands) ;
+  commands = "$(commands:J=\n)" ;
+  return "$(commands)" ;
 }
 
 rule prepend-shared-library-path-variable-command ( prefix : compiler : gcc-for-clang ? )

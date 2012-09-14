@@ -302,6 +302,8 @@ rule make-install ( targets * : sources * : properties * )
     OPTIONS on $(targets) += "CXXFLAGS='$(cxxflags) -pedantic'" ;
   }
 
+  OPTIONS on $(targets) += "LDFLAGS='-Wl,--enable-new-dtags'" ;
+
   local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
   ENVIRONMENT_COMMANDS on $(targets) = "$(environment-commands)" ;
 }
@@ -311,6 +313,12 @@ actions make-install
   if [ -e '$(SRCDIR)/real-configure' ]; then
     [ ! -x '$(SRCDIR)/real-configure' ] && exit 1
     mv -f '$(SRCDIR)/real-configure' '$(SRCDIR)/configure' || exit 1
+  fi
+
+  if [ -f '$(COMPILER_PREFIX)/include/gmp.h.back' ]; then
+    echo    "ERROR: an old backup file of \`gmp.h' remains unrestored." 1>&2
+    echo -n "ERROR: an old backup file of \`gmp.h' remains unrestored." | $(AWACS)
+    exit 1
   fi
 
   [ -x '$(SRCDIR)/configure' ] || exit 1
@@ -358,6 +366,23 @@ actions make-install
     exit 1
   fi
 
+  function rollback ()
+  {
+    if [ -f '$(COMPILER_PREFIX)/include/gmp.h.back' ]; then
+      mv -f '$(COMPILER_PREFIX)/include/gmp.h.back' '$(COMPILER_PREFIX)/include/gmp.h'
+    fi
+    return 0
+  }
+
+  if [ '$(INCLUDEDIR)' != '$(COMPILER_PREFIX)/include' -a -f '$(COMPILER_PREFIX)/include/gmp.h' ]; then
+    mv '$(COMPILER_PREFIX)/include/gmp.h' '$(COMPILER_PREFIX)/include/gmp.h.back'
+    if [ $? -ne 0 ]; then
+      echo    "ERROR: failed to backup the already installed \`gmp.h'." 1>&2
+      echo -n "ERROR: failed to backup the already installed \`gmp.h'." | $(AWACS)
+      exit 1
+    fi
+  fi
+
   if [ -n '$(STREAM)' ]; then
     ( cd '$(OBJDIR)' && make install >> '$(STREAM)' 2>&1 )
   else
@@ -366,25 +391,44 @@ actions make-install
   if [ $? -ne 0 ]; then
     echo    "ERROR: failed to \`make install' GMP $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
     echo -n "ERROR: failed to \`make install' GMP $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    rollback
     exit 1
   fi
+
+  # Clean up objdir `$(OBJDIR)'.
+  rm -rf '$(OBJDIR)' || exit 1
 
   # `gmp.h' is deployed to `(COMPILER_PREFIX)/include' even if `--includedir' is
   # explicitly specified. So, hack is needed to deploy `gmp.h' to
   # `(INCLUDEDIR)/gmp.h'.
+  # See also http://gmplib.org/list-archives/gmp-bugs/2009-March/001333.html.
   if [ '$(INCLUDEDIR)' != '$(COMPILER_PREFIX)/include' ]; then
     mv -f '$(COMPILER_PREFIX)/include/gmp.h' '$(INCLUDEDIR)'
     if [ $? -ne 0 ]; then
-      echo    "ERROR: failed to move \`gmp.h' to \`INCLUDEDIR' for GMP $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-      echo -n "ERROR: failed to move \`gmp.h' to \`INCLUDEDIR' for GMP $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+      echo    "ERROR: failed to install \`gmp.h' to \`$(INCLUDEDIR)' for GMP $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
+      echo -n "ERROR: failed to install \`gmp.h' to \`$(INCLUDEDIR)' for GMP $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+      rollback
+      exit 1
+    fi
+  fi
+
+  if [ -f '$(COMPILER_PREFIX)/include/gmp.h' -a -f '$(COMPILER_PREFIX)/include/gmp.h.back' ]; then
+    echo    "ERROR: both \`gmp.h' and \`gmp.h.back' exist in \`$(COMPILER_PREFIX)/include'." 1>&2
+    echo -n "ERROR: both \`gmp.h' and \`gmp.h.back' exist in \`$(COMPILER_PREFIX)/include'." | $(AWACS)
+    rollback
+    exit 1
+  fi
+
+  if [ -f '$(COMPILER_PREFIX)/include/gmp.h.back' ]; then
+    mv '$(COMPILER_PREFIX)/include/gmp.h.back' '$(COMPILER_PREFIX)/include/gmp.h'
+    if [ $? -ne 0 ]; then
+      echo    "ERROR: failed to restore the backup file of \`gmp.h'." 1>&2
+      echo -n "ERROR: failed to restore the backup file of \`gmp.h'." | $(AWACS)
       exit 1
     fi
   fi
 
   [ -f '$(<)' ] || exit 1
-
-  # Clean up objdir `$(OBJDIR)'.
-  rm -rf '$(OBJDIR)' || exit 1
 
   echo -n 'GMP $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built.' | $(AWACS)
   exit 0

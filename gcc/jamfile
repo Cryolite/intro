@@ -4,8 +4,11 @@ import alias ;
 import errors ;
 import feature ;
 import make ;
+import path ;
 import regex ;
-import "$(INTRO_ROOT_DIR)/compilers" ;
+import "$(INTRO_ROOT_DIR)/compilers"
+  : get-libdir
+  ;
 
 
 rule assert-specified ( feature : properties * )
@@ -179,31 +182,31 @@ for local compiler in $(COMPILERS)
   local srcdirs ;
   if $(BINUTILS)
   {
-    srcdirs += ../binutils//srcdir/<triplet>unspecified/<multitarget>unspecified/<binutils-hidden>$(BINUTILS)/<compiler>unspecified ;
+    srcdirs += ../binutils//srcdir/<triplet>unspecified/<multitarget>unspecified/<binutils-hidden>$(BINUTILS)/<compiler>unspecified/<variant>debug ;
   }
   if $(GMP_FOR_GCC)
   {
-    srcdirs += ../gmp//srcdir/<triplet>unspecified/<multitarget>unspecified/<gmp-hidden>$(GMP_FOR_GCC)/<compiler>unspecified ;
+    srcdirs += ../gmp//srcdir/<triplet>unspecified/<multitarget>unspecified/<gmp-hidden>$(GMP_FOR_GCC)/<compiler>unspecified/<variant>debug ;
   }
   if $(MPFR_FOR_GCC)
   {
-    srcdirs += ../mpfr//srcdir/<triplet>unspecified/<multitarget>unspecified/<mpfr-hidden>$(MPFR_FOR_GCC)/<compiler>unspecified ;
+    srcdirs += ../mpfr//srcdir/<triplet>unspecified/<multitarget>unspecified/<mpfr-hidden>$(MPFR_FOR_GCC)/<compiler>unspecified/<variant>debug ;
   }
   if $(MPC_FOR_GCC)
   {
-    srcdirs += ../mpc//srcdir/<triplet>unspecified/<multitarget>unspecified/<mpc-hidden>$(MPC_FOR_GCC)/<compiler>unspecified ;
+    srcdirs += ../mpc//srcdir/<triplet>unspecified/<multitarget>unspecified/<mpc-hidden>$(MPC_FOR_GCC)/<compiler>unspecified/<variant>debug ;
   }
   if $(PPL_FOR_GCC)
   {
-    srcdirs += ../ppl//srcdir/<triplet>unspecified/<multitarget>unspecified/<ppl-hidden>$(PPL_FOR_GCC)/<compiler>unspecified ;
+    srcdirs += ../ppl//srcdir/<triplet>unspecified/<multitarget>unspecified/<ppl-hidden>$(PPL_FOR_GCC)/<compiler>unspecified/<variant>debug ;
   }
   if $(ISL_FOR_GCC)
   {
-    srcdirs += ../isl//srcdir/<triplet>unspecified/<multitarget>unspecified/<isl-hidden>$(ISL_FOR_GCC)/<compiler>unspecified ;
+    srcdirs += ../isl//srcdir/<triplet>unspecified/<multitarget>unspecified/<isl-hidden>$(ISL_FOR_GCC)/<compiler>unspecified/<variant>debug ;
   }
   if $(CLOOG_FOR_GCC)
   {
-    srcdirs += ../cloog//srcdir/<triplet>unspecified/<multitarget>unspecified/<cloog-hidden>$(CLOOG_FOR_GCC)/<compiler>unspecified ;
+    srcdirs += ../cloog//srcdir/<triplet>unspecified/<multitarget>unspecified/<cloog-hidden>$(CLOOG_FOR_GCC)/<compiler>unspecified/<variant>debug ;
   }
   local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" "$(compiler)" : "$(GCC_FOR_CLANG)" ] ;
   local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
@@ -211,7 +214,7 @@ for local compiler in $(COMPILERS)
   {
     make "$(compiler-prefix)/bin/g++-wrapper"
       : $(srcdirs)
-        srcdir/<triplet>unspecified/<multitarget>unspecified
+        srcdir/<triplet>unspecified/<multitarget>unspecified/<variant>debug
       : @make-install
       ;
   }
@@ -223,7 +226,7 @@ for local compiler in $(COMPILERS)
     }
     make "$(compiler-prefix)/bin/g++-wrapper"
       : $(srcdirs)
-        srcdir/<triplet>unspecified/<multitarget>unspecified/<compiler>$(GCC_FOR_CLANG)
+        srcdir/<triplet>unspecified/<multitarget>unspecified/<compiler>$(GCC_FOR_CLANG)/<variant>debug
       : @make-install
       ;
   }
@@ -267,26 +270,28 @@ rule make-install ( targets * : sources * : properties * )
   local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
   OBJDIR on $(targets) = "$(objdir)" ;
 
+  OPTIONS on $(targets) = ;
+
   # Set the compiler-specific prefix.
   local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
   local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
   COMPILER_PREFIX on $(targets) = "$(compiler-prefix)" ;
 
-  local libdir = "$(compiler-prefix)/lib" ;
-  LIBDIR on $(targets) = "$(libdir)" ;
+  # Set the '--prefix' option for the 'configure' script.
+  OPTIONS on $(targets) += "--prefix='$(compiler-prefix)'" ;
+
+  local libdir = [ get-libdir "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
+  local libdir-native = [ path.native "$(libdir)" ] ;
+  LIBDIR on $(targets) = "$(libdir-native)" ;
+  OPTIONS on $(targets) += "--libdir='$(libdir-native)'" ;
 
   local triplet = [ feature.get-values <triplet> : $(properties) ] ;
   TRIPLET on $(targets) = $(triplet) ;
-
-  OPTIONS on $(targets) = ;
 
   # Set the '--build', '--host' and '--target' options for the 'configure' script.
   OPTIONS on $(targets) += --build=$(triplet) ;
   OPTIONS on $(targets) += --host=$(triplet) ;
   OPTIONS on $(targets) += --target=$(triplet) ;
-
-  # Set the '--prefix' option for the 'configure' script.
-  OPTIONS on $(targets) += "--prefix=\"$(compiler-prefix)\"" ;
 
   # Set the build variants of runtime libraries.
   OPTIONS on $(targets) += --enable-shared ;
@@ -497,7 +502,7 @@ rule install-req ( properties * )
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
   local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-  return <source>"$(compiler-prefix)/bin/g++-wrapper/$(DEFAULT_PROPERTIES)" ;
+  return <source>"$(compiler-prefix)/bin/g++-wrapper/<std>c++03/<variant>release/<ssp>off/<mudflap>off/<address-sanitizer>off/<libstdc++-debug-mode>off" ;
 }
 
 alias install : : <conditional>@install-req ;
