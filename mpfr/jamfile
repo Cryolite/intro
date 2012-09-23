@@ -8,61 +8,37 @@ import path ;
 import "$(INTRO_ROOT_DIR)/compilers"
   : is-gcc
     is-clang
+    is-icc
     get-compiler-description
     get-compiler-prefix
     get-libdir
     get-includedir
+    get-triplets
     get-cc
     get-cflags
     get-cxx
     get-cxxflags
     get-environment-commands
+    get-property-dump-commands
   ;
-
-
-rule assert-specified ( feature : properties * )
-{
-  local val = [ feature.get-values $(feature) : $(properties) ] ;
-  if $(val) = unspecified {
-    errors.error $(feature) is not specified for MPFR build. ;
-  }
-}
-
-rule assert-unspecified ( feature : properties * )
-{
-  local val = [ feature.get-values $(feature) : $(properties) ] ;
-  if $(val) != unspecified {
-    errors.error $(feature) is not valid for MPFR build. ;
-  }
-}
-
 
 
 rule compiler-dep-req ( properties * )
 {
-  assert-specified   <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-specified   <multitarget-hidden> : $(properties) ;
-  assert-unspecified <gmp>                : $(properties) ;
-  assert-specified   <gmp-hidden>         : $(properties) ;
-  assert-unspecified <mpfr>               : $(properties) ;
-  assert-specified   <mpfr-hidden>        : $(properties) ;
-  assert-specified   <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-
-  local multitarget = [ feature.get-values <multitarget-hidden> : $(properties) ] ;
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
   local result ;
-  if [ is-gcc $(compiler) ]
-  {
-    result = <source>../gcc//install/<multitarget>$(multitarget)/<multitarget-hidden>unspecified ;
+  if [ is-gcc "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
   }
-  else if [ is-clang $(compiler) ]
-  {
-    result = <source>../clang//install ;
+  else if [ is-clang "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
+    result += "<source>../clang//install" ;
   }
-  else
-  {
+  else if [ is-icc "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
+    result += "<source>../icc//install" ;
+  }
+  else {
     errors.error "an internal error." ;
   }
   return $(result) ;
@@ -73,35 +49,23 @@ explicit compiler-dep ;
 
 
 
-for local version in $(MPFR_VERSIONS)
-{
+for local version in $(MPFR_VERSIONS) {
   make "$(INTRO_ROOT_DIR)/mpfr-$(version).tar.bz2" : : @download ;
   explicit "$(INTRO_ROOT_DIR)/mpfr-$(version).tar.bz2" ;
 }
 
 rule download ( targets * : sources * : properties * )
 {
-  if $(sources[1])
-  {
-    errors.error "an internal error." ;
-  }
-  assert-unspecified <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-unspecified <multitarget-hidden> : $(properties) ;
-  #assert-unspecified <gmp>                : $(properties) ;
-  #assert-specified   <gmp-hidden>         : $(properties) ;
-  assert-unspecified <mpfr>               : $(properties) ;
-  assert-specified   <mpfr-hidden>        : $(properties) ;
-  assert-unspecified <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-
   local version = [ feature.get-values <mpfr-hidden> : $(properties) ] ;
-  VERSION on $(targets) = $(version) ;
+  VERSION on $(targets) = "$(version)" ;
   URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/mpfr/mpfr-$(version).tar.bz2 ;
   #URL on $(targets) = http://core.ring.gr.jp/pub/GNU/mpfr/mpfr-$(version).tar.bz2 ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions download
 {
+  $(PROPERTY_DUMP_COMMANDS)
+
   rm -rf '$(<)' || exit 1
   if [ -n '$(STREAM)' ]; then
     ( cd '$(<:D)' && wget -- '$(URL)' >> '$(STREAM)' 2>&1 )
@@ -120,8 +84,7 @@ actions download
 
 
 
-for local version in $(MPFR_VERSIONS)
-{
+for local version in $(MPFR_VERSIONS) {
   # Use `README' file as a target representing the completion of
   # decompression action. It is suitable for the purpose because of the
   # following reasons;
@@ -139,29 +102,14 @@ for local version in $(MPFR_VERSIONS)
 
 rule expand ( targets * : sources * : properties * )
 {
-  if ! $(sources[1])
-  {
-    errors.error "an internal error." ;
-  }
-  if $(sources[2])
-  {
-    errors.error "an internal error." ;
-  }
-  assert-unspecified <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-unspecified <multitarget-hidden> : $(properties) ;
-  #assert-unspecified <gmp>                : $(properties) ;
-  #assert-specified   <gmp-hidden>         : $(properties) ;
-  assert-unspecified <mpfr>               : $(properties) ;
-  assert-specified   <mpfr-hidden>        : $(properties) ;
-  assert-unspecified <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-
   local version = [ feature.get-values <mpfr-hidden> : $(properties) ] ;
-  VERSION on $(targets) = $(version) ;
+  VERSION on $(targets) = "$(version)" ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions expand
 {
+  $(PROPERTY_DUMP_COMMANDS)
+
   rm -rf '$(<:D)' || exit 1
   [ -f '$(>)' ] || exit 1
   if [ -n '$(STREAM)' ]; then
@@ -188,18 +136,8 @@ actions expand
 
 rule srcdir-req ( properties * )
 {
-  assert-unspecified <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-unspecified <multitarget-hidden> : $(properties) ;
-  #assert-unspecified <gmp>                : $(properties) ;
-  #assert-specified   <gmp-hidden>         : $(properties) ;
-  assert-unspecified <mpfr>               : $(properties) ;
-  assert-specified   <mpfr-hidden>        : $(properties) ;
-  assert-unspecified <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-
   local version = [ feature.get-values <mpfr-hidden> : $(properties) ] ;
-  return <source>"$(INTRO_ROOT_DIR)/mpfr-$(version)/README/$(DEFAULT_PROPERTIES)" ;
+  return "<source>$(INTRO_ROOT_DIR)/mpfr-$(version)/README/$(DEFAULT_PROPERTIES)" ;
 }
 
 alias srcdir : : <conditional>@srcdir-req ;
@@ -209,39 +147,33 @@ explicit srcdir ;
 
 rule location-conditional ( properties * )
 {
-  local includedir = [ get-includedir "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
-  return <location>"$(includedir)" ;
+  local includedir = [ get-includedir "$(PREFIX)" : $(properties) ] ;
+  return "<location>$(includedir)" ;
 }
 
 make mpfr.h
   : compiler-dep
     ../gmp//install
-    srcdir/<triplet>unspecified/<multitarget-hidden>unspecified/<compiler>unspecified
+    srcdir
   : @make-install
-  : $(USE_GMP)
+  : $(USE_COMPILER)
+    $(USE_MULTITARGET)
+    $(USE_GMP)
     $(USE_MPFR)
+    $(USE_ADDRESS_MODEL)
+    $(USE_INSTRUCTION_SET)
     <conditional>@location-conditional
   ;
 explicit mpfr.h ;
 
 rule make-install ( targets * : sources * : properties * )
 {
-  assert-specified   <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-specified   <multitarget-hidden> : $(properties) ;
-  assert-specified   <gmp>                : $(properties) ;
-  assert-specified   <gmp-hidden>         : $(properties) ;
-  assert-specified   <mpfr>               : $(properties) ;
-  assert-specified   <mpfr-hidden>        : $(properties) ;
-  assert-specified   <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local compiler-description = [ get-compiler-description $(compiler) ] ;
+  local compiler-description = [ get-compiler-description "$(compiler)" ] ;
   COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
 
   local version = [ feature.get-values <mpfr> : $(properties) ] ;
-  VERSION on $(targets) = $(version) ;
+  VERSION on $(targets) = "$(version)" ;
 
   # Set the path to the source directory.
   local srcdir = "$(INTRO_ROOT_DIR)/mpfr-$(version)" ;
@@ -252,87 +184,101 @@ rule make-install ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) = ;
 
-  # Set the `--prefix' option for the `configure' script.
-  local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
+  # Set `--prefix' option for `configure' script.
+  local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
   local compiler-prefix-native = [ path.native "$(compiler-prefix)" ] ;
   OPTIONS on $(targets) += "--prefix='$(compiler-prefix-native)'" ;
 
-  # Set the `--libdir' option for the `configure' script.
-  local libdir = [ get-libdir "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
+  # Set `--libdir' option for `configure' script.
+  local libdir = [ get-libdir "$(PREFIX)" : $(properties) ] ;
   local libdir-native = [ path.native "$(libdir)" ] ;
   OPTIONS on $(targets) += "--libdir='$(libdir-native)'" ;
 
-  # Set the `--includedir' option for the `configure' script.
-  local includedir = [ get-includedir "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
+  # Set `--includedir' option for `configure' script.
+  local includedir = [ get-includedir "$(PREFIX)" : $(properties) ] ;
   local includedir-native = [ path.native "$(includedir)" ] ;
   OPTIONS on $(targets) += "--includedir='$(includedir-native)'" ;
 
-  # Set the `--build' and `--host' options for the `configure' script.
-  local triplet = [ feature.get-values <triplet> : $(properties) ] ;
-  TRIPLET on $(targets) = $(triplet) ;
-  OPTIONS on $(targets) += --build=$(triplet) ;
-  OPTIONS on $(targets) += --host=$(triplet) ;
+  # Set `--build' and `--host' options for `configure' script.
+  local triplets = [ get-triplets $(properties) ] ;
+  local build-triplet = "$(triplets[1])" ;
+  local host-triplet = "$(triplets[2])" ;
+  BUILD_TRIPLET on $(targets) = "$(build-triplet)" ;
+  HOST_TRIPLET on $(targets) = "$(host-triplet)" ;
+  OPTIONS on $(targets) += "--build=$(build-triplet)" ;
+  OPTIONS on $(targets) += "--host=$(host-triplet)" ;
 
-  if [ feature.get-values <variant> : $(properties) ] = debug
-  {
-    OPTIONS on $(targets) += --enable-assert ;
+  local variant = [ feature.get-values <variant> : $(properties) ] ;
+  if "$(variant)" = "debug" {
+    OPTIONS on $(targets) += "--enable-assert" ;
   }
 
-  # Set the link variants for the 'configure' script.
-  if $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
-  {
-    OPTIONS on $(targets) += --enable-shared ;
-    OPTIONS on $(targets) += --disable-static ;
+  # Set the link variants for `configure' script.
+  if "$(host-triplet)" = "x86_64-w64-mingw32" || "$(host-triplet)" = "i686-w64-mingw32" || "$(host-triplet)" = "i686-pc-cygwin" {
+    OPTIONS on $(targets) += "--enable-shared" ;
+    OPTIONS on $(targets) += "--disable-static" ;
   }
-  else
-  {
-    OPTIONS on $(targets) += --enable-shared ;
-    OPTIONS on $(targets) += --enable-static ;
+  else {
+    OPTIONS on $(targets) += "--enable-shared" ;
+    OPTIONS on $(targets) += "--enable-static" ;
   }
 
-  local cc = [ get-cc "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
-  cc = [ path.native "$(cc)" ] ;
-  OPTIONS on $(targets) += "CC='$(cc)'" ;
+  local cc = [ get-cc "$(PREFIX)" : $(properties) ] ;
+  local cc-native = [ path.native "$(cc)" ] ;
+  OPTIONS on $(targets) += "CC='$(cc-native)'" ;
+
+  local lto = [ feature.get-values <lto> : $(properties) ] ;
 
   # Default `CFLAGS' seems `-Wall -Wmissing-prototypes -Wpointer-arith -g -O2'.
   local cflags = [ get-cflags $(properties) ] ;
-  if $(cflags)
-  {
-    if [ feature.get-values <variant> : $(properties) ] = lto
-    {
-      OPTIONS on $(targets) += "CFLAGS='$(cflags) -Wall -Wmissing-prototypes -Wpointer-arith'" ;
+  if "$(cflags)" {
+    cflags = "$(cflags) -Wall -Wmissing-prototypes -Wpointer-arith" ;
+    if "$(lto)" = "off" {
+      cflags = "$(cflags) -g" ;
     }
-    else
-    {
-      OPTIONS on $(targets) += "CFLAGS='$(cflags) -Wall -Wmissing-prototypes -Wpointer-arith -g'" ;
+    else if "$(lto)" = "on" {
+      # Do nothing.
     }
+    else {
+      errors.error "an internal error." ;
+    }
+    OPTIONS on $(targets) += "CFLAGS='$(cflags)'" ;
   }
 
-  local cxx = [ get-cxx "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
-  cxx = [ path.native "$(cxx)" ] ;
-  OPTIONS on $(targets) += "CXX='$(cxx)'" ;
+  local cxx = [ get-cxx "$(PREFIX)" : $(properties) ] ;
+  local cxx-native = [ path.native "$(cxx)" ] ;
+  OPTIONS on $(targets) += "CXX='$(cxx-native)'" ;
 
   local cxxflags = [ get-cxxflags $(properties) ] ;
-  if $(cxxflags)
-  {
-    if [ feature.get-values <variant> : $(properties) ] = lto
-    {
-      OPTIONS on $(targets) += "CXXFLAGS='$(cxxflags) -Wall -Wpointer-arith'" ;
+  if "$(cxxflags)" {
+    cxxflags = "$(cxxflags) -Wall -Wpointer-arith" ;
+    if "$(lto)" = "off" {
+      cxxflags = "$(cxxflags) -g" ;
     }
-    else
-    {
-      OPTIONS on $(targets) += "CXXFLAGS='$(cxxflags) -Wall -Wpointer-arith -g'" ;
+    else if "$(lto)" = "on" {
+      # Do nothing.
     }
+    else {
+      errors.error "an internal error." ;
+    }
+    OPTIONS on $(targets) += "CXXFLAGS='$(cxxflags)'" ;
   }
 
-  local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
+  OPTIONS on $(targets) += "LDFLAGS='-Wl,--enable-new-dtags'" ;
+
+  local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
   ENVIRONMENT_COMMANDS on $(targets) = "$(environment-commands)" ;
+
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions make-install
 {
+  $(PROPERTY_DUMP_COMMANDS)
+
   [ -x '$(SRCDIR)/configure' ] || exit 1
   [ -x '$(SRCDIR)/config.sub' ] || exit 1
-  [ `'$(SRCDIR)/config.sub' $(TRIPLET)` = $(TRIPLET) ] || exit 1
+  [ `'$(SRCDIR)/config.sub' $(BUILD_TRIPLET)` = $(BUILD_TRIPLET) ] || exit 1
+  [ `'$(SRCDIR)/config.sub' $(HOST_TRIPLET)` = $(HOST_TRIPLET) ] || exit 1
 
   # Clean up objdir `$(OBJDIR)'.
   { mkdir -p '$(OBJDIR)' && ( cd '$(OBJDIR)' && rm -rf * ); } || exit 1
@@ -345,8 +291,8 @@ actions make-install
     ( cd '$(OBJDIR)' && '$(SRCDIR)/configure' $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`configure' MPFR $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to \`configure' MPFR $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`configure' MPFR $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to \`configure' MPFR $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
 
@@ -359,8 +305,8 @@ actions make-install
     ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`make' MPFR $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to \`make' MPFR $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`make' MPFR $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to \`make' MPFR $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
 
@@ -370,8 +316,8 @@ actions make-install
     ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) check )
   fi
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`make check' MPFR $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to \`make check' MPFR $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`make check' MPFR $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to \`make check' MPFR $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
 
@@ -381,17 +327,17 @@ actions make-install
     ( cd '$(OBJDIR)' && make install )
   fi
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`make install' MPFR $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to \`make install' MPFR $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`make install' MPFR $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to \`make install' MPFR $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
-
-  [ -f '$(<)' ] || exit 1
 
   # Clean up objdir `$(OBJDIR)'.
   rm -rf '$(OBJDIR)' || exit 1
 
-  echo -n 'MPFR $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built.' | $(AWACS)
+  [ -f '$(<)' ] || exit 1
+
+  echo -n 'MPFR $(VERSION) ($(COMPILER_DESCRIPTION)) was successfully built.' | $(AWACS)
   exit 0
 }
 

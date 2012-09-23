@@ -6,7 +6,13 @@ import regex ;
 
 path-constant INTRO_ROOT_DIR : . ;
 
-import "$(INTRO_ROOT_DIR)/compilers" ;
+import "$(INTRO_ROOT_DIR)/compilers"
+  : is-valid
+    is-clang
+    get-clang-latest-version
+    get-frontend-version
+    split-frontend-and-backend
+  ;
 "$(INTRO_ROOT_DIR)/compilers.init" "$(INTRO_ROOT_DIR)" ;
 
 
@@ -24,145 +30,123 @@ local .valgrind-latest ;
 
 local rule get-boost-latest-version ( )
 {
-  if ! $(.boost-latest)
-  {
+  if ! "$(.boost-latest)" {
     .boost-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/boost-latest.sh\" || echo -n error" ] ;
-    if $(.boost-latest) = error
-    {
+    if "$(.boost-latest)" = "error" {
       errors.error "failed to extract Boost latest version." ;
     }
   }
-  return $(.boost-latest) ;
+  return "$(.boost-latest)" ;
 }
 
 local rule get-binutils-latest-version ( )
 {
-  if ! $(.binutils-latest)
-  {
+  if ! "$(.binutils-latest)" {
     .binutils-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/binutils-latest.sh\" || echo -n error" ] ;
-    if $(.binutils-latest) = error
-    {
+    if "$(.binutils-latest)" = "error" {
       errors.error "failed to extract binutils latest version." ;
     }
   }
-  return $(.binutils-latest) ;
+  return "$(.binutils-latest)" ;
 }
 
 local rule get-gmp-latest-version ( )
 {
-  if ! $(.gmp-latest)
-  {
+  if ! "$(.gmp-latest)" {
     .gmp-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/gmp-latest.sh\" || echo -n error" ] ;
-    if $(.gmp-latest) = error
-    {
+    if "$(.gmp-latest)" = "error" {
       errors.error "failed to extract GMP latest version." ;
     }
   }
-  return $(.gmp-latest) ;
+  return "$(.gmp-latest)" ;
 }
 
 local rule get-mpfr-latest-version ( )
 {
-  if ! $(.mpfr-latest)
-  {
+  if ! "$(.mpfr-latest)" {
     .mpfr-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/mpfr-latest.sh\" || echo -n error" ] ;
-    if $(.mpfr-latest) = error
-    {
+    if "$(.mpfr-latest)" = "error" {
       errors.error "failed to extract MPFR latest version." ;
     }
   }
-  return $(.mpfr-latest) ;
+  return "$(.mpfr-latest)" ;
 }
 
 local rule get-mpc-latest-version ( )
 {
-  if ! $(.mpc-latest)
-  {
+  if ! "$(.mpc-latest)" {
     .mpc-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/mpc-latest.sh\" || echo -n error" ] ;
-    if $(.mpc-latest) = error
-    {
+    if "$(.mpc-latest)" = "error" {
       errors.error "failed to extract MPC latest version." ;
     }
   }
-  return $(.mpc-latest) ;
+  return "$(.mpc-latest)" ;
 }
 
 local rule get-ppl-latest-version ( )
 {
-  if ! $(.ppl-latest)
-  {
+  if ! "$(.ppl-latest)" {
     .ppl-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/ppl-latest.sh\" || echo -n error" ] ;
-    if $(.ppl-latest) = error
-    {
+    if "$(.ppl-latest)" = "error" {
       errors.error "failed to extract PPL latest version." ;
     }
   }
-  return $(.ppl-latest) ;
+  return "$(.ppl-latest)" ;
 }
 
 local rule get-isl-latest-version ( )
 {
-  if ! $(.isl-latest)
-  {
+  if ! "$(.isl-latest)" {
     .isl-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/isl/latest.sh\" || echo -n error" ] ;
-    if $(.isl-latest) = error
-    {
+    if "$(.isl-latest)" = "error" {
       errors.error "failed to extract islL latest version." ;
     }
   }
-  return $(.isl-latest) ;
+  return "$(.isl-latest)" ;
 }
 
 local rule get-cloog-latest-version ( )
 {
-  if ! $(.cloog-latest)
-  {
+  if ! "$(.cloog-latest)" {
     .cloog-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/cloog/latest.sh\" || echo -n error" ] ;
-    if $(.cloog-latest) = error
-    {
+    if "$(.cloog-latest)" = "error" {
       errors.error "failed to extract CLooG latest version." ;
     }
   }
-  return $(.cloog-latest) ;
+  return "$(.cloog-latest)" ;
 }
 
 local rule get-icu4c-latest-version ( )
 {
-  if ! $(.icu4c-latest)
-  {
+  if ! "$(.icu4c-latest)" {
     .icu4c-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/icu4c-latest.sh\" || echo -n error" ] ;
-    if $(.icu4c-latest) = error
-    {
+    if "$(.icu4c-latest)" = "error" {
       errors.error "failed to extract ICU4C latest version." ;
     }
   }
-  return $(.icu4c-latest) ;
+  return "$(.icu4c-latest)" ;
 }
 
 local rule get-openmpi-latest-version ( )
 {
-  if ! $(.openmpi-latest)
-  {
+  if ! "$(.openmpi-latest)" {
     .openmpi-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/openmpi-latest.sh\" || echo -n error" ] ;
-    if $(.openmpi-latest) = error
-    {
+    if "$(.openmpi-latest)" = "error" {
       errors.error "failed to extract OpenMPI latest version." ;
     }
   }
-  return $(.openmpi-latest) ;
+  return "$(.openmpi-latest)" ;
 }
 
 local rule get-valgrind-latest-version ( )
 {
-  if ! $(.valgrind-latest)
-  {
+  if ! "$(.valgrind-latest)" {
     .valgrind-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/valgrind/latest.sh\" || echo -n error" ] ;
-    if $(.valgrind-latest) = error
-    {
+    if "$(.valgrind-latest)" = "error" {
       errors.error "failed to extract Valgrind latest version." ;
     }
   }
-  return $(.valgrind-latest) ;
+  return "$(.valgrind-latest)" ;
 }
 
 
@@ -180,378 +164,256 @@ local boost-versions ;
 local clang-versions ;
 
 
-local triplet = [ option.get triplet ] ;
-if ! $(triplet)
-{
-  errors.error '--triplet' option not specified. ;
-}
-if ! $(triplet) in i686-pc-linux-gnu i686-pc-cygwin i686-w64-mingw32 x86_64-unknown-linux-gnu x86_64-w64-mingw32
-{
-  errors.error '$(triplet)' is a wrong value for '--triplet' option ;
-}
-ECHO triplet... $(triplet) ;
-
-
-local prefix = [ option.get prefix ] ;
-if ! $(prefix)
-{
-  errors.error ERROR: '--prefix' option not specified. ;
+local prefix = [ option.get "prefix" ] ;
+if ! "$(prefix)" {
+  errors.error "ERROR: '--prefix' option not specified." ;
 }
 ECHO prefix... $(prefix) ;
 
 
-binutils = [ option.get with-binutils : system : IMPLIED ] ;
-if $(binutils) = IMPLIED
-{
-  errors.error no value specified for `--with-binutils'. ;
+binutils = [ option.get "with-binutils" : "system" : "IMPLIED" ] ;
+if "$(binutils)" = "IMPLIED" {
+  errors.error "no value specified for `--with-binutils'." ;
 }
-if $(binutils) = latest
-{
+if "$(binutils)" = "latest" {
   binutils = [ get-binutils-latest-version ] ;
 }
-if $(binutils) != system && ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(binutils)" : 1 ]
-{
-  errors.error an invalid value `$(binutils)' for `--with-binutils'. ;
+if "$(binutils)" != "system" && ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(binutils)" : 1 ] {
+  errors.error "an invalid value `$(binutils)' for `--with-binutils'." ;
 }
 ECHO binutils... $(binutils) ;
 
 
-local gmp-for-gcc = [ option.get with-gmp-for-gcc : latest : IMPLIED ] ;
-if $(gmp-for-gcc) = IMPLIED
-{
+local gmp-for-gcc = [ option.get "with-gmp-for-gcc" : "latest" : "IMPLIED" ] ;
+if "$(gmp-for-gcc)" = "IMPLIED" {
   errors.error "`--with-gmp-for-gcc' should be specified with a value." ;
 }
-if $(gmp-for-gcc) = latest
-{
+if "$(gmp-for-gcc)" = "latest" {
   gmp-for-gcc = [ get-gmp-latest-version ] ;
 }
-if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(gmp-for-gcc)" : 1 ]
-{
+if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(gmp-for-gcc)" : 1 ] {
   errors.error "an invalid value `$(gmp-for-gcc)' for `--with-gmp-for-gcc'." ;
 }
-if ! $(gmp-for-gcc) in $(gmp-versions)
-{
-  gmp-versions += $(gmp-for-gcc) ;
+if ! "$(gmp-for-gcc)" in $(gmp-versions) {
+  gmp-versions += "$(gmp-for-gcc)" ;
 }
 ECHO gmp-for-gcc... $(gmp-for-gcc) ;
 
 
-local mpfr-for-gcc = [ option.get with-mpfr-for-gcc : latest : IMPLIED ] ;
-if $(mpfr-for-gcc) = IMPLIED
-{
+local mpfr-for-gcc = [ option.get "with-mpfr-for-gcc" : "latest" : "IMPLIED" ] ;
+if "$(mpfr-for-gcc)" = "IMPLIED" {
   errors.error "`--with-mpfr-for-gcc' should be specified with a value." ;
 }
-if $(mpfr-for-gcc) = latest
-{
+if "$(mpfr-for-gcc)" = "latest" {
   mpfr-for-gcc = [ get-mpfr-latest-version ] ;
 }
-if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(mpfr-for-gcc)" : 1 ]
-{
+if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(mpfr-for-gcc)" : 1 ] {
   errors.error "an invalid value `$(mpfr-for-gcc)' for `--with-mpfr-for-gcc'." ;
 }
-if ! $(mpfr-for-gcc) in $(mpfr-versions)
-{
-  mpfr-versions += $(mpfr-for-gcc) ;
+if ! "$(mpfr-for-gcc)" in $(mpfr-versions) {
+  mpfr-versions += "$(mpfr-for-gcc)" ;
 }
 ECHO mpfr-for-gcc... $(mpfr-for-gcc) ;
 
 
-local mpc-for-gcc = [ option.get with-mpc-for-gcc : latest : IMPLIED ] ;
-if $(mpc-for-gcc) = IMPLIED
-{
+local mpc-for-gcc = [ option.get "with-mpc-for-gcc" : "latest" : "IMPLIED" ] ;
+if "$(mpc-for-gcc)" = "IMPLIED" {
   errors.error "`--with-mpc-for-gcc' should be specified with a value." ;
 }
-if ! $(mpc-for-gcc) || $(mpc-for-gcc) = latest
-{
+if "$(mpc-for-gcc)" = "latest" {
   mpc-for-gcc = [ get-mpc-latest-version ] ;
 }
-if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(mpc-for-gcc)" : 1 ]
-{
+if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(mpc-for-gcc)" : 1 ] {
   errors.error "an invalid value `$(mpc-for-gcc)' for `--with-mpc-for-gcc'." ;
 }
-if ! $(mpc-for-gcc) in $(mpc-versions)
-{
-  mpc-versions += $(mpc-for-gcc) ;
+if ! "$(mpc-for-gcc)" in $(mpc-versions) {
+  mpc-versions += "$(mpc-for-gcc)" ;
 }
 ECHO mpc-for-gcc... $(mpc-for-gcc) ;
 
 
-local ppl-for-gcc = [ option.get with-ppl-for-gcc : system : IMPLIED ] ;
-if $(ppl-for-gcc) = IMPLIED
-{
-  errors.error "`--with-ppl-for-gcc' should be specified with a value." ;
-}
-if $(ppl-for-gcc) = latest
-{
-  ppl-for-gcc = [ get-ppl-latest-version ] ;
-}
-if $(ppl-for-gcc) != system && ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(ppl-for-gcc)" : 1 ]
-{
-  errors.error "an invalid value `$(ppl-for-gcc)' for `--with-ppl-for-gcc'." ;
-}
-if $(ppl-for-gcc) != system && ! $(ppl-for-gcc) in $(ppl-versions)
-{
-  ppl-versions += $(ppl-for-gcc) ;
-}
-ECHO ppl-for-gcc... $(ppl-for-gcc) ;
-
-
-local isl-for-gcc = [ option.get with-isl-for-gcc : system : IMPLIED ] ;
-if $(isl-for-gcc) = IMPLIED
-{
+local isl-for-gcc = [ option.get "with-isl-for-gcc" : "system" : "IMPLIED" ] ;
+if "$(isl-for-gcc)" = "IMPLIED" {
   errors.error "`--with-isl-for-gcc' should be specified with a value." ;
 }
-if $(isl-for-gcc) = latest
-{
+if "$(isl-for-gcc)" = "latest" {
   isl-for-gcc = [ get-isl-latest-version ] ;
 }
-if $(isl-for-gcc) != system && ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(isl-for-gcc)" : 1 ]
-{
+if "$(isl-for-gcc)" != "system" && ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(isl-for-gcc)" : 1 ] {
   errors.error "an invalid value `$(isl-for-gcc)' for `--with-isl-for-gcc'." ;
 }
-if $(isl-for-gcc) != system && ! $(isl-for-gcc) in $(isl-versions)
+if "$(isl-for-gcc)" != "system" && ! "$(isl-for-gcc)" in $(isl-versions)
 {
-  isl-versions += $(isl-for-gcc) ;
+  isl-versions += "$(isl-for-gcc)" ;
 }
 ECHO isl-for-gcc... $(isl-for-gcc) ;
 
 
-local cloog-for-gcc = [ option.get with-cloog-for-gcc : system : IMPLIED ] ;
-if $(cloog-for-gcc) = IMPLIED
-{
+local cloog-for-gcc = [ option.get "with-cloog-for-gcc" : "system" : "IMPLIED" ] ;
+if "$(cloog-for-gcc)" = "IMPLIED" {
   errors.error "`--with-cloog-for-gcc' should be specified with a value." ;
 }
-if $(cloog-for-gcc) = latest
-{
+if "$(cloog-for-gcc)" = "latest" {
   cloog-for-gcc = [ get-cloog-latest-version ] ;
 }
-if $(cloog-for-gcc) != system && ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(cloog-for-gcc)" : 1 ]
-{
+if "$(cloog-for-gcc)" != "system" && ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(cloog-for-gcc)" : 1 ] {
   errors.error "an invalid value `$(cloog-for-gcc)' for `--with-cloog-for-gcc'." ;
 }
-if $(cloog-for-gcc) != system && ! $(cloog-for-gcc) in $(cloog-versions)
-{
-  cloog-versions += $(cloog-for-gcc) ;
+if "$(cloog-for-gcc)" != "system" && ! "$(cloog-for-gcc)" in $(cloog-versions) {
+  cloog-versions += "$(cloog-for-gcc)" ;
 }
 ECHO cloog-for-gcc... $(cloog-for-gcc) ;
 
 
-local gcc-for-clang = [ option.get with-gcc-for-clang : : IMPLIED ] ;
-if $(gcc-for-clang) = IMPLIED
-{
-  errors.error "`--with-gcc-for-clang' should be specified with a value." ;
-}
-if $(gcc-for-clang)
-{
-  if ! [ "$(INTRO_ROOT_DIR)/compilers.is-valid" "$(gcc-for-clang)" ]
-  {
-    errors.error "an invalid value `$(gcc-for-clang)' for `--with-gcc-for-clang'." ;
-  }
-  ECHO gcc-for-clang... $(gcc-for-clang) ;
-  if ! $(gcc-for-clang) in $(compilers)
-  {
-    compilers += $(gcc-for-clang) ;
-  }
-}
-
-
 local enabled-compilers = [ option.get enable-compilers : : IMPLIED ] ;
-if $(enabled-compilers) = IMPLIED
-{
-  errors.error `--enable-compilers' should be specified with a value. ;
+if "$(enabled-compilers)" = "IMPLIED" {
+  errors.error "`--enable-compilers' should be specified with a value." ;
 }
 enabled-compilers = [ regex.split "$(enabled-compilers)" "," ] ;
-for local enabled-compiler in $(enabled-compilers)
-{
-  if ! [ "$(INTRO_ROOT_DIR)/compilers.is-valid" "$(enabled-compiler)" ]
-  {
-    errors.error an invalid value `$(enabled-compiler)' for `--enable-compilers' option. ;
+for local enabled-compiler in $(enabled-compilers) {
+  if ! [ is-valid "$(enabled-compiler)" ] {
+    errors.error "an invalid value `$(enabled-compiler)' for `--enable-compilers' option." ;
   }
   ECHO "enabled-compiler... $(enabled-compiler)" ;
-  if ! $(enabled-compiler) in $(compilers)
-  {
-    compilers += $(enabled-compiler) ;
+  if ! "$(enabled-compiler)" in $(compilers) {
+    compilers += "$(enabled-compiler)" ;
   }
-  if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(enabled-compiler) ]
-  {
-    if $(enabled-compiler) = clang-trunk
-    {
-      if ! trunk in $(clang-versions)
-      {
-        clang-versions += trunk ;
+  if [ is-clang "$(enabled-compiler)" ] {
+    local frontend-and-backend = [ split-frontend-and-backend "$(enabled-compiler)" ] ;
+    local frontend = "$(frontend-and-backend[1])" ;
+    local backend = "$(frontend-and-backend[2])" ;
+    if "$(frontend)" = "clang-trunk" {
+      if ! "trunk" in $(clang-versions) {
+        clang-versions += "trunk" ;
       }
     }
-    else
-    {
-      local version = [ "$(INTRO_ROOT_DIR)/compilers.get-version" $(enabled-compiler) ] ;
-      if ! $(version) in $(clang-versions)
-      {
-        clang-versions += $(version) ;
-      }
-    }
-    if ! $(gcc-for-clang)
-    {
-      gcc-for-clang = gcc-current ;
-      ECHO gcc-for-clang... $(gcc-for-clang) (implied by `--enable-compilers') ;
-      if ! $(gcc-for-clang) in $(compilers)
-      {
-        compilers += $(gcc-for-clang) ;
+    else {
+      local version = [ get-frontend-version "$(enabled-compiler)" ] ;
+      if ! "$(version)" in $(clang-versions) {
+        clang-versions += "$(version)" ;
       }
     }
   }
 }
 
 
-local multitarget = [ option.get enable-multitarget : yes : yes ] ;
-if ! $(multitarget) in no yes
-{
+local multitarget = [ option.get "enable-multitarget" : "yes" : "yes" ] ;
+if ! "$(multitarget)" in no yes {
   errors.error "ERROR: `$(multitarget)' is a wrong value for `--enable-multitarget' option." ;
 }
-if [ option.get disable-multitarget : IMPLIED : IMPLIED ] != IMPLIED
-{
+if [ option.get "disable-multitarget" : "IMPLIED" : "IMPLIED" ] != "IMPLIED" {
   errors.error "no value for `--disable-multitarget' is allowed." ;
 }
-if $(multitarget) = yes && [ option.get disable-multitarget : : INUMIMI ] = INUMIMI
-{
+if "$(multitarget)" = "yes" && [ option.get "disable-multitarget" : : "IMPLIED" ] = "IMPLIED" {
   errors.error "ERROR: both `--enable-multitarget' and `--disable-multitarget' are specified." ;
 }
 ECHO multitarget... $(multitarget) ;
 
 
-local gmp = [ option.get enable-gmp : : latest ] ;
-if $(gmp) = latest
-{
+local gmp = [ option.get "enable-gmp" : : "latest" ] ;
+if "$(gmp)" = "latest" {
   gmp = [ get-gmp-latest-version ] ;
 }
-if $(gmp)
-{
-  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(gmp)" : 1 ]
-  {
-    errors.error an invalid value `$(gmp)' for `--enable-gmp'. ;
+if "$(gmp)" {
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(gmp)" : 1 ] {
+    errors.error "an invalid value `$(gmp)' for `--enable-gmp'." ;
   }
-  if ! $(gmp) in $(gmp-versions)
-  {
-    gmp-versions += $(gmp) ;
+  if ! "$(gmp)" in $(gmp-versions) {
+    gmp-versions += "$(gmp)" ;
   }
   ECHO gmp... $(gmp) ;
 }
 
 
-local mpfr = [ option.get enable-mpfr : : latest ] ;
-if $(mpfr) = latest
-{
+local mpfr = [ option.get "enable-mpfr" : : "latest" ] ;
+if "$(mpfr)" = "latest" {
   mpfr = [ get-mpfr-latest-version ] ;
 }
-if $(mpfr)
-{
-  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(mpfr)" : 1 ]
-  {
-    errors.error an invalid value `$(mpfr)' for `--enable-mpfr'. ;
+if "$(mpfr)" {
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(mpfr)" : 1 ] {
+    errors.error "an invalid value `$(mpfr)' for `--enable-mpfr'." ;
   }
-  if ! $(mpfr) in $(mpfr-versions)
-  {
-    mpfr-versions += $(mpfr) ;
+  if ! "$(mpfr)" in $(mpfr-versions) {
+    mpfr-versions += "$(mpfr)" ;
   }
   ECHO mpfr... $(mpfr) ;
-  if ! $(gmp)
-  {
+  if ! "$(gmp)" {
     gmp = [ get-gmp-latest-version ] ;
-    if ! $(gmp) in $(gmp-versions)
-    {
-      gmp-versions += $(gmp) ;
+    if ! "$(gmp)" in $(gmp-versions) {
+      gmp-versions += "$(gmp)" ;
     }
     ECHO gmp... $(gmp) (implied by '--enable-mpfr') ;
   }
 }
 
 
-local mpc = [ option.get enable-mpc : : latest ] ;
-if $(mpc) = latest
-{
+local mpc = [ option.get "enable-mpc" : : "latest" ] ;
+if "$(mpc)" = "latest" {
   mpc = [ get-mpc-latest-version ] ;
 }
-if $(mpc)
-{
-  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(mpc)" : 1 ]
-  {
-    errors.error an invalid value `$(mpc)' for `--enable-mpc'. ;
+if "$(mpc)" {
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(mpc)" : 1 ] {
+    errors.error "an invalid value `$(mpc)' for `--enable-mpc'." ;
   }
-  if ! $(mpc) in $(mpc-versions)
-  {
-    mpc-versions += $(mpc) ;
+  if ! "$(mpc)" in $(mpc-versions) {
+    mpc-versions += "$(mpc)" ;
   }
   ECHO mpc... $(mpc) ;
-  if ! $(gmp)
-  {
+  if ! "$(gmp)" {
     gmp = [ get-gmp-latest-version ] ;
-    if ! $(gmp) in $(gmp-versions)
-    {
-      gmp-versions += $(gmp) ;
+    if ! "$(gmp)" in $(gmp-versions) {
+      gmp-versions += "$(gmp)" ;
     }
     ECHO gmp... $(gmp) (implied by '--enable-mpc') ;
   }
-  if ! $(mpfr)
-  {
+  if ! "$(mpfr)" {
     mpfr = [ get-mpfr-latest-version ] ;
-    if ! $(mpfr) in $(mpfr-versions)
-    {
-      mpfr-versions += $(mpfr) ;
+    if ! "$(mpfr)" in $(mpfr-versions) {
+      mpfr-versions += "$(mpfr)" ;
     }
     ECHO mpfr... $(mpfr) (implied by `--enable-mpc') ;
   }
 }
 
 
-local ppl = [ option.get enable-ppl : : latest ] ;
-if $(ppl) = latest
-{
+local ppl = [ option.get "enable-ppl" : : "latest" ] ;
+if "$(ppl)" = "latest" {
   ppl = [ get-ppl-latest-version ] ;
 }
-if $(ppl)
-{
-  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(ppl)" : 1 ]
-  {
+if "$(ppl)" {
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(ppl)" : 1 ] {
     errors.error "an invalid value `$(ppl)' for `--enable-ppl'." ;
   }
-  if ! $(ppl) in $(ppl-versions)
-  {
-    ppl-versions += $(ppl) ;
+  if ! "$(ppl)" in $(ppl-versions) {
+    ppl-versions += "$(ppl)" ;
   }
   ECHO ppl... $(ppl) ;
-  if ! $(gmp)
-  {
+  if ! "$(gmp)" {
     gmp = [ get-gmp-latest-version ] ;
-    if ! $(gmp) in $(gmp-versions)
-    {
-      gmp-versions += $(gmp) ;
+    if ! "$(gmp)" in $(gmp-versions) {
+      gmp-versions += "$(gmp)" ;
     }
     ECHO gmp... $(gmp) (implied by --enable-ppl) ;
   }
 }
 
 
-local isl = [ option.get enable-isl : : latest ] ;
-if $(isl) = latest
-{
+local isl = [ option.get "enable-isl" : : "latest" ] ;
+if "$(isl)" = "latest" {
   isl = [ get-isl-latest-version ] ;
 }
-if $(isl)
-{
-  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(isl)" : 1 ]
-  {
+if "$(isl)" {
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(isl)" : 1 ] {
     errors.error "an invalid value `$(isl)' for `--enable-isl'." ;
   }
-  if ! $(isl) in $(isl-versions)
-  {
-    isl-versions += $(isl) ;
+  if ! "$(isl)" in $(isl-versions) {
+    isl-versions += "$(isl)" ;
   }
   ECHO isl... $(isl) ;
-  if ! $(gmp)
-  {
+  if ! "$(gmp)" {
     gmp = [ get-gmp-latest-version ] ;
-    if ! $(gmp) in $(gmp-versions)
-    {
-      gmp-versions += $(gmp) ;
+    if ! "$(gmp)" in $(gmp-versions) {
+      gmp-versions += "$(gmp)" ;
     }
     ECHO gmp... $(gmp) (implied by --enable-isl) ;
   }
@@ -565,64 +427,51 @@ if $(cloog) = latest
 }
 if $(cloog)
 {
-  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(cloog)" : 1 ]
-  {
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(cloog)" : 1 ] {
     errors.error "an invalid value `$(cloog)' for `--enable-cloog'." ;
   }
-  if ! $(cloog) in $(cloog-versions)
-  {
-    cloog-versions += $(cloog) ;
+  if ! "$(cloog)" in $(cloog-versions) {
+    cloog-versions += "$(cloog)" ;
   }
   ECHO cloog... $(cloog) ;
-  if ! $(gmp)
-  {
+  if ! "$(gmp)" {
     gmp = [ get-gmp-latest-version ] ;
-    if ! $(gmp) in $(gmp-versions)
-    {
-      gmp-versions += $(gmp) ;
+    if ! "$(gmp)" in $(gmp-versions) {
+      gmp-versions += "$(gmp)" ;
     }
     ECHO gmp... $(gmp) (implied by --enable-cloog) ;
   }
-  if ! $(isl)
-  {
+  if ! "$(isl)" {
     isl = [ get-isl-latest-version ] ;
-    if ! $(isl) in $(isl-versions)
-    {
-      isl-versions += $(isl) ;
+    if ! "$(isl)" in $(isl-versions) {
+      isl-versions += "$(isl)" ;
     }
     ECHO isl... $(isl) (implied by --enable-cloog) ;
   }
 }
 
 
-local icu4c = [ option.get enable-icu4c : : latest ] ;
-if $(icu4c) = latest
-{
+local icu4c = [ option.get "enable-icu4c" : : "latest" ] ;
+if "$(icu4c)" = "latest" {
   icu4c = [ get-icu4c-latest-version ] ;
 }
-if $(icu4c)
-{
-  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)?)$" : $(icu4c) : 1 ]
-  {
+if "$(icu4c)" {
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)?)$" : "$(icu4c)" : 1 ] {
     errors.error "an invalid value `$(icu4c)' for `--enable-icu4c'." ;
   }
-  if ! $(icu4c) in $(icu4c-versions)
-  {
-    icu4c-versions += $(icu4c) ;
+  if ! "$(icu4c)" in $(icu4c-versions) {
+    icu4c-versions += "$(icu4c)" ;
   }
   ECHO icu4c... $(icu4c) ;
 }
 
 
-local openmpi = [ option.get enable-openmpi : : latest ] ;
-if $(openmpi) = latest
-{
+local openmpi = [ option.get "enable-openmpi" : : "latest" ] ;
+if "$(openmpi)" = "latest" {
   openmpi = [ get-openmpi-latest-version ] ;
 }
-if $(openmpi)
-{
-  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : $(openmpi) : 1 ]
-  {
+if "$(openmpi)" {
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(openmpi)" : 1 ] {
     errors.error "an invalid value `$(openmpi)' for `--enable-openmpi'." ;
   }
   ECHO openmpi... $(openmpi) ;
@@ -630,23 +479,18 @@ if $(openmpi)
 
 
 local mpi-backend = [ option.get with-mpi-backend : unspecified : IMPLIED ] ;
-if $(mpi-backend) = IMPLIED
-{
+if "$(mpi-backend)" = "IMPLIED" {
   errors.error "ERROR: No value is specified for `--with-mpi-backend' option." ;
 }
-if ! $(mpi-backend) in openmpi mpich2 unspecified
-{
+if ! "$(mpi-backend)" in openmpi mpich2 unspecified {
   errors.error "ERROR: `$(mpi-backend)' is a wrong value for `--with-mpi-backend' option.\n"
                "             Allowed values are `openmpi' or `mpich2'." ;
 }
-if $(mpi-backend) = unspecified && $(openmpi)
-{
-  mpi-backend = openmpi ;
+if "$(mpi-backend)" = "unspecified" && "$(openmpi)" {
+  mpi-backend = "openmpi" ;
 }
-if $(mpi-backend) = openmpi
-{
-  if ! $(openmpi)
-  {
+if "$(mpi-backend)" = "openmpi" {
+  if ! "$(openmpi)" {
     openmpi = [ get-openmpi-latest-version ] ;
     ECHO openmpi... $(openmpi) (implied by --with-mpi-backend=openmpi) ;
   }
@@ -654,45 +498,35 @@ if $(mpi-backend) = openmpi
 ECHO mpi backend... $(mpi-backend) ;
 
 
-local boost = [ option.get enable-boost : : latest ] ;
-if $(boost) = latest
-{
+local boost = [ option.get "enable-boost" : : "latest" ] ;
+if "$(boost)" = "latest" {
   boost = [ get-boost-latest-version ] ;
 }
-if $(boost)
-{
-  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(boost)" : 1 ]
-  {
+if "$(boost)" {
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(boost)" : 1 ] {
     errors.error "an invalid value `$(boost)' for `--enable-boost'." ;
   }
-  if ! $(boost) in $(boost-versions)
-  {
-    boost-versions += $(boost) ;
+  if ! "$(boost)" in $(boost-versions) {
+    boost-versions += "$(boost)" ;
   }
 }
-if $(boost-versions)
-{
+if "$(boost-versions)" {
   ECHO boost-versions... $(boost-versions) ;
 }
-else
-{
+else {
   ECHO boost-versions... N/A ;
 }
 
 
-local clang = [ option.get enable-clang : : latest ] ;
-if $(clang) = latest
-{
-  clang = [ "$(INTRO_ROOT_DIR)/compilers.get-clang-latest-version" ] ;
+local clang = [ option.get "enable-clang" : : "latest" ] ;
+if "$(clang)" = "latest" {
+  clang = [ get-clang-latest-version ] ;
 }
-if $(clang)
-{
-  if [ regex.match "^([0-9]+\\.[0-9]+)$" : "$(clang)" : 1 ]
-  {
+if "$(clang)" {
+  if [ regex.match "^([0-9]+\\.[0-9]+)$" : "$(clang)" : 1 ] {
     # Do nothing.
   }
-  else if $(clang) = trunk
-  {
+  else if "$(clang)" = "trunk" {
     # Do nothing.
   }
   else
@@ -700,51 +534,38 @@ if $(clang)
     errors.error "an invalid value `$(clang)' for `--enable-clang' option.\n" ;
   }
   ECHO clang... $(clang) ;
-  if ! $(clang) in $(clang-versions)
-  {
-    clang-versions += $(clang) ;
+  if ! "$(clang)" in $(clang-versions) {
+    clang-versions += "$(clang)" ;
   }
 }
-else
-{
+else {
   ECHO clang... N/A ;
 }
 
 
-local valgrind = [ option.get enable-valgrind : : latest ] ;
-if $(valgrind) = latest
-{
+local valgrind = [ option.get "enable-valgrind" : : "latest" ] ;
+if "$(valgrind)" = "latest" {
   valgrind = [ get-valgrind-latest-version ] ;
 }
-if $(valgrind)
-{
-  if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(valgrind)" : 1 ]
-  {
+if "$(valgrind)" {
+  if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(valgrind)" : 1 ] {
     # Do nothing.
   }
-  else if $(valgrind) = trunk
-  {
+  else if "$(valgrind)" = "trunk" {
     # Do nothing.
   }
-  else
-  {
-    errors.error an invalid value `$(valgrind)' for `--enable-valgrind'. ;
-  }
-  if $(triplet) != i686-pc-linux-gnu && $(triplet) != x86_64-unknown-linux-gnu
-  {
-    errors.error "ERROR: $(triplet): Valgrind is not supported" ;
+  else {
+    errors.error "an invalid value `$(valgrind)' for `--enable-valgrind'." ;
   }
   ECHO valgrind... $(valgrind) ;
 }
-else
-{
+else {
   ECHO valgrind... N/A ;
 }
 
 
-local concurrency = [ option.get concurrency : 1 : IMPLIED ] ;
-if $(concurrency) = IMPLIED
-{
+local concurrency = [ option.get "concurrency" : "1" : "IMPLIED" ] ;
+if "$(concurrency)" = "IMPLIED" {
   errors.error "ERROR: No value is specified for `--concurrency' option." ;
 }
 if ! [ regex.match "(^[1-9][0-9]*)" : "$(concurrency)" : 1 ] {
@@ -753,32 +574,26 @@ if ! [ regex.match "(^[1-9][0-9]*)" : "$(concurrency)" : 1 ] {
 ECHO concurrency... $(concurrency) ;
 
 
-local awacs = [ option.get with-awacs : : IMPLIED ] ;
-if $(awacs) = IMPLIED
-{
+local awacs = [ option.get "with-awacs" : : "IMPLIED" ] ;
+if "$(awacs)" = "IMPLIED" {
   errors.error "No value for `--with-awacs' option is specified." ;
 }
-if $(awacs)
-{
+if "$(awacs)" {
   ECHO awacs... $(awacs) ;
 }
-else
-{
+else {
   ECHO awacs... N/A ;
 }
 
 
-local stream = [ option.get with-stream : : IMPLIED ] ;
-if $(stream) = IMPLIED
-{
+local stream = [ option.get "with-stream" : : "IMPLIED" ] ;
+if "$(stream)" = "IMPLIED" {
   errors.error "No value for `--with-stream' option is specified." ;
 }
-if $(stream)
-{
+if "$(stream)" {
   ECHO stream... $(stream) ;
 }
-else
-{
+else {
   ECHO stream... N/A ;
 }
 
@@ -793,267 +608,267 @@ project intro
   ;
 
 
-constant TRIPLET : $(triplet) ;
-ECHO TRIPLET... $(TRIPLET) ;
-
-constant PREFIX : $(prefix) ;
+constant PREFIX : "$(prefix)" ;
 ECHO PREFIX... $(PREFIX) ;
 
-if $(binutils) = system
-{
+if "$(binutils)" = "system" {
   binutils = ;
 }
-if $(binutils)
-{
-  constant BINUTILS : $(binutils) ;
+if "$(binutils)" {
+  constant BINUTILS : "$(binutils)" ;
   ECHO BINUTILS... $(BINUTILS) ;
 }
-else
-{
+else {
   constant BINUTILS : "" ;
   ECHO BINUTILS... N/A ;
 }
 
-if $(gmp-for-gcc)
-{
-  constant GMP_FOR_GCC : $(gmp-for-gcc) ;
+if "$(gmp-for-gcc)" {
+  constant GMP_FOR_GCC : "$(gmp-for-gcc)" ;
   ECHO GMP_FOR_GCC... $(GMP_FOR_GCC) ;
 }
-else
-{
+else {
   constant GMP_FOR_GCC : "" ;
   ECHO GMP_FOR_GCC... N/A ;
 }
 
-if $(mpfr-for-gcc)
-{
-  constant MPFR_FOR_GCC : $(mpfr-for-gcc) ;
+if "$(mpfr-for-gcc)" {
+  constant MPFR_FOR_GCC : "$(mpfr-for-gcc)" ;
   ECHO MPFR_FOR_GCC... $(MPFR_FOR_GCC) ;
 }
-else
-{
+else {
   constant MPFR_FOR_GCC : "" ;
   ECHO MPFR_FOR_GCC... N/A ;
 }
 
-if $(mpc-for-gcc)
-{
-  constant MPC_FOR_GCC : $(mpc-for-gcc) ;
+if "$(mpc-for-gcc)" {
+  constant MPC_FOR_GCC : "$(mpc-for-gcc)" ;
   ECHO MPC_FOR_GCC... $(MPC_FOR_GCC) ;
 }
-else
-{
+else {
   constant MPC_FOR_GCC : "" ;
   ECHO MPC_FOR_GCC... N/A ;
 }
 
-if $(ppl-for-gcc) = system
-{
-  ppl-for-gcc = ;
-}
-if $(ppl-for-gcc)
-{
-  constant PPL_FOR_GCC : $(ppl-for-gcc) ;
-  ECHO PPL_FOR_GCC... $(PPL_FOR_GCC) ;
-}
-else
-{
-  constant PPL_FOR_GCC : "" ;
-  ECHO PPL_FOR_GCC... N/A ;
-}
-
-if $(isl-for-gcc) = system
-{
+if "$(isl-for-gcc)" = "system" {
   isl-for-gcc = ;
 }
-if $(isl-for-gcc)
-{
-  constant ISL_FOR_GCC : $(isl-for-gcc) ;
+if "$(isl-for-gcc)" {
+  constant ISL_FOR_GCC : "$(isl-for-gcc)" ;
   ECHO ISL_FOR_GCC... $(ISL_FOR_GCC) ;
 }
-else
-{
+else {
   constant ISL_FOR_GCC : "" ;
   ECHO ISL_FOR_GCC... N/A ;
 }
 
-if $(cloog-for-gcc) = system
-{
+if "$(cloog-for-gcc)" = "system" {
   cloog-for-gcc = ;
 }
-if $(cloog-for-gcc)
-{
-  constant CLOOG_FOR_GCC : $(cloog-for-gcc) ;
+if "$(cloog-for-gcc)" {
+  constant CLOOG_FOR_GCC : "$(cloog-for-gcc)" ;
   ECHO CLOOG_FOR_GCC... $(CLOOG_FOR_GCC) ;
 }
-else
-{
+else {
   constant CLOOG_FOR_GCC : "" ;
   ECHO CLOOG_FOR_GCC... N/A ;
-}
-
-if $(gcc-for-clang)
-{
-  constant GCC_FOR_CLANG : $(gcc-for-clang) ;
-  ECHO GCC_FOR_CLANG... $(GCC_FOR_CLANG) ;
 }
 
 constant COMPILERS : $(compilers) ;
 ECHO COMPILERS... $(COMPILERS) ;
 
-if $(gmp-versions)
-{
+if $(gmp-versions) {
   constant GMP_VERSIONS : $(gmp-versions) ;
-  ECHO GMP_VERSIONS... $(GMP_VERSIONS) ;
+  ECHO GMP_VERSIONS... $(GMP_VERSIONS:J=,) ;
 }
 
-if $(mpfr-versions)
-{
+if $(mpfr-versions) {
   constant MPFR_VERSIONS : $(mpfr-versions) ;
   ECHO MPFR_VERSIONS... $(MPFR_VERSIONS:J=,) ;
 }
 
-if $(mpc-versions)
-{
+if $(mpc-versions) {
   constant MPC_VERSIONS : $(mpc-versions) ;
-  ECHO MPC_VERSIONS... $(MPC_VERSIONS) ;
+  ECHO MPC_VERSIONS... $(MPC_VERSIONS:J=,) ;
 }
 
-if $(ppl-versions)
-{
+if $(ppl-versions) {
   constant PPL_VERSIONS : $(ppl-versions) ;
   ECHO PPL_VERSIONS... $(PPL_VERSIONS:J=,) ;
 }
-else
-{
+else {
   ECHO PPL_VERSIONS... N/A ;
 }
 
-if $(isl-versions)
-{
+if $(isl-versions) {
   constant ISL_VERSIONS : $(isl-versions) ;
-  ECHO ISL_VERSIONS... $(ISL=VERSIONS:J=,) ;
+  ECHO ISL_VERSIONS... $(ISL_VERSIONS:J=,) ;
 }
-else
-{
+else {
   ECHO ISL_VERSIONS... N/A ;
 }
 
-if $(cloog-versions)
-{
+if $(cloog-versions) {
   constant CLOOG_VERSIONS : $(cloog-versions) ;
   ECHO CLOOG_VERSIONS... $(CLOOG_VERSIONS:J=,) ;
 }
-else
-{
+else {
   ECHO CLOOG_VERSIONS... N/A ;
 }
 
-if $(icu4c-versions)
-{
+if $(icu4c-versions) {
   constant ICU4C_VERSIONS : $(icu4c-versions) ;
-  ECHO ICU4C_VERSIONS... $(ICU4C_VERSIONS) ;
+  ECHO ICU4C_VERSIONS... $(ICU4C_VERSIONS:J=,) ;
 }
-else
-{
+else {
   ECHO ICU4C_VERSIONS... N/A ;
 }
 
-if $(openmpi)
-{
-  constant OPENMPI : $(openmpi) ;
+if "$(openmpi)" {
+  constant OPENMPI : "$(openmpi)" ;
   ECHO OPENMPI... $(OPENMPI) ;
 }
-else
-{
+else {
   ECHO OPENMPI... N/A ;
 }
 
-if $(boost-versions)
-{
+if $(boost-versions) {
   constant BOOST_VERSIONS : $(boost-versions) ;
-  ECHO BOOST_VERSIONS... $(BOOST_VERSIONS) ;
+  ECHO BOOST_VERSIONS... $(BOOST_VERSIONS:J=,) ;
 }
 
-if $(clang)
-{
-  constant CLANG : $(clang) ;
+if "$(clang)" {
+  constant CLANG : "$(clang)" ;
   ECHO CLANG... $(clang) ;
 }
-else
-{
+else {
   ECHO CLANG... N/A ;
 }
 
-if $(clang-versions)
-{
+if $(clang-versions) {
   constant CLANG_VERSIONS : $(clang-versions) ;
-  ECHO CLANG_VERSIONS... $(clang-versions) ;
+  ECHO CLANG_VERSIONS... $(clang-versions:J=,) ;
 }
-else
-{
+else {
   ECHO CLANG_VERSIONS... N/A ;
 }
 
-if $(valgrind)
-{
-  constant VALGRIND : $(valgrind) ;
+if "$(valgrind)" {
+  constant VALGRIND : "$(valgrind)" ;
   ECHO VALGRIND... $(valgrind) ;
 }
-else
-{
+else {
   ECHO VALGRIND... N/A ;
 }
 
-constant CONCURRENCY : $(concurrency) ;
+constant CONCURRENCY : "$(concurrency)" ;
 ECHO CONCURRENCY... $(CONCURRENCY) ;
 
-if $(awacs)
-{
-  constant AWACS : $(awacs) ;
+if "$(awacs)" {
+  constant AWACS : "$(awacs)" ;
   ECHO AWACS... $(AWACS) ;
 }
-else
-{
+else {
   constant AWACS : "cat > /dev/null" ;
   ECHO AWACS... N/A ;
 }
 
-if $(stream)
-{
-  constant STREAM : $(stream) ;
+if "$(stream)" {
+  constant STREAM : "$(stream)" ;
   ECHO STREAM... $(STREAM) ;
 }
-else
-{
+else {
   constant STREAM : "" ;
   ECHO STREAM... N/A ;
 }
 
 
 
-feature triplet : unspecified i686-pc-linux-gnu i686-pc-cygwin i686-w64-mingw32 x86_64-unknown-linux-gnu x86_64-w64-mingw32 : propagated ;
+feature compiler        : unspecified $(compilers)      :                       ;
+feature compiler-hidden : [ feature.values <compiler> ] : propagated incidental ;
+{
+  local use-compiler ;
+  for local val in [ feature.values <compiler> ] {
+    use-compiler += <compiler-hidden>$(val):<compiler>$(val) ;
+  }
+  constant USE_COMPILER : $(use-compiler) ;
+}
 
-feature multitarget        : unspecified no yes               : propagated            ;
+feature multitarget        : unspecified no yes               :                       ;
 feature multitarget-hidden : [ feature.values <multitarget> ] : propagated incidental ;
+{
+  local use-multitarget ;
+  for local val in [ feature.values <multitarget> ] {
+    use-multitarget += <multitarget-hidden>$(val):<multitarget>$(val) ;
+  }
+  constant USE_MULTITARGET : $(use-multitarget) ;
+}
 
 feature binutils        : unspecified $(binutils)       :                       ;
 feature binutils-hidden : [ feature.values <binutils> ] : propagated incidental ;
 {
   local use-binutils ;
-  for local val in [ feature.values <binutils> ]
-  {
+  for local val in [ feature.values <binutils> ] {
     use-binutils += <binutils-hidden>$(val):<binutils>$(val) ;
   }
   constant USE_BINUTILS : $(use-binutils) ;
+}
+
+feature gmp-for-gcc        : unspecified $(gmp-for-gcc)       :                       ;
+feature gmp-for-gcc-hidden : [ feature.values <gmp-for-gcc> ] : propagated incidental ;
+{
+  local use-gmp-for-gcc ;
+  for local val in [ feature.values <gmp-for-gcc> ] {
+    use-gmp-for-gcc += <gmp-for-gcc-hidden>$(val):<gmp-for-gcc>$(val) ;
+  }
+  constant USE_GMP_FOR_GCC : $(use-gmp-for-gcc) ;
+}
+
+feature mpfr-for-gcc        : unspecified $(mpfr-for-gcc)       :                       ;
+feature mpfr-for-gcc-hidden : [ feature.values <mpfr-for-gcc> ] : propagated incidental ;
+{
+  local use-mpfr-for-gcc ;
+  for local val in [ feature.values <mpfr-for-gcc> ] {
+    use-mpfr-for-gcc += <mpfr-for-gcc-hidden>$(val):<mpfr-for-gcc>$(val) ;
+  }
+  constant USE_MPFR_FOR_GCC : $(use-mpfr-for-gcc) ;
+}
+
+feature mpc-for-gcc        : unspecified $(mpc-for-gcc)       :                       ;
+feature mpc-for-gcc-hidden : [ feature.values <mpc-for-gcc> ] : propagated incidental ;
+{
+  local use-mpc-for-gcc ;
+  for local val in [ feature.values <mpc-for-gcc> ] {
+    use-mpc-for-gcc += <mpc-for-gcc-hidden>$(val):<mpc-for-gcc>$(val) ;
+  }
+  constant USE_MPC_FOR_GCC : $(use-mpc-for-gcc) ;
+}
+
+feature isl-for-gcc        : unspecified $(isl-for-gcc)       :                       ;
+feature isl-for-gcc-hidden : [ feature.values <isl-for-gcc> ] : propagated incidental ;
+{
+  local use-isl-for-gcc ;
+  for local val in [ feature.values <isl-for-gcc> ] {
+    use-isl-for-gcc += <isl-for-gcc-hidden>$(val):<isl-for-gcc>$(val) ;
+  }
+  constant USE_ISL_FOR_GCC : $(use-isl-for-gcc) ;
+}
+
+feature cloog-for-gcc        : unspecified $(cloog-for-gcc)       :                       ;
+feature cloog-for-gcc-hidden : [ feature.values <cloog-for-gcc> ] : propagated incidental ;
+{
+  local use-cloog-for-gcc ;
+  for local val in [ feature.values <cloog-for-gcc> ] {
+    use-cloog-for-gcc += <cloog-for-gcc-hidden>$(val):<cloog-for-gcc>$(val) ;
+  }
+  constant USE_CLOOG_FOR_GCC : $(use-cloog-for-gcc) ;
 }
 
 feature gmp        : unspecified $(gmp-versions) :                       ;
 feature gmp-hidden : [ feature.values <gmp> ]    : propagated incidental ;
 {
   local use-gmp ;
-  for local val in [ feature.values <gmp> ]
-  {
+  for local val in [ feature.values <gmp> ] {
     use-gmp += <gmp-hidden>$(val):<gmp>$(val) ;
   }
   constant USE_GMP : $(use-gmp) ;
@@ -1063,8 +878,7 @@ feature mpfr        : unspecified $(mpfr-versions) :                       ;
 feature mpfr-hidden : [ feature.values <mpfr> ]    : propagated incidental ;
 {
   local use-mpfr ;
-  for local val in [ feature.values <mpfr> ]
-  {
+  for local val in [ feature.values <mpfr> ] {
     use-mpfr += <mpfr-hidden>$(val):<mpfr>$(val) ;
   }
   constant USE_MPFR : $(use-mpfr) ;
@@ -1074,8 +888,7 @@ feature mpc        : unspecified $(mpc-versions) :                       ;
 feature mpc-hidden : [ feature.values <mpc> ]    : propagated incidental ;
 {
   local use-mpc ;
-  for local val in [ feature.values <mpc> ]
-  {
+  for local val in [ feature.values <mpc> ] {
     use-mpc += <mpc-hidden>$(val):<mpc>$(val) ;
   }
   constant USE_MPC : $(use-mpc) ;
@@ -1085,8 +898,7 @@ feature ppl        : unspecified $(ppl-versions) :                       ;
 feature ppl-hidden : [ feature.values <ppl> ]    : propagated incidental ;
 {
   local use-ppl ;
-  for local val in [ feature.values <ppl> ]
-  {
+  for local val in [ feature.values <ppl> ] {
     use-ppl += <ppl-hidden>$(val):<ppl>$(val) ;
   }
   constant USE_PPL : $(use-ppl) ;
@@ -1096,8 +908,7 @@ feature isl        : unspecified $(isl-versions) :                       ;
 feature isl-hidden : [ feature.values <isl> ]    : propagated incidental ;
 {
   local use-isl ;
-  for local val in [ feature.values <isl> ]
-  {
+  for local val in [ feature.values <isl> ] {
     use-isl += <isl-hidden>$(val):<isl>$(val) ;
   }
   constant USE_ISL : $(use-isl) ;
@@ -1107,22 +918,17 @@ feature cloog        : unspecified $(cloog-versions) :                       ;
 feature cloog-hidden : [ feature.values <cloog> ]    : propagated incidental ;
 {
   local use-cloog ;
-  for local val in [ feature.values <cloog> ]
-  {
+  for local val in [ feature.values <cloog> ] {
     use-cloog += <cloog-hidden>$(val):<cloog>$(val) ;
   }
   constant USE_CLOOG : $(use-cloog) ;
 }
 
-feature compiler        : unspecified $(compilers) : propagated            ;
-feature compiler-hidden : [ feature.values <compiler> ] : propagated incidental ;
-
 feature icu4c        : unspecified $(icu4c-versions) :                       ;
 feature icu4c-hidden : [ feature.values <icu4c> ]    : propagated incidental ;
 {
   local use-icu4c ;
-  for local val in [ feature.values <icu4c> ]
-  {
+  for local val in [ feature.values <icu4c> ] {
     use-icu4c += <icu4c-hidden>$(val):<icu4c>$(val) ;
   }
   constant USE_ICU4C : $(use-icu4c) ;
@@ -1138,8 +944,7 @@ feature boost        : unspecified $(boost-versions) :                       ;
 feature boost-hidden : [ feature.values <boost> ]    : propagated incidental ;
 {
   local use-boost ;
-  for local val in [ feature.values <boost> ]
-  {
+  for local val in [ feature.values <boost> ] {
     use-boost += <boost-hidden>$(val):<boost>$(val) ;
   }
   constant USE_BOOST : $(use-boost) ;
@@ -1149,8 +954,7 @@ feature clang        : unspecified $(clang)       :                       ;
 feature clang-hidden : [ feature.values <clang> ] : propagated incidental ;
 {
   local use-clang ;
-  for local val in [ feature.values <clang> ]
-  {
+  for local val in [ feature.values <clang> ] {
     use-clang += <clang-hidden>$(val):<clang>$(val) ;
   }
   constant USE_CLANG : $(use-clang) ;
@@ -1160,129 +964,148 @@ feature valgrind        : unspecified $(valgrind)       :                       
 feature valgrind-hidden : [ feature.values <valgrind> ] : propagated incidental ;
 {
   local use-valgrind ;
-  for local val in [ feature.values <valgrind> ]
-  {
+  for local val in [ feature.values <valgrind> ] {
     use-valgrind += <valgrind-hidden>$(val):<valgrind>$(val) ;
   }
   constant USE_VALGRIND : $(use-valgrind) ;
 }
 
-constant DEFAULT_PROPERTIES : "<std>c++03/<variant>debug/<ssp>off/<mudflap>off/<address-sanitizer>off/<libstdc++-debug-mode>off" ;
-
-for local enabled-compiler in $(enabled-compilers)
+feature intro-address-model        : unspecified 64 32                        :                       ;
+feature intro-address-model-hidden : [ feature.values <intro-address-model> ] : propagated incidental ;
 {
+  local use-address-model ;
+  for local val in [ feature.values <intro-address-model> ] {
+    use-address-model += <intro-address-model-hidden>$(val):<intro-address-model>$(val) ;
+  }
+  constant USE_ADDRESS_MODEL : $(use-address-model:J=" ") ;
+}
+
+feature intro-instruction-set        : unspecified native                         :                       ;
+feature intro-instruction-set-hidden : [ feature.values <intro-instruction-set> ] : propagated incidental ;
+{
+  local use-instruction-set ;
+  for local val in [ feature.values <intro-instruction-set> ] {
+    use-instruction-set += <intro-instruction-set-hidden>$(val):<intro-instruction-set>$(val) ;
+  }
+  constant USE_INSTRUCTION_SET : $(use-instruction-set:J=" ") ;
+}
+
+local default-host-os = [ feature.get-values <host-os> : [ feature.defaults <host-os> ] ] ;
+constant DEFAULT_COMPILER_PROPERTIES : "<variant>release/<link>shared/<runtime-link>shared/<runtime-debugging>off/<threading>single/<intro-address-model-hidden>unspecified/<intro-instruction-set-hidden>unspecified/<std>c++03/<lto>off/<correct-call-stack>off/<ssp>off/<memory-checker>off/<libstdc++-debug-mode>off" ;
+constant DEFAULT_PROPERTIES : "<host-os>$(default-host-os)/<target-os>$(default-host-os)/<variant>debug/<std>c++03/<link>shared/<runtime-link>shared/<runtime-debugging>on/<optimization>off/<profiling>off/<threading>single/<intro-address-model-hidden>unspecified/<intro-instruction-set-hidden>unspecified/<lto>off/<correct-call-stack>off/<ssp>off/<memory-checker>off/<libstdc++-debug-mode>off" ;
+
+for local enabled-compiler in $(enabled-compilers) {
   local srcs ;
-  if $(gmp)
-  {
-    srcs += gmp//install/<multitarget-hidden>$(multitarget) ;
+  if "$(gmp)" {
+    srcs += "gmp//install" ;
   }
-  if $(mpfr)
-  {
-    srcs += mpfr//install/<multitarget-hidden>$(multitarget) ;
+  if "$(mpfr)" {
+    srcs += "mpfr//install" ;
   }
-  if $(mpc)
-  {
-    srcs += mpc//install/<multitarget-hidden>$(multitarget) ;
+  if "$(mpc)" {
+    srcs += "mpc//install" ;
   }
-  if $(ppl)
-  {
-    srcs += ppl//install/<multitarget-hidden>$(multitarget) ;
+  if "$(ppl)" {
+    srcs += "ppl//install" ;
   }
-  if $(isl)
-  {
-    srcs += isl//install/<multitarget-hidden>$(multitarget) ;
+  if "$(isl)" {
+    srcs += "isl//install" ;
   }
-  if $(cloog)
-  {
-    srcs += cloog//install/<multitarget-hidden>$(multitarget) ;
+  if "$(cloog)" {
+    srcs += "cloog//install" ;
   }
-  if $(icu4c)
-  {
-    srcs += icu4c//install/<multitarget-hidden>$(multitarget) ;
+  if "$(icu4c)" {
+    srcs += "icu4c//install" ;
   }
-  if $(boost)
-  {
-    srcs += boost//install/<multitarget-hidden>$(multitarget)/<mpi-backend>$(mpi-backend)/<openmpi>$(openmpi) ;
+  if "$(boost)" {
+    srcs += "boost//install/<mpi-backend>$(mpi-backend)/<openmpi>$(openmpi)" ;
   }
-  if $(valgrind)
-  {
-    srcs += valgrind//install/<multitarget-hidden>$(multitarget)/<mpi-backend>$(mpi-backend)/<openmpi>$(openmpi) ;
+  if "$(valgrind)" {
+    srcs += "valgrind//install/<mpi-backend>$(mpi-backend)/<openmpi>$(openmpi)" ;
   }
 
-  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" "$(enabled-compiler)" ]
-  {
-    if $(clang)
-    {
-      srcs += clang//install/<multitarget-hidden>$(multitarget) ;
+  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" "$(enabled-compiler)" ] {
+    if "$(clang)" {
+      srcs += "clang//install" ;
     }
 
-    if ! $(boost-versions)
-    {
+    if ! "$(boost-versions)" {
       alias $(enabled-compiler)
-      : gcc//install/<multitarget>$(multitarget)
+      : gcc//install
         $(srcs)
-        openmpi//install/<multitarget-hidden>$(multitarget)/<mpi-backend>$(mpi-backend)/<openmpi>$(OPENMPI)
-      : <triplet>$(triplet)
-        <compiler>$(enabled-compiler)
+        openmpi//install/<mpi-backend>$(mpi-backend)/<openmpi>$(OPENMPI)
+      : <compiler-hidden>$(enabled-compiler)
+        <multitarget-hidden>$(multitarget)
         <binutils-hidden>$(binutils)
+        <gmp-for-gcc-hidden>$(gmp-for-gcc)
+        <mpfr-for-gcc-hidden>$(mpfr-for-gcc)
+        <mpc-for-gcc-hidden>$(mpc-for-gcc)
+        <isl-for-gcc-hidden>$(isl-for-gcc)
+        <cloog-for-gcc-hidden>$(cloog-for-gcc)
         <gmp-hidden>$(gmp)
         <mpfr-hidden>$(mpfr)
         <mpc-hidden>$(mpc)
-        <ppl-hidden>$(ppl)
         <isl-hidden>$(isl)
         <cloog-hidden>$(cloog)
+        <ppl-hidden>$(ppl)
         <icu4c-hidden>$(icu4c)
         <clang-hidden>$(clang)
         <valgrind-hidden>$(valgrind)
       ;
     }
-    else
-    {
-      for local boost in $(boost-versions)
-      {
+    else {
+      for local boost in $(boost-versions) {
         alias $(enabled-compiler)
-        : gcc//install/<multitarget>$(multitarget)
-          $(srcs)
-          openmpi//install/<multitarget-hidden>$(multitarget)/<mpi-backend>$(mpi-backend)/<openmpi>$(OPENMPI)
-        : <triplet>$(triplet)
-          <compiler>$(enabled-compiler)
-          <binutils-hidden>$(binutils)
-          <gmp-hidden>$(gmp)
-          <mpfr-hidden>$(mpfr)
-          <mpc-hidden>$(mpc)
-          <ppl-hidden>$(ppl)
-          <isl-hidden>$(isl)
-          <cloog-hidden>$(cloog)
-          <icu4c-hidden>$(icu4c)
-          <boost-hidden>$(boost)
-          <clang-hidden>$(clang)
-          <valgrind-hidden>$(valgrind)
+          : gcc//install
+            $(srcs)
+            openmpi//install/<mpi-backend>$(mpi-backend)/<openmpi>$(OPENMPI)
+          : <compiler-hidden>$(enabled-compiler)
+            <multitarget-hidden>$(multitarget)
+            <binutils-hidden>$(binutils)
+            <gmp-for-gcc-hidden>$(gmp-for-gcc)
+            <mpfr-for-gcc-hidden>$(mpfr-for-gcc)
+            <mpc-for-gcc-hidden>$(mpc-for-gcc)
+            <isl-for-gcc-hidden>$(isl-for-gcc)
+            <cloog-for-gcc-hidden>$(cloog-for-gcc)
+            <gmp-hidden>$(gmp)
+            <mpfr-hidden>$(mpfr)
+            <mpc-hidden>$(mpc)
+            <isl-hidden>$(isl)
+            <cloog-hidden>$(cloog)
+            <ppl-hidden>$(ppl)
+            <icu4c-hidden>$(icu4c)
+            <boost-hidden>$(boost)
+            <clang-hidden>$(clang)
+            <valgrind-hidden>$(valgrind)
         ;
       }
     }
   }
-  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" "$(enabled-compiler)" ]
-  {
+  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" "$(enabled-compiler)" ] {
     alias $(enabled-compiler)
-      : clang//install/<multitarget-hidden>$(multitarget)
+      : clang//install
         $(srcs)
-        openmpi//install/<multitarget-hidden>$(multitarget)/<mpi-backend>$(mpi-backend)/<openmpi>$(OPENMPI)
-      : <triplet>$(triplet)
-        <compiler>$(enabled-compiler)
+        openmpi//install/<mpi-backend>$(mpi-backend)/<openmpi>$(OPENMPI)
+      : <compiler-hidden>$(enabled-compiler)
+        <multitarget-hidden>$(multitarget)
         <binutils-hidden>$(binutils)
+        <gmp-for-gcc-hidden>$(gmp-for-gcc)
+        <mpfr-for-gcc-hidden>$(mpfr-for-gcc)
+        <mpc-for-gcc-hidden>$(mpc-for-gcc)
+        <isl-for-gcc-hidden>$(isl-for-gcc)
+        <cloog-for-gcc-hidden>$(cloog-for-gcc)
         <gmp-hidden>$(gmp)
         <mpfr-hidden>$(mpfr)
         <mpc-hidden>$(mpc)
-        <ppl-hidden>$(ppl)
         <isl-hidden>$(isl)
         <cloog-hidden>$(cloog)
+        <ppl-hidden>$(ppl)
         <icu4c-hidden>$(icu4c)
         <boost-hidden>$(boost)
         <valgrind-hidden>$(valgrind)
       ;
   }
-  else
-  {
+  else {
     errors.error "an internal error." ;
   }
 }

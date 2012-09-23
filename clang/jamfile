@@ -4,113 +4,96 @@ import alias ;
 import errors ;
 import feature ;
 import make ;
+import path ;
 import regex ;
-import "$(INTRO_ROOT_DIR)/compilers" ;
+import "$(INTRO_ROOT_DIR)/compilers"
+  : is-gcc
+    is-builtin-gcc
+    is-clang
+    is-icc
+    get-frontend-version
+    get-backend-gcc
+    get-compiler-description
+    get-compiler-prefix
+    get-default-bindir
+    get-default-libdir
+    get-default-debug-libdir
+    get-default-includedir
+    get-bindir
+    get-libdir
+    get-includedir
+    get-compiler-triplets
+    get-triplets
+    get-cc
+    get-cflags
+    get-cxx
+    get-cxxflags
+    get-environment-commands
+    get-property-dump-commands
+  ;
 
 
-rule assert-specified ( feature : properties * )
+rule compiler-dep-req ( properties * )
 {
-  local val = [ feature.get-values $(feature) : $(properties) ] ;
-  if $(val) = unspecified {
-    errors.error "$(feature) is not specified for the LLVM & Clang build." ;
-  }
-}
-
-rule assert-unspecified ( feature : properties * )
-{
-  local val = [ feature.get-values $(feature) : $(properties) ] ;
-  if $(val) != unspecified {
-    errors.error "$(feature) is not valid for the LLVM & Clang build." ;
-  }
-}
-
-
-
-rule gcc-dep-req ( properties * )
-{
-  assert-specified   <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-specified   <multitarget-hidden> : $(properties) ;
-  assert-specified   <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <clang>              : $(properties) ;
-  #assert-specified   <clang-hidden>       : $(properties) ;
-
-  local multitarget = [ feature.get-values <multitarget-hidden> : $(properties) ] ;
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
   local result ;
-  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
-  {
-    result = <source>../gcc//install/<multitarget>$(multitarget)/<multitarget-hidden>unspecified ;
+  if [ is-gcc "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
   }
-  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
-  {
-    if ! $(GCC_FOR_CLANG)
-    {
-      errors.error "an internal error." ;
-    }
-    result = <source>../gcc//install/<multitarget>$(multitarget)/<multitarget-hidden>unspecified ;
+  else if [ is-clang "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
   }
-  else
-  {
+  else if [ is-icc "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
+    result += "<source>../icc//install" ;
+  }
+  else {
     errors.error "an internal error." ;
   }
   return $(result) ;
 }
 
-alias gcc-dep : : <conditional>@gcc-dep-req ;
-explicit gcc-dep ;
+alias compiler-dep : : <conditional>@compiler-dep-req ;
+explicit compiler-dep ;
 
 
 
-local rule get-version ( properties * )
+local rule get-version-impl ( properties * )
 {
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  if $(compiler) = unspecified
-  {
-    compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
-    if $(compiler) = unspecified
-    {
-      errors.error "an internal error" ;
-    }
-  }
-
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
   local clang = [ feature.get-values <clang-hidden> : $(properties) ] ;
 
   local result ;
-  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
-  {
-    if $(clang) = unspecified
-    {
+  if [ is-gcc "$(compiler)" ] {
+    if "$(clang)" = "unspecified" {
       errors.error "an internal error" ;
     }
-    result = $(clang) ;
+    result = "$(clang)" ;
   }
-  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
-  {
-    if $(compiler) = clang-trunk
-    {
-      result = trunk ;
+  else if [ is-clang "$(compiler)" ] {
+    if [ regex.match "^(clang-trunk-.+)" : "$(compiler)" : 1 ] {
+      result = "trunk" ;
     }
-    else
-    {
-      result = [ "$(INTRO_ROOT_DIR)/compilers.get-version" $(compiler) ] ;
+    else {
+      result = [ get-frontend-version "$(compiler)" ] ;
     }
   }
-  else
-  {
+  else if [ is-icc "$(compiler)" ] {
+    if "$(clang)" = "unspecified" {
+      errors.error "an internal error." ;
+    }
+    result = "$(clang)" ;
+  }
+  else {
     errors.error "an internal error" ;
   }
-
   return $(result) ;
 }
 
 
 
-for local version in $(CLANG_VERSIONS)
-{
-  if $(version) != trunk
-  {
+for local version in $(CLANG_VERSIONS) {
+  if $(version) != trunk {
     make "$(INTRO_ROOT_DIR)/llvm-$(version).src.tar.gz" : : @download ;
     explicit "$(INTRO_ROOT_DIR)/llvm-$(version).src.tar.gz" ;
   }
@@ -118,26 +101,17 @@ for local version in $(CLANG_VERSIONS)
 
 rule download ( targets * : sources * : properties * )
 {
-  if $(sources[1])
-  {
-    errors.error "an internal error." ;
-  }
-  assert-unspecified <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-unspecified <compiler>           : $(properties) ;
-  #assert-specified   <compiler-hidden>    : $(properties) ;
-  assert-unspecified <clang>              : $(properties) ;
-  #assert-specified   <clang-hidden>       : $(properties) ;
-
-  local version = [ get-version $(properties) ] ;
+  local version = [ get-version-impl $(properties) ] ;
   VERSION on $(targets) = $(version) ;
   LLVM_SRC_URL on $(targets) = "http://llvm.org/releases/$(version)/llvm-$(version).src.tar.gz" ;
   CLANG_SRC_URL on $(targets) = "http://llvm.org/releases/$(version)/clang-$(version).src.tar.gz" ;
   COMPILER_RT_SRC_URL on $(targets) = "http://llvm.org/releases/$(version)/compiler-rt-$(version).src.tar.gz" ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions download
 {
+  $(PROPERTY_DUMP_COMMANDS)
+
   ( cd '$(INTRO_ROOT_DIR)' && rm -rf 'llvm-$(VERSION).src.tar.gz' ) || exit 1
   ( cd '$(INTRO_ROOT_DIR)' && rm -rf 'clang-$(VERSION).src.tar.gz' ) || exit 1
   ( cd '$(INTRO_ROOT_DIR)' && rm -rf 'compiler-rt-$(VERSION).src.tar.gz' ) || exit 1
@@ -190,8 +164,7 @@ actions download
 
 
 
-for local version in $(CLANG_VERSIONS)
-{
+for local version in $(CLANG_VERSIONS) {
   # Use `README.txt' file as a target representing the completion of
   # decompression action. It is suitable for the purpose because of the
   # following reasons;
@@ -200,8 +173,7 @@ for local version in $(CLANG_VERSIONS)
   #     changes.
   #   - This file won't be modified during the build procedure.
   #
-  if $(version) != trunk
-  {
+  if "$(version)" != "trunk" {
     make "$(INTRO_ROOT_DIR)/llvm-$(version)/README.txt"
       : "$(INTRO_ROOT_DIR)/llvm-$(version).src.tar.gz"
       : @expand
@@ -212,27 +184,14 @@ for local version in $(CLANG_VERSIONS)
 
 rule expand ( targets * : sources * : properties * )
 {
-  if ! $(sources[1])
-  {
-    errors.error "an internal error." ;
-  }
-  if $(sources[2])
-  {
-    errors.error "an internal error." ;
-  }
-  assert-unspecified <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-unspecified <compiler>           : $(properties) ;
-  #assert-specified   <compiler-hidden>    : $(properties) ;
-  assert-unspecified <clang>              : $(properties) ;
-  #assert-specified   <clang-hidden>       : $(properties) ;
-
-  local version = [ get-version $(properties) ] ;
-  VERSION on $(targets) = $(version) ;
+  local version = [ get-version-impl $(properties) ] ;
+  VERSION on $(targets) = "$(version)" ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions expand
 {
+  $(PROPERTY_DUMP_COMMANDS)
+
   rm -rf '$(<:D)' || exit 1
 
   [ -f '$(INTRO_ROOT_DIR)/llvm-$(VERSION).src.tar.gz' ] || exit 1
@@ -300,40 +259,34 @@ actions expand
 
 
 
-for local version in $(CLANG_VERSIONS)
-{
-  if $(version) = trunk
-  {
+for local version in $(CLANG_VERSIONS) {
+  if "$(version)" = "trunk" {
     make "$(INTRO_ROOT_DIR)/llvm-trunk/README.txt"
       : # no source
       : @update-trunk
       ;
     explicit "$(INTRO_ROOT_DIR)/llvm-trunk/README.txt" ;
-    always "$(INTRO_ROOT_DIR)/llvm-trunk/README.txt" ;
+    #always "$(INTRO_ROOT_DIR)/llvm-trunk/README.txt" ;
   }
 }
 
 rule update-trunk ( targets * : sources * : properties * )
 {
-  assert-unspecified <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-unspecified <compiler>           : $(properties) ;
-  #assert-specified   <compiler-hidden>    : $(properties) ;
-  assert-unspecified <clang>              : $(properties) ;
-  #assert-specified   <clang-hidden>       : $(properties) ;
-
   local llvm-dir = "$(INTRO_ROOT_DIR)/llvm-trunk" ;
-  LLVM_DIR on $(targets) = "$(llvm-dir)" ;
+  LLVM_DIR on $(targets) = [ path.native "$(llvm-dir)" ] ;
 
   local clang-dir = "$(llvm-dir)/tools/clang" ;
-  CLANG_DIR on $(targets) = "$(clang-dir)" ;
+  CLANG_DIR on $(targets) = [ path.native "$(clang-dir)" ] ;
 
   local compiler-rt-dir = "$(llvm-dir)/projects/compiler-rt" ;
-  COMPILER_RT_DIR on $(targets) = "$(compiler-rt-dir)" ;
+  COMPILER_RT_DIR on $(targets) = [ path.native "$(compiler-rt-dir)" ] ;
+
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions update-trunk
 {
+  $(PROPERTY_DUMP_COMMANDS)
+
   if [ ! -f '$(LLVM_DIR)/README.txt' ]; then
     if [ -n '$(STREAM)' ]; then
       ( cd '$(INTRO_ROOT_DIR)' && svn checkout 'http://llvm.org/svn/llvm-project/llvm/trunk' llvm-trunk >> '$(STREAM)' 2>&1 )
@@ -421,17 +374,8 @@ actions update-trunk
 
 rule srcdir-req ( properties * )
 {
-  assert-unspecified <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-unspecified <multitarget-hidden> : $(properties) ;
-  #assert-specified   <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <clang>              : $(properties) ;
-  #assert-specified   <clang-hidden>       : $(properties) ;
-
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local version = [ get-version $(properties) ] ;
-  return "<source>$(INTRO_ROOT_DIR)/llvm-$(version)/README.txt/<compiler>unspecified/<compiler-hidden>$(compiler)/$(DEFAULT_PROPERTIES)" ;
+  local version = [ get-version-impl $(properties) ] ;
+  return "<source>$(INTRO_ROOT_DIR)/llvm-$(version)/README.txt/$(DEFAULT_PROPERTIES)" ;
 }
 
 alias srcdir
@@ -442,203 +386,373 @@ explicit srcdir ;
 
 
 
-for local compiler in $(COMPILERS)
+rule location-conditional ( properties * )
 {
-  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" "$(compiler)" : "$(GCC_FOR_CLANG)" ] ;
-  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-  make "$(compiler-prefix)/bin/clang++-wrapper"
-    : gcc-dep
-      srcdir/<triplet>unspecified/<multitarget-hidden>unspecified
-    : @make-install
-    : $(USE_CLANG)
-    ;
-  explicit "$(compiler-prefix)/bin/clang++-wrapper" ;
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
+  local bindir ;
+  if [ is-clang "$(compiler)" ] {
+    bindir = [ get-default-bindir "$(PREFIX)" : $(properties) ] ;
+  }
+  else if [ is-gcc "$(compiler)" ] || [ is-icc "$(compiler)" ] {
+    bindir = [ get-bindir "$(PREFIX)" : $(properties) ] ;
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+  return "<location>$(bindir)" ;
 }
+
+make clang++-wrapper
+  : compiler-dep
+    srcdir
+  : @make-install
+  : $(USE_COMPILER)
+    $(USE_MULTITARGET)
+    $(USE_CLANG)
+    $(USE_ADDRESS_MODEL)
+    $(USE_INSTRUCTION_SET)
+    <conditional>@location-conditional
+  ;
+explicit clang++-wrapper ;
 
 rule make-install ( targets * : sources * : properties * )
 {
-  assert-specified   <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-specified   <multitarget-hidden> : $(properties) ;
-  assert-specified   <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-  #assert-specified   <clang>              : $(properties) ;
-  #assert-specified   <clang-hidden>       : $(properties) ;
-
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local compiler-description ;
-  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
-  {
-    compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(compiler) ] ;
+  if [ is-gcc "$(compiler)" ] {
+    compiler-description = [ get-compiler-description "$(compiler)" ] ;
   }
-  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
-  {
-    compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(GCC_FOR_CLANG) ] ;
+  else if [ is-clang "$(compiler)" ] {
+    local backend-gcc = [ get-backend-gcc $(properties) ] ;
+    compiler-description = [ get-compiler-description "$(backend-gcc)" ] ;
   }
-  else
-  {
+  else if [ is-icc "$(compiler)" ] {
+    compiler-description = [ get-compiler-description "$(compiler)" ] ;
+  }
+  else {
     errors.error "an internal error." ;
   }
   COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
 
-  local version = [ get-version $(properties) ] ;
-  VERSION on $(targets) = $(version) ;
+  local version = [ get-version-impl $(properties) ] ;
+  VERSION on $(targets) = "$(version)" ;
 
   local llvm-dir = "$(INTRO_ROOT_DIR)/llvm-$(version)" ;
-  LLVM_DIR on $(targets) = "$(llvm-dir)" ;
+  LLVM_DIR on $(targets) = [ path.native "$(llvm-dir)" ] ;
 
   local clang-dir = "$(llvm-dir)/tools/clang" ;
-  CLANG_DIR on $(targets) = "$(clang-dir)" ;
+  CLANG_DIR on $(targets) = [ path.native "$(clang-dir)" ] ;
 
   local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
-  OBJDIR on $(targets) = "$(objdir)" ;
-
-  local triplet = [ feature.get-values <triplet> : $(properties) ] ;
-  TRIPLET on $(targets) = $(triplet) ;
+  OBJDIR on $(targets) = [ path.native "$(objdir)" ] ;
 
   OPTIONS on $(targets) = ;
 
-  # Set the '--build', '--host' and '--target' options for the 'configure' script.
-  OPTIONS on $(targets) += --build=$(triplet) ;
-  OPTIONS on $(targets) += --host=$(triplet) ;
-  OPTIONS on $(targets) += --target=$(triplet) ;
+  # Set `--prefix' option for `configure' script.
+  local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
+  local compiler-prefix-native = [ path.native "$(compiler-prefix)" ] ;
+  COMPILER_PREFIX on $(targets) = "$(compiler-prefix-native)" ;
+  OPTIONS on $(targets) += "--prefix='$(compiler-prefix-native)'" ;
+
+  local bindir-native ;
+  local libdir-native ;
+  local includedir-native ;
+  if [ is-clang "$(compiler)" ] {
+    local bindir = [ get-default-bindir "$(PREFIX)" : $(properties) ] ;
+    bindir-native = [ path.native "$(bindir)" ] ;
+
+    local libdir = [ get-default-libdir "$(PREFIX)" : $(properties) ] ;
+    libdir-native = [ path.native "$(libdir)" ] ;
+
+    local includedir = [ get-default-includedir "$(PREFIX)" : $(properties) ] ;
+    includedir-native = [ path.native "$(includedir)" ] ;
+  }
+  else {
+    local bindir = [ get-bindir "$(PREFIX)" : $(properties) ] ;
+    bindir-native = [ path.native "$(bindir)" ] ;
+
+    local libdir = [ get-libdir "$(PREFIX)" : $(properties) ] ;
+    libdir-native = [ path.native "$(libdir)" ] ;
+
+    local includedir = [ get-includedir "$(PREFIX)" : $(properties) ] ;
+    includedir-native = [ path.native "$(includedir)" ] ;
+  }
+  # Set `--bindir' option for `configure' script.
+  BINDIR on $(targets) += "$(bindir-native)" ;
+  OPTIONS on $(targets) += "--bindir='$(bindir-native)'" ;
+  # Set `--libdir' option for `configure' script.
+  LIBDIR on $(targets) += "$(libdir-native)" ;
+  OPTIONS on $(targets) += "--libdir='$(libdir-native)'" ;
+  # Set `--includedir' option for `configure' script.
+  INCLUDEDIR on $(targets) += "$(includedir-native)" ;
+  OPTIONS on $(targets) += "--includedir='$(includedir-native)'" ;
+
+  local build-triplet ;
+  local host-triplet ;
+  local target-triplet ;
+  local enabled-targets ;
+  if [ is-clang "$(compiler)" ] {
+    local triplets = [ get-compiler-triplets $(properties) ] ;
+    build-triplet = "$(triplets[1])" ;
+    host-triplet = "$(triplets[2])" ;
+    target-triplet = "$(triplets[3])" ;
+    enabled-targets = "$(triplets[4])" ;
+  }
+  else {
+    local triplets = [ get-triplets $(properties) ] ;
+    build-triplet = "$(triplets[1])" ;
+    host-triplet = "$(triplets[1])" ;
+    target-triplet = "$(triplets[2])" ;
+  }
+  BUILD_TRIPLET on $(targets) = "$(build-triplet)" ;
+  HOST_TRIPLET on $(targets) = "$(host-triplet)" ;
+  TARGET_TRIPLET on $(targets) = "$(target-triplet)" ;
+  # Set `--build', `--host' and `--target' options for `configure' script.
+  OPTIONS on $(targets) += "--build=$(build-triplet)" ;
+  OPTIONS on $(targets) += "--host=$(host-triplet)" ;
+  OPTIONS on $(targets) += "--target=$(target-triplet)" ;
+
+  local variant = [ feature.get-values <variant> : $(properties) ] ;
+
+  if [ is-clang "$(compiler)" ] {
+    # Do nothing.
+  }
+  else if [ is-gcc "$(compiler)" ] || [ is-icc "$(compiler)" ] {
+    if "$(variant)" = "debug" {
+      OPTIONS on $(targets) += "--disable-optimized" ;
+    }
+    else if "$(variant)" = "release" {
+      OPTIONS on $(targets) += "--enable-optimized" ;
+    }
+    else if "$(variant)" = "profile" {
+      OPTIONS on $(targets) += "--enable-optimized" ;
+      OPTIONS on $(targets) += "--enable-profiling" ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
+  }
+  else {
+    errors.error "an internal error." ;
+  }
 
   local gcc = [ feature.get-values <gcc> : $(properties) ] ;
-  GCC on $(targets) = $(gcc) ;
-
-  # Set the '--prefix' option for the 'configure' script.
-  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
-  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-  COMPILER_PREFIX on $(targets) = "$(compiler-prefix)" ;
-  OPTIONS on $(targets) += "--prefix=\"$(compiler-prefix)\"" ;
+  GCC on $(targets) = "$(gcc)" ;
 
   OPTIONS on $(targets) += "--enable-bindings=none" ;
 
-  if ! [ "$(INTRO_ROOT_DIR)/compilers.is-builtin-gcc" $(compiler) ]
-  {
-    OPTIONS on $(targets) += "--with-c-include-dirs=\"$(compiler-prefix)/include:/usr/include\"" ;
-    OPTIONS on $(targets) += "--with-cxx-include-root=\"$(compiler-prefix)/include/c++/\"`\"$(compiler-prefix)/bin/g++\" -dumpversion`" ;
-    OPTIONS on $(targets) += --with-cxx-include-arch=$(triplet) ;
-    if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32
-    {
+  #if "$(enabled-targets)" {
+  #  OPTIONS on $(targets) += "--enable-targets=x86_64,x86" ;
+  #}
+  #else {
+  #  OPTIONS on $(targets) += "--enable-targets=x86_64,x86" ;
+  #}
+
+  local multittarget = [ feature.get-values <multitarget> : $(properties) ] ;
+
+  if ! [ is-builtin-gcc "$(compiler)" ] {
+    #OPTIONS on $(targets) += "--with-c-include-dirs='$(libdir-native)/gcc/$(target-triplet)/`'$(compiler-prefix-native)/bin/gcc' -dumpversion`/include:$(compiler-prefix-native)/include:/usr/include'" ;
+    OPTIONS on $(targets) += "--with-cxx-include-root=\"$(compiler-prefix-native)/include/c++/`'$(compiler-prefix-native)/bin/gcc' -dumpversion`\"" ;
+    OPTIONS on $(targets) += "--with-cxx-include-arch=$(target-triplet)" ;
+    if "$(target-triplet)" = "x86_64-unknown-linux-gnu" && "$(multitarget)" = "yes" {
       OPTIONS on $(targets) += --with-cxx-include-32bit-dir=32 ;
     }
   }
 
-  if ! [ "$(INTRO_ROOT_DIR)/compilers.is-builtin-gcc" $(compiler) ]
-  {
-    OPTIONS on $(targets) += "CC=\"$(compiler-prefix)/bin/gcc-wrapper\"" ;
-    OPTIONS on $(targets) += "CXX=\"$(compiler-prefix)/bin/g++-wrapper\"" ;
+  local rpaths ;
+  if [ is-clang "$(compiler)" ] {
+    if ( "$(host-triplet)" = "x86_64-unknown-linux-gnu" && "$(target-triplet)" = "x86_64-unknown-linux-gnu" )
+       || ( "$(host-triplet)" = "i686-pc-linux-gnu" && "$(target-triplet)" = "i686-pc-linux-gnu" ) {
+      rpaths += "$(libdir-native)" ;
+    }
+  }
+  else if [ is-gcc "$(compiler)" ] || [ is-icc "$(compiler)" ] {
+    if ( "$(host-triplet)" = "x86_64-unknown-linux-gnu" && "$(target-triplet)" = "x86_64-unknown-linux-gnu" )
+       || ( "$(host-triplet)" = "i686-pc-linux-gnu" && "$(target-triplet)" = "i686-pc-linux-gnu" ) {
+      local default-debug-libdir = [ get-default-debug-libdir "$(PREFIX)" : $(properties) ] ;
+      local default-libdir = [ get-default-libdir "$(PREFIX)" : $(properties) ] ;
+      rpaths += [ path.native "$(libdir-native)" ] ;
+      if "$(variant)" = "debug" {
+        rpaths += [ path.native "$(default-debug-libdir)" ] ;
+      }
+      rpaths += [ path.native "$(default-libdir)" ] ;
+    }
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+  local rpath-opts = "-Wl,-rpath=\"$(rpaths)\"" ;
+  local rpath-opts = "$(rpath-opts:J= )" ;
+  OPTIONS on $(targets) += "--with-extra-ld-options='$(rpath-opts)'" ;
+
+  if [ is-clang "$(compiler)" ] {
+    OPTIONS on $(targets) += "CC='$(bindir-native)/gcc-wrapper'" ;
+  }
+  else {
+    local cc = [ get-cc "$(PREFIX)" : $(properties) ] ;
+    local cc-native = [ path.native "$(cc)" ] ;
+    OPTIONS on $(targets) += "CC='$(cc-native)'" ;
   }
 
-  # `PATH' and `LD_LIBRARY_PATH' environment variables are required to
-  # complete `make check' because it internally uses built tools that cannot
-  # find necessary libraries including `libstdc++.so' without specifying
-  # these environment variables. `LD_RUN_PATH' does not work for this
-  # purpose.
-  PREPEND_SHARED_LIBRARY_PATH_VARIABLE_COMMAND on $(targets) = [ "$(INTRO_ROOT_DIR)/compilers.prepend-shared-library-path-variable-command" "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local cflags = [ get-cflags $(properties) ] ;
+  if $(cflags) {
+    OPTIONS on $(targets) += "CFLAGS='$(cflags)'" ;
+  }
+
+  if [ is-clang "$(compiler)" ] {
+    OPTIONS on $(targets) += "CXX='$(bindir-native)/g++-wrapper'" ;
+  }
+  else {
+    local cxx = [ get-cxx "$(PREFIX)" : $(properties) ] ;
+    local cxx-native = [ path.native "$(cxx)" ] ;
+    OPTIONS on $(targets) += "CXX='$(cxx-native)'" ;
+  }
+
+  local cxxflags = [ get-cxxflags $(properties) ] ;
+  if $(cxxflags) {
+    OPTIONS on $(targets) += "CXXFLAGS='$(cxxflags)'" ;
+  }
+
+  local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
+  ENVIRONMENT_COMMANDS on $(targets) = "$(environment-commands)" ;
+
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions make-install
 {
-  [ -x "$(LLVM_DIR)/autoconf/config.sub" ] || exit 1
-  [ `"$(LLVM_DIR)/autoconf/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit 1
-  [ -x "$(LLVM_DIR)/configure" ] || exit 1
+  $(PROPERTY_DUMP_COMMANDS)
+
+  [ -x '$(LLVM_DIR)/autoconf/config.sub' ] || exit 1
+  [ `'$(LLVM_DIR)/autoconf/config.sub' $(BUILD_TRIPLET)` = $(BUILD_TRIPLET) ] || exit 1
+  [ `'$(LLVM_DIR)/autoconf/config.sub' $(HOST_TRIPLET)` = $(HOST_TRIPLET) ] || exit 1
+  [ `'$(LLVM_DIR)/autoconf/config.sub' $(TARGET_TRIPLET)` = $(TARGET_TRIPLET) ] || exit 1
+  [ -x '$(LLVM_DIR)/configure' ] || exit 1
 
   if [ $(VERSION) = trunk ]; then
-  # Extract the revision number of Clang.
-    version=`( cd "$(CLANG_DIR)" && { env LANG=C svn info || exit 1; } | { grep -E 'Revision: [[:digit:]]+' || exit 1; } | { grep -oE '[[:digit:]]+' || exit 1; } )`
-    [ $? -eq 0 ] || exit 1
+    # Extract the revision number of Clang trunk.
+    version=`( cd '$(CLANG_DIR)' && { env LANG=C svn info || exit 1; } | { grep -E 'Revision: [[:digit:]]+' || exit 1; } | { grep -oE '[[:digit:]]+' || exit 1; } )`
+    if [ $? -ne 0 ]; then
+      echo    'ERROR: failed to extract LLVM & Clang trunk revision.' 1>&2
+      echo -n 'ERROR: failed to extract LLVM & Clang trunk revision.' | $(AWACS)
+      exit 1
+    fi
     version="trunk rev.$version"
   else
     version=$(VERSION)
   fi
 
   # Clean up objdir `$(OBJDIR)'.
-  { mkdir -p "$(OBJDIR)" && ( cd "$(OBJDIR)" && rm -rf * ); } || exit 1
+  { mkdir -p '$(OBJDIR)' && ( cd '$(OBJDIR)' && rm -rf * ); } || exit 1
 
-  $(PREPEND_SHARED_LIBRARY_PATH_VARIABLE_COMMAND)
+  $(ENVIRONMENT_COMMANDS)
 
-  if [ -n "$(STREAM)" ]; then
-    ( cd "$(OBJDIR)" && "$(LLVM_DIR)/configure" $(OPTIONS) >> "$(STREAM)" 2>&1 )
+  if [ -n '$(STREAM)' ]; then
+    ( cd '$(OBJDIR)' && '$(LLVM_DIR)/configure' $(OPTIONS) >> '$(STREAM)' 2>&1 )
   else
-    ( cd "$(OBJDIR)" && "$(LLVM_DIR)/configure" $(OPTIONS) )
+    ( cd '$(OBJDIR)' && '$(LLVM_DIR)/configure' $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`configure' LLVM & Clang $version ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to \`configure' LLVM & Clang $version ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`configure' LLVM & Clang $version ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to \`configure' LLVM & Clang $version ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
 
   # Check the creation of `Makefile'.
-  [ -f "$(OBJDIR)/Makefile" ] || exit 1
+  [ -f '$(OBJDIR)/Makefile' ] || exit 1
 
-  if [ -n "$(STREAM)" ]; then
-    ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
+  if [ -n '$(STREAM)' ]; then
+    ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) >> '$(STREAM)' 2>&1 )
   else
-    ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) )
+    ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`make' LLVM & Clang $version ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to \`make' LLVM & Clang $version ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`make' LLVM & Clang $version ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to \`make' LLVM & Clang $version ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
 
-  if [ -n "$(STREAM)" ]; then
-    ( cd "$(OBJDIR)" && make check >> "$(STREAM)" 2>&1 )
+  if [ -n '$(STREAM)' ]; then
+    ( cd '$(OBJDIR)' && make check >> '$(STREAM)' 2>&1 )
   else
-    ( cd "$(OBJDIR)" && make check )
+    ( cd '$(OBJDIR)' && make check )
   fi
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`make check' LLVM & Clang $version ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to \`make check' LLVM & Clang $version ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`make check' LLVM & Clang $version ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to \`make check' LLVM & Clang $version ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
 
-  if [ -n "$(STREAM)" ]; then
-    ( cd "$(OBJDIR)" && make install >> "$(STREAM)" 2>&1 )
+  touch '$(COMPILER_PREFIX)/bin/before-make-install' || exit 1
+  touch '$(COMPILER_PREFIX)/lib/before-make-install' || exit 1
+  touch '$(COMPILER_PREFIX)/include/before-make-install' || exit 1
+
+  if [ -n '$(STREAM)' ]; then
+    ( cd '$(OBJDIR)' && make install >> '$(STREAM)' 2>&1 )
   else
-    ( cd "$(OBJDIR)" && make install )
+    ( cd '$(OBJDIR)' && make install )
   fi
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`make install' LLVM & Clang $version ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to \`make install' LLVM & Clang $version ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`make install' LLVM & Clang $version ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to \`make install' LLVM & Clang $version ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
 
-  install --mode=755 "$(INTRO_ROOT_DIR)/clang/clang-wrapper" "$(INTRO_ROOT_DIR)/clang/clang++-wrapper" "$(COMPILER_PREFIX)/bin"
+  touch '$(COMPILER_PREFIX)/bin/after-make-install' || exit 1
+  touch '$(COMPILER_PREFIX)/lib/after-make-install' || exit 1
+  touch '$(COMPILER_PREFIX)/include/after-make-install' || exit 1
+
+  mkdir -p '$(BINDIR)' || exit 1
+  mkdir -p '$(LIBDIR)' || exit 1
+  mkdir -p '$(INCLUDEDIR)' || exit 1
+
+  if [ '$(BINDIR)' != '$(COMPILER_PREFIX)/bin' ]; then
+    ( cd '$(COMPILER_PREFIX)/bin' && find . -mindepth 1 -maxdepth 1 -newer before-make-install -execdir [ '{}' -ot after-make-install ] \; -execdir mv '{}' '$(BINDIR)' \; ) || exit 1
+  fi
+  if [ '$(LIBDIR)' != '$(COMPILER_PREFIX)/lib' ]; then
+    ( cd '$(COMPILER_PREFIX)/lib' && find . -mindepth 1 -maxdepth 1 -newer before-make-install -execdir [ '{}' -ot after-make-install ] \; -execdir mv '{}' '$(LIBDIR)' \; ) || exit 1
+    ( cd '$(COMPILER_PREFIX)/lib' && ln -sfT ../`basename '$(LIBDIR)'`/clang clang ) || exit 1
+  fi
+  if [ '$(INCLUDEDIR)' != '$(COMPILER_PREFIX)/include' ]; then
+    ( cd '$(COMPILER_PREFIX)/include' && find . -mindepth 1 -maxdepth 1 -newer before-make-install -execdir [ '{}' -ot after-make-install ] \; -execdir mv '{}' '$(INCLUDEDIR)' \; ) || exit 1
+  fi
+
+  rm -f '$(COMPILER_PREFIX)/bin/before-make-install' '$(COMPILER_PREFIX)/bin/after-make-install' || exit 1
+  rm -f '$(COMPILER_PREFIX)/lib/before-make-install' '$(COMPILER_PREFIX)/lib/after-make-install' || exit 1
+  rm -f '$(COMPILER_PREFIX)/include/before-make-install' '$(COMPILER_PREFIX)/include/after-make-install' || exit 1
+
+  install --mode=755 '$(INTRO_ROOT_DIR)/clang/clang-wrapper' '$(INTRO_ROOT_DIR)/clang/clang++-wrapper' '$(BINDIR)'
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to install the wrapper scripts for LLVM & Clang $version ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to install the wrapper scripts for LLVM & Clang $version ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to install the wrapper scripts for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to install the wrapper scripts for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
 
   # Check the creation of `clang++-wrapper'.
-  [ -x "$(<)" ] || exit 1
+  [ -x '$(<)' ] || exit 1
 
-  # Clean up objdir "$(OBJDIR)".
-  rm -rf "$(OBJDIR)" || exit 1
+  # Clean up objdir `$(OBJDIR)'.
+  rm -rf '$(OBJDIR)' || exit 1
 
-  echo -n "LLVM & Clang $version ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built." | $(AWACS)
+  echo -n "LLVM & Clang $version ($(COMPILER_DESCRIPTION)) was successfully built." | $(AWACS)
   exit 0
 }
 
 
 
-rule install-req ( properties * )
+rule install-conditional ( properties * )
 {
-  assert-specified   <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-specified   <multitarget-hidden> : $(properties) ;
-  assert-specified   <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <clang>              : $(properties) ;
-  #assert-specified   <clang-hidden>       : $(properties) ;
-
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : "$(GCC_FOR_CLANG)" ] ;
-  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-  return <source>"$(compiler-prefix)/bin/clang++-wrapper" ;
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
+  if [ is-clang "$(compiler)" ] {
+    result = "<source>clang++-wrapper/$(DEFAULT_COMPILER_PROPERTIES)" ;
+  }
+  else if [ is-gcc "$(compiler)" ] || [ is-icc "$(compiler)" ] {
+    result = "<source>clang++-wrapper" ;
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+  return $(result) ;
 }
 
-alias install : : <conditional>@install-req ;
+alias install : : <conditional>@install-conditional ;
 explicit install ;

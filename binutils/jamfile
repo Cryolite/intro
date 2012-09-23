@@ -5,49 +5,39 @@ import errors ;
 import feature ;
 import make ;
 import path ;
-import "$(INTRO_ROOT_DIR)/compilers" ;
-
-
-rule assert-specified ( feature : properties * )
-{
-  local val = [ feature.get-values $(feature) : $(properties) ] ;
-  if $(val) = unspecified {
-    errors.error $(feature) is not specified for binutils build. ;
-  }
-}
-
-rule assert-unspecified ( feature : properties * )
-{
-  local val = [ feature.get-values $(feature) : $(properties) ] ;
-  if $(val) != unspecified {
-    errors.error $(feature) is not valid for binutils build. ;
-  }
-}
-
+import "$(INTRO_ROOT_DIR)/compilers"
+  : is-gcc
+    is-clang
+    get-compiler-description
+    get-compiler-prefix
+    get-default-bindir
+    get-default-libdir
+    get-default-includedir
+    get-compiler-triplets
+    get-cc
+    get-cflags
+    get-cxx
+    get-cxxflags
+    get-environment-commands
+    get-rpath-commands
+    get-property-dump-commands
+  ;
 
 
 rule compiler-dep-req ( properties * )
 {
-  assert-specified   <triplet>            : $(properties) ;
-  assert-specified   <multitarget>        : $(properties) ;
-  assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-unspecified <binutils>           : $(properties) ;
-  assert-specified   <binutils-hidden>    : $(properties) ;
-  assert-specified   <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local result ;
-  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
-  {
+  if [ is-gcc $(compiler) ] {
     result = <source>../gcc//install ;
   }
-  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
-  {
+  else if [ is-clang $(compiler) ] {
     result = <source>../clang//install ;
   }
-  else
-  {
+  else if [ is-icc $(compiler) ] {
+    result = <source>../icc//install ;
+  }
+  else {
     errors.error "an internal error." ;
   }
   return $(result) ;
@@ -63,27 +53,18 @@ explicit "$(INTRO_ROOT_DIR)/binutils-$(BINUTILS).tar.bz2" ;
 
 rule download ( targets * : sources * : properties * )
 {
-  if $(sources[1])
-  {
-    errors.error "an internal error." ;
-  }
-  assert-unspecified <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-unspecified <binutils>           : $(properties) ;
-  assert-specified   <binutils-hidden>    : $(properties) ;
-  assert-unspecified <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-
   local version = [ feature.get-values <binutils-hidden> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
   URLS on $(targets) = "'http://ftp.nara.wide.ad.jp/pub/GNU/gnu/binutils/binutils-$(version).tar.bz2' \\
                         'http://ftp.tsukuba.wide.ad.jp/software/binutils/binutils-$(version).tar.bz2' \\
                         'http://ftp.jaist.ac.jp/pub/GNU/binutils/binutils-$(version).tar.bz2'         \\
                         'ftp://sourceware.org/pub/binutils/snapshots/binutils-$(version).tar.bz2'"    ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions download
 {
+  $(PROPERTY_DUMP_COMMANDS)
+
   rm -rf '$(<)' || exit 1
 
   for url in $(URLS) ; do
@@ -125,46 +106,33 @@ explicit "$(INTRO_ROOT_DIR)/binutils-$(BINUTILS)/README" ;
 
 rule expand ( targets * : sources * : properties * )
 {
-  if ! $(sources[1])
-  {
-    errors.error "an internal error." ;
-  }
-  if $(sources[2])
-  {
-    errors.error "an internal error." ;
-  }
-  assert-unspecified <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-unspecified <binutils>           : $(properties) ;
-  assert-specified   <binutils-hidden>    : $(properties) ;
-  assert-unspecified <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-
   local version = [ feature.get-values <binutils-hidden> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions expand
 {
-  rm -rf "$(<:D)" || exit 1
-  [ -f "$(>)" ] || exit 1
-  if [ -n "$(STREAM)" ]; then
-    tar xjvf "$(>)" --directory="$(INTRO_ROOT_DIR)" >> "$(STREAM)" 2>&1
+  $(PROPERTY_DUMP_COMMANDS)
+
+  rm -rf '$(<:D)' || exit 1
+  [ -f '$(>)' ] || exit 1
+  if [ -n '$(STREAM)' ]; then
+    tar xjvf '$(>)' --directory='$(INTRO_ROOT_DIR)' >> '$(STREAM)' 2>&1
   else
-    tar xjf "$(>)" --directory="$(INTRO_ROOT_DIR)"
+    tar xjf '$(>)' --directory='$(INTRO_ROOT_DIR)'
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to expand Binutils $(VERSION) tarball." 1>&2
-    echo -n "ERROR: failed to expand Binutils $(VERSION) tarball." | $(AWACS)
-    rm -rf "$(<:D)"
+    echo    'ERROR: failed to expand Binutils $(VERSION) tarball.' 1>&2
+    echo -n 'ERROR: failed to expand Binutils $(VERSION) tarball.' | $(AWACS)
+    rm -rf '$(<:D)'
     exit 1
   fi
   # If the timestamp of the tarball's contents is restored, the modification
   # time of the source directory could be older than the one of the tarball.
   # Such behavior is not desirable because the decompression always happens.
   # Therefore, `touch' is required.
-  touch --no-create "$(<)"
-  [ -f "$(<)" ] || exit 1
+  touch --no-create '$(<)'
+  [ -f '$(<)' ] || exit 1
   exit 0
 }
 
@@ -172,16 +140,8 @@ actions expand
 
 rule srcdir-req ( properties * )
 {
-  assert-unspecified <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-unspecified <binutils>           : $(properties) ;
-  assert-specified   <binutils-hidden>    : $(properties) ;
-  assert-unspecified <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-
   local version = [ feature.get-values <binutils-hidden> : $(properties) ] ;
-  return <source>"$(INTRO_ROOT_DIR)/binutils-$(version)/README/$(DEFAULT_PROPERTIES)" ;
+  return "<source>$(INTRO_ROOT_DIR)/binutils-$(version)/README/$(DEFAULT_PROPERTIES)" ;
 }
 
 alias srcdir : : <conditional>@srcdir-req ;
@@ -189,31 +149,27 @@ explicit srcdir ;
 
 
 
-for local compiler in $(COMPILERS)
+rule location-conditional ( properties * )
 {
-  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
-  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-  make "$(compiler-prefix)/bin/ld.gold"
-    : compiler-dep
-      srcdir/<triplet>unspecified/<multitarget>unspecified/<compiler>unspecified
-    : @make-install
-    : $(USE_BINUTILS)
-    ;
-  explicit "$(compiler-prefix)/bin/ld.gold" ;
+  local bindir = [ get-default-bindir "$(PREFIX)" : $(properties) ] ;
+  return "<location>$(bindir)" ;
 }
+
+make ld.gold
+  : compiler-dep
+    srcdir
+  : @make-install
+  : <conditional>@location-conditional
+    $(USE_COMPILER)
+    $(USE_MULTITARGET)
+    $(USE_BINUTILS)
+  ;
+explicit ld.gold ;
 
 rule make-install ( targets * : sources * : properties * )
 {
-  assert-specified   <triplet>            : $(properties) ;
-  assert-specified   <multitarget>        : $(properties) ;
-  assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-specified   <binutils>           : $(properties) ;
-  assert-specified   <binutils-hidden>    : $(properties) ;
-  assert-specified   <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(compiler) ] ;
+  local compiler-description = [ get-compiler-description $(compiler) ] ;
   COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
 
   local version = [ feature.get-values <binutils> : $(properties) ] ;
@@ -228,136 +184,150 @@ rule make-install ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) = ;
 
-  # Set the '--build', '--host' and '--target' options for the 'configure' script.
-  local triplet = [ feature.get-values <triplet> : $(properties) ] ;
-  TRIPLET on $(targets) = $(triplet) ;
-  OPTIONS on $(targets) += --build=$(triplet) ;
-  OPTIONS on $(targets) += --host=$(triplet) ;
-  OPTIONS on $(targets) += --target=$(triplet) ;
+  # Set `--prefix' option for `configure' script.
+  local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
+  local compiler-prefix-native = [ path.native "$(compiler-prefix)" ] ;
+  OPTIONS on $(targets) += "--prefix='$(compiler-prefix-native)'" ;
 
-  # Set the '--prefix' option for the 'configure' script.
-  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
-  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-  OPTIONS on $(targets) += "--prefix=\"$(compiler-prefix)\"" ;
+  local bindir = [ get-default-bindir "$(PREFIX)" : $(properties) ] ;
+  local bindir-native = [ path.native "$(bindir)" ] ;
+  OPTIONS on $(targets) += "--bindir='$(bindir-native)'" ;
 
-  OPTIONS on $(targets) += --enable-ld=default ;
-  OPTIONS on $(targets) += --enable-gold ;
+  local libdir = [ get-default-libdir "$(PREFIX)" : $(properties) ] ;
+  local libdir-native = [ path.native "$(libdir)" ] ;
+  OPTIONS on $(targets) += "--libdir='$(libdir-native)'" ;
 
-  OPTIONS on $(targets) += --enable-libquadmath ;
+  local includedir = [ get-default-includedir "$(PREFIX)" : $(properties) ] ;
+  local includedir-native = [ path.native "$(includedir)" ] ;
+  OPTIONS on $(targets) += "--includedir='$(includedir-native)'" ;
 
-  OPTIONS on $(targets) += --enable-libssp ;
+  # Set `--build', `--host' and `--target' options for `configure' script.
+  local triplets = [ get-compiler-triplets $(properties) ] ;
+  local build-triplet = "$(triplets[1])" ;
+  local host-triplet = "$(triplets[2])" ;
+  local target-triplet = "$(triplets[3])" ;
+  local enabeld-targets = "$(triplets[4])" ;
+  BUILD_TRIPLET on $(targets) = "$(build-triplet)" ;
+  HOST_TRIPLET on $(targets) = "$(host-triplet)" ;
+  TARGET_TRIPLET on $(targets) = "$(target-triplet)" ;
+  OPTIONS on $(targets) += "--build=$(build-triplet)" ;
+  OPTIONS on $(targets) += "--host=$(host-triplet)" ;
+  OPTIONS on $(targets) += "--target=$(target-triplet)" ;
 
-  OPTIONS on $(targets) += --enable-bootstrap ;
+  OPTIONS on $(targets) += "--enable-ld=default" ;
+  OPTIONS on $(targets) += "--enable-gold" ;
 
-  OPTIONS on $(targets) += --enable-build-with-cxx ;
+  OPTIONS on $(targets) += "--enable-libquadmath" ;
 
-  local multitarget = [ feature.get-values <multitarget> : $(properties) ] ;
-  if $(triplet) = x86_64-unknown-linux-gnu && $(multitarget) = yes
-  {
-    OPTIONS on $(targets) += --enable-targets=x86_64-unknown-linux-gnu,i686-pc-linux-gnu ;
-  }
-  else if $(triplet) = x86_64-w64-mingw32 && $(multitarget) = yes
-  {
-    OPTIONS on $(targets) += --enable-targets=x86_64-w64-mingw32,i686-w64-mingw32 ;
-  }
+  OPTIONS on $(targets) += "--enable-libssp" ;
 
-  OPTIONS on $(targets) += --enable-cloog-backend=isl ;
+  OPTIONS on $(targets) += "--enable-bootstrap" ;
 
-  OPTIONS on $(targets) += --enable-lto ;
-  OPTIONS on $(targets) += --enable-plugins ;
+  OPTIONS on $(targets) += "--enable-build-with-cxx" ;
 
-  local cc = [ "$(INTRO_ROOT_DIR)/compilers.cc" "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
-  OPTIONS on $(targets) += "CC=\"$(cc)\"" ;
+  OPTIONS on $(targets) += "--enable-targets=$(enabled-targets)" ;
 
-  local cxx = [ "$(INTRO_ROOT_DIR)/compilers.cxx" "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
-  OPTIONS on $(targets) += "CXX=\"$(cxx)\"" ;
+  OPTIONS on $(targets) += "--enable-cloog-backend=isl" ;
 
-  PREPEND_SHARED_LIBRARY_PATH_VARIABLE_COMMAND on $(targets) = [ "$(INTRO_ROOT_DIR)/compilers.prepend-shared-library-path-variable-command" "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
+  OPTIONS on $(targets) += "--enable-lto" ;
+  OPTIONS on $(targets) += "--enable-plugins" ;
+
+  local cc = [ get-cc "$(PREFIX)" : $(properties) ] ;
+  local cc-native = [ path.native "$(cc)" ] ;
+  OPTIONS on $(targets) += "CC='$(cc-native)'" ;
+
+  local cflags = [ get-cflags $(properties) ] ;
+  OPTIONS on $(targets) += "CFLAGS='$(cflags)'" ;
+
+  local cxx = [ get-cxx "$(PREFIX)" : $(properties) ] ;
+  local cxx-native = [ path.native "$(cxx)" ] ;
+  OPTIONS on $(targets) += "CXX='$(cxx-native)'" ;
+
+  local cxxflags = [ get-cxxflags $(properties) ] ;
+  OPTIONS on $(targets) += "CXXFLAGS='$(cxxflags)'" ;
+
+  local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
+  ENVIRONMENT_COMMANDS on $(targets) = $(environment-commands) ;
+
+  local rpath-commands = [ get-rpath-commands "$(PREFIX)" : $(properties) ] ;
+  RPATH_COMMANDS on $(targets) = "$(rpath-commands)" ;
+
+  local property-dump-commands = [ get-property-dump-commands $(properties) ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = $(property-dump-commands) ;
 }
 actions make-install
 {
-  [ -x "$(SRCDIR)/configure" ] || exit 1
-  [ -x "$(SRCDIR)/config.sub" ] || exit 1
-  [ `"$(SRCDIR)/config.sub" $(TRIPLET)` = $(TRIPLET) ] || exit 1
+  $(PROPERTY_DUMP_COMMANDS)
+
+  [ -x '$(SRCDIR)/configure' ] || exit 1
+  [ -x '$(SRCDIR)/config.sub' ] || exit 1
+  [ `'$(SRCDIR)/config.sub' $(BUILD_TRIPLET)` = $(BUILD_TRIPLET) ] || exit 1
+  [ `'$(SRCDIR)/config.sub' $(HOST_TRIPLET)` = $(HOST_TRIPLET) ] || exit 1
+  [ `'$(SRCDIR)/config.sub' $(TARGET_TRIPLET)` = $(TARGET_TRIPLET) ] || exit 1
 
   # Clean up objdir `$(OBJDIR)'.
-  { mkdir -p "$(OBJDIR)" && ( cd "$(OBJDIR)" && rm -rf * ); } || exit 1
+  { mkdir -p '$(OBJDIR)' && ( cd '$(OBJDIR)' && rm -rf * ); } || exit 1
 
-  $(PREPEND_SHARED_LIBRARY_PATH_VARIABLE_COMMAND)
+  $(ENVIRONMENT_COMMANDS)
+  $(RPATH_COMMANDS)
 
-  if [ -n "$(STREAM)" ]; then
-    ( cd "$(OBJDIR)" && "$(SRCDIR)/configure" $(OPTIONS) >> "$(STREAM)" 2>&1 )
+  if [ -n '$(STREAM)' ]; then
+    ( cd '$(OBJDIR)' && '$(SRCDIR)/configure' $(OPTIONS) >> '$(STREAM)' 2>&1 )
   else
-    ( cd "$(OBJDIR)" && "$(SRCDIR)/configure" $(OPTIONS) )
+    ( cd '$(OBJDIR)' && '$(SRCDIR)/configure' $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'configure' Binutils $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'configure' Binutils $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`configure' Binutils $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to \`configure' Binutils $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
 
   # Check the creation of `Makefile'.
-  [ -f "$(OBJDIR)/Makefile" ] || exit 1
+  [ -f '$(OBJDIR)/Makefile' ] || exit 1
 
-  if [ -n "$(STREAM)" ]; then
-    ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) >> "$(STREAM)" 2>&1 )
+  if [ -n '$(STREAM)' ]; then
+    ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) >> '$(STREAM)' 2>&1 )
   else
-    ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) )
+    ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make' Binutils $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make' Binutils $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`make' Binutils $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to \`make' Binutils $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
 
-  if [ -n "$(STREAM)" ]; then
-    ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) check >> "$(STREAM)" 2>&1 )
+  if [ -n '$(STREAM)' ]; then
+    ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) check >> '$(STREAM)' 2>&1 )
   else
-    ( cd "$(OBJDIR)" && make --jobs=$(CONCURRENCY) check )
+    ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) check )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make check' Binutils $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make check' Binutils $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`make check' Binutils $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to \`make check' Binutils $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
 
-  if [ -n "$(STREAM)" ]; then
-    ( cd "$(OBJDIR)" && make install >> "$(STREAM)" 2>&1 )
+  if [ -n '$(STREAM)' ]; then
+    ( cd '$(OBJDIR)' && make install >> '$(STREAM)' 2>&1 )
   else
-    ( cd "$(OBJDIR)" && make install )
+    ( cd '$(OBJDIR)' && make install )
   fi
   if [ $? -ne 0 ]; then
-    echo "ERROR: failed to 'make install' Binutils $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to 'make install' Binutils $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`make install' Binutils $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to \`make install' Binutils $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
 
-  [ -x "$(<)" ] || exit 1
+  [ -x '$(<)' ] || exit 1
 
   # Clean up objdir `$(OBJDIR)'.
-  rm -rf "$(OBJDIR)" || exit 1
+  rm -rf '$(OBJDIR)' || exit 1
 
-  echo -n "Binutils $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built." | $(AWACS)
+  echo -n 'Binutils $(VERSION) ($(COMPILER_DESCRIPTION)) was successfully built.' | $(AWACS)
   exit 0
 }
 
 
 
-rule install-req ( properties * )
-{
-  assert-specified   <triplet>            : $(properties) ;
-  assert-specified   <multitarget>        : $(properties) ;
-  assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-unspecified <binutils>           : $(properties) ;
-  assert-specified   <binutils-hidden>    : $(properties) ;
-  assert-specified   <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
-  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-  return <source>"$(compiler-prefix)/bin/ld.gold" ;
-}
-
-alias install : : <conditional>@install-req ;
+alias install : "ld.gold/$(DEFAULT_COMPILER_PROPERTIES)" ;
 explicit install ;

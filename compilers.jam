@@ -3,6 +3,7 @@ import errors ;
 import feature ;
 import os ;
 import path ;
+import property ;
 import regex ;
 
 local .root-dir ;
@@ -21,23 +22,20 @@ local .clang-latest-version ;
 
 rule init ( root-dir )
 {
-  if $(.root-dir)
-  {
+  if "$(.root-dir)" {
     errors.error "an internal error." ;
   }
 
   .root-dir = [ path.make "$(root-dir)" ] ;
 
   .gcc-versions = [ SHELL "\"$(.root-dir)/gcc-release-versions.sh\" || echo -n error" ] ;
-  if $(.gcc-versions) = error
-  {
+  if "$(.gcc-versions)" = "error" {
     errors.error "failed to extract GCC release versions." ;
   }
   .gcc-versions = [ regex.split "$(.gcc-versions)" " +" ] ;
 
   .clang-versions = [ SHELL "\"$(.root-dir)/clang/versions.sh\" || echo -n error" ] ;
-  if $(.clang-versions) = error
-  {
+  if "$(.clang-versions)" = "error" {
     errors.error "failed to extract Clang versions." ;
   }
   .clang-versions = [ regex.split "$(.clang-versions)" " +" ] ;
@@ -45,10 +43,8 @@ rule init ( root-dir )
 
 rule .init-gcc-release-aliases ( )
 {
-  if ! $(.gcc-current-version)
-  {
-    if $(.gcc-previous-version) || $(.gcc-oldest-version)
-    {
+  if ! "$(.gcc-current-version)" {
+    if "$(.gcc-previous-version)" || "$(.gcc-oldest-version)" {
       errors.error "an internal error." ;
     }
 
@@ -87,10 +83,8 @@ rule .init-gcc-snapshot-aliases-impl ( major )
 
 rule .init-gcc-snapshot-aliases ( )
 {
-  if ! $(.gcc-snapshot-version)
-  {
-    if $(.gcc-current-snapshot-version) || $(.gcc-previous-snapshot-version) || $(.gcc-oldest-snapshot-version)
-    {
+  if ! "$(.gcc-snapshot-version)" {
+    if "$(.gcc-current-snapshot-version)" || "$(.gcc-previous-snapshot-version)" || "$(.gcc-oldest-snapshot-version)" {
       errors.error "an internal error." ;
     }
 
@@ -107,8 +101,7 @@ rule .init-gcc-snapshot-aliases ( )
                    | { grep -Eo \"$(gcc-snapshot-major)(\\.0-RC)?-$(gcc-snapshot-date)\" || echo -n error; } \\
                    | { tail --lines=1                                                    || echo -n error; } \\
                    | { tr --delete '\\n'                                                 || echo -n error; }" ] ;
-    if $(.gcc-snapshot-version) = error
-    {
+    if "$(.gcc-snapshot-version)" = "error" {
       errors.error "failed to extract GCC snapshot versions." ;
     }
 
@@ -119,8 +112,7 @@ rule .init-gcc-snapshot-aliases ( )
                    | { grep -Eo \"$(gcc-current-snapshot-major)(\\.0-RC)?-$(gcc-current-snapshot-date)\" || echo -n error; } \\
                    | { tail --lines=1                                                                    || echo -n error; } \\
                    | { tr --delete '\\n'                                                                 || echo -n error; }" ] ;
-    if $(.gcc-current-snapshot-version) = error
-    {
+    if "$(.gcc-current-snapshot-version)" = "error" {
       errors.error "failed to extract GCC snapshot versions." ;
     }
 
@@ -131,8 +123,7 @@ rule .init-gcc-snapshot-aliases ( )
                    | { grep -Eo \"$(gcc-previous-snapshot-major)(\\.0-RC)?-$(gcc-previous-snapshot-date)\" || echo -n error; } \\
                    | { tail --lines=1                                                                      || echo -n error; } \\
                    | { tr --delete '\\n'                                                                   || echo -n error; }" ] ;
-    if $(.gcc-previous-snapshot-version) = error
-    {
+    if "$(.gcc-previous-snapshot-version)" = "error" {
       errors.error "failed to extract GCC snapshot versions." ;
     }
 
@@ -143,8 +134,7 @@ rule .init-gcc-snapshot-aliases ( )
                    | { grep -Eo \"$(gcc-oldest-snapshot-major)(\\.0-RC)?-$(gcc-oldest-snapshot-date)\" || echo -n error; } \\
                    | { tail --lines=1                                                                  || echo -n error; } \\
                    | { tr --delete '\\n'                                                               || echo -n error; }" ] ;
-    if $(.gcc-oldest-snapshot-version) = error
-    {
+    if "$(.gcc-oldest-snapshot-version)" = "error" {
       errors.error "failed to extract GCC snapshot versions." ;
     }
   }
@@ -194,8 +184,7 @@ rule get-gcc-oldest-snapshot-version ( )
 
 rule get-clang-latest-version ( )
 {
-  if ! $(.clang-latest-version)
-  {
+  if ! $(.clang-latest-version) {
     local clang-latest-version
       = [ SHELL "echo -n $(.clang-versions:J= ) | grep -Eo \"[[:digit:]]+\\.[[:digit:]]+\" | sort -u -t '.' -k 1,1n -k 2,2n | tail --lines=1 | tr --delete '\\n'" ] ;
     .clang-latest-version = $(clang-latest-version) ;
@@ -206,26 +195,39 @@ rule get-clang-latest-version ( )
 rule is-valid ( compiler )
 {
   local result ;
-  if "$(compiler)" in gcc-current gcc-previous gcc-oldest gcc-snapshot gcc-current-snapshot gcc-previous-snapshot gcc-oldest-snapshot gcc-$(.gcc-versions)
-  {
-    result = yes ;
+  if "$(compiler)" in gcc-current gcc-previous gcc-oldest gcc-snapshot gcc-current-snapshot gcc-previous-snapshot gcc-oldest-snapshot gcc-$(.gcc-versions) {
+    result = "yes" ;
   }
-  else if "$(compiler)" in clang-latest clang-trunk clang-$(.clang-versions)
-  {
-    result = yes ;
+  else if [ regex.match "^(clang-.+)" : "$(compiler)" : 1 ] {
+    local tmp = [ regex.match "^clang-(.+)-libstdc\\+\\+-(.+)" : "$(compiler)" : 1 2 ] ;
+    local frontend = "clang-$(tmp[1])" ;
+    local backend = "gcc-$(tmp[2])" ;
+    if "$(frontend)" in clang-latest clang-trunk clang-$(.clang-versions) {
+      if [ is-valid "$(backend)" ] {
+        result = "yes" ;
+      }
+    }
+  }
+  else if [ regex.match "^(icc-.+)" : "$(compiler)" : 1 ] {
+    local tmp = [ regex.match "^icc-(.+)-libstdc\\+\\+-(.+)" : "$(compiler)" : 1 2 ] ;
+    local frontend = "icc-$(tmp[1])" ;
+    local backend = "gcc-$(tmp[2])" ;
+    if "$(frontend)" in icc-system {
+      if [ is-valid "$(backend)" ] {
+        result = "yes" ;
+      }
+    }
   }
   return $(result) ;
 }
 
 rule is-gcc ( compiler )
 {
-  if ! [ is-valid "$(compiler)" ]
-  {
+  if ! [ is-valid "$(compiler)" ] {
     errors.error "an internal error." ;
   }
   local result ;
-  if "$(compiler)" in gcc-current gcc-previous gcc-oldest gcc-snapshot gcc-current-snapshot gcc-previous-snapshot gcc-oldest-snapshot gcc-$(.gcc-versions)
-  {
+  if "$(compiler)" in gcc-current gcc-previous gcc-oldest gcc-snapshot gcc-current-snapshot gcc-previous-snapshot gcc-oldest-snapshot gcc-$(.gcc-versions) {
     result = yes ;
   }
   return $(result) ;
@@ -233,34 +235,28 @@ rule is-gcc ( compiler )
 
 rule is-builtin-gcc ( compiler )
 {
-  if ! [ is-valid "$(compiler)" ]
-  {
+  if ! [ is-valid "$(compiler)" ] {
     errors.error "an internal error." ;
   }
   local result ;
-  if [ is-gcc $(compiler) ]
-  {
-    if [ get-version $(compiler) ] = [ SHELL "gcc -dumpversion | tr --delete '\\n'" ]
-    {
+  if [ is-gcc "$(compiler)" ] {
+    if [ get-frontend-version "$(compiler)" ] = [ SHELL "gcc -dumpversion | tr --delete '\\n'" ] {
       result = yes ;
     }
   }
-  return $(result) ;
+  return "$(result)" ;
 }
 
 rule is-gcc-release ( compiler )
 {
-  if ! [ is-valid "$(compiler)" ]
-  {
+  if ! [ is-valid "$(compiler)" ] {
     errors.error "an invalid argument." ;
   }
   local result ;
-  if $(compiler) in gcc-current gcc-previous gcc-oldest
-  {
+  if $(compiler) in gcc-current gcc-previous gcc-oldest {
     result = yes ;
   }
-  else if [ regex.match "^(gcc-[0-9]+\\.[0-9]+\\.[0-9]+)$" : $(compiler) : 1 ]
-  {
+  else if [ regex.match "^(gcc-[0-9]+\\.[0-9]+\\.[0-9]+)$" : $(compiler) : 1 ] {
     result = yes ;
   }
   return $(result) ;
@@ -268,17 +264,14 @@ rule is-gcc-release ( compiler )
 
 rule is-gcc-snapshot ( compiler )
 {
-  if ! [ is-valid "$(compiler)" ]
-  {
+  if ! [ is-valid "$(compiler)" ] {
     errors.error "an invalid argument." ;
   }
   local result ;
-  if $(compiler) in gcc-snapshot gcc-current-snapshot gcc-previous-snapshot gcc-oldest-snapshot
-  {
+  if $(compiler) in gcc-snapshot gcc-current-snapshot gcc-previous-snapshot gcc-oldest-snapshot {
     result = yes ;
   }
-  else if [ regex.match "^(gcc-[0-9]+\\.[0-9]+(\\.0-RC)?-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9])$" : $(compiler) : 1 ]
-  {
+  else if [ regex.match "^(gcc-[0-9]+\\.[0-9]+(\\.0-RC)?-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9])$" : $(compiler) : 1 ] {
     result = yes ;
   }
   return $(result) ;
@@ -287,14 +280,11 @@ rule is-gcc-snapshot ( compiler )
 rule get-gccs ( compilers * )
 {
   local result ;
-  for local compiler in $(compilers)
-  {
-    if ! [ is-valid "$(compiler)" ]
-    {
+  for local compiler in $(compilers) {
+    if ! [ is-valid "$(compiler)" ] {
       errors.error "an internal error." ;
     }
-    if [ is-gcc $(compiler) ]
-    {
+    if [ is-gcc $(compiler) ] {
       result += $(compiler) ;
     }
   }
@@ -303,110 +293,229 @@ rule get-gccs ( compilers * )
 
 rule get-gcc-versions ( compilers * )
 {
-  local result ;
-  for local gcc in [ get-gccs $(compilers) ]
-  {
-    local version = [ get-version $(gcc) ] ;
-    if ! $(version) in $(result)
-    {
-      result += $(version) ;
+  local results ;
+  for local gcc in [ get-gccs $(compilers) ] {
+    local version = [ get-frontend-version "$(gcc)" ] ;
+    if ! "$(version)" in $(results) {
+      results += "$(version)" ;
     }
+  }
+  return $(results) ;
+}
+
+rule get-version-derecated ( compiler )
+{
+  if ! [ is-valid "$(compiler)" ] {
+    errors.error "an internal error." ;
+  }
+  local result ;
+  if $(compiler) in gcc-current gcc-previous gcc-oldest gcc-snapshot gcc-current-snapshot gcc-previous-snapshot gcc-oldest-snapshot {
+    result = [ get-$(compiler)-version ] ;
+  }
+  else if [ is-gcc $(compiler) ] {
+    result = [ regex.match "gcc-(.+)" : $(compiler) : 1 ] ;
+  }
+  else if [ is-clang $(compiler) ] {
+    if $(compiler) = clang-latest {
+      result = [ get-clang-latest-version ] ;
+    }
+    else if $(compiler) = clang-trunk {
+      errors.error "this rule cannot be called for Clang trunk." ;
+    }
+    else {
+      result = [ regex.match "^clang-(.+)" : $(compiler) : 1 ] ;
+    }
+  }
+  else {
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
 
-rule get-version ( compiler )
+rule get-frontend-version ( compiler )
 {
-  if ! [ is-valid "$(compiler)" ]
-  {
+  if ! [ is-valid "$(compiler)" ] {
     errors.error "an internal error." ;
   }
   local result ;
-  if $(compiler) in gcc-current gcc-previous gcc-oldest gcc-snapshot gcc-current-snapshot gcc-previous-snapshot gcc-oldest-snapshot
-  {
+  if "$(compiler)" in gcc-current gcc-previous gcc-oldest gcc-snapshot gcc-current-snapshot gcc-previous-snapshot gcc-oldest-snapshot {
     result = [ get-$(compiler)-version ] ;
   }
-  else if [ is-gcc $(compiler) ]
-  {
-    result = [ regex.match "gcc-(.+)" : $(compiler) : 1 ] ;
+  else if [ is-gcc "$(compiler)" ] {
+    result = [ regex.match "^gcc-(.+)" : "$(compiler)" : 1 ] ;
   }
-  else if [ is-clang $(compiler) ]
-  {
-    if $(compiler) = clang-latest
-    {
+  else if [ is-clang "$(compiler)" ] {
+    local frontend-and-backend = [ split-frontend-and-backend "$(compiler)" ] ;
+    local frontend = "$(frontend-and-backend[1])" ;
+    if "$(frontend)" = "clang-latest" {
       result = [ get-clang-latest-version ] ;
     }
-    else if $(compiler) = clang-trunk
-    {
+    else if "$(frontend)" = "clang-trunk" {
       errors.error "this rule cannot be called for Clang trunk." ;
     }
-    else
-    {
-      result = [ regex.match "clang-(.+)" : $(compiler) : 1 ] ;
+    else {
+      result = [ regex.match "^clang-(.+)" : "$(frontend)" : 1 ] ;
     }
   }
-  else
-  {
+  else if [ is-icc "$(compiler)" ] {
+    local frontend-and-backend = [ split-frontend-and-backend "$(compiler)" ] ;
+    local frontend = "$(frontend-and-backend[1])" ;
+    if "$(frontend)" = "icc-system" {
+      result = [ get-icc-system-version ] ;
+    }
+    else {
+      result = [ regex.match "^icc-(.+)" : "$(frontend)" : 1 ] ;
+    }
+  }
+  else {
     errors.error "an internal error." ;
   }
-  return $(result) ;
+  return "$(result)" ;
+}
+
+rule get-backend-version ( compiler )
+{
+  if ! [ is-valid "$(compiler)" ] {
+    errors.error "an internal error." ;
+  }
+  local result ;
+  if "$(compiler)" in gcc-current gcc-previous gcc-oldest gcc-snapshot gcc-current-snapshot gcc-previous-snapshot gcc-oldest-snapshot {
+    errors.error "an internal error." ;
+  }
+  else if [ is-gcc "$(compiler)" ] {
+    errors.error "an internal error." ;
+  }
+  else if [ is-clang "$(compiler)" ] || [ is-icc "$(compiler)" ] {
+    local frontend-and-backend = [ split-frontend-and-backend "$(compiler)" ] ;
+    local backend = "$(frontend-and-backend[2])" ;
+    if "$(backend)" in gcc-current gcc-previous gcc-oldest gcc-snapshot gcc-current-snapshot gcc-previous-snapshot gcc-oldest-snapshot {
+      result = [ get-$(backend)-version ] ;
+    }
+    else if [ is-gcc "$(backend)" ] {
+      result = [ regex.match "^gcc-(.+)" : "$(backend)" : 1 ] ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+  return "$(result)" ;
 }
 
 rule is-clang ( compiler )
 {
-  if ! [ is-valid "$(compiler)" ]
-  {
+  if ! [ is-valid "$(compiler)" ] {
     errors.error "an internal error." ;
   }
   local result ;
-  if "$(compiler)" in clang-latest clang-trunk clang-$(.clang-versions)
-  {
-    result = yes ;
-  }
-  return $(result) ;
-}
-
-rule get-prefix-leaf ( compiler : gcc-for-clang ? )
-{
-  if ! [ is-valid "$(compiler)" ]
-  {
-    errors.error "an internal error." ;
-  }
-  local result ;
-  if [ is-gcc $(compiler) ]
-  {
-    result = $(compiler) ;
-  }
-  else if [ is-clang $(compiler) ]
-  {
-    if ! $(gcc-for-clang)
-    {
+  if [ regex.match "^(clang-.+)" : "$(compiler)" : 1 ] {
+    local tmp = [ regex.match "^clang-(.+)-libstdc\\+\\+-(.+)" : "$(compiler)" : 1 2 ] ;
+    local frontend = "clang-$(tmp[1])" ;
+    local backend = "gcc-$(tmp[2])" ;
+    if ! "$(frontend)" || ! "$(backend)" {
       errors.error "an internal error." ;
     }
-    result = $(compiler)-$(gcc-for-clang) ;
+    if "$(frontend)" in clang-latest clang-trunk clang-$(.clang-versions) {
+      if [ is-gcc "$(backend)" ] {
+        result = yes ;
+      }
+      else {
+        errors.error "an internal error." ;
+      }
+    }
+    else {
+      errors.error "an internal error." ;
+    }
   }
-  else
-  {
+  return $(result) ;
+}
+
+rule is-icc ( compiler )
+{
+  if ! [ is-valid "$(compiler)" ] {
+    errors.error "an internal error." ;
+  }
+  local result ;
+  if [ regex.match "^(icc-.+)" : "$(compiler)" : 1 ] {
+    local tmp = [ regex.match "^icc-(.+)-libstdc\\+\\+-(.+)" : "$(compiler)" : 1 2 ] ;
+    local frontend = "icc-$(tmp[1])" ;
+    local backend = "gcc-$(tmp[2])" ;
+    if ! "$(frontend)" || ! "$(backend)" {
+      errors.error "an internal error." ;
+    }
+    if "$(frontend)" in icc-system {
+      if [ is-gcc "$(backend)" ] {
+        result = yes ;
+      }
+      else {
+        errors.error "an internal error." ;
+      }
+    }
+    else {
+      errors.error "an internal error." ;
+    }
+  }
+  return $(result) ;
+}
+
+rule split-frontend-and-backend ( compiler )
+{
+  if ! [ is-valid "$(compiler)" ] {
+    errors.error "an internal error." ;
+  }
+  local result ;
+  if [ is-gcc "$(compiler)" ] {
+    result += "$(compiler)" ;
+  }
+  else if [ is-clang "$(compiler)" ] {
+    local tmp = [ regex.match "^clang-(.+)-libstdc\\+\\+-(.+)" : "$(compiler)" : 1 2 ] ;
+    result += "clang-$(tmp[1])" ;
+    result += "gcc-$(tmp[2])" ;
+  }
+  else if [ is-icc "$(compiler)" ] {
+    local tmp = [ regex.match "^icc-(.+)-libstdc\\+\\+-(.+)" : "$(compiler)" : 1 2 ] ;
+    result += "icc-$(tmp[1])" ;
+    result += "gcc-$(tmp[2])" ;
+  }
+  else {
     errors.error "an internal error." ;
   }
   return $(result) ;
 }
 
-rule get-compiler-prefix ( prefix : compiler : gcc-for-clang ? )
+rule get-prefix-leaf ( properties * )
 {
-  if ! [ is-valid $(compiler) ]
-  {
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
+  if ! [ is-valid "$(compiler)" ] {
+    errors.error "an internal error." ;
+  }
+  return "$(compiler)" ;
+}
+
+rule get-compiler-prefix ( prefix : properties * )
+{
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
+  if ! [ is-valid "$(compiler)" ] {
     errors.error "an internal error" ;
   }
-  if $(gcc-for-clang)
-  {
-    if ! [ is-valid $(gcc-for-clang) ]
-    {
-      errors.error "" ;
-    }
-  }
-  local prefix-leaf = [ get-prefix-leaf $(compiler) : $(gcc-for-clang) ] ;
+  local prefix-leaf = [ get-prefix-leaf $(properties) ] ;
   return "$(prefix)/$(prefix-leaf)" ;
+}
+
+rule get-backend-gcc ( properties * )
+{
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
+  if ! [ is-clang "$(compiler)" ] && ! [ is-icc "$(compiler)" ] {
+    errors.error "an internal error." ;
+  }
+  local frontend-and-backend = [ split-frontend-and-backend "$(compiler)" ] ;
+  local backend = "$(frontend-and-backend[2])" ;
+  if ! "$(backend)" {
+    errors.error "an internal error." ;
+  }
+  return "$(backend)" ;
 }
 
 rule get-gcc-path ( prefix : compiler : gcc-for-clang ? )
@@ -434,231 +543,757 @@ rule get-gcc-path ( prefix : compiler : gcc-for-clang ? )
   }
   else
   {
-    errors.error "`<compiler>$(compiler)' is not valid." ;
+    errors.error "`<compiler-hidden>$(compiler)' is not valid." ;
   }
   return $(result) ;
 }
 
 rule get-compiler-description ( compiler )
 {
-  if ! [ is-valid "$(compiler)" ]
-  {
+  if ! [ is-valid "$(compiler)" ] {
     errors.error "an internal error." ;
   }
   local result ;
-  if [ is-gcc $(compiler) ]
-  {
-    local version = [ get-version $(compiler) ] ;
+  if [ is-gcc "$(compiler)" ] {
+    local version = [ get-frontend-version "$(compiler)" ] ;
     result = "GCC $(version)" ;
   }
-  else if [ is-clang $(compiler) ]
-  {
-    if $(compiler) = clang-trunk
-    {
-      result = "Clang trunk" ;
+  else if [ is-clang "$(compiler)" ] {
+    if [ regex.match "^(clang-trunk-.+)" : "$(compiler)" : 1 ] {
+      local backend-version = [ get-backend-version "$(compiler)" ] ;
+      result = "Clang trunk (libstdc++ $(backend-version))" ;
     }
-    else
-    {
-      local version = [ get-version $(compiler) ] ;
-      result = "Clang $(version)" ;
+    else {
+      local frontend-version = [ get-frontend-version "$(compiler)" ] ;
+      local backend-version = [ get-backend-version "$(compiler)" ] ;
+      result = "Clang $(frontend-version) (libstdc++ $(backend-version))" ;
     }
   }
-  else
-  {
+  else {
     errors.error "an internal error." ;
   }
   return $(result) ;
 }
 
-rule get-property-path ( properties * )
+rule get-default-bits ( )
 {
-  local build                = [ feature.get-values <triplet>              : $(properties) ] ;
-  local host                 = $(triplet) ;
-  local compiler             = [ feature.get-values <compiler>             : $(properties) ] ;
-  local std                  = [ feature.get-values <std>                  : $(properties) ] ;
-  local address-model        ;
-  local variant              = [ feature.get-values <variant>              : $(properties) ] ;
-  local mudflap              = [ feature.get-values <mudflap>              : $(properties) ] ;
-  local address-sanitizer    = [ feature.get-values <address-sanitizer>    : $(properties) ] ;
-  local libstdcxx-debug-mode = [ feature.get-values <libstdc++-debug-mode> : $(properties) ] ;
+  local bits = [ SHELL "{ file --dereference /bin/sh | grep -Fq '64-bit'; } && echo -n 64 || echo -n 32" ] ;
+  if "$(bits)" != "64" && "$(bits)" != "32" {
+    errors.error "an internal error." ;
+  }
+  return $(bits) ;
+}
+
+rule get-default-bindir ( prefix : properties * )
+{
+  local compiler-prefix = [ get-compiler-prefix "$(prefix)" : $(properties) ] ;
+  return "$(compiler-prefix)/bin" ;
+}
+
+rule get-default-libdir ( prefix : properties * )
+{
+  local build-os = [ feature.get-values <host-os> : [ feature.defaults <host-os> ] ] ;
+  local system-bits = [ get-default-bits ] ;
+  local host-os = [ feature.get-values <host-os> : $(properties) ] ;
+  local target-os = [ feature.get-values <target-os> : $(properties) ] ;
+  local multitarget = [ feature.get-values <multitarget-hidden> : $(properties) ] ;
+  local address-model = [ feature.get-values <intro-address-model-hidden> : $(properties) ] ;
   local result ;
-  if $(build) = x86_64-unknown-linux-gnu && $(host) = i686-pc-linux-gnu
-  {
-    address-model = 32 ;
-  }
-  else if $(build) = x86_64-w64-mingw32 && $(host) = i686-w64-mingw32
-  {
-    address-model = 32 ;
-  }
-  if $(variant) = debug
-  {
-    result = debug ;
-  }
-  else if $(variant) = release
-  {
-    result = release ;
-  }
-  else if $(variant) = lto
-  {
-    result = lto ;
-  }
-  else
-  {
-    errors.error "`<variant>$(variant)' is not valid" ;
-  }
-  if $(address-model) = 32
-  {
-    result = $(result)/address-model-32 ;
-  }
-  if $(address-sanitizer) = off
-  {
-    # Do nothing.
-  }
-  else if $(address-sanitizer) = "on"
-  {
-    if ! [ is-clang $(compiler) ]
-    {
-      errors.error "`<address-sanitizer>on' is specified for non-Clang compiler `$(compiler)'" ;
+  if "$(multitarget)" = "yes" {
+    if "$(build-os)" != "linux" {
+      errors.error "an internal error." ;
     }
-    result = $(result)/address-sanitizer-on ;
-  }
-  else
-  {
-    errors.error "`<address-sanitizer>$(address-sanitizer)' is not valid" ;
-  }
-  if $(libstdcxx-debug-mode) = off
-  {
-    # Do nothing.
-  }
-  else if $(libstdcxx-debug-mode) = "on"
-  {
-    result = $(result)/libstdc++-debug-mode-on ;
-  }
-  else
-  {
-    errors.error "`<libstdc++-debug-mode>$(libstdcxx-debug-mode)' is not valid" ;
-  }
-  if $(mudflap) = off
-  {
-    # Do nothing.
-  }
-  else if $(mudflap) = "on"
-  {
-    if ! [ is-gcc $(compiler) ]
-    {
-      errors.error "`<mudflap>on' is specified for non-GCC compiler `$(compiler)'" ;
+    if "$(system-bits)" != "64" {
+      errors.error "an internal error." ;
     }
-    result = $(result)/mudflap-on ;
+    if "$(host-os)" != "linux" {
+      errors.error "an internal error." ;
+    }
+    if "$(target-os)" != "linux" {
+      errors.error "an internal error." ;
+    }
+    if "$(address-model)" = "unspecified" {
+      result = "lib64" ;
+    }
+    else if "$(address-model)" = "32" {
+      result = "lib" ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
   }
-  else
-  {
-    errors.error "`<mudflap>$(mudflap)' is not valid" ;
+  else {
+    result = "lib" ;
   }
-  if $(std) = c++11
-  {
-    result = $(result)/c++11 ;
-  }
-  return $(result) ;
+  local compiler-prefix = [ get-compiler-prefix "$(prefix)" : $(properties) ] ;
+  result = "$(compiler-prefix)/$(result)" ;
+  return "$(result)" ;
 }
 
-rule get-bindir ( prefix : properties * : gcc-for-clang ? )
+rule get-default-debug-libdir ( prefix : properties * )
 {
+  local default-libdir = [ get-default-libdir "$(prefix)" : $(properties) ] ;
+  return "$(default-libdir)/debug" ;
+}
+
+rule get-default-includedir ( prefix : properties * )
+{
+  local compiler-prefix = [ get-compiler-prefix "$(prefix)" : $(properties) ] ;
+  return "$(compiler-prefix)/include" ;
+}
+
+rule get-compiler-triplets ( properties * )
+{
+  local build-os = [ feature.get-values <host-os> : [ feature.defaults <host-os> ] ] ;
+  local default-bits = [ get-default-bits ] ;
+  local host-os = [ feature.get-values <host-os> : $(properties) ] ;
+  local target-os = [ feature.get-values <target-os> : $(properties) ] ;
   local multitarget = [ feature.get-values <multitarget> : $(properties) ] ;
-  local result = [ get-property-path $(properties) ] ;
-  if $(multitarget) = yes
-  {
-    if [ regex.match "(/address-model-32)" : $(result) : 1 ]
-    {
-      result = [ regex.match "(.*)/address-model-32(.*)" : $(result) : 1 2 ] ;
-      result = bin/32/$(result:J=) ;
+  local address-model = [ feature.get-values <intro-address-model> : $(properties) ] ;
+  local build-triplet ;
+  local host-triplet ;
+  local target-triplet ;
+  local enabled-targets ;
+  if "$(build-os)" = "linux" {
+    if "$(default-bits)" = "64" {
+      build-triplet = "x86_64-unknown-linux-gnu" ;
+      if "$(host-os)" = "linux" {
+        host-triplet = "x86_64-unknown-linux-gnu" ;
+        if "$(target-os)" = "linux" {
+          if "$(multitarget)" = "yes" {
+            if "$(address-model)" = "unspecified" {
+              target-triplet = "x86_64-unknown-linux-gnu" ;
+              enabled-targets = "x86_64-unknown-linux-gnu,i686-pc-linux-gnu" ;
+            }
+            else { # `$(address-model)' is other than `unspecified'.
+              errors.error "an internal error." ;
+            }
+          }
+          else if "$(multitarget)" = "no" {
+            if "$(address-model)" = "unspecified" {
+              target-triplet = "x86_64-unknown-linux-gnu" ;
+              enabled-targets = "x86_64-unknown-linux-gnu" ;
+            }
+            else { # `$(address-model)' is other than `unspecified'.
+              errors.error "an internal error." ;
+            }
+          }
+          else { # `$(multitarget)' is neither `yes' nor `no'.
+            errors.error "an internal error." ;
+          }
+        }
+        else if "$(target-os)" = "windows" {
+          if "$(multitarget)" = "no" {
+            if "$(address-model)" = "64" {
+              target-triplet = "x86_64-w64-mingw32" ;
+              enabled-targets = "x86_64-w64-mingw32" ;
+            }
+            else if "$(address-model)" = "32" {
+              target-triplet = "i686-w64-mingw32" ;
+              enabled-targets = "i686-w64-mingw32" ;
+            }
+            else { # `$(address-model)' is neither `64' nor `32'.
+              errors.error "an internal error." ;
+            }
+          }
+          else { # `$(multitarget)' is other than `no'.
+            errors.error "an internal error." ;
+          }
+        }
+        else if "$(target-os)" = "cygwin" {
+          if "$(multitarget)" = "no" {
+            if "$(address-model)" = "unspecified" {
+              target-triplet = "i686-pc-cygwin" ;
+              enabled-targets = "i686-pc-cygwin" ;
+            }
+            else { # `$(address-model)' is other than `unspecified'.
+              errors.error "an internal error." ;
+            }
+          }
+          else { # `$(multitarget)' is other than `no'.
+            errors.error "an internal error." ;
+          }
+        }
+        else { # `$(target-os)' is neither `linux', `windows' nor `cygwin'.
+          errors.error "an internal error." ;
+        }
+      }
+      else if "$(host-os)" = "windows" {
+        if "$(target-os)" = "windows" {
+          if "$(multitarget)" = "no" {
+            if "$(address-model)" = "64" {
+              host-triplet = "x86_64-w64-mingw32" ;
+              target-triplet = "x86_64-w64-mingw32" ;
+              enabled-targets = "x86_64-w64-mingw32" ;
+            }
+            else if "$(address-model)" = "32" {
+              host-triplet = "i686-w64-mingw32" ;
+              target-triplet = "i686-w64-mingw32" ;
+              enabled-targets = "i686-w64-mingw32" ;
+            }
+            else { # `$(address-model)' is neither `64' nor `32'.
+              errors.error "an internal error." ;
+            }
+          }
+          else { # `$(multitarget)' is other than `no'.
+            errors.error "an internal error." ;
+          }
+        }
+        else { # `$(target-os)' is other than `windows'.
+          errors.error "an internal error." ;
+        }
+      }
+      else if "$(host-os)" = "cygwin" {
+        host-triplet = "i686-pc-cygwin" ;
+        if "$(target-os)" = "cygwin" {
+          if "$(multitarget)" = "no" {
+            if "$(address-model)" = "unspecified" {
+              target-triplet = "i686-pc-cygwin" ;
+              enabled-targets = "i686-pc-cygwin" ;
+            }
+            else { # `$(address-model)' is other than `unspecified'.
+              errors.error "an internal error." ;
+            }
+          }
+          else { # `$(multitarget)' is other than `no'.
+            errors.error "an internal error." ;
+          }
+        }
+        else { # `$(target-os)' is other than `cygwin'.
+          errors.error "an internal error." ;
+        }
+      }
+      else { # `$(host-os)' is neither `linux', `windows' nor `cygwin'.
+        errors.error "an internal error." ;
+      }
     }
-    else
-    {
-      result = bin/$(result) ;
+    else if "$(default-bits)" = "32" {
+      build-triplet = "i686-pc-linux-gnu" ;
+      if "$(host-os)" = "linux" {
+        host-triplet = "i686-pc-linux-gnu" ;
+        if "$(target-os)" = "linux" {
+          if "$(multitarget)" = "no" {
+            if "$(address-model)" = "unspecified" {
+              target-triplet = "i686-pc-linux-gnu" ;
+              enabled-targets = "i686-pc-linux-gnu" ;
+            }
+            else { # `$(address-model)' is other than `unspecified'.
+              errors.error "an internal error." ;
+            }
+          }
+          else { # `$(multitarget)' is other than `no'.
+            errors.error "an internal error." ;
+          }
+        }
+        else if "$(target-os)" = "windows" {
+          if "$(multitarget)" = "no" {
+            if "$(address-model)" = "32" {
+              target-triplet = "i686-w64-mingw32" ;
+              enabled-targets = "i686-w64-mingw32" ;
+            }
+            else if "$(address-model)" = "64" {
+              target-triplet = "x86_64-w64-mingw32" ;
+              enabled-targets = "x86_64-w64-mingw32" ;
+            }
+            else { # `$(address-model)' is neither `32' nor `64'.
+              errors.error "an internal error." ;
+            }
+          }
+          else { # `$(multitarget)' is other than `no'.
+            errors.error "an internal error." ;
+          }
+        }
+        else if "$(target-os)" = "cygwin" {
+          if "$(multitarget)" = "no" {
+            if "$(address-model)" = "unspecified" {
+              target-triplet = "i686-pc-cygwin" ;
+              enabled-targets = "i686-pc-cygwin" ;
+            }
+            else { # `$(address-model)' is other than `unspecified'.
+              errors.error "an internal error." ;
+            }
+          }
+          else { # `$(multitarget)' is other than `no'.
+            errors.error "an internal error." ;
+          }
+        }
+        else { # `$(target-os)' is neither `linux', `windows' nor `cygwin'.
+          errors.error "an internal error." ;
+        }
+      }
+      else if "$(host-os)" = "windows" {
+        if "$(target-os)" = "windows" {
+          if "$(multitarget)" = "no" {
+            if "$(address-model)" = "32" {
+              host-triplet = "i686-w64-mingw32" ;
+              target-triplet = "i686-w64-mingw32" ;
+              enabled-targets = "i686-w64-mingw32" ;
+            }
+            else if "$(address-model)" = "64" {
+              host-triplet = "x86_64-w64-mingw32" ;
+              target-triplet = "x86_64-w64-mingw32" ;
+              enabled-targets = "x86_64-w64-mingw32" ;
+            }
+            else { # `$(address-model)' is neither `32' nor `64'.
+              errors.error "an internal error." ;
+            }
+          }
+          else { # `$(multitarget)' is other than `no'.
+            errors.error "an internal error." ;
+          }
+        }
+        else { # `$(target-os)' is other than `windows'.
+          errors.error "an internal error." ;
+        }
+      }
+      else if "$(host-os)" = "cygwin" {
+        host-triplet = "i686-pc-cygwin" ;
+        if "$(target-os)" = "cygwin" {
+          if "$(multitarget)" = "no" {
+            if "$(address-model)" = "unspecified" {
+              target-triplet = "i686-pc-cygwin" ;
+              enabled-targets = "i686-pc-cygwin" ;
+            }
+            else { # `$(address-model)' is other than `unspecified'.
+              errors.error "an internal error." ;
+            }
+          }
+          else { # `$(multitarget)' is other than `no'.
+            errors.error "an internal error." ;
+          }
+        }
+        else { # `$(target-os)' is other than `cygwin'.
+          errors.error "an internal error." ;
+        }
+      }
+      else { # `$(host-os)' is neither `linux', `windows' nor `cygwin'.
+        errors.error "an internal error." ;
+      }
+    }
+    else { # `$(default-bits)' is neither `64' nor `32'.
+      errors.error "an internal error." ;
     }
   }
-  else
-  {
-    result = bin/$(result) ;
+  else if "$(build-os)" = "windows" {
+    if "$(default-bits)" = "64" {
+      build-triplet = "x86_64-w64-mingw32" ;
+      if "$(host-os)" = "windows" {
+        host-triplet = "x86_64-w64-mingw32" ;
+        if "$(target-os)" = "windows" {
+          if "$(multitarget)" = "no" {
+            if "$(address-model)" = "unspecified" {
+              target-triplet = "x86_64-w64-mingw32" ;
+              enabled-targets = "x86_64-w64-mingw32" ;
+            }
+            else { # `$(address-model)' is other than `unspecified'.
+              errors.error "an internal error." ;
+            }
+          }
+          else { # `$(multitarget)' is other than `no'.
+            errors.error "an internal error." ;
+          }
+        }
+        else { # `$(target-os)' is other than `windows'.
+          errors.error "an internal error." ;
+        }
+      }
+      else { # `$(host-os)' is other than `windows'.
+        errors.error "an internal error." ;
+      }
+    }
+    else if "$(default-bits)" = "32" {
+      build-triplet = "i686-w64-mingw32" ;
+      if "$(host-os)" = "windows" {
+        host-triplet = "i686-w64-mingw32" ;
+        if "$(target-os)" = "windows" {
+          if "$(multitarget)" = "no" {
+            if "$(address-model)" = "unspecified" {
+              target-triplet = "i686-w64-mingw32" ;
+              enabled-targets = "i686-w64-mingw32" ;
+            }
+            else { # `$(address-model)' is other than `unspecified'.
+              errors.error "an internal error." ;
+            }
+          }
+          else { # `$(multitarget)' is other than `no'.
+            errors.error "an internal error." ;
+          }
+        }
+        else { # `$(target-os)' is other than `windows'.
+          errors.error "an internal error." ;
+        }
+      }
+      else { # `$(host-os)' is other than `windows'.
+        errors.error "an internal error." ;
+      }
+    }
+    else { # `$(default-bits)' is neither `64' nor `32'.
+      errors.error "an internal error." ;
+    }
   }
-  if [ regex.match "(/release)" : $(result) : 1 ]
-  {
-    result = [ regex.match "(.*)/release(.*)" : $(result) : 1 2 ] ;
-    result = $(result:J=) ;
+  else if "$(build-os)" = "cygwin" {
+    if "$(default-bits)" = "32" {
+      build-triplet = "i686-pc-cygwin" ;
+      if "$(host-os)" = "cygwin" {
+        host-triplet = "i686-pc-cygwin" ;
+        if "$(target-os)" = "cygwin" {
+          if "$(multitarget)" = "no" {
+            if "$(address-model)" = "unspecified" {
+              target-triplet = "i686-pc-cygwin" ;
+              enabled-targets = "i686-pc-cygwin" ;
+            }
+            else { # `$(address-model)' is other than `unspecified'.
+              errors.error "an internal error." ;
+            }
+          }
+          else { # `$(multitarget)' is other than `no'.
+            errors.error "an internal error." ;
+          }
+        }
+        else { # `$(target-os)' is other than `cygwin'.
+          errors.error "an internal error." ;
+        }
+      }
+      else { # `$(host-os)' is other than `cygwin'.
+        errors.error "an internal error." ;
+      }
+    }
+    else { # `$(default-bits)' is other than `32'.
+      errors.error "an internal error." ;
+    }
   }
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local prefix-leaf = [ get-prefix-leaf $(compiler) : $(gcc-for-clang) ] ;
-  return $(prefix)/$(prefix-leaf)/$(result) ;
+  else { # `$(build-os)' is neither `linux', `windows' nor `cygwin'.
+    errors.error "an internal error." ;
+  }
+  if ! "$(build-triplet)" {
+    errors.error "an internal error." ;
+  }
+  if ! "$(host-triplet)" {
+    errors.error "an internal error." ;
+  }
+  if ! "$(target-triplet)" {
+    errors.error "an internal error." ;
+  }
+  if ! "$(enabled-targets)" {
+    errors.error "an internal error." ;
+  }
+  if "$(build-triplet)" != "$(host-triplet)" && "$(host-triplet)" != "$(target-triplet)" {
+    errors.error "an internal error." ;
+  }
+  return $(build-triplet) $(host-triplet) $(target-triplet) $(enabled-targets) ;
 }
 
-rule get-libdir ( prefix : properties * : gcc-for-clang ? )
+rule normalize-properties ( properties * )
 {
-  local multitarget = yes ; #[ feature.get-values <multitarget> : $(properties) ] ;
-  local result = [ get-property-path $(properties) ] ;
-  if $(multitarget) = yes
-  {
-    if [ regex.match "(/address-model-32)" : $(result) : 1 ]
-    {
-      result = [ regex.match "(.*)/address-model-32(.*)" : $(result) : 1 2 ] ;
-      result = lib/$(result:J=) ;
-    }
-    else
-    {
-      result = lib64/$(result) ;
-    }
-  }
-  else
-  {
-    result = lib/$(result) ;
-  }
-  if [ regex.match "(/release)" : $(result) : 1 ]
-  {
-    result = [ regex.match "(.*)/release(.*)" : $(result) : 1 2 ] ;
-    result = $(result:J=) ;
-  }
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local prefix-leaf = [ get-prefix-leaf $(compiler) : $(gcc-for-clang) ] ;
-  return $(prefix)/$(prefix-leaf)/$(result) ;
-}
-
-rule get-includedir ( prefix : properties * : gcc-for-clang ? )
-{
+  local address-model = [ feature.get-values <intro-address-model> : $(properties) ] ;
+  local instruction-set = [ feature.get-values <intro-instruction-set> : $(properties) ] ;
   local multitarget = [ feature.get-values <multitarget> : $(properties) ] ;
-  local result = [ get-property-path $(properties) ] ;
-  if $(multitarget) = yes
-  {
-    if [ regex.match "(/address-model-32)" : $(result) : 1 ]
-    {
-      result = [ regex.match "(.*)/address-model-32(.*)" : $(result) : 1 2 ] ;
-      result = include/32/$(result:J=) ;
+  properties = [ property.change $(properties) : <intro-address-model> ] ;
+  if $(address-model) {
+    properties = [ property.change $(properties) : <address-model> $(address-model) ] ;
+  }
+  properties = [ property.change $(properties) : <intro-instruction-set> ] ;
+  if $(instruction-set) {
+    properties = [ property.change $(properties) : <instruction-set> $(instruction-set) ] ;
+  }
+  properties = [ property.change $(properties) : <toolset> ] ;
+  properties = [ property.change $(properties) : <location> ] ;
+  properties = [ property.change $(properties) : <conditional> ] ;
+  properties = [ property.change $(properties) : <action> ] ;
+  properties = [ property.change $(properties) : <compiler> ] ;
+  properties = [ property.change $(properties) : <compiler-hidden> ] ;
+  properties = [ property.change $(properties) : <multitarget> ] ;
+  properties = [ property.change $(properties) : <multitarget-hidden> ] ;
+  properties = [ property.change $(properties) : <binutils-hidden> ] ;
+  properties = [ property.change $(properties) : <binutils> ] ;
+  properties = [ property.change $(properties) : <gmp-for-gcc-hidden> ] ;
+  properties = [ property.change $(properties) : <gmp-for-gcc> ] ;
+  properties = [ property.change $(properties) : <mpfr-for-gcc-hidden> ] ;
+  properties = [ property.change $(properties) : <mpfr-for-gcc> ] ;
+  properties = [ property.change $(properties) : <mpc-for-gcc-hidden> ] ;
+  properties = [ property.change $(properties) : <mpc-for-gcc> ] ;
+  properties = [ property.change $(properties) : <isl-for-gcc-hidden> ] ;
+  properties = [ property.change $(properties) : <isl-for-gcc> ] ;
+  properties = [ property.change $(properties) : <cloog-for-gcc-hidden> ] ;
+  properties = [ property.change $(properties) : <cloog-for-gcc> ] ;
+  properties = [ property.change $(properties) : <gmp-hidden> ] ;
+  properties = [ property.change $(properties) : <gmp> ] ;
+  properties = [ property.change $(properties) : <mpfr-hidden> ] ;
+  properties = [ property.change $(properties) : <mpfr> ] ;
+  properties = [ property.change $(properties) : <mpc-hidden> ] ;
+  properties = [ property.change $(properties) : <mpc> ] ;
+  properties = [ property.change $(properties) : <isl-hidden> ] ;
+  properties = [ property.change $(properties) : <isl> ] ;
+  properties = [ property.change $(properties) : <cloog-hidden> ] ;
+  properties = [ property.change $(properties) : <cloog> ] ;
+  properties = [ property.change $(properties) : <ppl-hidden> ] ;
+  properties = [ property.change $(properties) : <ppl> ] ;
+  properties = [ property.change $(properties) : <clang-hidden> ] ;
+  properties = [ property.change $(properties) : <clang> ] ;
+  return $(properties) ;
+}
+
+rule get-bindir ( prefix : properties * )
+{
+  local result = [ get-default-bindir "$(prefix)" : $(properties) ] ;
+  properties = [ normalize-properties $(properties) ] ;
+  local property-path = [ property.as-path $(properties) ] ;
+  result = "$(result)/$(property-path)" ;
+  return "$(result)" ;
+}
+
+rule get-libdir ( prefix : properties * )
+{
+  local result = [ get-default-libdir "$(prefix)" : $(properties) ] ;
+  properties = [ normalize-properties $(properties) ] ;
+  local property-path = [ property.as-path $(properties) ] ;
+  result = "$(result)/$(property-path)" ;
+  return "$(result)" ;
+}
+
+rule get-includedir ( prefix : properties * )
+{
+  local result = [ get-default-includedir "$(prefix)" : $(properties) ] ;
+  properties = [ normalize-properties $(properties) ] ;
+  local property-path = [ property.as-path $(properties) ] ;
+  result = "$(result)/$(property-path)" ;
+  return "$(result)" ;
+}
+
+rule get-triplets ( properties * )
+{
+  local build-os = [ feature.get-values <host-os> : [ feature.defaults <host-os> ] ] ;
+  local default-bits = [ get-default-bits ] ;
+  local host-os = [ feature.get-values <host-os> : $(properties) ] ;
+  local target-os = [ feature.get-values <target-os> : $(properties) ] ;
+  local multitarget = [ feature.get-values <multitarget> : $(properties) ] ;
+  local address-model = [ feature.get-values <intro-address-model> : $(properties) ] ;
+  local build-triplet ;
+  local host-triplet ;
+  if "$(build-os)" = "linux" {
+    if "$(default-bits)" = "64" {
+      if "$(host-os)" = "linux" {
+        build-triplet = "x86_64-unknown-linux-gnu" ;
+        if "$(target-os)" = "linux" {
+          if "$(multitarget)" = "yes" {
+            if "$(address-model)" = "unspecified" {
+              host-triplet = "x86_64-unknown-linux-gnu" ;
+            }
+            else if "$(address-model)" = "32" {
+              host-triplet = "i686-pc-linux-gnu" ;
+            }
+            else { # `$(address-model)' is neither `unspecified' nor `32'.
+              errors.error "an internal error." ;
+            }
+          }
+          else if "$(multitarget)" = "no" {
+            if "$(address-model)" = "unspecified" {
+              host-triplet = "x86_64-unknown-linux-gnu" ;
+            }
+            else { # `$(address-model)' is other than `unspecified'.
+              errors.error "an internal error." ;
+            }
+          }
+          else { # `$(multitarget)' is neither `yes' nor `no'.
+            errors.error "an internal error." ;
+          }
+        }
+        else if "$(target-os)" = "windows" {
+          if "$(multitarget)" = "no" {
+            if "$(address-model)" = "64" {
+              host-triplet = "x86_64-w64-mingw32" ;
+            }
+            else if "$(address-model)" = "32" {
+              host-triplet = "i686-w64-mingw32" ;
+            }
+            else { # `$(address-model)' is neither `64' nor `32'.
+              errors.error "an internal error." ;
+            }
+          }
+          else { # `$(multitarget)' is other than `no'.
+            errors.error "an internal error." ;
+          }
+        }
+        else if "$(target-os)" = "cygwin" {
+          if "$(multitarget)" = "no" {
+            if "$(address-model)" = "unspecified" {
+              host-triplet = "i686-pc-cygwin" ;
+            }
+            else { # `$(address-model)' is other than `unspecified'.
+              errors.error "an internal error." ;
+            }
+          }
+          else { # `$(multitarget)' is other than `no'.
+            errors.error "an internal error." ;
+          }
+        }
+        else { # `$(target-os)' is neither `linux', `windows' nor `cygwin'.
+          errors.error "an internal error." ;
+        }
+      }
+      else { # `$(host-os)' is other than `linux'.
+        errors.error "an internal error." ;
+      }
     }
-    else
-    {
-      result = include/$(result) ;
+    else if "$(default-bits)" = "32" {
+      if "$(host-os)" = "linux" {
+        build-triplet = "i686-pc-linux-gnu" ;
+        if "$(target-os)" = "linux" {
+          if "$(multitarget)" = "no" {
+            if "$(address-model)" = "unspecified" {
+              host-triplet = "i686-pc-linux-gnu" ;
+            }
+            else { # `$(address-model)' is other than `unspecified'.
+              errors.error "an internal error." ;
+            }
+          }
+          else { # `$(multitarget)' is other than `no'.
+            errors.error "an internal error." ;
+          }
+        }
+        else if "$(target-os)" = "windows" {
+          if "$(multitarget)" = "no" {
+            if "$(address-model)" = "32" {
+              host-triplet = "i686-w64-mingw32" ;
+            }
+            else if "$(address-model)" = "64" {
+              host-triplet = "x86_64-w64-mingw32" ;
+            }
+            else { # `$(address-model)' is neither `32' nor `64'.
+              errors.error "an internal error." ;
+            }
+          }
+          else { # `$(multitarget)' is other than `no'.
+            errors.error "an internal error." ;
+          }
+        }
+        else if "$(target-os)" = "cygwin" {
+          if "$(multitarget)" = "no" {
+            if "$(address-model)" = "unspecified" {
+              host-triplet = "i686-pc-cygwin" ;
+            }
+            else { # `$(address-model)' is other than `unspecified'.
+              errors.error "an internal error." ;
+            }
+          }
+          else { # `$(multitarget)' is other than `no'.
+            errors.error "an internal error." ;
+          }
+        }
+        else { # `$(target-os)' is neither `linux', `windows' nor `cygwin'.
+          errors.error "an internal error." ;
+        }
+      }
+      else { # `$(host-os)' is other than `linux'.
+        errors.error "an internal error." ;
+      }
+    }
+    else { # `$(default-bits)' is neither `64' nor `32'.
+      errors.error "an internal error." ;
     }
   }
-  else
-  {
-    result = include/$(result) ;
+  else if "$(build-os)" = "windows" {
+    if "$(default-bits)" = "64" {
+      if "$(host-os)" = "windows" {
+        build-triplet = "x86_64-w64-mingw32" ;
+        if "$(target-os)" = "windows" {
+          if "$(multitarget)" = "no" {
+            if "$(address-model)" = "unspecified" {
+              host-triplet = "x86_64-w64-mingw32" ;
+            }
+            else { # `$(address-model)' is other than `unspecified'.
+              errors.error "an internal error." ;
+            }
+          }
+          else { # `$(multitarget)' is other than `no'.
+            errors.error "an internal error." ;
+          }
+        }
+        else { # `$(target-os)' is other than `windows'.
+          errors.error "an internal error." ;
+        }
+      }
+      else { # `$(host-os)' is other than `windows'.
+        errors.error "an internal error." ;
+      }
+    }
+    else if "$(default-bits)" = "32" {
+      if "$(host-os)" = "windows" {
+        build-triplet = "i686-w64-mingw32" ;
+        if "$(target-os)" = "windows" {
+          if "$(multitarget)" = "no" {
+            if "$(address-model)" = "unspecified" {
+              host-triplet = "i686-w64-mingw32" ;
+            }
+            else { # `$(address-model)' is other than `unspecified'.
+              errors.error "an internal error." ;
+            }
+          }
+          else { # `$(multitarget)' is other than `no'.
+            errors.error "an internal error." ;
+          }
+        }
+        else { # `$(target-os)' is other than `windows'.
+          errors.error "an internal error." ;
+        }
+      }
+      else { # `$(host-os)' is other than `windows'.
+        errors.error "an internal error." ;
+      }
+    }
+    else { # `$(default-bits)' is neither `64' nor `32'.
+      errors.error "an internal error." ;
+    }
   }
-  if [ regex.match "(/release)" : $(result) : 1 ]
-  {
-    result = [ regex.match "(.*)/release(.*)" : $(result) : 1 2 ] ;
-    result = $(result:J=) ;
+  else if "$(build-os)" = "cygwin" {
+    if "$(default-bits)" = "32" {
+      if "$(host-os)" = "cygwin" {
+        build-triplet = "i686-pc-cygwin" ;
+        if "$(target-os)" = "cygwin" {
+          if "$(multitarget)" = "no" {
+            if "$(address-model)" = "unspecified" {
+              host-triplet = "i686-pc-cygwin" ;
+            }
+            else { # `$(address-model)' is other than `unspecified'.
+              errors.error "an internal error." ;
+            }
+          }
+          else { # `$(multitarget)' is other than `no'.
+            errors.error "an internal error." ;
+          }
+        }
+        else { # `$(target-os)' is other than `cygwin'.
+          errors.error "an internal error." ;
+        }
+      }
+      else { # `$(host-os)' is other than `cygwin'.
+        errors.error "an internal error." ;
+      }
+    }
+    else { # `$(default-bits)' is other than `32'.
+      errors.error "an internal error." ;
+    }
   }
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local prefix-leaf = [ get-prefix-leaf $(compiler) : $(gcc-for-clang) ] ;
-  return $(prefix)/$(prefix-leaf)/$(result) ;
+  else { # `$(build-os)' is neither `linux', `windows' nor `cygwin'.
+    errors.error "an internal error." ;
+  }
+  if ! $(build-triplet) {
+    errors.error "an internal error." ;
+  }
+  if ! $(host-triplet) {
+    errors.error "an internal error." ;
+  }
+  return $(build-triplet) $(host-triplet) ;
 }
 
 rule get-cc ( prefix : properties * : gcc-for-clang ? )
 {
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
   if ! [ is-valid "$(compiler)" ]
   {
     errors.error "an internal error." ;
   }
-  local prefix-leaf = [ get-prefix-leaf $(compiler) : $(gcc-for-clang) ] ;
+  local prefix-leaf = [ get-prefix-leaf $(properties) ] ;
   local compiler-prefix = "$(prefix)/$(prefix-leaf)" ;
   local result ;
   if ! [ is-builtin-gcc $(compiler) ]
@@ -681,61 +1316,154 @@ rule get-cc ( prefix : properties * : gcc-for-clang ? )
 
 rule get-cflags ( properties * )
 {
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local property-path = [ get-property-path $(properties) ] ;
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
   local result ;
-  if [ regex.match "^(debug)" : $(property-path) : 1 ]
-  {
+
+  local variant = [ feature.get-values <variant> : $(properties) ] ;
+  if $(variant) = debug {
     result += "-O0" ;
     result += "-g" ;
     result += "-fno-inline" ;
   }
-  else if [ regex.match "^(release)" : $(property-path) : 1 ]
-  {
+  else if $(variant) = release {
     result += "-O3" ;
     result += "-finline-functions" ;
     result += "-Wno-inline" ;
-    result += "-march=native" ;
   }
-  else if [ regex.match "^(lto)" : $(property-path) : 1 ]
-  {
+  else if $(variant) = profile {
     result += "-O3" ;
     result += "-finline-functions" ;
     result += "-Wno-inline" ;
-    result += "-flto" ;
-    result += "-march=native" ;
+    result += "-g" ;
+    result += "-pg" ;
   }
-  else
-  {
+  else {
     errors.error "an internal error" ;
   }
-  if [ regex.match "(/mudflap-on)" : $(property-path) : 1 ]
-  {
-    if ! [ is-gcc $(compiler) ]
-    {
-      errors.error "`<mudflap>on' is specified for a compiler other than GCC" ;
-    }
-    errors.error "sorry, mudflap support has not been implemented yet" ;
+
+  local address-model = [ feature.get-values <intro-address-model-hidden> : $(properties) ] ;
+  if $(address-model) = unspecified {
+    # Do nothing.
   }
-  if [ regex.match "(/address-sanitizer-on)" : $(property-path) : 1 ]
-  {
-    if ! [ is-clang $(compiler) ]
-    {
-      errors.error "`<address-sanitizer>on' is specified for non-Clang compiler" ;
-    }
-    result += "-faddress-sanitizer" ;
+  else if $(address-model) = 64 {
+    result += "-m64" ;
   }
+  else if $(address-model) = 32 {
+    result += "-m32" ;
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+
+  local instruction-set = [ feature.get-values <intro-instruction-set-hidden> : $(properties) ] ;
+  if $(instruction-set) = unspecified {
+    # Do nothing.
+  }
+  else if $(instruction-set) = native {
+    if [ is-gcc $(compiler) ] || [ is-clang $(compiler) ] {
+      result += "-march=native" ;
+    }
+    else if [ is-icc $(compiler) ] {
+      result += "-xHost" ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+
+  local lto = [ feature.get-values <lto> : $(properties) ] ;
+  if $(lto) = off {
+    # Do nothing.
+  }
+  else if $(lto) = "on" {
+    if [ is-gcc $(compiler) ] || [ is-clang $(compiler) ] {
+      result += "-flto" ;
+    }
+    else if [ is-icc $(compiler) ] {
+      result += "-ipo" ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+
+  local correct-call-stack = [ feature.get-values <correct-call-stack> : $(properties) ] ;
+  if $(correct-call-stack) = off {
+    # Do nothing.
+  }
+  else if $(correct-call-stack) = "on" {
+    result += "-fno-omit-frame-pointer" ;
+    result += "-fno-optimize-sibling-calls" ;
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+
+  local ssp = [ feature.get-values <ssp> : $(properties) ] ;
+  if $(ssp) = off {
+    # Do nothing.
+  }
+  else if $(ssp) = "on" {
+    result += "-fstack-protector" ;
+  }
+  else if $(ssp) = all {
+    result += "-fstack-protector-all" ;
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+
+  local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
+  if $(memory-checker) = off {
+    # Do nothing.
+  }
+  else if $(memory-checker) = "on" {
+    if [ is-gcc $(compiler) ] {
+      local threading = [ get-values <threading> : $(properties) ] ;
+      if $(threading) = single {
+        result += "-fmudflap" ;
+      }
+      else if $(threading) = multi {
+        result += "-fmudflapth" ;
+      }
+      else {
+        errors.error "an internal error." ;
+      }
+    }
+    else if [ is-clang $(compiler) ] {
+      result += "-faddress-sanitizer" ;
+    }
+    else if [ is-icc $(compiler) ] {
+      result += "-ftrapuv" ;
+      result += "-check-pointers=rw" ;
+      result += "-check-pointers-dangling=all" ;
+      result += "-check-pointers-undimensioned" ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+
   return "$(result:J= )" ;
 }
 
 rule get-cxx ( prefix : properties * : gcc-for-clang ? )
 {
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
   if ! [ is-valid "$(compiler)" ]
   {
     errors.error "an internal error." ;
   }
-  local prefix-leaf = [ get-prefix-leaf "$(compiler)" : $(gcc-for-clang) ] ;
+  local prefix-leaf = [ get-prefix-leaf $(properties) ] ;
   local compiler-prefix = "$(prefix)/$(prefix-leaf)" ;
   local result ;
   if ! [ is-builtin-gcc $(compiler) ]
@@ -758,190 +1486,234 @@ rule get-cxx ( prefix : properties * : gcc-for-clang ? )
 
 rule get-cxxflags ( properties * )
 {
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local property-path = [ get-property-path $(properties) ] ;
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
   local result ;
-  if [ regex.match "^(debug)" : $(property-path) : 1 ]
-  {
+
+  local variant = [ feature.get-values <variant> : $(properties) ] ;
+  if $(variant) = debug {
     result += "-O0" ;
     result += "-g" ;
     result += "-fno-inline" ;
   }
-  else if [ regex.match "^(release)" : $(property-path) : 1 ]
-  {
+  else if $(variant) = release {
     result += "-O3" ;
     result += "-finline-functions" ;
     result += "-Wno-inline" ;
-    result += "-march=native" ;
   }
-  else if [ regex.match "^(lto)" : $(property-path) : 1 ]
-  {
+  else if $(variant) = profile {
     result += "-O3" ;
     result += "-finline-functions" ;
     result += "-Wno-inline" ;
-    result += "-flto" ;
-    result += "-march=native" ;
+    result += "-g" ;
+    result += "-pg" ;
   }
-  else
-  {
+  else {
     errors.error "an internal error" ;
   }
-  if [ regex.match "(/c\\+\\+11)" : $(property-path) : 1 ]
-  {
-    result += "-std=c++0x" ;
+
+  local runtime-link = [ feature.get-values <runtime-link> : $(properties) ] ;
+  if $(runtime-link) = shared {
+    # Do nothing.
   }
-  else
-  {
+  else if $(runtime-link) = static {
+    result += "-static-libstdc++" ;
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+
+  local address-model = [ feature.get-values <intro-address-model-hidden> : $(properties) ] ;
+  if $(address-model) = unspecified {
+    # Do nothing.
+  }
+  else if $(address-model) = 64 {
+    result += "-m64" ;
+  }
+  else if $(address-model) = 32 {
+    result += "-m32" ;
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+
+  local instruction-set = [ feature.get-values <intro-instruction-set-hidden> : $(properties) ] ;
+  if $(instruction-set) = unspecified {
+    # Do nothing.
+  }
+  else if $(instruction-set) = native {
+    if [ is-gcc $(compiler) ] || [ is-clang $(compiler) ] {
+      result += "-march=native" ;
+    }
+    else if [ is-icc $(compiler) ] {
+      result += "-xHost" ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+
+  local std = [ feature.get-values <std> : $(properties) ] ;
+  if $(std) = c++03 {
     result += "-std=c++03" ;
   }
-  if [ regex.match "(/mudflap-on)" : $(property-path) : 1 ]
-  {
-    if ! [ is-gcc $(compiler) ]
-    {
-      errors.error "`<mudflap>on' is specified for a compiler other than GCC" ;
-    }
-    errors.error "sorry, mudflap support has not been implemented yet" ;
+  else if $(std) = c++11 {
+    result += "-std=c++11" ;
   }
-  if [ regex.match "(/address-sanitizer-on)" : $(property-path) : 1 ]
-  {
-    if ! [ is-clang $(compiler) ]
-    {
-      errors.error "`<address-sanitizer>on' is specified for a compiler other than Clang" ;
-    }
-    result += "-faddress-sanitizer" ;
+  else {
+    errors.error "an internal error." ;
   }
-  if [ regex.match "(/libstdc\\+\\+-debug-mode-on)" : $(property-path) : 1 ]
-  {
+
+  local lto = [ feature.get-values <lto> : $(properties) ] ;
+  if $(lto) = off {
+    # Do nothing.
+  }
+  else if $(lto) = "on" {
+    if [ is-gcc $(compiler) ] || [ is-clang $(compiler) ] {
+      result += "-flto" ;
+    }
+    else if [ is-icc $(compiler) ] {
+      result += "-ipo" ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+
+  local correct-call-stack = [ feature.get-values <correct-call-stack> : $(properties) ] ;
+  if $(correct-call-stack) = off {
+    # Do nothing.
+  }
+  else if $(correct-call-stack) = "on" {
+    result += "-fno-omit-frame-pointer" ;
+    result += "-fno-optimize-sibling-calls" ;
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+
+  local ssp = [ feature.get-values <ssp> : $(properties) ] ;
+  if $(ssp) = off {
+    # Do nothing.
+  }
+  else if $(ssp) = "on" {
+    result += "-fstack-protector" ;
+  }
+  else if $(ssp) = all {
+    result += "-fstack-protector-all" ;
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+
+  local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
+  if $(memory-checker) = off {
+    # Do nothing.
+  }
+  else if $(memory-checker) = "on" {
+    if [ is-gcc $(compiler) ] {
+      local threading = [ get-values <threading> : $(properties) ] ;
+      if $(threading) = single {
+        result += "-fmudflap" ;
+      }
+      else if $(threading) = multi {
+        result += "-fmudflapth" ;
+      }
+      else {
+        errors.error "an internal error." ;
+      }
+    }
+    else if [ is-clang $(compiler) ] {
+      result += "-faddress-sanitizer" ;
+    }
+    else if [ is-icc $(compiler) ] {
+      result += "-ftrapuv" ;
+      result += "-check-pointers=rw" ;
+      result += "-check-pointers-dangling=all" ;
+      result += "-check-pointers-undimensioned" ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+
+  local libstdcxx-debug-mode = [ feature.get-values <libstdc++-debug-mode> : $(properties) ] ;
+  if $(libstdcxx-debug-mode) = off {
+    # Do nothing.
+  }
+  else if $(libstdcxx-debug-mode) = "on" {
     result += "-D_GLIBCXX_DEBUG" ;
     result += "-D_GLIBCXX_DEBUG_PEDANTIC" ;
   }
+  else {
+    errors.error "an internal error." ;
+  }
+
   return "$(result:J= )" ;
 }
 
-rule get-toolset ( compiler : gcc-for-clang ? )
+rule get-abi-tag ( compiler )
 {
-  errors.error "deprecated" ;
-
-  if ! [ is-valid "$(compiler)" ]
-  {
+  if ! [ is-valid "$(compiler)" ] {
     errors.error "an internal error." ;
   }
   local result ;
-  if [ is-gcc $(compiler) ]
-  {
-    local version = [ get-version "$(compiler)" ] ;
-    version = [ regex.replace $(version) "-" "_" ] ;
-    result = gcc-$(version) ;
+  if [ is-gcc "$(compiler)" ] {
+    local version = [ get-frontend-version "$(compiler)" ] ;
+    local abi-version = [ regex.match "^([0-9]+\\.[0-9]+)" : "$(version)" : 1 ] ;
+    local version-tag = [ regex.replace "$(abi-version)" "\\." "" ] ;
+    result = "gcc$(version-tag)" ;
   }
-  else if [ is-clang $(compiler) ]
-  {
-    if ! [ is-valid "$(gcc-for-clang)" ]
-    {
-      errors.error "an internal error." ;
+  else if [ is-clang "$(compiler)" ] {
+    local version = [ get-backend-version "$(compiler)" ] ;
+    local abi-version = [ regex.match "^([0-9]+\\.[0-9]+)" : "$(version)" : 1 ] ;
+    local version-tag = [ regex.replace "$(abi-version)" "\\." "" ] ;
+    result = "gcc$(version-tag)" ;
+  }
+  return "$(result)" ;
+}
+
+rule get-rpath-commands ( prefix : properties * )
+{
+  local build-triplet = [ get-build-triplet $(properties) ] ;
+  local host-triplet = [ get-host-triplet $(properties) ] ;
+  local variant = [ feature.get-values <variant> : $(properties) ] ;
+  local default-libdir = [ path.native [ get-default-libdir $(properties) ] ] ;
+  local default-debug-libdir = [ path.native [ get-default-debug-libdir $(properties) ] ] ;
+  local result ;
+  if $(build-triplet) = x86_64-unknown-linux-gnu || $(build-triplet) = i686-pc-linux-gnu {
+    if $(host-triplet) = $(build-triplet) {
+      if $(variant) = debug && "$(default-debug-libdir)" != "$(default-libdir)" {
+        result = "LD_RUN_PATH=\"$(default-libdir):$(default-debug-libdir)${LD_RUN_PATH:+:$LD_RUN_PATH}\"" ;
+      }
+      else {
+        result = "LD_RUN_PATH=\"$(default-libdir)${LD_RUN_PATH:+:$LD_RUN_PATH}\"" ;
+      }
     }
-    local gcc-version = [ get-version $(gcc-for-clang) ] ;
-    gcc-version = [ regex.replace $(gcc-version) "-" "_" ] ;
-    local clang-version = [ get-version $(compiler) ] ;
-    clang-version = [ regex.replace $(clang-version) "-" "_" ] ;
-    result = gcc-$(gcc-version)_$(clang-version) ;
   }
   return $(result) ;
 }
 
-rule get-abi-tag ( compiler : gcc-for-clang ? )
+rule get-environment-commands ( prefix : properties * )
 {
-  if ! [ is-valid "$(compiler)" ]
-  {
-    errors.error "an internal error." ;
-  }
-  local result ;
-  if [ is-gcc $(compiler) ]
-  {
-    local version = [ get-version $(compiler) ] ;
-    local abi-version = [ regex.match "^([0-9]+\\.[0-9]+)" : $(version) : 1 ] ;
-    local version-tag = [ regex.replace $(abi-version) "\\." "" ] ;
-    result = gcc$(version-tag) ;
-  }
-  else if [ is-clang $(compiler) ]
-  {
-    if ! [ is-valid "$(gcc-for-clang)" ]
-    {
-      errors.error "an internal error." ;
-    }
-    local version = [ get-version $(gcc-for-clang) ] ;
-    local abi-version = [ regex.match "^([0-9]+\\.[0-9]+)" : $(version) : 1 ] ;
-    local version-tag = [ regex.replace $(abi-version) "\\." "" ] ;
-    result = gcc$(version-tag) ;
-  }
-  return $(result) ;
-}
-
-rule cc ( prefix : compiler : gcc-for-clang ? )
-{
-  if ! [ is-valid "$(compiler)" ]
-  {
-    errors.error "an internal error." ;
-  }
-  local prefix-leaf = [ get-prefix-leaf "$(compiler)" : $(gcc-for-clang) ] ;
-  local compiler-prefix = "$(prefix)/$(prefix-leaf)" ;
-  local result ;
-  if ! [ is-builtin-gcc $(compiler) ]
-  {
-    if [ is-gcc $(compiler) ]
-    {
-      result = "$(compiler-prefix)/bin/gcc-wrapper" ;
-    }
-    else if [ is-clang $(compiler) ]
-    {
-      result = "$(compiler-prefix)/bin/clang-wrapper" ;
-    }
-    else
-    {
-      errors.error "an internal error." ;
-    }
-  }
-  return [ path.native "$(result)" ] ;
-}
-
-rule cxx ( prefix : compiler : gcc-for-clang ? )
-{
-  if ! [ is-valid "$(compiler)" ]
-  {
-    errors.error "an internal error." ;
-  }
-  local prefix-leaf = [ get-prefix-leaf "$(compiler)" : $(gcc-for-clang) ] ;
-  local compiler-prefix = "$(prefix)/$(prefix-leaf)" ;
-  local result ;
-  if ! [ is-builtin-gcc $(compiler) ]
-  {
-    if [ is-gcc $(compiler) ]
-    {
-      result = "$(compiler-prefix)/bin/g++-wrapper" ;
-    }
-    else if [ is-clang $(compiler) ]
-    {
-      result = "$(compiler-prefix)/bin/clang++-wrapper" ;
-    }
-    else
-    {
-      errors.error "an internal error." ;
-    }
-  }
-  return [ path.native "$(result)" ] ;
-}
-
-rule get-environment-commands ( prefix : properties * : gcc-for-clang ? )
-{
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local compiler-prefix = [ get-compiler-prefix "$(prefix)" : $(compiler) : $(gcc-for-clang) ] ;
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
+  local compiler-prefix = [ get-compiler-prefix "$(prefix)" : $(properties) ] ;
   local is-debug ;
   if [ feature.get-values <variant> : $(properties) ] = debug
   {
     is-debug = yes ;
   }
   local default-bindir = "$(compiler-prefix)/bin" ;
-  local bindir = [ get-bindir $(prefix) : $(properties) : $(gcc-for-clang) ] ;
-  local libdir = [ get-libdir $(prefix) : $(properties) : $(gcc-for-clang) ] ;
+  local bindir = [ get-bindir $(prefix) : $(properties) ] ;
+  local libdir = [ get-libdir $(prefix) : $(properties) ] ;
   local default-libdir ;
   if [ regex.match "(/lib64)" : "$(libdir)" : 1 ]
   {
@@ -956,7 +1728,7 @@ rule get-environment-commands ( prefix : properties * : gcc-for-clang ? )
   {
     default-debug-libdir = "$(default-libdir)/debug" ;
   }
-  local includedir = [ get-includedir $(prefix) : $(properties) : $(gcc-for-clang) ] ;
+  local includedir = [ get-includedir $(prefix) : $(properties) ] ;
   local commands ;
   if $(build) in x86_64-unknown-linux-gnu i686-pc-linux-gnu
   {
@@ -990,23 +1762,55 @@ rule get-environment-commands ( prefix : properties * : gcc-for-clang ? )
   return "$(commands)" ;
 }
 
-rule prepend-shared-library-path-variable-command ( prefix : compiler : gcc-for-clang ? )
+rule get-property-dump-commands ( properties * )
 {
-  if ! [ is-valid "$(compiler)" ]
+  local result ;
+  for local f in compiler
+                 multitarget
+                 host-os
+                 target-os
+                 binutils
+                 gmp-for-gcc
+                 mpfr-for-gcc
+                 mpc-for-gcc
+                 isl-for-gcc
+                 cloog-for-gcc
+                 gmp
+                 mpfr
+                 mpc
+                 ppl
+                 isl
+                 cloog
+                 icu4c
+                 mpi-backend
+                 openmpi
+                 boost
+                 clang
+                 valgrind
+                 variant
+                 std
+                 link
+                 runtime-link
+                 runtime-debugging
+                 optimization
+                 profiling
+                 inlining
+                 threading
+                 intro-address-model
+                 intro-instruction-set
+                 lto
+                 correct-call-stack
+                 ssp
+                 memory-checker
+                 libstdc++-debug-mode
   {
-    errors.error "an internal error." ;
+    local v = [ feature.get-values "<$(f)>" : $(properties) ] ;
+    if ! $(v) {
+      result += "echo '<$(f)>: '" ;
+    }
+    else {
+      result += "echo '<$(f)>: $(v)'" ;
+    }
   }
-  local prefix-leaf = [ get-prefix-leaf $(compiler) : $(gcc-for-clang) ] ;
-  local compiler-prefix = "$(prefix)/$(prefix-leaf)" ;
-  local shared-library-path ;
-  if [ os.on-windows ]
-  {
-    shared-library-path = "$(compiler-prefix)/bin" ;
-  }
-  else
-  {
-    shared-library-path = "$(compiler-prefix)/lib64" ;
-  }
-  shared-library-path = [ path.native "$(shared-library-path)" ] ;
-  return [ common.prepend-path-variable-command [ os.shared-library-path-variable ] : "$(shared-library-path)" ] ;
+  return "$(result:J=\n)" ;
 }
