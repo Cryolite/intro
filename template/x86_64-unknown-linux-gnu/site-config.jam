@@ -920,7 +920,7 @@ for local gcc-path in $(gcc-paths) $(gcc-latest-paths) $(clang-paths) $(clang-la
 
 feature.feature std
   : c++03 c++11
-  : propagated composite implicit
+  : propagated composite
   ;
 feature.compose <std>c++03
   : <cxxflags>-std=c++03
@@ -929,12 +929,47 @@ feature.compose <std>c++11
   : <cxxflags>-std=c++0x
   ;
 
-variant lto
-  : release
-  : <cflags>-flto
-    <linkflags>-flto
-    <linkflags>-O3
-    <linkflags>-Wno-inline
+feature.feature lto
+  : off on
+  : propagated composite
+  ;
+constant INTRO_LTO_COMPILE_PROPERTIES
+  : <toolset>gcc,<lto>on:<cflags>-flto
+    <toolset>clang,<lto>on:<cflags>-flto
+    <toolset>icc,<lto>on:<cflags>-ipo
+  ;
+constant INTRO_LTO_LINK_PROPERTIES
+  : <toolset>gcc,<lto>on:<linkflags>-flto
+    <toolset>gcc,<lto>on,<link>shared:<linkflags>-fPIC
+    <toolset>gcc,<lto>on,<optimization>speed:<linkflags>-O3
+    <toolset>gcc,<lto>on,<optimization>space:<linkflags>-Os
+    <toolset>gcc,<lto>on,<inlining>off:<linkflags>-fno-inline
+    <toolset>gcc,<lto>on,<inlining>on:<linkflags>-Wno-inline
+    <toolset>gcc,<lto>on,<inlining>full:<linkflags>"-finline-functions -Wno-inline"
+    <toolset>gcc,<lto>on,<rtti>off:<linkflags>-fno-rtti
+    <toolset>gcc,<lto>on,<exception-handling>off:<linkflags>-fno-exceptions
+    <toolset>clang,<lto>on:<linkflags>-flto
+    <toolset>clang,<lto>on,<link>shared:<linkflags>-fPIC
+    <toolset>clang,<lto>on,<optimization>speed:<linkflags>-O3
+    <toolset>clang,<lto>on,<optimization>space:<linkflags>-Os
+    <toolset>clang,<lto>on,<inlining>off:<linkflags>-fno-inline
+    <toolset>clang,<lto>on,<inlining>on:<linkflags>-Wno-inline
+    <toolset>clang,<lto>on,<inlining>full:<linkflags>"-finline-functions -Wno-inline"
+    <toolset>clang,<lto>on,<rtti>off:<linkflags>-fno-rtti
+    <toolset>clang,<lto>on,<exception-handling>off:<linkflags>-fno-exceptions
+    <toolset>icc,<lto>on:<linkflags>-ipo
+    <toolset>icc,<lto>on,<link>shared:<linkflags>-fPIC
+    <toolset>icc,<lto>on,<optimization>speed:<linkflags>-O3
+    <toolset>icc,<lto>on,<optimization>space:<linkflags>-Os
+    <toolset>icc,<lto>on,<inlining>off:<linkflags>-inline-level=0
+    <toolset>icc,<lto>on,<inlining>on:<linkflags>"-inline-level=1 -Wno-inline"
+    <toolset>icc,<lto>on,<inlining>full:<linkflags>"-inline-level=2 -Wno-inline"
+    <toolset>icc,<lto>on,<rtti>off:<linkflags>-fno-rtti
+    <toolset>icc,<lto>on,<exception-handling>off:<linkflags>-fno-exceptions
+  ;
+constant INTRO_LTO_PROPERTIES
+  : $(INTRO_LTO_COMPILE_PROPERTIES)
+    $(INTRO_LTO_LINK_PROPERTIES)
   ;
 
 feature.feature correct-call-stack
@@ -942,10 +977,8 @@ feature.feature correct-call-stack
   : propagated composite
   ;
 feature.compose <correct-call-stack>on
-  : <cflags>-fno-omit-frame-pointer
-    <cflags>-fno-optimize-sibling-calls
-    <linkflags>-fno-omit-frame-pointer
-    <linkflags>-fno-optimize-sibling-calls
+  : <cflags>"-fno-omit-frame-pointer -fno-optimize-sibling-calls"
+    <linkflags>"-fno-omit-frame-pointer -fno-optimize-sibling-calls"
   ;
 
 feature.feature ssp
@@ -960,24 +993,42 @@ feature.compose <ssp>all
   : <cflags>-fstack-protector-all
     <linkflags>-fstack-protector-all
   ;
+constant INTRO_SSP_COMPILE_PROPERTIES
+  : <toolset>icc,<ssp>on:<cflags>-fstack-security-check
+    <toolset>icc,<ssp>all:<cflags>-fstack-security-check
+  ;
+constant INTRO_SSP_LINK_PROPERTIES
+  : <toolset>icc,<ssp>on:<linkflags>-fstack-security-check
+    <toolset>icc,<ssp>all:<linkflags>-fstack-security-check
+  ;
+constant INTRO_SSP_PROPERTIES
+  : $(INTRO_SSP_COMPILE_PROPERTIES)
+    $(INTRO_SSP_LINK_PROPERTIES)
+  ;
 
-feature.feature mudflap
+feature.feature memory-checker
   : off on
-  : propagated composite
+  : propagated
   ;
-feature.compose <mudflap>on
-  : <link>static
-    <cflags>-fmudflap
-    <linkflags>-fmudflap
+constant INTRO_MEMORY_CHECKER_COMPILE_PROPERTIES
+  : <toolset>gcc,<memory-checker>on,<threading>single:<cflags>-fmudflap
+    <toolset>gcc,<memory-checker>on,<threading>multi:<cflags>-fmudflapth
+    <toolset>clang,<memory-checker>on:<cflags>-faddress-sanitizer
+    <toolset>icc,<memory-checker>on:<cflags>"-ftrapuv -check-pointers=rw -check-pointers-dangling=all -check-pointers-undimensioned"
   ;
-
-feature.feature address-sanitizer
-  : off on
-  : propagated composite
+constant INTRO_MEMORY_CHECKER_LINK_PROPERTIES
+  : <toolset>gcc,<memory-checker>on,<threading>single:<linkflags>"-fmudflap -lmudflap"
+    <toolset>gcc,<memory-checker>on,<threading>multi:<linkflags>"-fmudflapth -lmudflapth"
+    <toolset>clang,<memory-checker>on:<linkflags>-faddress-sanitizer
+    <toolset>icc,<memory-checker>on:<linkflags>"-ftrapuv -check-pointers=rw -check-pointers-dangling=all -check-pointers-undimensioned"
   ;
-feature.compose <address-sanitizer>on
-  : <cflags>-faddress-sanitizer
-    <linkflags>-faddress-sanitizer
+constant INTRO_MEMORY_CHECKER_RUN_PROPERTIES
+  : <toolset>gcc,<memory-checker>on:<testing.launcher>"MUDFLAP_OPTIONS='-viol-abort -print-leaks -check-initialization'"
+  ;
+constant INTRO_MEMORY_CHECKER_PROPERTIES
+  : $(INTRO_MEMORY_CHECKER_COMPILE_PROPERTIES)
+    $(INTRO_MEMORY_CHECKER_LINK_PROPERTIES)
+    $(INTRO_MEMORY_CHECKER_RUN_PROPERTIES)
   ;
 
 feature.feature libstdc++-debug-mode
@@ -987,4 +1038,35 @@ feature.feature libstdc++-debug-mode
 feature.compose <libstdc++-debug-mode>on
   : <define>_GLIBCXX_DEBUG
     <define>_GLIBCXX_DEBUG_PEDANTIC
+  ;
+
+feature.feature memcheck
+  : off on
+  : propagated incidental
+  ;
+feature.feature memcheck-run
+  : off on
+  : composite
+  ;
+
+constant INTRO_COMPILE_PROPERTIES
+  : <exception-handling>off:<cflags>-fno-exceptions
+    $(INTRO_LTO_COMPILE_PROPERTIES)
+    $(INTRO_SSP_COMPILE_PROPERTIES)
+    $(INTRO_MEMORY_CHECKER_COMPILE_PROPERTIES)
+  ;
+constant INTRO_LINK_PROPERTIES
+  : <exception-handling>off:<linkflags>-fno-exceptions
+    $(INTRO_LTO_LINK_PROPERTIES)
+    $(INTRO_SSP_LINK_PROPERTIES)
+    $(INTRO_MEMORY_CHECKER_LINK_PROPERTIES)
+  ;
+constant INTRO_RUN_PROPERTIES
+  : $(INTRO_MEMORY_CHECKER_RUN_PROPERTIES)
+  ;
+
+constant INTRO_PROPERTIES
+  : $(INTRO_COMPILE_PROPERTIES)
+    $(INTRO_LINK_PROPERTIES)
+    $(INTRO_RUN_PROPERTIES)
   ;
