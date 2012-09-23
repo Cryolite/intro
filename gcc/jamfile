@@ -11,6 +11,7 @@ import "$(INTRO_ROOT_DIR)/compilers"
     is-gcc-snapshot
     get-gcc-versions
     is-clang
+    is-icc
     get-frontend-version
     get-backend-gcc
     get-compiler-description
@@ -30,7 +31,13 @@ for local version in [ get-gcc-versions $(COMPILERS) ] {
 rule download ( targets * : sources * : properties * )
 {
   local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
-  if ! [ is-gcc "$(compiler)" ] {
+  if [ is-gcc "$(compiler)" ] {
+    # Do nothing.
+  }
+  else if [ is-clang "$(compiler)" ] || [ is-icc "$(compiler)" ] {
+    compiler = [ get-backend-gcc "$(compiler)" ] ;
+  }
+  else {
     errors.error "an internal error." ;
   }
   local version = [ get-frontend-version "$(compiler)" ] ;
@@ -89,7 +96,13 @@ for local version in [ get-gcc-versions $(COMPILERS) ] {
 rule expand ( targets * : sources * : properties * )
 {
   local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
-  if ! [ is-gcc "$(compiler)" ] {
+  if [ is-gcc "$(compiler)" ] {
+    # Do nothing.
+  }
+  else if [ is-clang "$(compiler)" ] || [ is-icc "$(compiler)" ] {
+    compiler = [ get-backend-gcc "$(compiler)" ] ;
+  }
+  else {
     errors.error "an internal error." ;
   }
   local version = [ get-frontend-version "$(compiler)" ] ;
@@ -131,7 +144,7 @@ rule srcdir-req ( properties * )
     # Do nothing.
   }
   else if [ is-clang "$(compiler)" ] || [ is-icc "$(compiler)" ] {
-    compiler = [ get-backend-gcc $(properties) ] ;
+    compiler = [ get-backend-gcc "$(compiler)" ] ;
   }
   else {
     errors.error "an internal error." ;
@@ -204,7 +217,7 @@ rule make-install ( targets * : sources * : properties * )
     compiler-description = [ get-compiler-description "$(compiler)" ] ;
   }
   else if [ is-clang "$(compiler)" ] || [ is-icc "$(compiler)" ] {
-    local backend-gcc = [ get-backend-gcc $(properties) ] ;
+    local backend-gcc = [ get-backend-gcc "$(compiler)" ] ;
     version = [ get-frontend-version "$(backend-gcc)" ] ;
     compiler-description = [ get-compiler-description "$(backend-gcc)" ] ;
   }
