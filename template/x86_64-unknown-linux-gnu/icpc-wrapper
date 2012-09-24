@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+
+if which dirname 1>/dev/null 2>&1; then
+  :
+else
+  echo "$0: error: dirname: command not found" 1>&2
+  exit 1
+fi
+
+if which pwd 1>/dev/null 2>&1; then
+  :
+else
+  echo "$0: error: pwd: command not found" 1>&2
+  exit 1
+fi
+
+bindir=`(cd \`dirname "$0"\`; pwd)`
+prefix=`dirname "$bindir"`
+
+bits=
+for arg in "$@"; do
+  if [ "$arg" = -m32 ]; then
+    if [ $bits = 64 ]; then
+      echo "$0: error: both \`-m64' and \`-m32' cannot be specified simultaneously" 1>&2
+      exit 1
+    fi
+    bits=32
+  elif [ "$arg" = -m64 ]; then
+    if [ $bits = 32 ]; then
+      echo "$0: error: both \`-m64' and \`-m32' cannot be specified simultaneously" 1>&2
+      exit 1
+    fi
+    bits=64
+  fi
+done
+if [ -z "$bits" ]; then
+  bits=64
+fi
+
+if [ ! -x '/opt/intel/bin/compilervars.sh' ]; then
+  echo "$0: error: /opt/intel/bin/compilervars.sh: not found" 1>&2
+  exit 1
+fi
+if [ ! -x '/opt/intel/bin/icpc' ]; then
+  echo "$0: error: /opt/intel/bin/icpc: not found" 1>&2
+  exit 1
+fi
+
+if [ ! -x "${bindir}/gcc" ]; then
+  echo "$0: error: ${bindir}/gcc: not found" 1>&2
+  exit 1
+fi
+
+if [ ! -x "${bindir}/g++" ]; then
+  echo "$0: error: ${bindir}/g++: not found" 1>&2
+  exit 1
+fi
+
+ulimit -t 300
+ulimit -m 2097152
+
+if [ $bits = 64 ]; then
+  source '/opt/intel/bin/compilervars.sh' intel64 || exit $?
+elif [ $bits = 32 ]; then
+  source '/opt/intel/bin/compilervars.sh' ia32 || exit $?
+fi
+'/opt/intel/bin/icpc' -gcc-name="${bindir}/gcc" -gxx-name="${bindir}/g++" "$@"
+result=$?
+
+exit $result

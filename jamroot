@@ -8,8 +8,11 @@ path-constant INTRO_ROOT_DIR : . ;
 
 import "$(INTRO_ROOT_DIR)/compilers"
   : is-valid
+    is-gcc
     is-clang
+    is-icc
     get-clang-latest-version
+    get-backend-gcc
     get-frontend-version
     split-frontend-and-backend
   ;
@@ -292,6 +295,12 @@ for local enabled-compiler in $(enabled-compilers) {
       if ! "$(version)" in $(clang-versions) {
         clang-versions += "$(version)" ;
       }
+    }
+  }
+  if [ is-icc "$(enabled-compiler)" ] {
+    local backend-gcc = [ get-backend-gcc "$(enabled-compiler)" ] ;
+    if ! "$(backend-gcc)" in $(compilers) {
+      compilers += "$(backend-gcc)" ;
     }
   }
 }
@@ -1024,7 +1033,7 @@ for local enabled-compiler in $(enabled-compilers) {
     srcs += "valgrind//install/<mpi-backend>$(mpi-backend)/<openmpi>$(openmpi)" ;
   }
 
-  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" "$(enabled-compiler)" ] {
+  if [ is-gcc "$(enabled-compiler)" ] {
     if "$(clang)" {
       srcs += "clang//install" ;
     }
@@ -1081,9 +1090,35 @@ for local enabled-compiler in $(enabled-compilers) {
       }
     }
   }
-  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" "$(enabled-compiler)" ] {
+  else if [ is-clang "$(enabled-compiler)" ] {
     alias $(enabled-compiler)
-      : clang//install
+      : gcc//install
+        clang//install
+        $(srcs)
+        openmpi//install/<mpi-backend>$(mpi-backend)/<openmpi>$(OPENMPI)
+      : <compiler-hidden>$(enabled-compiler)
+        <multitarget-hidden>$(multitarget)
+        <binutils-hidden>$(binutils)
+        <gmp-for-gcc-hidden>$(gmp-for-gcc)
+        <mpfr-for-gcc-hidden>$(mpfr-for-gcc)
+        <mpc-for-gcc-hidden>$(mpc-for-gcc)
+        <isl-for-gcc-hidden>$(isl-for-gcc)
+        <cloog-for-gcc-hidden>$(cloog-for-gcc)
+        <gmp-hidden>$(gmp)
+        <mpfr-hidden>$(mpfr)
+        <mpc-hidden>$(mpc)
+        <isl-hidden>$(isl)
+        <cloog-hidden>$(cloog)
+        <ppl-hidden>$(ppl)
+        <icu4c-hidden>$(icu4c)
+        <boost-hidden>$(boost)
+        <valgrind-hidden>$(valgrind)
+      ;
+  }
+  else if [ is-icc "$(enabled-compiler)" ] {
+    alias $(enabled-compiler)
+      : gcc//install
+        icc//install
         $(srcs)
         openmpi//install/<mpi-backend>$(mpi-backend)/<openmpi>$(OPENMPI)
       : <compiler-hidden>$(enabled-compiler)
