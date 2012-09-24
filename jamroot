@@ -159,7 +159,6 @@ local compilers ;
 local gmp-versions ;
 local mpfr-versions ;
 local mpc-versions ;
-local ppl-versions ;
 local isl-versions ;
 local cloog-versions ;
 local icu4c-versions ;
@@ -392,9 +391,6 @@ if "$(ppl)" = "latest" {
 if "$(ppl)" {
   if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(ppl)" : 1 ] {
     errors.error "an invalid value `$(ppl)' for `--enable-ppl'." ;
-  }
-  if ! "$(ppl)" in $(ppl-versions) {
-    ppl-versions += "$(ppl)" ;
   }
   ECHO ppl... $(ppl) ;
   if ! "$(gmp)" {
@@ -701,14 +697,6 @@ if $(mpc-versions) {
   ECHO MPC_VERSIONS... $(MPC_VERSIONS:J=,) ;
 }
 
-if $(ppl-versions) {
-  constant PPL_VERSIONS : $(ppl-versions) ;
-  ECHO PPL_VERSIONS... $(PPL_VERSIONS:J=,) ;
-}
-else {
-  ECHO PPL_VERSIONS... N/A ;
-}
-
 if $(isl-versions) {
   constant ISL_VERSIONS : $(isl-versions) ;
   ECHO ISL_VERSIONS... $(ISL_VERSIONS:J=,) ;
@@ -723,6 +711,14 @@ if $(cloog-versions) {
 }
 else {
   ECHO CLOOG_VERSIONS... N/A ;
+}
+
+if "$(ppl)" {
+  constant PPL : "$(ppl)" ;
+  ECHO PPL... $(PPL) ;
+}
+else {
+  ECHO PPL... N/A ;
 }
 
 if $(icu4c-versions) {
@@ -903,8 +899,8 @@ feature mpc-hidden : [ feature.values <mpc> ]    : propagated incidental ;
   constant USE_MPC : $(use-mpc) ;
 }
 
-feature ppl        : unspecified $(ppl-versions) :                       ;
-feature ppl-hidden : [ feature.values <ppl> ]    : propagated incidental ;
+feature ppl        : unspecified $(ppl)       :                       ;
+feature ppl-hidden : [ feature.values <ppl> ] : propagated incidental ;
 {
   local use-ppl ;
   for local val in [ feature.values <ppl> ] {
