@@ -204,7 +204,15 @@ rule make-install ( targets * : sources * : properties * )
   HOST_TRIPLET on $(targets) += "$(host-triplet)" ;
 
   if "$(host-triplet)" = "x86_64-unknown-linux-gnu" || "$(host-triplet)" = "i686-pc-linux-gnu" {
-    OPTIONS on $(targets) += "Linux" ;
+    if [ is-gcc "$(compiler)" ] || [ is-clang "$(compiler)" ] {
+      OPTIONS on $(targets) += "Linux" ;
+    }
+    else if [ is-icc "$(compiler)" ] {
+      OPTIONS on $(targets) += "Linux/ICC" ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
   }
   else if "$(host-triplet)" = "x86_64-w64-mingw32" || "$(host-triplet)" = "i686-w64-mingw32" {
     OPTIONS on $(targets) += "MinGW" ;
