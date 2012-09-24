@@ -9,60 +9,38 @@ import regex ;
 import "$(INTRO_ROOT_DIR)/compilers"
   : is-gcc
     is-clang
+    is-icc
     get-compiler-description
     get-compiler-prefix
     get-bindir
     get-libdir
     get-includedir
+    get-triplets
     get-cc
     get-cflags
     get-cxx
     get-cxxflags
     get-environment-commands
+    get-property-dump-commands
   ;
-
-
-rule assert-specified ( feature : properties * )
-{
-  local val = [ feature.get-values $(feature) : $(properties) ] ;
-  if $(val) = unspecified {
-    errors.error $(feature) is not specified for ICU4C build. ;
-  }
-}
-
-rule assert-unspecified ( feature : properties * )
-{
-  local val = [ feature.get-values $(feature) : $(properties) ] ;
-  if $(val) != unspecified {
-    errors.error $(feature) is not valid for ICU4C build. ;
-  }
-}
-
 
 
 rule compiler-dep-req ( properties * )
 {
-  assert-specified   <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-specified   <multitarget-hidden> : $(properties) ;
-  assert-specified   <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <icu4c>              : $(properties) ;
-  assert-specified   <icu4c-hidden>       : $(properties) ;
-
-  local multitarget = [ feature.get-values <multitarget-hidden> : $(properties) ] ;
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
   local result ;
-  if [ is-gcc $(compiler) ]
-  {
-    result = <source>../gcc//install/<multitarget>$(multitarget)/<multitarget-hidden>unspecified ;
+  if [ is-gcc "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
   }
-  else if [ is-clang $(compiler) ]
-  {
-    result = <source>../clang//install ;
+  else if [ is-clang "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
+    result += "<source>../clang//install" ;
   }
-  else
-  {
+  else if [ is-icc "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
+    result += "<source>../icc//install" ;
+  }
+  else {
     errors.error "an internal error." ;
   }
   return $(result) ;
@@ -73,8 +51,7 @@ explicit compiler-dep ;
 
 
 
-for local version in $(ICU4C_VERSIONS)
-{
+for local version in $(ICU4C_VERSIONS) {
   local version-string = [ regex.replace "$(version)" "\\." "_" ] ;
   make "$(INTRO_ROOT_DIR)/icu4c-$(version-string)-src.tgz" : : @download ;
   explicit "$(INTRO_ROOT_DIR)/icu4c-$(version-string)-src.tgz" ;
@@ -82,25 +59,16 @@ for local version in $(ICU4C_VERSIONS)
 
 rule download ( targets * : sources * : properties * )
 {
-  if $(sources[1])
-  {
-    errors.error "an internal error." ;
-  }
-  assert-unspecified <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-unspecified <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <icu4c>              : $(properties) ;
-  assert-specified   <icu4c-hidden>       : $(properties) ;
-
   local version = [ feature.get-values <icu4c-hidden> : $(properties) ] ;
-  VERSION on $(targets) = $(version) ;
+  VERSION on $(targets) = "$(version)" ;
   local version-string = [ regex.replace "$(version)" "\\." "_" ] ;
   URL on $(targets) = http://download.icu-project.org/files/icu4c/$(version)/icu4c-$(version-string)-src.tgz ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions download
 {
+  $(PROPERTY_DUMP_COMMANDS)
+
   rm -rf '$(<)' || exit 1
   if [ -n '$(STREAM)' ]; then
     ( cd '$(<:D)' && wget -- '$(URL)' >> '$(STREAM)' 2>&1 )
@@ -119,8 +87,7 @@ actions download
 
 
 
-for local version in $(ICU4C_VERSIONS)
-{
+for local version in $(ICU4C_VERSIONS) {
   # Use `readme.html' file as a target representing the completion of
   # decompression action. It is suitable for the purpose because of the
   # following reasons;
@@ -139,27 +106,14 @@ for local version in $(ICU4C_VERSIONS)
 
 rule expand ( targets * : sources * : properties * )
 {
-  if ! $(sources[1])
-  {
-    errors.error "an internal error." ;
-  }
-  if $(sources[2])
-  {
-    errors.error "an internal error." ;
-  }
-  assert-unspecified <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-unspecified <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <icu4c>              : $(properties) ;
-  assert-specified   <icu4c-hidden>       : $(properties) ;
-
   local version = [ feature.get-values <icu4c-hidden> : $(properties) ] ;
-  VERSION on $(targets) = $(version) ;
+  VERSION on $(targets) = "$(version)" ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions expand
 {
+  $(PROPERTY_DUMP_COMMANDS)
+
   rm -rf '$(<:D)' || exit 1
   rm -rf '$(INTRO_ROOT_DIR)/icu' || exit 1
   [ -f '$(>)' ] || exit 1
@@ -190,16 +144,8 @@ actions expand
 
 rule srcdir-req ( properties * )
 {
-  assert-unspecified <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-unspecified <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <icu4c>              : $(properties) ;
-  assert-specified   <icu4c-hidden>       : $(properties) ;
-
   local version = [ feature.get-values <icu4c-hidden> : $(properties) ] ;
-  return <source>"$(INTRO_ROOT_DIR)/icu-$(version)/readme.html/$(DEFAULT_PROPERTIES)" ;
+  return "<source>$(INTRO_ROOT_DIR)/icu-$(version)/readme.html/$(DEFAULT_PROPERTIES)" ;
 }
 
 alias srcdir : : <conditional>@srcdir-req ;
@@ -209,35 +155,31 @@ explicit srcdir ;
 
 rule location-conditional ( properties * )
 {
-  local includedir = [ get-includedir "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
+  local includedir = [ get-includedir "$(PREFIX)" : $(properties) ] ;
   return "<location>$(includedir)" ;
 }
 
 make unicode/uchar.h
   : compiler-dep
-    srcdir/<triplet>unspecified/<multitarget-hidden>unspecified/<compiler>unspecified
+    srcdir
   : @make-install
-  : $(USE_ICU4C)
+  : $(USE_COMPILER)
+    $(USE_MULTITARGET)
+    $(USE_ICU4C)
+    $(USE_ADDRESS_MODEL)
+    $(USE_INSTRUCTION_SET)
     <conditional>@location-conditional
   ;
 explicit unicode/uchar.h ;
 
 rule make-install ( targets * : sources * : properties * )
 {
-  assert-specified   <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-specified   <multitarget-hidden> : $(properties) ;
-  assert-specified   <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-specified   <icu4c>              : $(properties) ;
-  assert-specified   <icu4c-hidden>       : $(properties) ;
-
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local compiler-description = [ get-compiler-description $(compiler) ] ;
   COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
 
   local version = [ feature.get-values <icu4c> : $(properties) ] ;
-  VERSION on $(targets) = $(version) ;
+  VERSION on $(targets) = "$(version)" ;
 
   # Set the path to the source directory.
   local srcdir = "$(INTRO_ROOT_DIR)/icu-$(version)" ;
@@ -249,99 +191,99 @@ rule make-install ( targets * : sources * : properties * )
   OPTIONS on $(targets) = ;
 
   local variant = [ feature.get-values <variant> : $(properties) ] ;
-  if $(variant) = debug
-  {
-    OPTIONS on $(targets) += --enable-debug ;
-    OPTIONS on $(targets) += --disable-release ;
+
+  if "$(variant)" = "debug" {
+    OPTIONS on $(targets) += "--enable-debug" ;
+    OPTIONS on $(targets) += "--disable-release" ;
   }
 
-  local triplet = [ feature.get-values <triplet> : $(properties) ] ;
-  if $(triplet) = i686-pc-cygwin
-  {
-    OPTIONS on $(targets) += Cygwin ;
+  local triplets = [ get-triplets $(properties) ] ;
+  local build-triplet = "$(triplets[1])" ;
+  local host-triplet = "$(triplets[2])" ;
+  BUILD_TRIPLET on $(targets) += "$(build-triplet)" ;
+  HOST_TRIPLET on $(targets) += "$(host-triplet)" ;
+
+  if "$(host-triplet)" = "x86_64-unknown-linux-gnu" || "$(host-triplet)" = "i686-pc-linux-gnu" {
+    OPTIONS on $(targets) += "Linux" ;
   }
-  else if $(triplet) = i686-w64-mingw32 || $(triplet) = x86_64-w64-mingw32
-  {
-    OPTIONS on $(targets) += MinGW ;
+  else if "$(host-triplet)" = "x86_64-w64-mingw32" || "$(host-triplet)" = "i686-w64-mingw32" {
+    OPTIONS on $(targets) += "MinGW" ;
   }
-  else if $(triplet) = i686-pc-linux-gnu || $(triplet) = x86_64-unknown-linux-gnu
-  {
-    OPTIONS on $(targets) += Linux ;
+  else if "$(host-triplet)" = "i686-pc-cygwin" {
+    OPTIONS on $(targets) += "Cygwin" ;
   }
-  else
-  {
+  else {
     errors.error "an internal error." ;
   }
 
   # Set `--prefix' option for `configure' script.
-  local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
   local compiler-prefix-native = [ path.native "$(compiler-prefix)" ] ;
   OPTIONS on $(targets) += "--prefix='$(compiler-prefix-native)'" ;
 
   # Set `--bindir' option for `configure' script.
-  local bindir = [ get-bindir "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
+  local bindir = [ get-bindir "$(PREFIX)" : $(properties) ] ;
   local bindir-native = [ path.native "$(bindir)" ] ;
   OPTIONS on $(targets) += "--bindir='$(bindir-native)'" ;
 
   # Set `--libdir' option for `configure' script.
-  local libdir = [ get-libdir "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
+  local libdir = [ get-libdir "$(PREFIX)" : $(properties) ] ;
   local libdir-native = [ path.native "$(libdir)" ] ;
   OPTIONS on $(targets) += "--libdir='$(libdir-native)'" ;
 
   # Set `--includedir' option for `configure' script.
-  local includedir = [ get-includedir "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
+  local includedir = [ get-includedir "$(PREFIX)" : $(properties) ] ;
   local includedir-native = [ path.native "$(includedir)" ] ;
   OPTIONS on $(targets) += "--includedir='$(includedir-native)'" ;
 
   # Set `--build' and `--host' options for `configure' script.
-  TRIPLET on $(targets) = $(triplet) ;
-  OPTIONS on $(targets) += --build=$(triplet) ;
-  OPTIONS on $(targets) += --host=$(triplet) ;
+  OPTIONS on $(targets) += "--build=$(build-triplet)" ;
+  OPTIONS on $(targets) += "--host=$(host-triplet)" ;
 
-  OPTIONS on $(targets) += --enable-shared ;
-  OPTIONS on $(targets) += --enable-static ;
+  OPTIONS on $(targets) += "--enable-shared" ;
+  OPTIONS on $(targets) += "--enable-static" ;
 
-  if $(triplet) = i686-pc-linux-gnu || $(triplet) = i686-pc-cygwin || $(triplet) = i686-w64-mingw32
-  {
-    OPTIONS on $(targets) += --with-library-bits=32 ;
+  if "$(host-triplet)" = "x86_64-unknown-linux-gnu" || "$(host-triplet)" = "x86_64-w64-mingw32" {
+    OPTIONS on $(targets) += "--with-library-bits=64" ;
   }
-  else if $(triplet) = x86_64-unknown-linux-gnu || $(triplet) = x86_64-w64-mingw32
-  {
-    OPTIONS on $(targets) += --with-library-bits=64 ;
+  else if "$(host-triplet)" = "i686-pc-linux-gnu" || "$(host-triplet)" = "i686-w64-mingw32" || "$(host-triplet)" = "i686-pc-cygwin" {
+    OPTIONS on $(targets) += "--with-library-bits=32" ;
   }
-  else
-  {
+  else {
     errors.error "an internal error." ;
   }
 
-  local cc = [ get-cc "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
-  cc = [ path.native "$(cc)" ] ;
-  OPTIONS on $(targets) += "CC='$(cc)'" ;
+  local cc = [ get-cc "$(PREFIX)" : $(properties) ] ;
+  local cc-native = [ path.native "$(cc)" ] ;
+  OPTIONS on $(targets) += "CC='$(cc-native)'" ;
 
   local cflags = [ get-cflags $(properties) ] ;
-  if $(cflags)
-  {
+  if "$(cflags)" {
     CFLAGS on $(targets) = "$(cflags)" ;
   }
 
-  local cxx = [ get-cxx "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
-  cxx = [ path.native "$(cxx)" ] ;
-  OPTIONS on $(targets) += "CXX='$(cxx)'" ;
+  local cxx = [ get-cxx "$(PREFIX)" : $(properties) ] ;
+  local cxx-native = [ path.native "$(cxx)" ] ;
+  OPTIONS on $(targets) += "CXX='$(cxx-native)'" ;
 
   local cxxflags = [ get-cxxflags $(properties) ] ;
-  if $(cxxflags)
-  {
+  if "$(cxxflags)" {
     CXXFLAGS on $(targets) = "$(cxxflags)" ;
   }
 
-  local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
+  local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
   ENVIRONMENT_COMMANDS on $(targets) = "$(environment-commands)" ;
+
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions make-install
 {
+  $(PROPERTY_DUMP_COMMANDS)
+
   [ -x '$(SRCDIR)/source/runConfigureICU' ] || exit 1
   chmod +x '$(SRCDIR)/source/config.sub' || exit 1
-  [ `'$(SRCDIR)/source/config.sub' $(TRIPLET)` = $(TRIPLET) ] || exit 1
+  [ `'$(SRCDIR)/source/config.sub' $(BUILD_TRIPLET)` = $(BUILD_TRIPLET) ] || exit 1
+  [ `'$(SRCDIR)/source/config.sub' $(HOST_TRIPLET)` = $(HOST_TRIPLET) ] || exit 1
 
   # Clean up objdir `$(OBJDIR)'.
   { mkdir -p '$(OBJDIR)' && ( cd '$(OBJDIR)' && rm -rf * ); } || exit 1
@@ -354,8 +296,8 @@ actions make-install
     ( cd '$(OBJDIR)' && CFLAGS='$(CFLAGS)' CXXFLAGS='$(CXXFLAGS)' '$(SRCDIR)/source/runConfigureICU' $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`runConfigureICU' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to \`runConfigureICU' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`runConfigureICU' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to \`runConfigureICU' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
 
@@ -368,8 +310,8 @@ actions make-install
     ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`make' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to \`make' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`make' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to \`make' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
 
@@ -382,11 +324,11 @@ actions make-install
   fi
   if [ $? -ne 0 ]; then
     if uname | grep -Fq 'CYGWIN' && [ `echo $(VERSION) `x = 49.1.1x ]; then
-      echo    "WARNING: failed to \`make check' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-      echo -n "WARNING: failed to \`make check' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+      echo    "WARNING: failed to \`make check' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
+      echo -n "WARNING: failed to \`make check' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
     else
-      echo    "ERROR: failed to \`make check' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-      echo -n "ERROR: failed to \`make check' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+      echo    "ERROR: failed to \`make check' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
+      echo -n "ERROR: failed to \`make check' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
       exit 1
     fi
   fi
@@ -397,17 +339,17 @@ actions make-install
     ( cd '$(OBJDIR)' && make install )
   fi
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`make install' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to \`make install' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`make install' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to \`make install' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
-
-  [ -f '$(<)' ] || exit 1
 
   # Clean up objdir `$(OBJDIR)'.
   rm -rf '$(OBJDIR)' || exit 1
 
-  echo -n 'ICU4C $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built.' | $(AWACS)
+  [ -f '$(<)' ] || exit 1
+
+  echo -n 'ICU4C $(VERSION) ($(COMPILER_DESCRIPTION)) was successfully built.' | $(AWACS)
   exit 0
 }
 

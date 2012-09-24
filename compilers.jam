@@ -1028,6 +1028,8 @@ rule normalize-properties ( properties * )
   properties = [ property.change $(properties) : <cloog> ] ;
   properties = [ property.change $(properties) : <ppl-hidden> ] ;
   properties = [ property.change $(properties) : <ppl> ] ;
+  properties = [ property.change $(properties) : <icu4c-hidden> ] ;
+  properties = [ property.change $(properties) : <icu4c> ] ;
   properties = [ property.change $(properties) : <clang-hidden> ] ;
   properties = [ property.change $(properties) : <clang> ] ;
   return $(properties) ;

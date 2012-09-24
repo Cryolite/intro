@@ -57,7 +57,7 @@ for local version in $(GMP_VERSIONS) {
 rule download ( targets * : sources * : properties * )
 {
   local version = [ feature.get-values <gmp-hidden> : $(properties) ] ;
-  VERSION on $(targets) = $(version) ;
+  VERSION on $(targets) = "$(version)" ;
   URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/gmp/gmp-$(version).tar.bz2 ;
   #URL on $(targets) = http://core.ring.gr.jp/pub/GNU/gmp/gmp-$(version).tar.bz2 ;
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
@@ -103,7 +103,7 @@ for local version in $(GMP_VERSIONS) {
 rule expand ( targets * : sources * : properties * )
 {
   local version = [ feature.get-values <gmp-hidden> : $(properties) ] ;
-  VERSION on $(targets) = $(version) ;
+  VERSION on $(targets) = "$(version)" ;
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions expand
