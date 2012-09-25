@@ -609,6 +609,7 @@ else {
 project intro
   : default-build
     <variant>release
+    <threading>multi
   : build-dir bin
   ;
 

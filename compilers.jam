@@ -1086,6 +1086,8 @@ rule normalize-properties ( properties * )
   properties = [ property.change $(properties) : <mpi-backend> ] ;
   properties = [ property.change $(properties) : <clang-hidden> ] ;
   properties = [ property.change $(properties) : <clang> ] ;
+  properties = [ property.change $(properties) : <valgrind-hidden> ] ;
+  properties = [ property.change $(properties) : <valgrind> ] ;
   return $(properties) ;
 }
 
@@ -1858,9 +1860,9 @@ rule get-property-dump-commands ( properties * )
                  gmp
                  mpfr
                  mpc
-                 ppl
                  isl
                  cloog
+                 ppl
                  icu4c
                  mpi-backend
                  openmpi

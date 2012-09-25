@@ -1,58 +1,68 @@
 #!/usr/bin/env sh
 
-if which dirname 1>/dev/null 2>&1; then
-  :
-else
-  echo "$0: error: dirname: command not found" 1>&2
-  exit 1
+bits=
+is_link=1
+for arg in "$@"; do
+    if [ "$arg" = '-m64' ]; then
+	if [ "$bits" = '32' ]; then
+	    echo "error:$0: an internal error" 1>&2
+	    exit 1
+	fi
+	bits=64
+    fi
+    if [ "$arg" = '-m32' ]; then
+	if [ "$bits" = '64' ]; then
+	    echo "error:$0: an internal error" 1>&2
+	    exit 1
+	fi
+	bits=32
+    fi
+    if [ "$arg" = '-fsyntax-only' -o "$arg" = '-c' -o "$arg" = '-M' -o "$arg" = '-MM' -o "$arg" = '-E' -o "$arg" = '-S' ]; then
+	is_link=0
+    fi
+done
+
+if [ -z "$bits" ]; then
+    if file "$SHELL" | grep -Fq '64-bit'; then
+	bits=64
+    elif file "$SHELL" | grep -Fq '32-bit'; then
+	bits=32
+    else
+	echo "error:$0: an internal error" 1>&2
+	exit 1
+    fi
 fi
 
-if which pwd 1>/dev/null 2>&1; then
-  :
-else
-  echo "$0: error: pwd: command not found" 1>&2
-  exit 1
+if [ -f /etc/debian_version ] && grep -Fq 'wheezy/sid' /etc/debian_version; then
+    if [ $bits -eq 64 ]; then
+	LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu${LIBRARY_PATH:+:$LIBRARY_PATH}"
+    elif [ $bits -eq 32 ]; then
+	:
+    else
+	echo "error:$0: an internal error" 1>&2
+	exit 1
+    fi
+    export LIBRARY_PATH
 fi
 
 bindir=`(cd \`dirname "$0"\`; pwd)`
 prefix=`dirname "$bindir"`
 
-if which mktemp 1>/dev/null 2>&1; then
-  :
-else
-  echo "$0: error: mktemp: command not found" 1>&2
-  exit 1
-fi
-
-if which "$bindir/hack-gcc-specs" 1>/dev/null 2>&1; then
-  :
-else
-  echo "$0: error: $bindir/hack-gcc-specs: command not found" 1>&2
-  exit 1
-fi
-
-if which "$bindir/gcc" 1>/dev/null 2>&1; then
-  :
-else
-  echo "$0: error: $bindir/gcc: command not found" 1>&2
-  exit 1
-fi
-
-if which rm 1>/dev/null 2>&1; then
-  :
-else
-  echo "$0: error: rm: command not found" 1>&2
-  exit 1
-fi
-
 ulimit -t 300
 ulimit -m 2097152
 
-specs=`mktemp` || exit
-
-{ "$bindir/hack-gcc-specs" > "$specs"; } && "$bindir/gcc" -specs="$specs" "$@"
-result=$?
-
-rm -f "$specs"
-
-exit $result
+if [ $is_link -eq 0 ]; then
+    exec "$bindir/gcc" "$@"
+elif [ $is_link -eq 1 ]; then
+    if [ $bits -eq 64 ]; then
+	exec "$bindir/gcc" -Wl,"-rpath='$prefix/lib64'" -Wl,"-rpath='$prefix/lib'" -Wl,--enable-new-dtags "$@"
+    elif [ $bits -eq 32 ]; then
+	exec "$bindir/gcc" -Wl,"-rpath='$prefix/lib32'" -Wl,"-rpath='$prefix/lib'" -Wl,--enable-new-dtags "$@"
+    else
+	echo "error:$0: an internal error" 1>&2
+	exit 1
+    fi
+else
+    echo "error:$0: an internal error" 1>&2
+    exit 1
+fi
