@@ -1,0 +1,96 @@
+project intro/icc ;
+
+import alias ;
+import errors ;
+import feature ;
+import make ;
+import "$(INTRO_ROOT_DIR)/compilers"
+  : is-icc
+    get-frontend-version
+    get-default-bindir
+    get-property-dump-commands
+  ;
+
+
+rule compiler-dep-req ( properties * )
+{
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
+  local result ;
+  if [ is-icc "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+  return $(result) ;
+}
+
+alias compiler-dep : : <conditional>@compiler-dep-req ;
+explicit compiler-dep ;
+
+
+
+rule location-conditional ( properties * )
+{
+  local bindir = [ get-default-bindir "$(PREFIX)" : $(properties) ] ;
+  return "<location>$(bindir)" ;
+}
+
+make icpc-wrapper
+  : compiler-dep
+  : @make-install
+  : $(USE_COMPILER)
+    $(USE_MULTITARGET)
+    <conditional>@location-conditional
+  ;
+explicit icpc-wrapper ;
+
+rule make-install ( targets * : sources * : properties * )
+{
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local version = [ get-frontend-version "$(compiler)" ] ;
+  VERSION on $(targets) = "$(version)" ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+}
+actions make-install
+{
+  $(PROPERTY_DUMP_COMMANDS)
+
+  rm -f '$(<:D)/icc-wrapper'
+  if [ $? -ne 0 ]; then
+    echo    "ERROR: failed to remove old \`$(<:D)/icc-wrapper'." 1>&2
+    echo -n "ERROR: failed to remove old \`$(<:D)/icc-wrapper'." | $(AWACS)
+    exit 1
+  fi
+
+  rm -f '$(<:D)/icpc-wrapper'
+  if [ $? -ne 0 ]; then
+    echo    "ERROR: failed to remove old \`$(<:D)/icpc-wrapper'." 1>&2
+    echo -n "ERROR: failed to remove old \`$(<:D)/icpc-wrapper'." | $(AWACS)
+    exit 1
+  fi
+
+  install --mode=755 '$(INTRO_ROOT_DIR)/template/x86_64-unknown-linux-gnu/icc-wrapper' '$(<:D)'
+  if [ $? -ne 0 ]; then
+    echo    "ERROR: failed to install \`icc-wrapper' to \`$(<:D)'." 1>&2
+    echo -n "ERROR: failed to install \`icc-wrapper' to \`$(<:D)'." | $(AWACS)
+    exit 1
+  fi
+
+  install --mode=755 '$(INTRO_ROOT_DIR)/template/x86_64-unknown-linux-gnu/icpc-wrapper' '$(<:D)'
+  if [ $? -ne 0 ]; then
+    echo    "ERROR: failed to install \`icpc-wrapper' to \`$(<:D)'." 1>&2
+    echo -n "ERROR: failed to install \`icpc-wrapper' to \`$(<:D)'." | $(AWACS)
+    exit 1
+  fi
+
+  [ -f '$(<)' ] || exit 1
+
+  echo -n 'Wrapper scripts for ICC $(VERSION) were successfully installed.' | $(AWACS)
+  exit 0
+}
+
+
+
+alias install : "icpc-wrapper/$(DEFAULT_COMPILER_PROPERTIES)" ;
+explicit install ;

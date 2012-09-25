@@ -8,8 +8,11 @@ path-constant INTRO_ROOT_DIR : . ;
 
 import "$(INTRO_ROOT_DIR)/compilers"
   : is-valid
+    is-gcc
     is-clang
+    is-icc
     get-clang-latest-version
+    get-backend-gcc
     get-frontend-version
     split-frontend-and-backend
   ;
@@ -156,7 +159,6 @@ local compilers ;
 local gmp-versions ;
 local mpfr-versions ;
 local mpc-versions ;
-local ppl-versions ;
 local isl-versions ;
 local cloog-versions ;
 local icu4c-versions ;
@@ -294,6 +296,12 @@ for local enabled-compiler in $(enabled-compilers) {
       }
     }
   }
+  if [ is-icc "$(enabled-compiler)" ] {
+    local backend-gcc = [ get-backend-gcc "$(enabled-compiler)" ] ;
+    if ! "$(backend-gcc)" in $(compilers) {
+      compilers += "$(backend-gcc)" ;
+    }
+  }
 }
 
 
@@ -383,9 +391,6 @@ if "$(ppl)" = "latest" {
 if "$(ppl)" {
   if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(ppl)" : 1 ] {
     errors.error "an invalid value `$(ppl)' for `--enable-ppl'." ;
-  }
-  if ! "$(ppl)" in $(ppl-versions) {
-    ppl-versions += "$(ppl)" ;
   }
   ECHO ppl... $(ppl) ;
   if ! "$(gmp)" {
@@ -692,14 +697,6 @@ if $(mpc-versions) {
   ECHO MPC_VERSIONS... $(MPC_VERSIONS:J=,) ;
 }
 
-if $(ppl-versions) {
-  constant PPL_VERSIONS : $(ppl-versions) ;
-  ECHO PPL_VERSIONS... $(PPL_VERSIONS:J=,) ;
-}
-else {
-  ECHO PPL_VERSIONS... N/A ;
-}
-
 if $(isl-versions) {
   constant ISL_VERSIONS : $(isl-versions) ;
   ECHO ISL_VERSIONS... $(ISL_VERSIONS:J=,) ;
@@ -714,6 +711,14 @@ if $(cloog-versions) {
 }
 else {
   ECHO CLOOG_VERSIONS... N/A ;
+}
+
+if "$(ppl)" {
+  constant PPL : "$(ppl)" ;
+  ECHO PPL... $(PPL) ;
+}
+else {
+  ECHO PPL... N/A ;
 }
 
 if $(icu4c-versions) {
@@ -894,8 +899,8 @@ feature mpc-hidden : [ feature.values <mpc> ]    : propagated incidental ;
   constant USE_MPC : $(use-mpc) ;
 }
 
-feature ppl        : unspecified $(ppl-versions) :                       ;
-feature ppl-hidden : [ feature.values <ppl> ]    : propagated incidental ;
+feature ppl        : unspecified $(ppl)       :                       ;
+feature ppl-hidden : [ feature.values <ppl> ] : propagated incidental ;
 {
   local use-ppl ;
   for local val in [ feature.values <ppl> ] {
@@ -1041,7 +1046,7 @@ for local enabled-compiler in $(enabled-compilers) {
     srcs += "valgrind//install" ;
   }
 
-  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" "$(enabled-compiler)" ] {
+  if [ is-gcc "$(enabled-compiler)" ] {
     if "$(clang)" {
       srcs += "clang//install" ;
     }
@@ -1104,6 +1109,31 @@ for local enabled-compiler in $(enabled-compilers) {
     alias $(enabled-compiler)
       : gcc//install
         clang//install
+        $(srcs)
+        openmpi//install/<mpi-backend>$(mpi-backend)/<openmpi>$(OPENMPI)
+      : <compiler-hidden>$(enabled-compiler)
+        <multitarget-hidden>$(multitarget)
+        <binutils-hidden>$(binutils)
+        <gmp-for-gcc-hidden>$(gmp-for-gcc)
+        <mpfr-for-gcc-hidden>$(mpfr-for-gcc)
+        <mpc-for-gcc-hidden>$(mpc-for-gcc)
+        <isl-for-gcc-hidden>$(isl-for-gcc)
+        <cloog-for-gcc-hidden>$(cloog-for-gcc)
+        <gmp-hidden>$(gmp)
+        <mpfr-hidden>$(mpfr)
+        <mpc-hidden>$(mpc)
+        <isl-hidden>$(isl)
+        <cloog-hidden>$(cloog)
+        <ppl-hidden>$(ppl)
+        <icu4c-hidden>$(icu4c)
+        <boost-hidden>$(boost)
+        <valgrind-hidden>$(valgrind)
+      ;
+  }
+  else if [ is-icc "$(enabled-compiler)" ] {
+    alias $(enabled-compiler)
+      : gcc//install
+        icc//install
         $(srcs)
       : <compiler-hidden>$(enabled-compiler)
         <multitarget-hidden>$(multitarget)
