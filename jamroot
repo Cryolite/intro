@@ -934,11 +934,25 @@ feature icu4c-hidden : [ feature.values <icu4c> ]    : propagated incidental ;
   constant USE_ICU4C : $(use-icu4c) ;
 }
 
-feature openmpi        : unspecified $(openmpi)       : propagated            ;
+feature openmpi        : unspecified $(openmpi)       :                       ;
 feature openmpi-hidden : [ feature.values <openmpi> ] : propagated incidental ;
+{
+  local use-openmpi ;
+  for local val in [ feature.values <openmpi> ] {
+    use-openmpi += <openmpi-hidden>$(val):<openmpi>$(val) ;
+  }
+  constant USE_OPENMPI : $(use-openmpi) ;
+}
 
-feature mpi-backend        : unspecified openmpi mpich2         : propagated            ;
+feature mpi-backend        : unspecified openmpi mpich2         :                       ;
 feature mpi-backend-hidden : [ feature.values <mpi-backend> ]   : propagated incidental ;
+{
+  local use-mpi-backend ;
+  for local val in [ feature.values <mpi-backend> ] {
+    use-mpi-backend += <mpi-backend-hidden>$(val):<mpi-backend>$(val) ;
+  }
+  constant USE_MPI_BACKEND : $(use-mpi-backend) ;
+}
 
 feature boost        : unspecified $(boost-versions) :                       ;
 feature boost-hidden : [ feature.values <boost> ]    : propagated incidental ;
@@ -1017,11 +1031,14 @@ for local enabled-compiler in $(enabled-compilers) {
   if "$(icu4c)" {
     srcs += "icu4c//install" ;
   }
+  if "$(openmpi)" {
+    srcs += "openmpi//install" ;
+  }
   if "$(boost)" {
-    srcs += "boost//install/<mpi-backend>$(mpi-backend)/<openmpi>$(openmpi)" ;
+    srcs += "boost//install" ;
   }
   if "$(valgrind)" {
-    srcs += "valgrind//install/<mpi-backend>$(mpi-backend)/<openmpi>$(openmpi)" ;
+    srcs += "valgrind//install" ;
   }
 
   if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" "$(enabled-compiler)" ] {
@@ -1033,7 +1050,6 @@ for local enabled-compiler in $(enabled-compilers) {
       alias $(enabled-compiler)
       : gcc//install
         $(srcs)
-        openmpi//install/<mpi-backend>$(mpi-backend)/<openmpi>$(OPENMPI)
       : <compiler-hidden>$(enabled-compiler)
         <multitarget-hidden>$(multitarget)
         <binutils-hidden>$(binutils)
@@ -1049,6 +1065,8 @@ for local enabled-compiler in $(enabled-compilers) {
         <cloog-hidden>$(cloog)
         <ppl-hidden>$(ppl)
         <icu4c-hidden>$(icu4c)
+        <openmpi-hidden>$(openmpi)
+        <mpi-backend-hidden>$(mpi-backend)
         <clang-hidden>$(clang)
         <valgrind-hidden>$(valgrind)
       ;
@@ -1058,7 +1076,6 @@ for local enabled-compiler in $(enabled-compilers) {
         alias $(enabled-compiler)
           : gcc//install
             $(srcs)
-            openmpi//install/<mpi-backend>$(mpi-backend)/<openmpi>$(OPENMPI)
           : <compiler-hidden>$(enabled-compiler)
             <multitarget-hidden>$(multitarget)
             <binutils-hidden>$(binutils)
@@ -1074,18 +1091,20 @@ for local enabled-compiler in $(enabled-compilers) {
             <cloog-hidden>$(cloog)
             <ppl-hidden>$(ppl)
             <icu4c-hidden>$(icu4c)
+            <openmpi-hidden>$(openmpi)
+            <mpi-backend-hidden>$(mpi-backend)
             <boost-hidden>$(boost)
             <clang-hidden>$(clang)
             <valgrind-hidden>$(valgrind)
-        ;
+          ;
       }
     }
   }
-  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" "$(enabled-compiler)" ] {
+  else if [ is-clang "$(enabled-compiler)" ] {
     alias $(enabled-compiler)
-      : clang//install
+      : gcc//install
+        clang//install
         $(srcs)
-        openmpi//install/<mpi-backend>$(mpi-backend)/<openmpi>$(OPENMPI)
       : <compiler-hidden>$(enabled-compiler)
         <multitarget-hidden>$(multitarget)
         <binutils-hidden>$(binutils)
@@ -1101,6 +1120,8 @@ for local enabled-compiler in $(enabled-compilers) {
         <cloog-hidden>$(cloog)
         <ppl-hidden>$(ppl)
         <icu4c-hidden>$(icu4c)
+        <openmpi-hidden>$(openmpi)
+        <mpi-backend-hidden>$(mpi-backend)
         <boost-hidden>$(boost)
         <valgrind-hidden>$(valgrind)
       ;

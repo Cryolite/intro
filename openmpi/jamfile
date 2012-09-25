@@ -9,61 +9,38 @@ import regex ;
 import "$(INTRO_ROOT_DIR)/compilers"
   : is-gcc
     is-clang
+    is-icc
     get-compiler-description
     get-compiler-prefix
-    get-libdir
-    get-includedir
+    get-default-bindir
+    get-default-libdir
+    get-default-includedir
+    get-triplets
     get-cc
     get-cflags
     get-cxx
     get-cxxflags
     get-environment-commands
+    get-property-dump-commands
   ;
-
-
-rule assert-specified ( feature : properties * )
-{
-  local val = [ feature.get-values $(feature) : $(properties) ] ;
-  if $(val) = unspecified {
-    errors.error $(feature) is not specified for Open MPI build. ;
-  }
-}
-
-rule assert-unspecified ( feature : properties * )
-{
-  local val = [ feature.get-values $(feature) : $(properties) ] ;
-  if $(val) != unspecified {
-    errors.error $(feature) is not valid for Open MPI build. ;
-  }
-}
-
 
 
 rule compiler-dep-req ( properties * )
 {
-  assert-specified   <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-specified   <multitarget-hidden> : $(properties) ;
-  assert-specified   <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <mpi-backend>        : $(properties) ;
-  assert-unspecified <mpi-backend-hidden> : $(properties) ;
-  assert-unspecified <openmpi>            : $(properties) ;
-  assert-unspecified <openmpi-hidden>     : $(properties) ;
-
-  local multitarget = [ feature.get-values <multitarget-hidden> : $(properties) ] ;
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
   local result ;
-  if [ is-gcc $(compiler) ]
-  {
-    result = <source>../gcc//install/<multitarget>$(multitarget)/<multitarget-hidden>unspecified ;
+  if [ is-gcc "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
   }
-  else if [ is-clang $(compiler) ]
-  {
-    result = <source>../clang//install ;
+  else if [ is-clang "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
+    result += "<source>../clang//install" ;
   }
-  else
-  {
+  else if [ is-icc "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
+    result += "<source>../icc//install" ;
+  }
+  else {
     errors.error "an internal error." ;
   }
   return $(result) ;
@@ -79,27 +56,16 @@ explicit "$(INTRO_ROOT_DIR)/openmpi-$(OPENMPI).tar.bz2" ;
 
 rule download ( targets * : sources * : properties * )
 {
-  if $(sources[1])
-  {
-    errors.error "an internal error." ;
-  }
-  assert-unspecified <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-unspecified <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <mpi-backend>        : $(properties) ;
-  assert-unspecified <mpi-backend-hidden> : $(properties) ;
-  assert-unspecified <openmpi>            : $(properties) ;
-  assert-specified   <openmpi-hidden>     : $(properties) ;
-
   local version = [ feature.get-values <openmpi-hidden> : $(properties) ] ;
-  VERSION on $(targets) = $(version) ;
+  VERSION on $(targets) = "$(version)" ;
   local minor = [ regex.match "^([0-9]+\\.[0-9]+)(\\.[0-9]+)?$" : "$(version)" : 1 ] ;
   URL on $(targets) = http://www.open-mpi.org/software/ompi/v$(minor)/downloads/openmpi-$(version).tar.bz2 ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions download
 {
+  $(PROPERTY_DUMP_COMMANDS)
+
   rm -rf '$(<)' || exit 1
   if [ -n '$(STREAM)' ]; then
     ( cd '$(<:D)' && wget -- '$(URL)' >> '$(STREAM)' 2>&1 )
@@ -134,29 +100,14 @@ explicit "$(INTRO_ROOT_DIR)/openmpi-$(OPENMPI)/README" ;
 
 rule expand ( targets * : sources * : properties * )
 {
-  if ! $(sources[1])
-  {
-    errors.error "an internal error." ;
-  }
-  if $(sources[2])
-  {
-    errors.error "an internal error." ;
-  }
-  assert-unspecified <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-unspecified <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <mpi-backend>        : $(properties) ;
-  assert-unspecified <mpi-backend-hidden> : $(properties) ;
-  assert-unspecified <openmpi>            : $(properties) ;
-  assert-specified   <openmpi-hidden>     : $(properties) ;
-
   local version = [ feature.get-values <openmpi-hidden> : $(properties) ] ;
-  VERSION on $(targets) = $(version) ;
+  VERSION on $(targets) = "$(version)" ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions expand
 {
+  $(PROPERTY_DUMP_COMMANDS)
+
   rm -rf '$(<:D)' || exit 1
   [ -f '$(>)' ] || exit 1
   if [ -n '$(STREAM)' ]; then
@@ -183,18 +134,8 @@ actions expand
 
 rule srcdir-req ( properties * )
 {
-  assert-unspecified <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-unspecified <multitarget-hidden> : $(properties) ;
-  assert-unspecified <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <mpi-backend>        : $(properties) ;
-  assert-unspecified <mpi-backend-hidden> : $(properties) ;
-  assert-specified   <openmpi>            : $(properties) ;
-  assert-unspecified <openmpi-hidden>     : $(properties) ;
-
-  local version = [ feature.get-values <openmpi> : $(properties) ] ;
-  return <source>"$(INTRO_ROOT_DIR)/openmpi-$(version)/README/<openmpi>unspecified/<openmpi-hidden>$(version)/$(DEFAULT_PROPERTIES)" ;
+  local version = [ feature.get-values <openmpi-hidden> : $(properties) ] ;
+  return "<source>$(INTRO_ROOT_DIR)/openmpi-$(version)/README/$(DEFAULT_PROPERTIES)" ;
 }
 
 alias srcdir : : <conditional>@srcdir-req ;
@@ -204,36 +145,31 @@ explicit srcdir ;
 
 rule location-conditional ( properties * )
 {
-  local includedir = [ get-includedir "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
-  return <location>"$(includedir)" ;
+  local includedir = [ get-default-includedir "$(PREFIX)" : $(properties) ] ;
+  return "<location>$(includedir)" ;
 }
 
 make mpi.h
-  : compiler-dep/<mpi-backend>unspecified/<openmpi>unspecified
-    srcdir/<triplet>unspecified/<multitarget-hidden>unspecified/<compiler>unspecified/<mpi-backend>unspecified
+  : compiler-dep
+    srcdir
   : @make-install
-  : <conditional>@location-conditional
+  : $(USE_COMPILER)
+    $(USE_MULTITARGET)
+    $(USE_OPENMPI)
+    $(USE_ADDRESS_MODEL)
+    $(USE_INSTRUCTION_SET)
+    <conditional>@location-conditional
   ;
 explicit mpi.h ;
 
 rule make-install ( targets * : sources * : properties * )
 {
-  assert-specified   <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-specified   <multitarget-hidden> : $(properties) ;
-  assert-specified   <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-specified   <mpi-backend>        : $(properties) ;
-  assert-unspecified <mpi-backend-hidden> : $(properties) ;
-  assert-specified   <openmpi>            : $(properties) ;
-  assert-unspecified <openmpi-hidden>     : $(properties) ;
-
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local compiler-description = [ get-compiler-description $(compiler) ] ;
+  local compiler-description = [ get-compiler-description "$(compiler)" ] ;
   COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
 
   local version = [ feature.get-values <openmpi> : $(properties) ] ;
-  VERSION on $(targets) = $(version) ;
+  VERSION on $(targets) = "$(version)" ;
 
   # Set the path to the source directory.
   local srcdir = "$(INTRO_ROOT_DIR)/openmpi-$(version)" ;
@@ -245,59 +181,79 @@ rule make-install ( targets * : sources * : properties * )
   OPTIONS on $(targets) = ;
 
   # Set `--prefix' option for `configure' script.
-  local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(compiler) : $(GCC_FOR_CLANG) ] ;
+  local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
   local compiler-prefix-native = [ path.native "$(compiler-prefix)" ] ;
   OPTIONS on $(targets) += "--prefix='$(compiler-prefix-native)'" ;
 
-  # Set `--build' `--host' options for `configure' script.
-  local triplet = [ feature.get-values <triplet> : $(properties) ] ;
-  TRIPLET on $(targets) = $(triplet) ;
-  OPTIONS on $(targets) += --build=$(triplet) ;
-  OPTIONS on $(targets) += --host=$(triplet) ;
+  # Set `--bindir' option for `configure' script.
+  local bindir = [ get-default-bindir "$(PREFIX)" : $(properties) ] ;
+  local bindir-native = [ path.native "$(bindir)" ] ;
+  OPTIONS on $(targets) += "--bindir='$(bindir-native)'" ;
 
-  OPTIONS on $(targets) += --disable-mpi-f77 ;
-  OPTIONS on $(targets) += --disable-mpi-f90 ;
-  OPTIONS on $(targets) += --disable-mpi-cxx ;
+  # Set `--libdir' option for `configure' script.
+  local libdir = [ get-default-libdir "$(PREFIX)" : $(properties) ] ;
+  local libdir-native = [ path.native "$(libdir)" ] ;
+  OPTIONS on $(targets) += "--libdir='$(libdir-native)'" ;
 
-  OPTIONS on $(targets) += --enable-shared ;
-  OPTIONS on $(targets) += --enable-static ;
+  # Set `--includedir' option for `configure' script.
+  local includedir = [ get-default-includedir "$(PREFIX)" : $(properties) ] ;
+  INCLUDEDIR on $(targets) = "$(includedir-native)" ;
+  OPTIONS on $(targets) += "--includedir='$(includedir-native)'" ;
 
-  OPTIONS on $(targets) += --enable-mpi-thread-multiple ;
+  # Set `--build' and `--host' options for `configure' script.
+  local triplets = [ get-triplets $(properties) ] ;
+  local build-triplet = "$(triplets[1])" ;
+  local host-triplet = "$(triplets[2])" ;
+  BUILD_TRIPLET on $(targets) = "$(build-triplet)" ;
+  HOST_TRIPLET on $(targets) = "$(host-triplet)" ;
+  OPTIONS on $(targets) += "--build=$(build-triplet)" ;
+  OPTIONS on $(targets) += "--host=$(host-triplet)" ;
+
+  OPTIONS on $(targets) += "--disable-mpi-f77" ;
+  OPTIONS on $(targets) += "--disable-mpi-f90" ;
+  OPTIONS on $(targets) += "--disable-mpi-cxx" ;
+
+  OPTIONS on $(targets) += "--enable-shared" ;
+  OPTIONS on $(targets) += "--enable-static" ;
+
+  OPTIONS on $(targets) += "--enable-mpi-thread-multiple" ;
 
   # See https://github.com/Cryolite/intro/issues/12
-  if [ is-clang $(compiler) ]
-  {
-    OPTIONS on $(targets) += --disable-visibility ;
+  if [ is-clang "$(compiler)" ] {
+    OPTIONS on $(targets) += "--disable-visibility" ;
   }
 
-  local cc = [ get-cc "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
-  cc = [ path.native "$(cc)" ] ;
-  OPTIONS on $(targets) += "CC='$(cc)'" ;
+  local cc = [ get-cc "$(PREFIX)" : $(properties) ] ;
+  local cc-native = [ path.native "$(cc)" ] ;
+  OPTIONS on $(targets) += "CC='$(cc-native)'" ;
 
   #local cflags = [ get-cflags $(properties) ] ;
-  #if $(cflags)
-  #{
+  #if "$(cflags)" {
   #  OPTIONS on $(targets) += "CFLAGS='$(cflags)'" ;
   #}
 
-  local cxx = [ get-cxx "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
-  cxx = [ path.native "$(cxx)" ] ;
-  OPTIONS on $(targets) += "CXX='$(cxx)'" ;
+  local cxx = [ get-cxx "$(PREFIX)" : $(properties) ] ;
+  local cxx-native = [ path.native "$(cxx)" ] ;
+  OPTIONS on $(targets) += "CXX='$(cxx-native)'" ;
 
   #local cxxflags = [ get-cxxflags $(properties) ] ;
-  #if $(cxxflags)
-  #{
+  #if "$(cxxflags)" {
   #  OPTIONS on $(targets) += "CXXFLAGS='$(cxxflags)'" ;
   #}
 
-  local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) : $(GCC_FOR_CLANG) ] ;
+  local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
   ENVIRONMENT_COMMANDS on $(targets) = "$(environment-commands)" ;
+
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions make-install
 {
+  $(PROPERTY_DUMP_COMMANDS)
+
   [ -x '$(SRCDIR)/configure' ] || exit 1
   [ -x '$(SRCDIR)/config/config.sub' ] || exit 1
-  [ `'$(SRCDIR)/config/config.sub' $(TRIPLET)` = $(TRIPLET) ] || exit 1
+  [ `'$(SRCDIR)/config/config.sub' $(BUILD_TRIPLET)` = $(BUILD_TRIPLET) ] || exit 1
+  [ `'$(SRCDIR)/config/config.sub' $(HOST_TRIPLET)` = $(HOST_TRIPLET) ] || exit 1
 
   # Clean up objdir `$(OBJDIR)'.
   { mkdir -p '$(OBJDIR)' && ( cd '$(OBJDIR)' && rm -rf * ); } || exit 1
@@ -310,8 +266,8 @@ actions make-install
     ( cd '$(OBJDIR)' && '$(SRCDIR)/configure' $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`configure' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to \`configure' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`configure' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to \`configure' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
 
@@ -324,8 +280,8 @@ actions make-install
     ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`make' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to \`make' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`make' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to \`make' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
 
@@ -335,8 +291,8 @@ actions make-install
     ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) check )
   fi
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`make check' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to \`make check' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`make check' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to \`make check' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
 
@@ -346,21 +302,21 @@ actions make-install
     ( cd '$(OBJDIR)' && make install )
   fi
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`make install' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: failed to \`make install' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+    echo    "ERROR: failed to \`make install' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to \`make install' Open MPI $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
-
-  [ -f '$(<)' ] || exit 1
 
   # Clean up objdir `$(OBJDIR)'.
   rm -rf '$(OBJDIR)' || exit 1
 
-  echo -n 'Open MPI $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built.' | $(AWACS)
+  [ -f '$(<)' ] || exit 1
+
+  echo -n 'Open MPI $(VERSION) ($(COMPILER_DESCRIPTION)) was successfully built.' | $(AWACS)
   exit 0
 }
 
 
 
-alias install : mpi.h/<std>c++03/<variant>release/<ssp>off/<mudflap>off/<address-sanitizer>off/<libstdc++-debug-mode>off ;
+alias install : mpi.h/$(DEFAULT_COMPILER_PROPERTIES) ;
 explicit install ;

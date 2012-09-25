@@ -1028,6 +1028,10 @@ rule normalize-properties ( properties * )
   properties = [ property.change $(properties) : <cloog> ] ;
   properties = [ property.change $(properties) : <ppl-hidden> ] ;
   properties = [ property.change $(properties) : <ppl> ] ;
+  properties = [ property.change $(properties) : <openmpi-hidden> ] ;
+  properties = [ property.change $(properties) : <openmpi> ] ;
+  properties = [ property.change $(properties) : <mpi-backend-hidden> ] ;
+  properties = [ property.change $(properties) : <mpi-backend> ] ;
   properties = [ property.change $(properties) : <clang-hidden> ] ;
   properties = [ property.change $(properties) : <clang> ] ;
   return $(properties) ;
