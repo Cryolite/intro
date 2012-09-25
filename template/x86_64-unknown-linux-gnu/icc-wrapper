@@ -1,70 +1,96 @@
 #!/usr/bin/env bash
 
-if which dirname 1>/dev/null 2>&1; then
-  :
-else
-  echo "$0: error: dirname: command not found" 1>&2
-  exit 1
-fi
+bits=
+is_link=1
+for arg in "$@"; do
+    if [ "$arg" = '-m64' ]; then
+	if [ "$bits" = '32' ]; then
+	    echo "$0: error: both \`-m64' and \`-m32' cannot be specified simultaneously" 1>&2
+	    exit 1
+	fi
+	bits=64
+    elif [ "$arg" = '-m32' ]; then
+	if [ "$bits" = '64' ]; then
+	    echo "$0: error: both \`-m64' and \`-m32' cannot be specified simultaneously" 1>&2
+	    exit 1
+	fi
+	bits=32
+    fi
+    if [ "$arg" = '-fsyntax-only' -o "$arg" = '-c' -o "$arg" = '-M' -o "$arg" = '-MM' -o "$arg" = '-E' -o "$arg" = '-S' ]; then
+	is_link=0
+    fi
+done
 
-if which pwd 1>/dev/null 2>&1; then
-  :
-else
-  echo "$0: error: pwd: command not found" 1>&2
-  exit 1
+if [ -z "$bits" ]; then
+    if [ `uname --machine` = 'x86_64' ]; then
+	bits=64
+    elif [ `uname --machine` = 'x86' ]; then
+	bits=32
+    else
+	echo "$0: error: unsupported architecture" 1>&2
+	exit 1
+    fi
 fi
 
 bindir=`(cd \`dirname "$0"\`; pwd)`
 prefix=`dirname "$bindir"`
 
-bits=
-for arg in "$@"; do
-  if [ "$arg" = -m32 ]; then
-    if [ $bits = 64 ]; then
-      echo "$0: error: both \`-m64' and \`-m32' cannot be specified simultaneously" 1>&2
-      exit 1
-    fi
-    bits=32
-  elif [ "$arg" = -m64 ]; then
-    if [ $bits = 32 ]; then
-      echo "$0: error: both \`-m64' and \`-m32' cannot be specified simultaneously" 1>&2
-      exit 1
-    fi
-    bits=64
-  fi
-done
-if [ -z "$bits" ]; then
-  bits=64
-fi
-
-if [ ! -x '/opt/intel/bin/compilervars.sh' ]; then
-  echo "$0: error: /opt/intel/bin/compilervars.sh: not found" 1>&2
-  exit 1
-fi
-if [ ! -x '/opt/intel/bin/icc' ]; then
-  echo "$0: error: /opt/intel/bin/icpc: not found" 1>&2
-  exit 1
-fi
-
 if [ ! -x "${bindir}/gcc" ]; then
-  echo "$0: error: ${bindir}/gcc: not found" 1>&2
+  echo "$0: error: \`${bindir}/gcc': not found" 1>&2
   exit 1
 fi
 
 if [ ! -x "${bindir}/g++" ]; then
-  echo "$0: error: ${bindir}/g++: not found" 1>&2
+  echo "$0: error: \`${bindir}/g++': not found" 1>&2
   exit 1
+fi
+
+if [ ! -x '/opt/intel/bin/compilervars.sh' ]; then
+  echo "$0: error: \`/opt/intel/bin/compilervars.sh': not found" 1>&2
+  exit 1
+fi
+
+if [ ! -x '/opt/intel/bin/icc' ]; then
+  echo "$0: error: \`/opt/intel/bin/icc': not found" 1>&2
+  exit 1
+fi
+
+if [ -f /etc/debian_version ] && grep -Fq 'wheezy/sid' /etc/debian_version; then
+    if [ $bits -eq 64 ]; then
+	LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu${LIBRARY_PATH:+:$LIBRARY_PATH}
+	export LIBRARY_PATH
+    elif [ $bits -eq 32 ]; then
+	:
+    else
+	echo "$0: error: an internal error" 1>&2
+	exit 1
+    fi
+fi
+
+if [ $bits -eq 64 ]; then
+    source '/opt/intel/bin/compilervars.sh' intel64 || exit $?
+elif [ $bits -eq 32 ]; then
+    source '/opt/intel/bin/compilervars.sh' ia32 || exit $?
+else
+    echo "$0: error: an internal error" 1>&2
+    exit 1
 fi
 
 ulimit -t 300
 ulimit -m 2097152
 
-if [ $bits = 64 ]; then
-  source '/opt/intel/bin/compilervars.sh' intel64 || exit $?
-elif [ $bits = 32 ]; then
-  source '/opt/intel/bin/compilervars.sh' ia32 || exit $?
+if [ $is_link -eq 0 ]; then
+    exec '/opt/intel/bin/icc' -gcc-name="${bindir}/gcc" -gxx-name="${bindir}/g++" "$@"
+elif [ $is_link -eq 1 ]; then
+    if [ $bits -eq 64 ]; then
+	exec '/opt/intel/bin/icc' -gcc-name="${bindir}/gcc" -gxx-name="${bindir}/g++" "$@" -Wl,"-rpath='${prefix}/lib64'" -Wl,"-rpath='${prefix}/lib'" -Wl,--enable-new-dtags
+    elif [ $bits -eq 32 ]; then
+	exec '/opt/intel/bin/icc' -gcc-name="${bindir}/gcc" -gxx-name="${bindir}/g++" "$@" -Wl,"-rpath='${prefix}/lib32'" -Wl,"-rpath='${prefix}/lib'" -Wl,--enable-new-dtags
+    else
+	echo "$0: error: an internal error" 1>&2
+	exit 1
+    fi
+else
+    echo "$0: error: an internal error" 1>&2
+    exit 1
 fi
-'/opt/intel/bin/icc' -gcc-name="${bindir}/gcc" -gxx-name="${bindir}/g++" "$@"
-result=$?
-
-exit $result
