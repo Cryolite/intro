@@ -19,7 +19,6 @@ import "$(INTRO_ROOT_DIR)/compilers"
     get-cxx
     get-cxxflags
     get-environment-commands
-    get-rpath-commands
     get-property-dump-commands
   ;
 
@@ -249,9 +248,6 @@ rule make-install ( targets * : sources * : properties * )
   local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
   ENVIRONMENT_COMMANDS on $(targets) = $(environment-commands) ;
 
-  local rpath-commands = [ get-rpath-commands "$(PREFIX)" : $(properties) ] ;
-  RPATH_COMMANDS on $(targets) = "$(rpath-commands)" ;
-
   local property-dump-commands = [ get-property-dump-commands $(properties) ] ;
   PROPERTY_DUMP_COMMANDS on $(targets) = $(property-dump-commands) ;
 }
@@ -269,7 +265,6 @@ actions make-install
   { mkdir -p '$(OBJDIR)' && ( cd '$(OBJDIR)' && rm -rf * ); } || exit 1
 
   $(ENVIRONMENT_COMMANDS)
-  $(RPATH_COMMANDS)
 
   if [ -n '$(STREAM)' ]; then
     ( cd '$(OBJDIR)' && '$(SRCDIR)/configure' $(OPTIONS) >> '$(STREAM)' 2>&1 )

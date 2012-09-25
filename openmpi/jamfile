@@ -197,7 +197,7 @@ rule make-install ( targets * : sources * : properties * )
 
   # Set `--includedir' option for `configure' script.
   local includedir = [ get-default-includedir "$(PREFIX)" : $(properties) ] ;
-  INCLUDEDIR on $(targets) = "$(includedir-native)" ;
+  local includedir-native = [ path.native "$(includedir)" ] ;
   OPTIONS on $(targets) += "--includedir='$(includedir-native)'" ;
 
   # Set `--build' and `--host' options for `configure' script.
@@ -318,5 +318,5 @@ actions make-install
 
 
 
-alias install : mpi.h/$(DEFAULT_COMPILER_PROPERTIES) ;
+alias install : "mpi.h/$(DEFAULT_COMPILER_PROPERTIES)" ;
 explicit install ;
