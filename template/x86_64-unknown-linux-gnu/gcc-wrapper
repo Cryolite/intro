@@ -3,66 +3,71 @@
 bits=
 is_link=1
 for arg in "$@"; do
-    if [ "$arg" = '-m64' ]; then
-	if [ "$bits" = '32' ]; then
-	    echo "error:$0: an internal error" 1>&2
+    if [ "${arg}" = '-m64' ]; then
+	if [ "${bits}" = '32' ]; then
+	    echo "${0}: error: both \`-m64' and \`-m32' cannot be specified simultaneously" 1>&2
 	    exit 1
 	fi
 	bits=64
     fi
-    if [ "$arg" = '-m32' ]; then
-	if [ "$bits" = '64' ]; then
-	    echo "error:$0: an internal error" 1>&2
+    if [ "${arg}" = '-m32' ]; then
+	if [ "${bits}" = '64' ]; then
+	    echo "${0}: error: both \`-m64' and \`-m32' cannot be specified simultaneously" 1>&2
 	    exit 1
 	fi
 	bits=32
     fi
-    if [ "$arg" = '-fsyntax-only' -o "$arg" = '-c' -o "$arg" = '-M' -o "$arg" = '-MM' -o "$arg" = '-E' -o "$arg" = '-S' ]; then
+    if [ "${arg}" = '-fsyntax-only' -o "${arg}" = '-c' -o "${arg}" = '-M' -o "${arg}" = '-MM' -o "${arg}" = '-E' -o "${arg}" = '-S' ]; then
 	is_link=0
     fi
 done
 
-if [ -z "$bits" ]; then
-    if file "$SHELL" | grep -Fq '64-bit'; then
+if [ -z "${bits}" ]; then
+    if [ `uname --machine` = 'x86_64' ]; then
 	bits=64
-    elif file "$SHELL" | grep -Fq '32-bit'; then
+    elif [ `uname --machine` = 'x86' ]; then
 	bits=32
     else
-	echo "error:$0: an internal error" 1>&2
+	echo "${0}: error: unsupported architecture" 1>&2
 	exit 1
     fi
 fi
 
 if [ -f /etc/debian_version ] && grep -Fq 'wheezy/sid' /etc/debian_version; then
-    if [ $bits -eq 64 ]; then
-	LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu${LIBRARY_PATH:+:$LIBRARY_PATH}"
-    elif [ $bits -eq 32 ]; then
+    if [ ${bits} -eq 64 ]; then
+	LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu${LIBRARY_PATH:+:${LIBRARY_PATH}}"
+	export LIBRARY_PATH
+    elif [ ${bits} -eq 32 ]; then
 	:
     else
-	echo "error:$0: an internal error" 1>&2
+	echo "${0}: error: an internal error" 1>&2
 	exit 1
     fi
-    export LIBRARY_PATH
 fi
 
-bindir=`(cd \`dirname "$0"\`; pwd)`
-prefix=`dirname "$bindir"`
+bindir=`(cd \`dirname "${0}"\`; pwd)`
+prefix=`dirname "${bindir}"`
 
-ulimit -t 300
-ulimit -m 2097152
+if [ ! -x "${bindir}/gcc" ]; then
+  echo "${0}: error: \`${bindir}/gcc': not found" 1>&2
+  exit 1
+fi
 
-if [ $is_link -eq 0 ]; then
-    exec "$bindir/gcc" "$@"
-elif [ $is_link -eq 1 ]; then
-    if [ $bits -eq 64 ]; then
-	exec "$bindir/gcc" -Wl,"-rpath='$prefix/lib64'" -Wl,"-rpath='$prefix/lib'" -Wl,--enable-new-dtags "$@"
-    elif [ $bits -eq 32 ]; then
-	exec "$bindir/gcc" -Wl,"-rpath='$prefix/lib32'" -Wl,"-rpath='$prefix/lib'" -Wl,--enable-new-dtags "$@"
+ulimit -S -t 300
+ulimit -S -m 2097152
+
+if [ ${is_link} -eq 0 ]; then
+    exec "${bindir}/gcc" "$@"
+elif [ ${is_link} -eq 1 ]; then
+    if [ ${bits} -eq 64 ]; then
+	exec "${bindir}/gcc" "$@" -Wl,"-rpath='${prefix}/lib64'" -Wl,"-rpath='${prefix}/lib'" -Wl,--enable-new-dtags
+    elif [ ${bits} -eq 32 ]; then
+	exec "${bindir}/gcc" "$@" -Wl,"-rpath='${prefix}/lib32'" -Wl,"-rpath='${prefix}/lib'" -Wl,--enable-new-dtags
     else
-	echo "error:$0: an internal error" 1>&2
+	echo "${0}: error: an internal error" 1>&2
 	exit 1
     fi
 else
-    echo "error:$0: an internal error" 1>&2
+    echo "${0}: error: an internal error" 1>&2
     exit 1
 fi
