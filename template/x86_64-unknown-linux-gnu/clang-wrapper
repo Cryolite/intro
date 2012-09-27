@@ -1,30 +1,78 @@
-#!/usr/bin/env bash
+#!/usr/bin/env sh
 
-dir="${0%/*}"
-if [ "$dir" != "." ]; then
-    dir="$(dirname "$0")"
-    if [ "$dir" = "." ]; then
-	echo "ERROR: this script should be called by the command containing the directory separator '/'." 1>&2
+bits=
+is_link=1
+for arg in "$@"; do
+    if [ "${arg}" = '-m64' ]; then
+	if [ "${bits}" = '32' ]; then
+	    echo "${0}: error: both \`-m64' and \`-m32' cannot be specified simultaneously" 1>&2
+	    exit 1
+	fi
+	bits=64
+    fi
+    if [ "${arg}" = '-m32' ]; then
+	if [ "${bits}" = '64' ]; then
+	    echo "${0}: error: both \`-m64' and \`-m32' cannot be specified simultaneously" 1>&2
+	    exit 1
+	fi
+	bits=32
+    fi
+    if [ "${arg}" = '-fsyntax-only' -o "${arg}" = '-c' -o "${arg}" = '-M' -o "${arg}" = '-MM' -o "${arg}" = '-E' -o "${arg}" = '-S' ]; then
+	is_link=0
+    fi
+done
+
+if [ -z "${bits}" ]; then
+    if [ `uname --machine` = 'x86_64' ]; then
+	bits=64
+    elif [ `uname --machine` = 'x86' ]; then
+	bits=32
+    else
+	echo "${0}: error: unsupported architecture" 1>&2
 	exit 1
     fi
 fi
-dir="$(cd "$dir"; pwd)"
-libdir="$(dirname "$dir")/lib"
-bindir="$(dirname "$dir")/bin"
 
-if uname | grep -Fq 'Linux'; then
-    LD_LIBRARY_PATH="${libdir}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
-    export LD_LIBRARY_PATH
-    LD_RUN_PATH="${libdir}${LD_RUN_PATH:+:${LD_RUN_PATH}}"
-    export LD_RUN_PATH
-elif uname | grep -Fq 'CYGWIN'; then
-    PATH="$bindir${PATH:+:${PATH}}"
-    export PATH
-else
-    exit 1
+if [ -f /etc/debian_version ] && grep -Fq 'wheezy/sid' /etc/debian_version; then
+    if [ ${bits} -eq 64 ]; then
+	LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu${LIBRARY_PATH:+:${LIBRARY_PATH}}"
+	export LIBRARY_PATH
+    elif [ ${bits} -eq 32 ]; then
+	:
+    else
+	echo "${0}: error: an internal error" 1>&2
+	exit 1
+    fi
 fi
 
-"${dir}/clang" "$@"
-result=$?
+bindir=`(cd \`dirname "${0}"\`; pwd)`
+prefix=`dirname "${bindir}"`
 
-exit $result
+if [ ! -x "${bindir}/gcc" ]; then
+  echo "${0}: error: \`${bindir}/gcc': not found" 1>&2
+  exit 1
+fi
+
+if [ ! -x "${bindir}/clang" ]; then
+  echo "${0}: error: \`${bindir}/clang': not found" 1>&2
+  exit 1
+fi
+
+ulimit -S -t 300
+ulimit -S -m 2097152
+
+if [ ${is_link} -eq 0 ]; then
+    exec "${bindir}/clang" "$@"
+elif [ ${is_link} -eq 1 ]; then
+    if [ ${bits} -eq 64 ]; then
+	exec "${bindir}/clang" "$@" -Wl,"-rpath='${prefix}/lib64'" -Wl,"-rpath='${prefix}/lib'" -Wl,--enable-new-dtags
+    elif [ ${bits} -eq 32 ]; then
+	exec "${bindir}/clang" "$@" -Wl,"-rpath='${prefix}/lib32'" -Wl,"-rpath='${prefix}/lib'" -Wl,--enable-new-dtags
+    else
+	echo "${0}: error: an internal error" 1>&2
+	exit 1
+    fi
+else
+    echo "${0}: error: an internal error" 1>&2
+    exit 1
+fi
