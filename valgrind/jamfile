@@ -371,10 +371,10 @@ actions make-install
 
   if [ -n '$(STREAM)' ]; then
     # Some tests might deadlock with GCC 4.8. Forces the deadlocked tests to be killed by `ulimit'.
-    ( cd '$(OBJDIR)' && ulimit -t 60 && ulimit -m 2097152 && make --jobs=$(CONCURRENCY) regtest 2>&1 | tee regtest.log >> '$(STREAM)' 2>&1 )
+    ( cd '$(OBJDIR)' && ulimit -S -t 60 && ulimit -S -m 2097152 && make --jobs=$(CONCURRENCY) regtest 2>&1 | tee regtest.log >> '$(STREAM)' 2>&1 )
   else
     # Some tests might deadlock with GCC 4.8. Forces the deadlocked tests to be killed by `ulimit'.
-    ( cd '$(OBJDIR)' && ulimit -t 60 && ulimit -m 2097152 && make --jobs=$(CONCURRENCY) regtest 2>&1 | tee regtest.log )
+    ( cd '$(OBJDIR)' && ulimit -S -t 60 && ulimit -S -m 2097152 && make --jobs=$(CONCURRENCY) regtest 2>&1 | tee regtest.log )
   fi
   # `make regtest' usually fails, so they are treated as just information.
   echo -n "INFO:\`make regtest':" `grep -Eo "^==.*==$" "$(OBJDIR)/regtest.log"` | $(AWACS)
