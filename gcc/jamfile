@@ -268,9 +268,14 @@ rule make-install ( targets * : sources * : properties * )
   OPTIONS on $(targets) += "--host=$(host-triplet)" ;
   OPTIONS on $(targets) += "--target=$(target-triplet)" ;
 
-  # Set the build variants of runtime libraries.
-  OPTIONS on $(targets) += "--enable-shared" ;
-  OPTIONS on $(targets) += "--enable-static" ;
+  # `configure' will guess the suitable link variants even without the
+  # following options. And if the following options are explicitly
+  # specified, `binutils' will create shared variant of libraries, in
+  # particular `libbfd' and `libopcodes', on which final GCC executables
+  # have run-time dependencies. It is not desirable because it requires care
+  # when the executables are invoked.
+  #OPTIONS on $(targets) += "--enable-shared" ;
+  #OPTIONS on $(targets) += "--enable-static" ;
 
   # Set the linker configuration to be used by the installed GCC front-end.
   #

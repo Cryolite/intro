@@ -423,7 +423,7 @@ rule make-install ( targets * : sources * : properties * )
     compiler-description = [ get-compiler-description "$(compiler)" ] ;
   }
   else if [ is-clang "$(compiler)" ] {
-    local backend-gcc = [ get-backend-gcc $(properties) ] ;
+    local backend-gcc = [ get-backend-gcc "$(compiler)" ] ;
     compiler-description = [ get-compiler-description "$(backend-gcc)" ] ;
   }
   else if [ is-icc "$(compiler)" ] {
@@ -720,7 +720,7 @@ actions make-install
   rm -f '$(COMPILER_PREFIX)/lib/before-make-install' '$(COMPILER_PREFIX)/lib/after-make-install' || exit 1
   rm -f '$(COMPILER_PREFIX)/include/before-make-install' '$(COMPILER_PREFIX)/include/after-make-install' || exit 1
 
-  install --mode=755 '$(INTRO_ROOT_DIR)/clang/clang-wrapper' '$(INTRO_ROOT_DIR)/clang/clang++-wrapper' '$(BINDIR)'
+  install --mode=755 '$(INTRO_ROOT_DIR)/template/$(HOST_TRIPLET)/clang-wrapper' '$(INTRO_ROOT_DIR)/template/$(HOST_TRIPLET)/clang++-wrapper' '$(BINDIR)'
   if [ $? -ne 0 ]; then
     echo    "ERROR: failed to install the wrapper scripts for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." 1>&2
     echo -n "ERROR: failed to install the wrapper scripts for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." | $(AWACS)
