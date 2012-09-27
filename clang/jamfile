@@ -710,7 +710,7 @@ actions make-install
   fi
   if [ '$(LIBDIR)' != '$(COMPILER_PREFIX)/lib' ]; then
     ( cd '$(COMPILER_PREFIX)/lib' && find . -mindepth 1 -maxdepth 1 -newer before-make-install -execdir [ '{}' -ot after-make-install ] \; -execdir mv '{}' '$(LIBDIR)' \; ) || exit 1
-    ( cd '$(COMPILER_PREFIX)/lib' && ln -sfT ../`basename '$(LIBDIR)'`/clang clang ) || exit 1
+    ( cd '$(COMPILER_PREFIX)/lib' && ln -sfT '$(LIBDIR)/clang' clang ) || exit 1
   fi
   if [ '$(INCLUDEDIR)' != '$(COMPILER_PREFIX)/include' ]; then
     ( cd '$(COMPILER_PREFIX)/include' && find . -mindepth 1 -maxdepth 1 -newer before-make-install -execdir [ '{}' -ot after-make-install ] \; -execdir mv '{}' '$(INCLUDEDIR)' \; ) || exit 1

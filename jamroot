@@ -1011,7 +1011,7 @@ feature intro-instruction-set-hidden : [ feature.values <intro-instruction-set> 
 }
 
 local default-host-os = [ feature.get-values <host-os> : [ feature.defaults <host-os> ] ] ;
-constant DEFAULT_COMPILER_PROPERTIES : "<variant>release/<link>shared/<runtime-link>shared/<runtime-debugging>off/<threading>single/<intro-address-model-hidden>unspecified/<intro-instruction-set-hidden>unspecified/<std>c++03/<lto>off/<correct-call-stack>off/<ssp>off/<memory-checker>off/<libstdc++-debug-mode>off" ;
+constant DEFAULT_COMPILER_PROPERTIES : "<variant>release/<link>shared/<runtime-link>shared/<runtime-debugging>off/<threading>multi/<intro-address-model-hidden>unspecified/<intro-instruction-set-hidden>unspecified/<std>c++03/<lto>off/<correct-call-stack>off/<ssp>off/<memory-checker>off/<libstdc++-debug-mode>off" ;
 constant DEFAULT_PROPERTIES : "<host-os>$(default-host-os)/<target-os>$(default-host-os)/<variant>debug/<std>c++03/<link>shared/<runtime-link>shared/<runtime-debugging>on/<optimization>off/<profiling>off/<threading>single/<intro-address-model-hidden>unspecified/<intro-instruction-set-hidden>unspecified/<lto>off/<correct-call-stack>off/<ssp>off/<memory-checker>off/<libstdc++-debug-mode>off" ;
 
 for local enabled-compiler in $(enabled-compilers) {
@@ -1134,6 +1134,10 @@ for local enabled-compiler in $(enabled-compilers) {
       ;
   }
   else if [ is-icc "$(enabled-compiler)" ] {
+    if "$(clang)" {
+      srcs += "clang//install" ;
+    }
+
     alias $(enabled-compiler)
       : gcc//install
         icc//install
@@ -1156,6 +1160,7 @@ for local enabled-compiler in $(enabled-compilers) {
         <openmpi-hidden>$(openmpi)
         <mpi-backend-hidden>$(mpi-backend)
         <boost-hidden>$(boost)
+        <clang-hidden>$(clang)
         <valgrind-hidden>$(valgrind)
       ;
   }
