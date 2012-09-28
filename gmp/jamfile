@@ -213,16 +213,33 @@ rule make-install ( targets * : sources * : properties * )
     OPTIONS on $(targets) += "--enable-assert" ;
   }
 
+  if "$(variant)" = "profile" {
+    OPTIONS on $(targets) += "--enable-profiling=gprof" ;
+  }
+
   OPTIONS on $(targets) += "--enable-cxx" ;
 
+  local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
+  local mudflap ;
+  if [ is-gcc "$(compiler)" ] && "$(memory-checker)" = "on" {
+    mudflap = "on" ;
+  }
+
   # Set the link variants for `configure' script.
-  if "$(host-triplet)" = "x86_64-w64-mingw32" || "$(host-triplet)" = "i686-w64-mingw32" || "$(host-triplet)" = "i686-pc-cygwin" {
-    OPTIONS on $(targets) += "--enable-shared" ;
-    OPTIONS on $(targets) += "--disable-static" ;
+  if "$(mudflap)" = "on" {
+    OPTIONS on $(targets) += "--disable-shared" ;
+    OPTIONS on $(targets) += "--enable-static" ;
+    OPTIONS on $(targets) += "--without-pic" ;
   }
   else {
-    OPTIONS on $(targets) += "--enable-shared" ;
-    OPTIONS on $(targets) += "--enable-static" ;
+    if "$(host-triplet)" = "x86_64-w64-mingw32" || "$(host-triplet)" = "i686-w64-mingw32" || "$(host-triplet)" = "i686-pc-cygwin" {
+      OPTIONS on $(targets) += "--enable-shared" ;
+      OPTIONS on $(targets) += "--disable-static" ;
+    }
+    else {
+      OPTIONS on $(targets) += "--enable-shared" ;
+      OPTIONS on $(targets) += "--enable-static" ;
+    }
   }
 
   local cc = [ get-cc "$(PREFIX)" : $(properties) ] ;
