@@ -2,7 +2,11 @@
 
 intro_root_dir=$1
 shift
-triplet=$1
+build_triplet=$1
+shift
+host_triplet=$1
+shift
+target_triplet=$1
 shift
 multitarget=$1
 shift
@@ -36,7 +40,9 @@ libdir=$1
 shift
 
 echo "intro_root_dir: $intro_root_dir"
-echo "triplet: $triplet"
+echo "build_triplet: $build_triplet"
+echo "host_triplet: $host_triplet"
+echo "target_triplet: $target_triplet"
 echo "multitarget: $multitarget"
 echo "binutils: $binutils"
 echo "gmp_for_gcc: $gmp_for_gcc"
@@ -98,8 +104,8 @@ if [ \( `echo $isl_for_gcc `x != x \) -a \( `echo $cloog_for_gcc `x != x \) ]; t
     echo 'echo original options for isl configure script: $@'        >> "$srcdir/isl/configure"
     echo 'dir=`dirname "$0"`'                                        >> "$srcdir/isl/configure"
     echo '"$dir/real-configure"' "--srcdir='$srcdir/isl'"            \
-                                 --build=$triplet                    \
-                                 --host=$triplet                     \
+                                 --build=$build_triplet              \
+                                 --host=$host_triplet                \
                                  --disable-shared                    \
                                  --enable-static                     \
                                  --with-gmp=build                    \
@@ -130,8 +136,8 @@ if [ \( `echo $isl_for_gcc `x != x \) -a \( `echo $cloog_for_gcc `x != x \) ]; t
     echo 'echo original options for CLooG configure script: $@'      >> "$srcdir/cloog/configure"
     echo 'dir=`dirname "$0"`'                                        >> "$srcdir/cloog/configure"
     echo '"$dir/real-configure"' "--srcdir='$srcdir/cloog'"          \
-                                 --build=$triplet                    \
-                                 --host=$triplet                     \
+                                 --build=$build_triplet              \
+                                 --host=$host_triplet                \
                                  --disable-shared                    \
                                  --enable-static                     \
                                  --with-gmp=build                    \
@@ -153,7 +159,9 @@ fi
 
 [ -x "$srcdir/configure" ] || exit 1
 [ -x "$srcdir/config.sub" ] || exit 1
-[ `"$srcdir/config.sub" $triplet` = $triplet ] || exit 1
+[ `"$srcdir/config.sub" $build_triplet` = $build_triplet ] || exit 1
+[ `"$srcdir/config.sub" $host_triplet` = $host_triplet ] || exit 1
+[ `"$srcdir/config.sub" $target_triplet` = $target_triplet ] || exit 1
 
 
 # `configure'.
@@ -164,8 +172,8 @@ else
 fi
 if [ $? -ne 0 ]; then
     mv "$objdir" "$intro_root_dir/objdir_$$"
-    echo    "ERROR:$$: failed to \`configure' $compiler_description ($triplet)." 1>&2
-    echo -n "ERROR:$$: failed to \`configure' $compiler_description ($triplet)." | eval $awacs
+    echo    "ERROR:$$: failed to \`configure' ${compiler_description}." 1>&2
+    echo -n "ERROR:$$: failed to \`configure' ${compiler_description}." | eval $awacs
     exit 1
 fi
 
@@ -180,8 +188,8 @@ fi
 # `$objdir/gmp' during the bootstrap procedure, whereas `<gmpxx.h>'
 # resides in `$srcdir/gmp'. So, `CPATH' environment variable is set
 # to include the paths to those header files.
-LD_LIBRARY_PATH="$objdir/prev-opcodes/.libs:$objdir/prev-bfd/.libs${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-export LD_LIBRARY_PATH
+#LD_LIBRARY_PATH="$objdir/prev-opcodes/.libs:$objdir/prev-bfd/.libs${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+#export LD_LIBRARY_PATH
 if [ -n "$stream" ]; then
     ( cd "$objdir" && env CPATH="$objdir/gmp:$srcdir/gmp${CPATH:+:$CPATH}" LD_RUN_PATH="$libdir${LD_RUN_PATH:+:$LD_RUN_PATH}" make --jobs=$concurrency >> "$stream" 2>&1 )
     if [ $? -ne 0 ]; then
@@ -201,8 +209,8 @@ else
 fi
 if [ $? -ne 0 ]; then
     mv "$objdir" "$intro_root_dir/objdir_$$"
-    echo    "ERROR:$$: failed to \`make' $compiler_description ($triplet)." 1>&2
-    echo -n "ERROR:$$: failed to \`make' $compiler_description ($triplet)." | eval $awacs
+    echo    "ERROR:$$: failed to \`make' ${compiler_description}." 1>&2
+    echo -n "ERROR:$$: failed to \`make' ${compiler_description}." | eval $awacs
     exit 1
 fi
 
@@ -215,46 +223,46 @@ else
 fi
 if [ $? -ne 0 ]; then
     mv "$objdir" "$intro_root_dir/objdir_$$"
-    echo    "ERROR:$$: failed to \`make install' $compiler_description ($triplet)." 1>&2
-    echo -n "ERROR:$$: failed to \`make install' $compiler_description ($triplet)." | eval $awacs
+    echo    "ERROR:$$: failed to \`make install' ${compiler_description}." 1>&2
+    echo -n "ERROR:$$: failed to \`make install' ${compiler_description}." | eval $awacs
     exit 1
 fi
 
 
 # A workaround. Create a symlink to `ld' in the directory where the installed
 # GCC front end searches for subprograms.
-( cd "$compiler_prefix/libexec/gcc/$triplet/`"$compiler_prefix/bin/gcc" -dumpversion`" && ln -sf ../../../../bin/ld real-ld )
+( cd "$compiler_prefix/libexec/gcc/${host_triplet}/`"$compiler_prefix/bin/gcc" -dumpversion`" && ln -sf ../../../../bin/ld real-ld )
 if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to create the workaround symlink to the linker for $compiler_description ($triplet)." 1>&2
-    echo -n "ERROR: failed to create the workaround symlink to the linker for $compiler_description ($triplet)." | eval $awacs
+    echo    "ERROR: failed to create the workaround symlink to the linker for ${compiler_description}." 1>&2
+    echo -n "ERROR: failed to create the workaround symlink to the linker for ${compiler_description}." | eval $awacs
     exit 1
 fi
 
 # Some configure scripts (e.g. MPC's) require `ld' instead of `real-ld'.
-( cd "$compiler_prefix/libexec/gcc/$triplet/`"$compiler_prefix/bin/gcc" -dumpversion`" && ln -sf ../../../../bin/ld ld )
+( cd "$compiler_prefix/libexec/gcc/${host_triplet}/`"$compiler_prefix/bin/gcc" -dumpversion`" && ln -sf ../../../../bin/ld ld )
 if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to create the workaround symlink to the linker for $compiler_description ($triplet)." 1>&2
-    echo -n "ERROR: failed to create the workaround symlink to the linker for $compiler_description ($triplet)." | eval $awacs
+    echo    "ERROR: failed to create the workaround symlink to the linker for ${compiler_description}." 1>&2
+    echo -n "ERROR: failed to create the workaround symlink to the linker for ${compiler_description}." | eval $awacs
     exit 1
 fi
 
 
 # Install the modified specfile and wrapper scripts.
-install --mode=755 "${intro_root_dir}/template/$triplet/hack-gcc-specs" "${compiler_prefix}/bin"
+install --mode=755 "${intro_root_dir}/template/${host_triplet}/hack-gcc-specs" "${compiler_prefix}/bin"
 if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to install the modified specfile for $compiler_description ($triplet)." 1>&2
-    echo -n "ERROR: failed to install the modified specfile for $compiler_description ($triplet)." | eval $awacs
+    echo    "ERROR: failed to install the modified specfile for ${compiler_description}." 1>&2
+    echo -n "ERROR: failed to install the modified specfile for ${compiler_description}." | eval $awacs
     exit 1
 fi
-install --mode=755 "${intro_root_dir}/template/$triplet/gcc-wrapper" "${compiler_prefix}/bin"
+install --mode=755 "${intro_root_dir}/template/${host_triplet}/gcc-wrapper" "${compiler_prefix}/bin"
 if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to install \`gcc-wrapper' wrapper script to \`${compiler_prefix}/bin' for $compiler_description ($triplet)." 1>&2
-    echo -n "ERROR: failed to install \`gcc-wrapper' wrapper script to \`${compiler_prefix}/bin' for $compiler_description ($triplet)." | eval $awacs
+    echo    "ERROR: failed to install \`gcc-wrapper' wrapper script to \`${compiler_prefix}/bin' for ${compiler_description}." 1>&2
+    echo -n "ERROR: failed to install \`gcc-wrapper' wrapper script to \`${compiler_prefix}/bin' for ${compiler_description}." | eval $awacs
     exit 1
 fi
-install --mode=755 "${intro_root_dir}/template/$triplet/g++-wrapper" "${compiler_prefix}/bin"
+install --mode=755 "${intro_root_dir}/template/${host_triplet}/g++-wrapper" "${compiler_prefix}/bin"
 if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to install \`g++-wrapper' wrapper script to \`${compiler_prefix}/bin' for $compiler_description ($triplet)." 1>&2
-    echo -n "ERROR: failed to install \`g++-wrapper' wrapper script to \`${compiler_prefix}/bin' for $compiler_description ($triplet)." | eval $awacs
+    echo    "ERROR: failed to install \`g++-wrapper' wrapper script to \`${compiler_prefix}/bin' for ${compiler_description}." 1>&2
+    echo -n "ERROR: failed to install \`g++-wrapper' wrapper script to \`${compiler_prefix}/bin' for ${compiler_description}." | eval $awacs
     exit 1
 fi
