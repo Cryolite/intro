@@ -399,7 +399,7 @@ rule make-install ( targets * : sources * : properties * )
 
   #OPTIONS on $(targets) += "--enable-concept-checks" ;
 
-  INSTALL_SCRIPT on $(targets) = "$(INTRO_ROOT_DIR)/gcc/install-4.8.sh" ;
+  INSTALL_SCRIPT on $(targets) = "$(INTRO_ROOT_DIR)/gcc/install.sh" ;
 
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
