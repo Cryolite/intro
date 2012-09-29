@@ -1039,12 +1039,13 @@ rule normalize-properties ( properties * )
   local instruction-set = [ feature.get-values <intro-instruction-set> : $(properties) ] ;
   local multitarget = [ feature.get-values <multitarget> : $(properties) ] ;
   properties = [ property.change $(properties) : <intro-address-model> ] ;
-  if $(address-model) {
+  if "$(address-model)" {
     properties = [ property.change $(properties) : <address-model> $(address-model) ] ;
   }
+  properties = [ property.change $(properties) : <intro-instruction-set-hidden> ] ;
   properties = [ property.change $(properties) : <intro-instruction-set> ] ;
-  if $(instruction-set) {
-    properties = [ property.change $(properties) : <instruction-set> $(instruction-set) ] ;
+  if "$(instruction-set)" != "unspecified" {
+    properties += "<instruction-set>$(instruction-set)" ;
   }
   properties = [ property.change $(properties) : <toolset> ] ;
   properties = [ property.change $(properties) : <location> ] ;
