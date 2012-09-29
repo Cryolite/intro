@@ -257,15 +257,15 @@ rule make-install ( targets * : sources * : properties * )
   local cflags = [ get-cflags $(properties) ] ;
   if "$(cflags)" {
     cflags = "$(cflags) -Wall -Wmissing-prototypes -Wpointer-arith" ;
-    if "$(lto)" = "off" {
-      cflags = "$(cflags) -g" ;
-    }
-    else if "$(lto)" = "on" {
-      # Do nothing.
-    }
-    else {
-      errors.error "an internal error." ;
-    }
+    #if "$(lto)" = "off" {
+    #  cflags = "$(cflags) -g" ;
+    #}
+    #else if "$(lto)" = "on" {
+    #  # Do nothing.
+    #}
+    #else {
+    #  errors.error "an internal error." ;
+    #}
     OPTIONS on $(targets) += "CFLAGS='$(cflags)'" ;
   }
 
@@ -277,15 +277,15 @@ rule make-install ( targets * : sources * : properties * )
   #local cxxflags = [ get-cxxflags $(properties) ] ;
   #if "$(cxxflags)" {
   #  cxxflags = "$(cxxflags) -Wall -Wpointer-arith" ;
-  #  if "$(lto)" = "off" {
-  #    cxxflags = "$(cxxflags) -g" ;
-  #  }
-  #  else if "$(lto)" = "on" {
-  #    # Do nothing.
-  #  }
-  #  else {
-  #    errors.error "an internal error." ;
-  #  }
+  #  #if "$(lto)" = "off" {
+  #  #  cxxflags = "$(cxxflags) -g" ;
+  #  #}
+  #  #else if "$(lto)" = "on" {
+  #  #  # Do nothing.
+  #  #}
+  #  #else {
+  #  #  errors.error "an internal error." ;
+  #  #}
   #  OPTIONS on $(targets) += "CXXFLAGS='$(cxxflags)'" ;
   #}
 
