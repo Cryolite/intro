@@ -208,16 +208,33 @@ rule make-install ( targets * : sources * : properties * )
   OPTIONS on $(targets) += "--build=$(build-triplet)" ;
   OPTIONS on $(targets) += "--host=$(host-triplet)" ;
 
-  # Set the link variants for `configure' script.
-  if "$(host-triplet)" = "x86_64-w64-mingw32" || "$(host-triplet)" = "i686-w64-mingw32" || "$(host-triplet)" = "i686-pc-cygwin" {
-    OPTIONS on $(targets) += "--enable-shared" ;
-    OPTIONS on $(targets) += "--disable-static" ;
-  }
-  else {
-    OPTIONS on $(targets) += "--enable-shared" ;
-    OPTIONS on $(targets) += "--enable-static" ;
+  local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
+  local mudflap = "off" ;
+  if [ is-gcc "$(compiler)" ] && "$(memory-checker)" = "on" {
+    mudflap = "on" ;
   }
 
+  # Set the link variants for `configure' script.
+  if "$(mudflap)" = "on" {
+    # Mudflap does not seem to work with PIC.
+    OPTIONS on $(targets) += "--disable-shared" ;
+    OPTIONS on $(targets) += "--enable-static" ;
+    OPTIONS on $(targets) += "--without-pic" ;
+  }
+  else {
+    if "$(host-triplet)" = "x86_64-w64-mingw32" || "$(host-triplet)" = "i686-w64-mingw32" || "$(host-triplet)" = "i686-pc-cygwin" {
+      OPTIONS on $(targets) += "--enable-shared" ;
+      OPTIONS on $(targets) += "--disable-static" ;
+    }
+    else {
+      OPTIONS on $(targets) += "--enable-shared" ;
+      OPTIONS on $(targets) += "--enable-static" ;
+    }
+  }
+
+  OPTIONS on $(targets) += "--with-gmp=system" ;
+
+  # The following option does not work because Clang's ABI is unstable.
   #if [ is-clang "$(compiler)" ] {
   #  OPTIONS on $(targets) += "--with-clang=system" ;
   #}
@@ -232,7 +249,21 @@ rule make-install ( targets * : sources * : properties * )
   local cflags = [ get-cflags $(properties) ] ;
   if "$(cflags)" {
     if "$(variant)" != "debug" {
-      cflags = "$(cflags) -fomit-frame-pointer -malign-double -fstrict-aliasing -ffast-math" ;
+      if [ is-gcc "$(compiler)" ] {
+        # When linking in the build of isl, `-fomit-frame-pointer',
+        # `-fstrict-aliasing' and `-ffast-math' are cut from command lines.
+        # It is not desirable because these options may be significant even
+        # when linking if `-flto' is specified. So, `-Ofast', which implies
+        # the above-mentioned three options, is used instread.
+        cflags = "$(cflags) -Ofast -malign-double" ;
+      }
+      else if [ is-clang "$(compiler)" ] || [ is-icc "$(compiler)" ] {
+        # FIXME: Likewise as above?
+        cflags = "$(cflags) -fomit-frame-pointer -malign-double -fstrict-aliasing -ffast-math" ;
+      }
+      else {
+        errors.error "an internal error." ;
+      }
     }
     OPTIONS on $(targets) += "CFLAGS='$(cflags)'" ;
   }
@@ -244,7 +275,17 @@ rule make-install ( targets * : sources * : properties * )
   local cxxflags = [ get-cxxflags $(properties) ] ;
   if "$(cxxflags)" {
     if "$(variant)" != "debug" {
-      cxxflags = "$(cxxflags) -fomit-frame-pointer -malign-double -fstrict-aliasing -ffast-math" ;
+      if [ is-gcc "$(compiler)" ] {
+        # See the comments for `cflags'.
+        cxxflags = "$(cxxflags) -Ofast -malign-double" ;
+      }
+      else if [ is-clang "$(compiler)" ] || [ is-icc "$(compiler)" ] {
+        # See the comments for `cflags'.
+        cxxflags = "$(cxxflags) -fomit-frame-pointer -malign-double -fstrict-aliasing -ffast-math" ;
+      }
+      else {
+        errors.error "an internal error." ;
+      }
     }
     OPTIONS on $(targets) += "CXXFLAGS='$(cxxflags)'" ;
   }
