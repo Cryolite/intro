@@ -1654,7 +1654,16 @@ rule get-cxxflags ( properties * )
     }
   }
   else if "$(std)" = "c++11" {
-    result += "-std=c++11" ;
+    if [ is-gcc "$(compiler)" ] {
+      # GCC 4.6.x does not support `-std=c++11'.
+      result += "-std=c++0x" ;
+    }
+    else if [ is-clang "$(compiler)" ] || [ is-icc "$(compiler)" ] {
+      result += "-std=c++11" ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
   }
   else {
     errors.error "an internal error." ;
@@ -1863,8 +1872,9 @@ rule get-environment-commands ( prefix : properties * )
   commands += "export CPATH" ;
   commands += "LIBRARY_PATH=\"$(libdir)${LIBRARY_PATH:+:$LIBRARY_PATH}\"" ;
   commands += "export LIBRARY_PATH" ;
+  local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
   local mudflap ;
-  if [ is-gcc "$(compiler)" ] && [ feature.get-values <memory-checker> : $(properties) ] {
+  if [ is-gcc "$(compiler)" ] && "$(memory-checker)" = "on" {
     mudflap = "on" ;
   }
   if "$(mudflap)" = "on" {
