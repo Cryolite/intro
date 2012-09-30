@@ -1380,6 +1380,19 @@ rule get-cflags ( properties * )
   if "$(variant)" = "debug" {
     result += "-O0" ;
     result += "-g" ;
+    if [ is-gcc "$(compiler)" ] {
+      result += "-fvar-tracking" ;
+      result += "-fvar-tracking-assignments" ;
+    }
+    else if [ is-clang "$(compiler)" ] {
+      # Do nothing.
+    }
+    else if [ is-icc "$(compiler)" ] {
+      result += "-debug full" ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
     result += "-fno-inline" ;
   }
   else if "$(variant)" = "release" {
@@ -1552,6 +1565,19 @@ rule get-cxxflags ( properties * )
   if "$(variant)" = "debug" {
     result += "-O0" ;
     result += "-g" ;
+    if [ is-gcc "$(compiler)" ] {
+      result += "-fvar-tracking" ;
+      result += "-fvar-tracking-assignments" ;
+    }
+    else if [ is-clang "$(compiler)" ] {
+      # Do nothing.
+    }
+    else if [ is-icc "$(compiler)" ] {
+      result += "-debug full" ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
     result += "-fno-inline" ;
   }
   else if "$(variant)" = "release" {
@@ -1844,6 +1870,13 @@ rule get-environment-commands ( prefix : properties * )
   if "$(mudflap)" = "on" {
     commands += "MUDFLAP_OPTIONS='-viol-abort -print-leaks -check-initialization'" ;
     commands += "export MUDFLAP_OPTIONS" ;
+  }
+  local lto = [ feature.get-values <lto> : $(properties) ] ;
+  if [ is-icc "$(compiler)" ] {
+    commands += "AR='/opt/intel/bin/xiar'" ;
+    commands += "export AR" ;
+    commands += "LD='/opt/intel/bin/xild'" ;
+    commands += "export LD" ;
   }
   commands = "$(commands:J=\n)" ;
   return "$(commands)" ;

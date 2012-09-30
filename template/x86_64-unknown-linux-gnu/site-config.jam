@@ -1051,12 +1051,16 @@ feature.feature memcheck-run
 
 constant INTRO_COMPILE_PROPERTIES
   : <exception-handling>off:<cflags>-fno-exceptions
+    <toolset>gcc,<variant>debug:<cflags>"-fvar-tracking -fvar-tracking-assignments"
+    <toolset>icc,<variant>debug:<cflags>"-debug full"
     $(INTRO_LTO_COMPILE_PROPERTIES)
     $(INTRO_SSP_COMPILE_PROPERTIES)
     $(INTRO_MEMORY_CHECKER_COMPILE_PROPERTIES)
   ;
 constant INTRO_LINK_PROPERTIES
   : <exception-handling>off:<linkflags>-fno-exceptions
+    <toolset>gcc,<variant>debug:<cflags>"-fvar-tracking -fvar-tracking-assignments"
+    <toolset>icc,<variant>debug:<cflags>"-debug full"
     $(INTRO_LTO_LINK_PROPERTIES)
     $(INTRO_SSP_LINK_PROPERTIES)
     $(INTRO_MEMORY_CHECKER_LINK_PROPERTIES)

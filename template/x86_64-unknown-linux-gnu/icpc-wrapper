@@ -22,6 +22,18 @@ for arg in "$@"; do
     fi
 done
 
+if false; then
+    mkdir -p "${HOME}/tmp"
+    if [ $is_link -eq 0 ]; then
+	echo "$@" > "${HOME}/tmp/icpc-compile.$$.log"
+    elif [ $is_link -eq 1 ]; then
+	echo "$@" > "${HOME}/tmp/icpc-link.$$.log"
+    else
+	echo "${0}: error: an internal error" 1>&2
+	exit 1
+    fi
+fi
+
 if [ -z "${bits}" ]; then
     if [ `uname --machine` = 'x86_64' ]; then
 	bits=64
