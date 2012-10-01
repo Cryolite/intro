@@ -182,7 +182,8 @@ rule make-install ( targets * : sources * : properties * )
   SRCDIR on $(targets) = [ path.native "$(srcdir)" ] ;
 
   local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
-  OBJDIR on $(targets) = [ path.native "$(objdir)" ] ;
+  local objdir-native = [ path.native "$(objdir)" ] ;
+  OBJDIR on $(targets) = "$(objdir-native)" ;
 
   OPTIONS on $(targets) = ;
 
@@ -215,14 +216,28 @@ rule make-install ( targets * : sources * : properties * )
   OPTIONS on $(targets) += "--build=$(build-triplet)" ;
   OPTIONS on $(targets) += "--host=$(host-triplet)" ;
 
+  local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
+  local mudflap = "off" ;
+  if [ is-gcc "$(compiler)" ] && "$(memory-checker)" = "on" {
+    mudflap = "on" ;
+  }
+
   # Set the link variants for `configure' script.
-  if "$(host-triplet)" = "x86_64-w64-mingw32" || "$(host-triplet)" = "i686-w64-mingw32" || "$(host-triplet)" = "i686-pc-cygwin" {
-    OPTIONS on $(targets) += "--enable-shared" ;
-    OPTIONS on $(targets) += "--disable-static" ;
+  if "$(mudflap)" = "on" {
+    # Mudflap does not seem to work with PIC.
+    OPTIONS on $(targets) += "--disable-shared" ;
+    OPTIONS on $(targets) += "--enable-static" ;
+    OPTIONS on $(targets) += "--without-pic" ;
   }
   else {
-    OPTIONS on $(targets) += "--enable-shared" ;
-    OPTIONS on $(targets) += "--enable-static" ;
+    if "$(host-triplet)" = "x86_64-w64-mingw32" || "$(host-triplet)" = "i686-w64-mingw32" || "$(host-triplet)" = "i686-pc-cygwin" {
+      OPTIONS on $(targets) += "--enable-shared" ;
+      OPTIONS on $(targets) += "--disable-static" ;
+    }
+    else {
+      OPTIONS on $(targets) += "--enable-shared" ;
+      OPTIONS on $(targets) += "--enable-static" ;
+    }
   }
 
   OPTIONS on $(targets) += --with-isl=system ;
@@ -243,9 +258,16 @@ rule make-install ( targets * : sources * : properties * )
   local cflags = [ get-cflags $(properties) ] ;
   if "$(cflags)" {
     if "$(variant)" != "debug" {
-      cflags = "$(cflags) -fomit-frame-pointer -malign-double -fstrict-aliasing -ffast-math" ;
+      if [ is-gcc "$(compiler)" ] && "$(variant)" = "profile" {
+        # `-pg' and `-fomit-frame-pointer' are incompatible for GCC.
+      }
+      else {
+        cflags = "$(cflags) -fomit-frame-pointer" ;
+      }
+      cflags = "$(cflags) -malign-double -fstrict-aliasing -ffast-math" ;
     }
-    OPTIONS on $(targets) += "CFLAGS='$(cflags)'" ;
+    CFLAGS on $(targets) = "$(cflags)" ;
+    OPTIONS on $(targets) += "CFLAGS='@$(objdir-native)/cflags'" ;
   }
 
   local cxx = [ get-cxx "$(PREFIX)" : $(properties) ] ;
@@ -255,9 +277,16 @@ rule make-install ( targets * : sources * : properties * )
   local cxxflags = [ get-cxxflags $(properties) ] ;
   if "$(cxxflags)" {
     if "$(variant)" != "debug" {
-      cxxflags = "$(cxxflags) -fomit-frame-pointer -malign-double -fstrict-aliasing -ffast-math" ;
+      if [ is-gcc "$(compiler)" ] && "$(variant)" = "profile" {
+        # `-pg' and `-fomit-frame-pointer' are incompatible for GCC.
+      }
+      else {
+        cxxflags = "$(cxxflags) -fomit-frame-pointer" ;
+      }
+      cxxflags = "$(cxxflags) -malign-double -fstrict-aliasing -ffast-math" ;
     }
-    OPTIONS on $(targets) += "CXXFLAGS='$(cxxflags)'" ;
+    CXXFLAGS on $(targets) = "$(cxxflags)" ;
+    OPTIONS on $(targets) += "CXXFLAGS='@$(objdir-native)/cxxflags'" ;
   }
 
   local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
@@ -281,6 +310,9 @@ actions make-install
   { mkdir -p '$(OBJDIR)' && ( cd '$(OBJDIR)' && rm -rf * ); } || exit 1
 
   $(ENVIRONMENT_COMMANDS)
+
+  ( cd '$(OBJDIR)' && echo -n '$(CFLAGS)' > cflags ) || exit 1
+  ( cd '$(OBJDIR)' && echo -n '$(CXXFLAGS)' > cxxflags ) || exit 1
 
   if [ -n '$(STREAM)' ]; then
     ( cd '$(OBJDIR)' && '$(SRCDIR)/configure' $(OPTIONS) >> '$(STREAM)' 2>&1 )
