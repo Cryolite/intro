@@ -261,7 +261,9 @@ rule make-install ( targets * : sources * : properties * )
   local host-triplet = "$(triplets[2])" ;
   local target-triplet = "$(triplets[3])" ;
   local enabled-targets = "$(triplets[4])" ;
-  TRIPLET on $(targets) = "$(host-triplet)" ;
+  BUILD_TRIPLET on $(targets) = "$(build-triplet)" ;
+  HOST_TRIPLET on $(targets) = "$(host-triplet)" ;
+  TARGET_TRIPLET on $(targets) = "$(target-triplet)" ;
 
   # Set `--build', `--host' and `--target' options for `configure' script.
   OPTIONS on $(targets) += "--build=$(build-triplet)" ;
@@ -397,7 +399,7 @@ rule make-install ( targets * : sources * : properties * )
 
   #OPTIONS on $(targets) += "--enable-concept-checks" ;
 
-  INSTALL_SCRIPT on $(targets) = "$(INTRO_ROOT_DIR)/gcc/install-4.8.sh" ;
+  INSTALL_SCRIPT on $(targets) = "$(INTRO_ROOT_DIR)/gcc/install.sh" ;
 
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
@@ -416,7 +418,9 @@ actions make-install
   fi
 
   '$(INSTALL_SCRIPT)' '$(INTRO_ROOT_DIR)'       \
-                      $(TRIPLET)                \
+                      $(BUILD_TRIPLET)          \
+                      $(HOST_TRIPLET)           \
+                      $(TARGET_TRIPLET)         \
                       $(MULTITARGET)            \
                       '$(BINUTILS)'             \
                       '$(GMP_FOR_GCC)'          \
@@ -443,7 +447,7 @@ actions make-install
   # Clean up the OBJDIR.
   rm -rf '$(OBJDIR)' || exit 1
 
-  echo -n '$(COMPILER_DESCRIPTION) ($(TRIPLET)) was successfully built.' | $(AWACS)
+  echo -n '$(COMPILER_DESCRIPTION) was successfully built.' | $(AWACS)
   echo -n 'NOTE: Binutils $(BINUTILS), GMP $(GMP_FOR_GCC), MPFR $(MPFR_FOR_GCC), MPC $(MPC_FOR_GCC), isl $(ISL_FOR_GCC), CLooG $(CLOOG_FOR_GCC) were bootstrapped alongside.' | $(AWACS)
   exit 0
 }

@@ -1039,12 +1039,13 @@ rule normalize-properties ( properties * )
   local instruction-set = [ feature.get-values <intro-instruction-set> : $(properties) ] ;
   local multitarget = [ feature.get-values <multitarget> : $(properties) ] ;
   properties = [ property.change $(properties) : <intro-address-model> ] ;
-  if $(address-model) {
+  if "$(address-model)" {
     properties = [ property.change $(properties) : <address-model> $(address-model) ] ;
   }
+  properties = [ property.change $(properties) : <intro-instruction-set-hidden> ] ;
   properties = [ property.change $(properties) : <intro-instruction-set> ] ;
-  if $(instruction-set) {
-    properties = [ property.change $(properties) : <instruction-set> $(instruction-set) ] ;
+  if "$(instruction-set)" != "unspecified" {
+    properties += "<instruction-set>$(instruction-set)" ;
   }
   properties = [ property.change $(properties) : <toolset> ] ;
   properties = [ property.change $(properties) : <location> ] ;
@@ -1347,29 +1348,23 @@ rule get-triplets ( properties * )
 rule get-cc ( prefix : properties * : gcc-for-clang ? )
 {
   local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
-  if ! [ is-valid "$(compiler)" ]
-  {
+  if ! [ is-valid "$(compiler)" ] {
     errors.error "an internal error." ;
   }
   local prefix-leaf = [ get-prefix-leaf $(properties) ] ;
   local compiler-prefix = "$(prefix)/$(prefix-leaf)" ;
   local result ;
-  if ! [ is-builtin-gcc $(compiler) ]
-  {
-    if [ is-gcc $(compiler) ]
-    {
+  if ! [ is-builtin-gcc "$(compiler)" ] {
+    if [ is-gcc "$(compiler)" ] {
       result = "$(compiler-prefix)/bin/gcc-wrapper" ;
     }
-    else if [ is-clang $(compiler) ]
-    {
+    else if [ is-clang "$(compiler)" ] {
       result = "$(compiler-prefix)/bin/clang-wrapper" ;
     }
-    else if [ is-icc $(compiler) ]
-    {
+    else if [ is-icc "$(compiler)" ] {
       result = "$(compiler-prefix)/bin/icc-wrapper" ;
     }
-    else
-    {
+    else {
       errors.error "an internal error." ;
     }
   }
@@ -1382,184 +1377,24 @@ rule get-cflags ( properties * )
   local result ;
 
   local variant = [ feature.get-values <variant> : $(properties) ] ;
-  if $(variant) = debug {
-    result += "-O0" ;
-    result += "-g" ;
-    result += "-fno-inline" ;
-  }
-  else if $(variant) = release {
-    result += "-O3" ;
-    result += "-finline-functions" ;
-    result += "-Wno-inline" ;
-  }
-  else if $(variant) = profile {
-    result += "-O3" ;
-    result += "-finline-functions" ;
-    result += "-Wno-inline" ;
-    result += "-g" ;
-    result += "-pg" ;
-  }
-  else {
-    errors.error "an internal error" ;
-  }
-
-  local address-model = [ feature.get-values <intro-address-model-hidden> : $(properties) ] ;
-  if $(address-model) = unspecified {
-    # Do nothing.
-  }
-  else if $(address-model) = 64 {
-    result += "-m64" ;
-  }
-  else if $(address-model) = 32 {
-    result += "-m32" ;
-  }
-  else {
-    errors.error "an internal error." ;
-  }
-
-  local instruction-set = [ feature.get-values <intro-instruction-set-hidden> : $(properties) ] ;
-  if $(instruction-set) = unspecified {
-    # Do nothing.
-  }
-  else if $(instruction-set) = native {
-    if [ is-gcc $(compiler) ] || [ is-clang $(compiler) ] {
-      result += "-march=native" ;
-    }
-    else if [ is-icc $(compiler) ] {
-      result += "-xHost" ;
-    }
-    else {
-      errors.error "an internal error." ;
-    }
-  }
-  else {
-    errors.error "an internal error." ;
-  }
-
-  local lto = [ feature.get-values <lto> : $(properties) ] ;
-  if $(lto) = off {
-    # Do nothing.
-  }
-  else if $(lto) = "on" {
-    if [ is-gcc $(compiler) ] || [ is-clang $(compiler) ] {
-      result += "-flto" ;
-    }
-    else if [ is-icc $(compiler) ] {
-      result += "-ipo" ;
-    }
-    else {
-      errors.error "an internal error." ;
-    }
-  }
-  else {
-    errors.error "an internal error." ;
-  }
-
-  local correct-call-stack = [ feature.get-values <correct-call-stack> : $(properties) ] ;
-  if $(correct-call-stack) = off {
-    # Do nothing.
-  }
-  else if $(correct-call-stack) = "on" {
-    result += "-fno-omit-frame-pointer" ;
-    result += "-fno-optimize-sibling-calls" ;
-  }
-  else {
-    errors.error "an internal error." ;
-  }
-
-  local ssp = [ feature.get-values <ssp> : $(properties) ] ;
-  if $(ssp) = off {
-    # Do nothing.
-  }
-  else if $(ssp) = "on" {
-    result += "-fstack-protector" ;
-  }
-  else if $(ssp) = all {
-    result += "-fstack-protector-all" ;
-  }
-  else {
-    errors.error "an internal error." ;
-  }
-
-  local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
-  if $(memory-checker) = off {
-    # Do nothing.
-  }
-  else if $(memory-checker) = "on" {
-    if [ is-gcc $(compiler) ] {
-      local threading = [ get-values <threading> : $(properties) ] ;
-      if $(threading) = single {
-        result += "-fmudflap" ;
-      }
-      else if $(threading) = multi {
-        result += "-fmudflapth" ;
-      }
-      else {
-        errors.error "an internal error." ;
-      }
-    }
-    else if [ is-clang $(compiler) ] {
-      result += "-faddress-sanitizer" ;
-    }
-    else if [ is-icc $(compiler) ] {
-      result += "-ftrapuv" ;
-      result += "-check-pointers=rw" ;
-      result += "-check-pointers-dangling=all" ;
-      result += "-check-pointers-undimensioned" ;
-    }
-    else {
-      errors.error "an internal error." ;
-    }
-  }
-  else {
-    errors.error "an internal error." ;
-  }
-
-  return "$(result:J= )" ;
-}
-
-rule get-cxx ( prefix : properties * : gcc-for-clang ? )
-{
-  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
-  if ! [ is-valid "$(compiler)" ]
-  {
-    errors.error "an internal error." ;
-  }
-  local prefix-leaf = [ get-prefix-leaf $(properties) ] ;
-  local compiler-prefix = "$(prefix)/$(prefix-leaf)" ;
-  local result ;
-  if ! [ is-builtin-gcc $(compiler) ]
-  {
-    if [ is-gcc $(compiler) ]
-    {
-      result = "$(compiler-prefix)/bin/g++-wrapper" ;
-    }
-    else if [ is-clang $(compiler) ]
-    {
-      result = "$(compiler-prefix)/bin/clang++-wrapper" ;
-    }
-    else if [ is-icc $(compiler) ]
-    {
-      result = "$(compiler-prefix)/bin/icpc-wrapper" ;
-    }
-    else
-    {
-      errors.error "an internal error." ;
-    }
-  }
-  return "$(result)" ;
-}
-
-rule get-cxxflags ( properties * )
-{
-  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
-  local result ;
-
-  local variant = [ feature.get-values <variant> : $(properties) ] ;
   if "$(variant)" = "debug" {
     result += "-O0" ;
     result += "-g" ;
+    if [ is-gcc "$(compiler)" ] {
+      result += "-fvar-tracking" ;
+      result += "-fvar-tracking-assignments" ;
+    }
+    else if [ is-clang "$(compiler)" ] {
+      # Do nothing.
+    }
+    else if [ is-icc "$(compiler)" ] {
+      result += "-debug full" ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
     result += "-fno-inline" ;
+    result += "-rdynamic" ;
   }
   else if "$(variant)" = "release" {
     result += "-O3" ;
@@ -1575,17 +1410,6 @@ rule get-cxxflags ( properties * )
   }
   else {
     errors.error "an internal error" ;
-  }
-
-  local runtime-link = [ feature.get-values <runtime-link> : $(properties) ] ;
-  if "$(runtime-link)" = "shared" {
-    # Do nothing.
-  }
-  else if "$(runtime-link)" = "static" {
-    result += "-static-libstdc++" ;
-  }
-  else {
-    errors.error "an internal error." ;
   }
 
   local address-model = [ feature.get-values <intro-address-model-hidden> : $(properties) ] ;
@@ -1609,6 +1433,7 @@ rule get-cxxflags ( properties * )
   else if "$(instruction-set)" = "native" {
     if [ is-gcc "$(compiler)" ] || [ is-clang "$(compiler)" ] {
       result += "-march=native" ;
+      result += "-mtune=native" ;
     }
     else if [ is-icc "$(compiler)" ] {
       result += "-xHost" ;
@@ -1616,25 +1441,6 @@ rule get-cxxflags ( properties * )
     else {
       errors.error "an internal error." ;
     }
-  }
-  else {
-    errors.error "an internal error." ;
-  }
-
-  local std = [ feature.get-values <std> : $(properties) ] ;
-  if "$(std)" = "c++03" {
-    if [ is-gcc "$(compiler)" ] || [ is-clang "$(compiler)" ] {
-      result += "-std=c++03" ;
-    }
-    else if [ is-icc "$(compiler)" ] {
-      # ICC does not have either `-std=c++98' or `-std=c++03'.
-    }
-    else {
-      errors.error "an internal error." ;
-    }
-  }
-  else if "$(std)" = "c++11" {
-    result += "-std=c++11" ;
   }
   else {
     errors.error "an internal error." ;
@@ -1691,12 +1497,240 @@ rule get-cxxflags ( properties * )
   }
   else if "$(memory-checker)" = "on" {
     if [ is-gcc "$(compiler)" ] {
-      local threading = [ get-values <threading> : $(properties) ] ;
+      local threading = [ feature.get-values <threading> : $(properties) ] ;
       if "$(threading)" = "single" {
         result += "-fmudflap" ;
+        result += "-lmudflap" ;
       }
       else if "$(threading)" = "multi" {
         result += "-fmudflapth" ;
+        result += "-lmudflapth" ;
+        result += "-pthread" ;
+      }
+      else {
+        errors.error "an internal error." ;
+      }
+    }
+    else if [ is-clang "$(compiler)" ] {
+      result += "-faddress-sanitizer" ;
+    }
+    else if [ is-icc "$(compiler)" ] {
+      result += "-ftrapuv" ;
+      result += "-check-pointers=rw" ;
+      result += "-check-pointers-dangling=all" ;
+      result += "-check-pointers-undimensioned" ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+
+  return "$(result:J= )" ;
+}
+
+rule get-cxx ( prefix : properties * : gcc-for-clang ? )
+{
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
+  if ! [ is-valid "$(compiler)" ] {
+    errors.error "an internal error." ;
+  }
+  local prefix-leaf = [ get-prefix-leaf $(properties) ] ;
+  local compiler-prefix = "$(prefix)/$(prefix-leaf)" ;
+  local result ;
+  if ! [ is-builtin-gcc "$(compiler)" ] {
+    if [ is-gcc "$(compiler)" ] {
+      result = "$(compiler-prefix)/bin/g++-wrapper" ;
+    }
+    else if [ is-clang "$(compiler)" ] {
+      result = "$(compiler-prefix)/bin/clang++-wrapper" ;
+    }
+    else if [ is-icc "$(compiler)" ] {
+      result = "$(compiler-prefix)/bin/icpc-wrapper" ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
+  }
+  return "$(result)" ;
+}
+
+rule get-cxxflags ( properties * )
+{
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
+  local result ;
+
+  local variant = [ feature.get-values <variant> : $(properties) ] ;
+  if "$(variant)" = "debug" {
+    result += "-O0" ;
+    result += "-g" ;
+    if [ is-gcc "$(compiler)" ] {
+      result += "-fvar-tracking" ;
+      result += "-fvar-tracking-assignments" ;
+    }
+    else if [ is-clang "$(compiler)" ] {
+      # Do nothing.
+    }
+    else if [ is-icc "$(compiler)" ] {
+      result += "-debug full" ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
+    result += "-fno-inline" ;
+    result += "-rdynamic" ;
+  }
+  else if "$(variant)" = "release" {
+    result += "-O3" ;
+    result += "-finline-functions" ;
+    result += "-Wno-inline" ;
+  }
+  else if "$(variant)" = "profile" {
+    result += "-O3" ;
+    result += "-finline-functions" ;
+    result += "-Wno-inline" ;
+    result += "-g" ;
+    result += "-pg" ;
+  }
+  else {
+    errors.error "an internal error" ;
+  }
+
+  local runtime-link = [ feature.get-values <runtime-link> : $(properties) ] ;
+  if "$(runtime-link)" = "shared" {
+    # Do nothing.
+  }
+  else if "$(runtime-link)" = "static" {
+    result += "-static-libstdc++" ;
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+
+  local address-model = [ feature.get-values <intro-address-model-hidden> : $(properties) ] ;
+  if "$(address-model)" = "unspecified" {
+    # Do nothing.
+  }
+  else if "$(address-model)" = "64" {
+    result += "-m64" ;
+  }
+  else if "$(address-model)" = "32" {
+    result += "-m32" ;
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+
+  local instruction-set = [ feature.get-values <intro-instruction-set-hidden> : $(properties) ] ;
+  if "$(instruction-set)" = "unspecified" {
+    # Do nothing.
+  }
+  else if "$(instruction-set)" = "native" {
+    if [ is-gcc "$(compiler)" ] || [ is-clang "$(compiler)" ] {
+      result += "-march=native" ;
+      result += "-mtune=native" ;
+    }
+    else if [ is-icc "$(compiler)" ] {
+      result += "-xHost" ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+
+  local std = [ feature.get-values <std> : $(properties) ] ;
+  if "$(std)" = "c++03" {
+    if [ is-gcc "$(compiler)" ] || [ is-clang "$(compiler)" ] {
+      result += "-std=c++03" ;
+    }
+    else if [ is-icc "$(compiler)" ] {
+      # ICC does not have either `-std=c++98' or `-std=c++03'.
+    }
+    else {
+      errors.error "an internal error." ;
+    }
+  }
+  else if "$(std)" = "c++11" {
+    if [ is-gcc "$(compiler)" ] {
+      # GCC 4.6.x does not support `-std=c++11'.
+      result += "-std=c++0x" ;
+    }
+    else if [ is-clang "$(compiler)" ] || [ is-icc "$(compiler)" ] {
+      result += "-std=c++11" ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+
+  local lto = [ feature.get-values <lto> : $(properties) ] ;
+  if "$(lto)" = "off" {
+    # Do nothing.
+  }
+  else if "$(lto)" = "on" {
+    if [ is-gcc "$(compiler)" ] || [ is-clang "$(compiler)" ] {
+      result += "-flto" ;
+    }
+    else if [ is-icc "$(compiler)" ] {
+      result += "-ipo" ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+
+  local correct-call-stack = [ feature.get-values <correct-call-stack> : $(properties) ] ;
+  if "$(correct-call-stack)" = "off" {
+    # Do nothing.
+  }
+  else if "$(correct-call-stack)" = "on" {
+    result += "-fno-omit-frame-pointer" ;
+    result += "-fno-optimize-sibling-calls" ;
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+
+  local ssp = [ feature.get-values <ssp> : $(properties) ] ;
+  if "$(ssp)" = "off" {
+    # Do nothing.
+  }
+  else if "$(ssp)" = "on" {
+    result += "-fstack-protector" ;
+  }
+  else if "$(ssp)" = "all" {
+    result += "-fstack-protector-all" ;
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+
+  local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
+  if "$(memory-checker)" = "off" {
+    # Do nothing.
+  }
+  else if "$(memory-checker)" = "on" {
+    if [ is-gcc "$(compiler)" ] {
+      local threading = [ feature.get-values <threading> : $(properties) ] ;
+      if "$(threading)" = "single" {
+        result += "-fmudflap" ;
+        result += "-lmudflap" ;
+      }
+      else if "$(threading)" = "multi" {
+        result += "-fmudflapth" ;
+        result += "-lmudflapth" ;
+        result += "-pthread" ;
       }
       else {
         errors.error "an internal error." ;
@@ -1840,6 +1874,22 @@ rule get-environment-commands ( prefix : properties * )
   commands += "export CPATH" ;
   commands += "LIBRARY_PATH=\"$(libdir)${LIBRARY_PATH:+:$LIBRARY_PATH}\"" ;
   commands += "export LIBRARY_PATH" ;
+  local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
+  local mudflap ;
+  if [ is-gcc "$(compiler)" ] && "$(memory-checker)" = "on" {
+    mudflap = "on" ;
+  }
+  if "$(mudflap)" = "on" {
+    commands += "MUDFLAP_OPTIONS='-viol-abort -print-leaks -check-initialization'" ;
+    commands += "export MUDFLAP_OPTIONS" ;
+  }
+  local lto = [ feature.get-values <lto> : $(properties) ] ;
+  if [ is-icc "$(compiler)" ] {
+    commands += "AR='/opt/intel/bin/xiar'" ;
+    commands += "export AR" ;
+    commands += "LD='/opt/intel/bin/xild'" ;
+    commands += "export LD" ;
+  }
   commands = "$(commands:J=\n)" ;
   return "$(commands)" ;
 }
