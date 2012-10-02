@@ -250,13 +250,21 @@ rule make-install ( targets * : sources * : properties * )
   local cflags = [ get-cflags $(properties) ] ;
   if "$(cflags)" {
     if "$(variant)" != "debug" {
-      if [ is-gcc "$(compiler)" ] && "$(variant)" = "profile" {
-        # `-pg' and `-fomit-frame-pointer' are incompatible for GCC.
+      if [ is-gcc "$(compiler)" ] || [ is-clang "$(compiler)" ] {
+        if [ is-gcc "$(compiler)" ] && "$(variant)" = "profile" {
+          # `-pg' and `-fomit-frame-pointer' are incompatible for GCC.
+        }
+        else {
+          cflags = "$(cflags) -fomit-frame-pointer" ;
+        }
+        cflags = "$(cflags) -malign-double -fstrict-aliasing -ffast-math" ;
+      }
+      else if [ is-icc "$(compiler)" ] {
+        cflags = "$(cflags) -ansi-alias" ;
       }
       else {
-        cflags = "$(cflags) -fomit-frame-pointer" ;
+        errors.error "an internal error." ;
       }
-      cflags = "$(cflags) -malign-double -fstrict-aliasing -ffast-math" ;
     }
     CFLAGS on $(targets) = "$(cflags)" ;
     OPTIONS on $(targets) += "CFLAGS='@$(objdir-native)/cflags'" ;
@@ -269,13 +277,21 @@ rule make-install ( targets * : sources * : properties * )
   local cxxflags = [ get-cxxflags $(properties) ] ;
   if "$(cxxflags)" {
     if "$(variant)" != "debug" {
-      if [ is-gcc "$(compiler)" ] && "$(variant)" = "profile" {
-        # `-pg' and `-fomit-frame-pointer' are incompatible for GCC.
+      if [ is-gcc "$(compiler)" ] || [ is-clang "$(compiler)" ] {
+        if [ is-gcc "$(compiler)" ] && "$(variant)" = "profile" {
+          # `-pg' and `-fomit-frame-pointer' are incompatible for GCC.
+        }
+        else {
+          cxxflags = "$(cxxflags) -fomit-frame-pointer" ;
+        }
+        cxxflags = "$(cxxflags) -malign-double -fstrict-aliasing -ffast-math" ;
+      }
+      else if [ is-icc "$(compiler)" ] {
+        cxxflags = "$(cxxflags) -ansi-alias" ;
       }
       else {
-        cxxflags = "$(cxxflags) -fomit-frame-pointer" ;
+        errors.error "an internal error." ;
       }
-      cxxflags = "$(cxxflags) -malign-double -fstrict-aliasing -ffast-math" ;
     }
     CXXFLAGS on $(targets) = "$(cxxflags)" ;
     OPTIONS on $(targets) += "CXXFLAGS='@$(objdir-native)/cxxflags'" ;
