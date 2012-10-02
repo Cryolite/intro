@@ -1580,6 +1580,7 @@ rule get-cxxflags ( properties * )
       errors.error "an internal error." ;
     }
     result += "-fno-inline" ;
+    result += "-rdynamic" ;
   }
   else if "$(variant)" = "release" {
     result += "-O3" ;
