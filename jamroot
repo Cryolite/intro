@@ -305,15 +305,29 @@ for local enabled-compiler in $(enabled-compilers) {
 }
 
 
-local multitarget = [ option.get "enable-multitarget" : "yes" : "yes" ] ;
-if ! "$(multitarget)" in no yes {
+local multitarget = [ option.get "enable-multitarget" : "IMPLIED" : "yes" ] ;
+if ! "$(multitarget)" in IMPLIED no yes {
   errors.error "ERROR: `$(multitarget)' is a wrong value for `--enable-multitarget' option." ;
 }
 if [ option.get "disable-multitarget" : "IMPLIED" : "IMPLIED" ] != "IMPLIED" {
   errors.error "no value for `--disable-multitarget' is allowed." ;
 }
-if "$(multitarget)" = "yes" && [ option.get "disable-multitarget" : : "IMPLIED" ] = "IMPLIED" {
-  errors.error "ERROR: both `--enable-multitarget' and `--disable-multitarget' are specified." ;
+if [ option.get "disable-multitarget" : : "IMPLIED" ] = "IMPLIED" {
+  if "$(multitarget)" = "yes" {
+    errors.error "ERROR: both `--enable-multitarget' and `--disable-multitarget' are specified." ;
+  }
+  else if "$(multitarget)" = "no" {
+    # Do nothing.
+  }
+  else if "$(multitarget)" = "IMPLIED" {
+    multitarget = "no" ;
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+}
+if "$(multitarget)" = "IMPLIED" {
+  multitarget = "yes" ;
 }
 ECHO multitarget... $(multitarget) ;
 
