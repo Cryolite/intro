@@ -180,7 +180,8 @@ rule make-install ( targets * : sources * : properties * )
   SRCDIR on $(targets) = [ path.native "$(srcdir)" ] ;
 
   local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
-  OBJDIR on $(targets) = [ path.native "$(objdir)" ] ;
+  local objdir-native = [ path.native "$(objdir)" ] ;
+  OBJDIR on $(targets) = "$(objdir-native)" ;
 
   OPTIONS on $(targets) = ;
 
@@ -249,23 +250,16 @@ rule make-install ( targets * : sources * : properties * )
   local cflags = [ get-cflags $(properties) ] ;
   if "$(cflags)" {
     if "$(variant)" != "debug" {
-      if [ is-gcc "$(compiler)" ] {
-        # When linking in the build of isl, `-fomit-frame-pointer',
-        # `-fstrict-aliasing' and `-ffast-math' are cut from command lines.
-        # It is not desirable because these options may be significant even
-        # when linking if `-flto' is specified. So, `-Ofast', which implies
-        # the above-mentioned three options, is used instread.
-        cflags = "$(cflags) -Ofast -malign-double" ;
-      }
-      else if [ is-clang "$(compiler)" ] || [ is-icc "$(compiler)" ] {
-        # FIXME: Likewise as above?
-        cflags = "$(cflags) -fomit-frame-pointer -malign-double -fstrict-aliasing -ffast-math" ;
+      if [ is-gcc "$(compiler)" ] && "$(variant)" = "profile" {
+        # `-pg' and `-fomit-frame-pointer' are incompatible for GCC.
       }
       else {
-        errors.error "an internal error." ;
+        cflags = "$(cflags) -fomit-frame-pointer" ;
       }
+      cflags = "$(cflags) -malign-double -fstrict-aliasing -ffast-math" ;
     }
-    OPTIONS on $(targets) += "CFLAGS='$(cflags)'" ;
+    CFLAGS on $(targets) = "$(cflags)" ;
+    OPTIONS on $(targets) += "CFLAGS='@$(objdir-native)/cflags'" ;
   }
 
   local cxx = [ get-cxx "$(PREFIX)" : $(properties) ] ;
@@ -275,19 +269,16 @@ rule make-install ( targets * : sources * : properties * )
   local cxxflags = [ get-cxxflags $(properties) ] ;
   if "$(cxxflags)" {
     if "$(variant)" != "debug" {
-      if [ is-gcc "$(compiler)" ] {
-        # See the comments for `cflags'.
-        cxxflags = "$(cxxflags) -Ofast -malign-double" ;
-      }
-      else if [ is-clang "$(compiler)" ] || [ is-icc "$(compiler)" ] {
-        # See the comments for `cflags'.
-        cxxflags = "$(cxxflags) -fomit-frame-pointer -malign-double -fstrict-aliasing -ffast-math" ;
+      if [ is-gcc "$(compiler)" ] && "$(variant)" = "profile" {
+        # `-pg' and `-fomit-frame-pointer' are incompatible for GCC.
       }
       else {
-        errors.error "an internal error." ;
+        cxxflags = "$(cxxflags) -fomit-frame-pointer" ;
       }
+      cxxflags = "$(cxxflags) -malign-double -fstrict-aliasing -ffast-math" ;
     }
-    OPTIONS on $(targets) += "CXXFLAGS='$(cxxflags)'" ;
+    CXXFLAGS on $(targets) = "$(cxxflags)" ;
+    OPTIONS on $(targets) += "CXXFLAGS='@$(objdir-native)/cxxflags'" ;
   }
 
   local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
@@ -314,6 +305,9 @@ actions make-install
   { mkdir -p '$(OBJDIR)' && ( cd '$(OBJDIR)' && rm -rf * ); } || exit 1
 
   $(ENVIRONMENT_COMMANDS)
+
+  ( cd '$(OBJDIR)' && echo -n '$(CFLAGS)' > cflags ) || exit 1
+  ( cd '$(OBJDIR)' && echo -n '$(CXXFLAGS)' > cxxflags ) || exit 1
 
   if [ -n '$(STREAM)' ]; then
     ( cd '$(OBJDIR)' && '$(SRCDIR)/configure' $(OPTIONS) >> '$(STREAM)' 2>&1 )
