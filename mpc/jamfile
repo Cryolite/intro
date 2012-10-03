@@ -190,7 +190,8 @@ rule make-install ( targets * : sources * : properties * )
   SRCDIR on $(targets) = [ path.native "$(srcdir)" ] ;
 
   local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
-  OBJDIR on $(targets) = [ path.native "$(objdir)" ] ;
+  local objdir-native = [ path.native "$(objdir)" ] ;
+  OBJDIR on $(targets) = "$(objdir-native)" ;
 
   OPTIONS on $(targets) = ;
 
@@ -218,14 +219,27 @@ rule make-install ( targets * : sources * : properties * )
   OPTIONS on $(targets) += "--build=$(build-triplet)" ;
   OPTIONS on $(targets) += "--host=$(host-triplet)" ;
 
+  local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
+  local mudflap = "off" ;
+  if [ is-gcc "$(compiler)" ] && "$(memory-checker)" = "on" {
+    mudflap = "on" ;
+  }
+
   # Set the link variants for `configure' script.
-  if "$(host-triplet)" = "x86_64-w64-mingw32" || "$(host-triplet)" = "i686-w64-mingw32" || "$(host-triplet)" = "i686-pc-cygwin" {
-    OPTIONS on $(targets) += "--enable-shared" ;
-    OPTIONS on $(targets) += "--disable-static" ;
+  if "$(mudflap)" = "on" {
+    OPTIONS on $(targets) += "--disable-shared" ;
+    OPTIONS on $(targets) += "--enable-static" ;
+    OPTIONS on $(targets) += "--without-pic" ;
   }
   else {
-    OPTIONS on $(targets) += "--enable-shared" ;
-    OPTIONS on $(targets) += "--enable-static" ;
+    if "$(host-triplet)" = "x86_64-w64-mingw32" || "$(host-triplet)" = "i686-w64-mingw32" || "$(host-triplet)" = "i686-pc-cygwin" {
+      OPTIONS on $(targets) += "--enable-shared" ;
+      OPTIONS on $(targets) += "--disable-static" ;
+    }
+    else {
+      OPTIONS on $(targets) += "--enable-shared" ;
+      OPTIONS on $(targets) += "--enable-static" ;
+    }
   }
 
   local cc = [ get-cc "$(PREFIX)" : $(properties) ] ;
@@ -233,37 +247,41 @@ rule make-install ( targets * : sources * : properties * )
   OPTIONS on $(targets) += "CC='$(cc-native)'" ;
 
   local lto = [ feature.get-values <lto> : $(properties) ] ;
+
   # Default `CFLAGS' seems `-g -O2'.
   local cflags = [ get-cflags $(properties) ] ;
   if "$(cflags)" {
-    if "$(lto)" = "off" {
-      cflags = "$(cflags) -g" ;
-    }
-    else if "$(lto)" = "on" {
-      # Do nothing.
-    }
-    else {
-      errors.error "an internal error." ;
-    }
-    OPTIONS on $(targets) += "CFLAGS='$(cflags)'" ;
+    #if "$(lto)" = "off" {
+    #  cflags = "$(cflags) -g" ;
+    #}
+    #else if "$(lto)" = "on" {
+    #  # Do nothing.
+    #}
+    #else {
+    #  errors.error "an internal error." ;
+    #}
+    CFLAGS on $(targets) = "$(cflags)" ;
+    OPTIONS on $(targets) += "CFLAGS='@$(objdir-native)/cflags'" ;
   }
 
+  # `CXX' and `CXXFLAGS' are not used for MPFR build.
   local cxx = [ get-cxx "$(PREFIX)" : $(properties) ] ;
   local cxx-native = [ path.native "$(cxx)" ] ;
   OPTIONS on $(targets) += "CXX='$(cxx-native)'" ;
 
   local cxxflags = [ get-cxxflags $(properties) ] ;
   if "$(cxxflags)" {
-    if "$(lto)" = "off" {
-      cxxflags = "$(cxxflags) -g" ;
-    }
-    else if "$(lto)" = "on" {
-      # Do nothing.
-    }
-    else {
-      errors.error "an internal error" ;
-    }
-    OPTIONS on $(targets) += "CXXFLAGS='$(cxxflags)'" ;
+    #if "$(lto)" = "off" {
+    #  cxxflags = "$(cxxflags) -g" ;
+    #}
+    #else if "$(lto)" = "on" {
+    #  # Do nothing.
+    #}
+    #else {
+    #  errors.error "an internal error" ;
+    #}
+    CXXFLAGS on $(targets) = "$(cxxflags)" ;
+    OPTIONS on $(targets) += "CXXFLAGS='@$(objdir-native)/cxxflags'" ;
   }
 
   local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
@@ -284,6 +302,9 @@ actions make-install
   { mkdir -p '$(OBJDIR)' && ( cd '$(OBJDIR)' && rm -rf * ); } || exit 1
 
   $(ENVIRONMENT_COMMANDS)
+
+  ( cd '$(OBJDIR)' && echo -n '$(CFLAGS)' > cflags ) || exit 1
+  ( cd '$(OBJDIR)' && echo -n '$(CXXFLAGS)' > cxxflags ) || exit 1
 
   if [ -n '$(STREAM)' ]; then
     ( cd '$(OBJDIR)' && '$(SRCDIR)/configure' $(OPTIONS) >> '$(STREAM)' 2>&1 )

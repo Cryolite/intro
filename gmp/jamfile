@@ -178,7 +178,8 @@ rule make-install ( targets * : sources * : properties * )
   SRCDIR on $(targets) = [ path.native "$(srcdir)" ] ;
 
   local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
-  OBJDIR on $(targets) = [ path.native "$(objdir)" ] ;
+  local objdir-native = [ path.native "$(objdir)" ] ;
+  OBJDIR on $(targets) = "$(objdir-native)" ;
 
   OPTIONS on $(targets) = ;
 
@@ -248,7 +249,9 @@ rule make-install ( targets * : sources * : properties * )
 
   local cflags = [ get-cflags $(properties) ] ;
   if "$(cflags)" {
-    OPTIONS on $(targets) += "CFLAGS='$(cflags) -pedantic'" ;
+    cflags = "$(cflags) -pedantic" ;
+    CFLAGS on $(targets) = "$(cflags)" ;
+    OPTIONS on $(targets) += "CFLAGS='@$(objdir-native)/cflags'" ;
   }
 
   local cxx = [ get-cxx "$(PREFIX)" : $(properties) ] ;
@@ -257,7 +260,9 @@ rule make-install ( targets * : sources * : properties * )
 
   local cxxflags = [ get-cxxflags $(properties) ] ;
   if "$(cxxflags)" {
-    OPTIONS on $(targets) += "CXXFLAGS='$(cxxflags) -pedantic'" ;
+    cxxflags = "$(cxxflags) -pedantic" ;
+    CXXFLAGS on $(targets) = "$(cxxflags)" ;
+    OPTIONS on $(targets) += "CXXFLAGS='@$(objdir-native)/cxxflags'" ;
   }
 
   local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
@@ -284,6 +289,9 @@ actions make-install
   { mkdir -p '$(OBJDIR)' && ( cd '$(OBJDIR)' && rm -rf * ); } || exit 1
 
   $(ENVIRONMENT_COMMANDS)
+
+  ( cd '$(OBJDIR)' && echo -n '$(CFLAGS)' > cflags ) || exit 1
+  ( cd '$(OBJDIR)' && echo -n '$(CXXFLAGS)' > cxxflags ) || exit 1
 
   if [ -n '$(STREAM)' ]; then
     ( cd '$(OBJDIR)' && '$(SRCDIR)/configure' $(OPTIONS) >> '$(STREAM)' 2>&1 )

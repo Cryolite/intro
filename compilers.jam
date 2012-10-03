@@ -1380,7 +1380,21 @@ rule get-cflags ( properties * )
   if "$(variant)" = "debug" {
     result += "-O0" ;
     result += "-g" ;
+    if [ is-gcc "$(compiler)" ] {
+      result += "-fvar-tracking" ;
+      result += "-fvar-tracking-assignments" ;
+    }
+    else if [ is-clang "$(compiler)" ] {
+      # Do nothing.
+    }
+    else if [ is-icc "$(compiler)" ] {
+      result += "-debug full" ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
     result += "-fno-inline" ;
+    result += "-rdynamic" ;
   }
   else if "$(variant)" = "release" {
     result += "-O3" ;
@@ -1552,7 +1566,21 @@ rule get-cxxflags ( properties * )
   if "$(variant)" = "debug" {
     result += "-O0" ;
     result += "-g" ;
+    if [ is-gcc "$(compiler)" ] {
+      result += "-fvar-tracking" ;
+      result += "-fvar-tracking-assignments" ;
+    }
+    else if [ is-clang "$(compiler)" ] {
+      # Do nothing.
+    }
+    else if [ is-icc "$(compiler)" ] {
+      result += "-debug full" ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
     result += "-fno-inline" ;
+    result += "-rdynamic" ;
   }
   else if "$(variant)" = "release" {
     result += "-O3" ;
@@ -1628,7 +1656,16 @@ rule get-cxxflags ( properties * )
     }
   }
   else if "$(std)" = "c++11" {
-    result += "-std=c++11" ;
+    if [ is-gcc "$(compiler)" ] {
+      # GCC 4.6.x does not support `-std=c++11'.
+      result += "-std=c++0x" ;
+    }
+    else if [ is-clang "$(compiler)" ] || [ is-icc "$(compiler)" ] {
+      result += "-std=c++11" ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
   }
   else {
     errors.error "an internal error." ;
@@ -1837,13 +1874,21 @@ rule get-environment-commands ( prefix : properties * )
   commands += "export CPATH" ;
   commands += "LIBRARY_PATH=\"$(libdir)${LIBRARY_PATH:+:$LIBRARY_PATH}\"" ;
   commands += "export LIBRARY_PATH" ;
+  local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
   local mudflap ;
-  if [ is-gcc "$(compiler)" ] && [ feature.get-values <memory-checker> : $(properties) ] {
+  if [ is-gcc "$(compiler)" ] && "$(memory-checker)" = "on" {
     mudflap = "on" ;
   }
   if "$(mudflap)" = "on" {
     commands += "MUDFLAP_OPTIONS='-viol-abort -print-leaks -check-initialization'" ;
     commands += "export MUDFLAP_OPTIONS" ;
+  }
+  local lto = [ feature.get-values <lto> : $(properties) ] ;
+  if [ is-icc "$(compiler)" ] {
+    commands += "AR='/opt/intel/bin/xiar'" ;
+    commands += "export AR" ;
+    commands += "LD='/opt/intel/bin/xild'" ;
+    commands += "export LD" ;
   }
   commands = "$(commands:J=\n)" ;
   return "$(commands)" ;
