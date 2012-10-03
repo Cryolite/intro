@@ -598,7 +598,7 @@ rule get-compiler-description ( compiler )
   else if [ is-clang "$(compiler)" ] {
     if [ regex.match "^(clang-trunk-.+)" : "$(compiler)" : 1 ] {
       local backend-version = [ get-backend-version "$(compiler)" ] ;
-      result = "Clang trunk (libstdc++ $(backend-version))" ;
+      result = "Clang trunk + libstdc++ $(backend-version)" ;
     }
     else if [ regex.match "^(clang-.+)" : "$(compiler)" : 1 ] {
       local frontend-version = [ get-frontend-version "$(compiler)" ] ;
