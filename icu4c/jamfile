@@ -282,6 +282,10 @@ rule make-install ( targets * : sources * : properties * )
 
   local cflags = [ get-cflags $(properties) ] ;
   if "$(cflags)" {
+    if [ is-icc "$(compiler)" ] {
+      # Without the following option, some tests fail.
+      cflags = "$(cflags) -fp-model precise" ;
+    }
     CFLAGS on $(targets) = "$(cflags)" ;
     OPTIONS on $(targets) += "CFLAGS='@$(objdir-native)/cflags'" ;
   }
@@ -292,6 +296,10 @@ rule make-install ( targets * : sources * : properties * )
 
   local cxxflags = [ get-cxxflags $(properties) ] ;
   if "$(cxxflags)" {
+    if [ is-icc "$(compiler)" ] {
+      # Without the following option, some tests fail.
+      cxxflags = "$(cxxflags) -fp-model precise" ;
+    }
     CXXFLAGS on $(targets) = "$(cxxflags)" ;
     OPTIONS on $(targets) += "CXXFLAGS='@$(objdir-native)/cxxflags'" ;
   }
