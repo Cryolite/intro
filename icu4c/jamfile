@@ -298,10 +298,13 @@ actions make-install
 
   $(ENVIRONMENT_COMMANDS)
 
+  ( cd '$(OBJDIR)' && echo -n '$(CFLAGS)' > cflags ) || exit 1
+  ( cd '$(OBJDIR)' && echo -n '$(CXXFLAGS)' > cxxflags ) || exit 1
+
   if [ -n '$(STREAM)' ]; then
-    ( cd '$(OBJDIR)' && CFLAGS='$(CFLAGS)' CXXFLAGS='$(CXXFLAGS)' '$(SRCDIR)/source/runConfigureICU' $(OPTIONS) >> '$(STREAM)' 2>&1 )
+    ( cd '$(OBJDIR)' && CFLAGS='@$(OBJDIR)/cflags' CXXFLAGS='@$(OBJDIR)/cxxflags' '$(SRCDIR)/source/runConfigureICU' $(OPTIONS) >> '$(STREAM)' 2>&1 )
   else
-    ( cd '$(OBJDIR)' && CFLAGS='$(CFLAGS)' CXXFLAGS='$(CXXFLAGS)' '$(SRCDIR)/source/runConfigureICU' $(OPTIONS) )
+    ( cd '$(OBJDIR)' && CFLAGS='@$(OBJDIR)/cflags' CXXFLAGS='@$(OBJDIR)/cxxflags' '$(SRCDIR)/source/runConfigureICU' $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
     echo    "ERROR: failed to \`runConfigureICU' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
