@@ -585,6 +585,12 @@ rule make-install ( targets * : sources * : properties * )
   local rpath-opts = "$(rpath-opts:J= )" ;
   OPTIONS on $(targets) += "--with-extra-ld-options='$(rpath-opts)'" ;
 
+  local default-includedir = [ get-default-includedir "$(PREFIX)" : $(properties) ] ;
+  local default-includedir-native = [ path.native "$(default-includedir)" ] ;
+
+  # Enables LLVM gold plugin support. See http://llvm.org/docs/GoldPlugin.html.
+  OPTIONS on $(targets) += "--with-binutils-include='$(default-includedir-native)'" ;
+
   if [ is-clang "$(compiler)" ] {
     OPTIONS on $(targets) += "CC='$(bindir-native)/gcc-wrapper'" ;
   }
@@ -719,6 +725,28 @@ actions make-install
   rm -f '$(COMPILER_PREFIX)/bin/before-make-install' '$(COMPILER_PREFIX)/bin/after-make-install' || exit 1
   rm -f '$(COMPILER_PREFIX)/lib/before-make-install' '$(COMPILER_PREFIX)/lib/after-make-install' || exit 1
   rm -f '$(COMPILER_PREFIX)/include/before-make-install' '$(COMPILER_PREFIX)/include/after-make-install' || exit 1
+
+  # LLVM gold plugin should be placed in `lib'.
+  ( cd '$(COMPILER_PREFIX)/lib' && ln -sf '$(LIBDIR)/LLVMgold.so' . )
+  if [ $? -ne 0 ]; then
+    echo    "ERROR: failed to create a symlink to `LLVMgold.so' in `lib' for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to create a symlink to `LLVMgold.so' in `lib' for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." | $(AWACS)
+    exit 1
+  fi
+
+  # LLVM plugin for binutils tools (`ar' and `nm'). See http://llvm.org/docs/GoldPlugin.html.
+  ( cd '$(COMPILER_PREFIX)/lib' && mkdir -p bfd-plugins )
+  if [ $? -ne 0 ]; then
+    echo    "ERROR: failed to create `bfd-plugins' subdirectory in `lib' for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to create `bfd-plugins' subdirectory in `lib' for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." | $(AWACS)
+    exit 1
+  fi
+  ( cd '$(COMPILER_PREFIX)/lib/bfd-plugins' && ln -sf '$(LIBDIR)/LLVMgold.so' . )
+  if [ $? -ne 0 ]; then
+    echo    "ERROR: failed to create a symlink to `LLVMgold.so' in `lib/bfd-plugins' for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to create a symlink to `LLVMgold.so' in `lib/bfd-plugins' for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." | $(AWACS)
+    exit 1
+  fi
 
   install --mode=755 '$(INTRO_ROOT_DIR)/template/$(HOST_TRIPLET)/clang-wrapper' '$(INTRO_ROOT_DIR)/template/$(HOST_TRIPLET)/clang++-wrapper' '$(BINDIR)'
   if [ $? -ne 0 ]; then
