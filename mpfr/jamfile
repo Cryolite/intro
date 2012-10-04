@@ -248,6 +248,11 @@ rule make-install ( targets * : sources * : properties * )
     }
   }
 
+  # The following options are necessary for `libtool' to guess the correct
+  # include/library paths to installed GMP.
+  OPTIONS on $(targets) += "--with-gmp-include='$(includedir-native)'" ;
+  OPTIONS on $(targets) += "--with-gmp-lib='$(libdir-native)'" ;
+
   local cc = [ get-cc "$(PREFIX)" : $(properties) ] ;
   local cc-native = [ path.native "$(cc)" ] ;
   OPTIONS on $(targets) += "CC='$(cc-native)'" ;
