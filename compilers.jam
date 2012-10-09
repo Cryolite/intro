@@ -1085,6 +1085,8 @@ rule normalize-properties ( properties * )
   properties = [ property.change $(properties) : <openmpi> ] ;
   properties = [ property.change $(properties) : <mpi-backend-hidden> ] ;
   properties = [ property.change $(properties) : <mpi-backend> ] ;
+  properties = [ property.change $(properties) : <boost-hidden> ] ;
+  properties = [ property.change $(properties) : <boost> ] ;
   properties = [ property.change $(properties) : <clang-hidden> ] ;
   properties = [ property.change $(properties) : <clang> ] ;
   properties = [ property.change $(properties) : <valgrind-hidden> ] ;
