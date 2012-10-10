@@ -30,7 +30,7 @@ rule init ( root-dir )
 
   .root-dir = [ path.make "$(root-dir)" ] ;
 
-  .gcc-versions = [ SHELL "\"$(.root-dir)/gcc-release-versions.sh\" || echo -n error" ] ;
+  .gcc-versions = [ SHELL "\"$(.root-dir)/gcc-release-versions.sh\" 2> /dev/null || echo -n error" ] ;
   if "$(.gcc-versions)" = "error" {
     errors.error "failed to extract GCC release versions." ;
   }

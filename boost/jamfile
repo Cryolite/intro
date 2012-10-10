@@ -4,59 +4,40 @@ import alias ;
 import errors ;
 import feature ;
 import make ;
+import path ;
 import regex ;
-import "$(INTRO_ROOT_DIR)/compilers" ;
-
-
-rule assert-specified ( feature : properties * )
-{
-  local val = [ feature.get-values $(feature) : $(properties) ] ;
-  if $(val) = unspecified {
-    errors.error $(feature) is not specified for the Boost build. ;
-  }
-}
-
-rule assert-unspecified ( feature : properties * )
-{
-  local val = [ feature.get-values $(feature) : $(properties) ] ;
-  if $(val) != unspecified {
-    errors.error $(feature) is not valid for the Boost build. ;
-  }
-}
-
+import "$(INTRO_ROOT_DIR)/compilers"
+  : is-gcc
+    is-clang
+    is-icc
+    get-compiler-description
+    get-compiler-prefix
+    get-libdir
+    get-includedir
+    get-environment-commands
+    get-property-dump-commands
+  ;
 
 
 rule compiler-dep-req ( properties * )
 {
-  assert-specified   <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-specified   <multitarget-hidden> : $(properties) ;
-  assert-specified   <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <icu4c>              : $(properties) ;
-  assert-specified   <icu4c-hidden>       : $(properties) ;
-  assert-unspecified <mpi-backend>        : $(properties) ;
-  assert-unspecified <mpi-backend-hidden> : $(properties) ;
-  assert-unspecified <openmpi>            : $(properties) ;
-  assert-unspecified <openmpi-hidden>     : $(properties) ;
-  assert-unspecified <boost>              : $(properties) ;
-  assert-specified   <boost-hidden>       : $(properties) ;
-
-  local multitarget = [ feature.get-values <multitarget-hidden> : $(properties) ] ;
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
-  {
-    result = <source>../gcc//install/<multitarget>$(multitarget)/<multitarget-hidden>unspecified ;
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
+  local results ;
+  if [ is-gcc "$(compiler)" ] {
+    results += "<source>../gcc//install" ;
   }
-  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
-  {
-    result = <source>../clang//install ;
+  else if [ is-clang "$(compiler)" ] {
+    results += "<source>../gcc//install" ;
+    results += "<source>../clang//install" ;
   }
-  else
-  {
+  else if [ is-icc "$(compiler)" ] {
+    results += "<source>../gcc//install" ;
+    results += "<source>../icc//install" ;
+  }
+  else {
     errors.error "an internal error." ;
   }
-  return $(result) ;
+  return $(results) ;
 }
 
 alias compiler-dep : : <conditional>@compiler-dep-req ;
@@ -66,180 +47,169 @@ explicit compiler-dep ;
 
 rule openmpi-conditional ( properties * )
 {
-  assert-specified   <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-specified   <multitarget-hidden> : $(properties) ;
-  assert-specified   <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-  #assert-specified   <icu4c>              : $(properties) ;
-  assert-specified   <icu4c-hidden>       : $(properties) ;
-  assert-specified   <mpi-backend>        : $(properties) ;
-  assert-unspecified <mpi-backend-hidden> : $(properties) ;
-  #assert-specified   <openmpi>            : $(properties) ;
-  assert-unspecified <openmpi-hidden>     : $(properties) ;
-  #assert-specified   <boost>              : $(properties) ;
-  assert-specified   <boost-hidden>       : $(properties) ;
-
-  local openmpi = [ feature.get-values <openmpi> : $(properties) ] ;
-  local result ;
-  if $(openmpi) != unspecified
-  {
-    result += <source>../openmpi//install ;
-  }
-  return $(result) ;
-}
-
-for local compiler in $(COMPILERS)
-{
-  for local boost in $(BOOST_VERSIONS)
-  {
-    local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
-    local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-    local compiler-abi-tag = [ "$(INTRO_ROOT_DIR)/compilers.get-abi-tag" $(compiler) : $(GCC_FOR_CLANG) ] ;
-    local boost-abi-version = [ regex.match "^([0-9]+\\.[0-9]+)\\.[0-9]+$" : $(boost) : 1 ] ;
-    if ! $(boost-abi-version)
+  local mpi-backend = [ feature.get-values <mpi-backend> : $(properties) ] ;
+  local results ;
+  if "$(mpi-backend)" = "openmpi" {
+    local openmpi = [ feature.get-values <openmpi-hidden> : $(properties) ] ;
+    if "$(openmpi)" = "unspecified"
     {
       errors.error "an internal error." ;
     }
-    local boost-abi-tag = [ regex.replace $(boost-abi-version) "\\." "_" ] ;
-    make "$(compiler-prefix)/lib/libboost_regex-$(compiler-abi-tag)-$(boost-abi-tag).so.$(boost)"
-      : compiler-dep/<mpi-backend>unspecified/<openmpi>unspecified
-        ../icu4c//install/<mpi-backend>unspecified/<openmpi>unspecified
-        ../openmpi//install
-      : @install
-      : $(USE_ICU4C)
-        <conditional>@openmpi-conditional
-        $(USE_BOOST)
-      ;
-    explicit "$(compiler-prefix)/lib/libboost_regex-$(compiler-abi-tag)-$(boost-abi-tag).so.$(boost)" ;
+    results += "<source>../openmpi//install" ;
   }
+  return $(results) ;
 }
+
+alias openmpi-dep : : <conditional>@openmpi-conditional ;
+explicit openmpi-dep ;
+
+
+
+rule location-conditional ( properties * )
+{
+  local includedir = [ get-includedir "$(PREFIX)" : $(properties) ] ;
+  local version = [ feature.get-values <boost-hidden> : $(properties) ] ;
+  version = [ regex.match "([0-9]+\\.[0-9]+)\\.[0-9]+" : "$(version)" : 1 ] ;
+  if ! "$(version)" {
+    errors.error "an internal error." ;
+  }
+  version = [ regex.replace "$(version)" "\\." "_" ] ;
+  return "<location>$(includedir)/boost-$(version)/boost" ;
+}
+
+make version.hpp
+  : compiler-dep
+    ../icu4c//install
+    openmpi-dep
+  : @install
+  : $(USE_COMPILER)
+    $(USE_MULTITARGET)
+    $(USE_ICU4C)
+    $(USE_MPI_BACKEND)
+    $(USE_OPENMPI)
+    $(USE_BOOST)
+    $(USE_ADDRESS_MODEL)
+    $(USE_INSTRUCTION_SET)
+    <conditional>@location-conditional
+  ;
+explicit version.hpp ;
 
 rule install ( targets * : sources * : properties * )
 {
-  assert-specified   <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-specified   <multitarget-hidden> : $(properties) ;
-  assert-specified   <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-specified   <icu4c>              : $(properties) ;
-  assert-specified   <icu4c-hidden>       : $(properties) ;
-  assert-specified   <mpi-backend>        : $(properties) ;
-  assert-unspecified <mpi-backend-hidden> : $(properties) ;
-  #assert-specified   <openmpi>            : $(properties) ;
-  assert-unspecified <openmpi-hidden>     : $(properties) ;
-  assert-specified   <boost>              : $(properties) ;
-  assert-specified   <boost-hidden>       : $(properties) ;
-
-  local triplet = [ feature.get-values <triplet> : $(properties) ] ;
-  TRIPLET on $(targets) = $(triplet) ;
-
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local compiler-description = [ "$(INTRO_ROOT_DIR)/compilers.get-compiler-description" $(compiler) ] ;
+  local compiler-description = [ get-compiler-description "$(compiler)" ] ;
   COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
-
-  IS_GCC on $(targets) = 0 ;
-  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
-  {
-    IS_GCC on $(targets) = 1 ;
-  }
-
-  IS_CLANG on $(targets) = 0 ;
-  if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
-  {
-    IS_CLANG on $(targets) = 1 ;
-  }
 
   # Set 'BOOST_ROOT'.
   local version = [ feature.get-values <boost> : $(properties) ] ;
-  VERSION on $(targets) = $(version) ;
-  local boost-root = $(PREFIX)/boost/$(version) ;
-  BOOST_ROOT on $(targets) = $(boost-root) ;
+  VERSION on $(targets) = "$(version)" ;
+  local boost-root = "$(PREFIX)/boost/$(version)" ;
+  BOOST_ROOT on $(targets) = [ path.native "$(boost-root)" ] ;
 
-  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
-  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
+  local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
 
   OPTIONS on $(targets) = ;
 
-  OPTIONS on $(targets) += -sICU_PATH=\"$(compiler-prefix)\" ;
+  #OPTIONS on $(targets) += -sICU_PATH=\"$(compiler-prefix)\" ;
 
-  OPTIONS on $(targets) += "--stagedir=\"$(compiler-prefix)\"" ;
+  OPTIONS on $(targets) += "--prefix='$(compiler-prefix)'" ;
+
+  local libdir = [ get-libdir "$(PREFIX)" : $(properties) ] ;
+  local libdir-native = [ path.native "$(libdir)" ] ;
+  OPTIONS on $(targets) += "--libdir='$(libdir-native)'" ;
+
+  local includedir = [ get-includedir "$(PREFIX)" : $(properties) ] ;
+  local includedir-native = [ path.native "$(includedir)" ] ;
+  OPTIONS on $(targets) += "--includedir='$(includedir-native)'" ;
+
   OPTIONS on $(targets) += --build-type=complete ;
   OPTIONS on $(targets) += --layout=versioned ;
   OPTIONS on $(targets) += --without-locale ;
   OPTIONS on $(targets) += --without-mpi ;
 
-  if [ "$(INTRO_ROOT_DIR)/compilers.is-gcc" $(compiler) ]
-  {
-    OPTIONS on $(targets) += "toolset=`\"$(INTRO_ROOT_DIR)/boost/toolset.sh\" \"$(compiler-prefix)/bin/g++-wrapper\"`" ;
+  if [ is-gcc "$(compiler)" ] {
+    OPTIONS on $(targets) += "toolset=`'$(INTRO_ROOT_DIR)/boost/toolset.sh' '$(compiler-prefix)/bin/g++-wrapper'`" ;
   }
-  else if [ "$(INTRO_ROOT_DIR)/compilers.is-clang" $(compiler) ]
-  {
-    OPTIONS on $(targets) += "toolset=`\"$(INTRO_ROOT_DIR)/boost/toolset.sh\" \"$(compiler-prefix)/bin/clang++-wrapper\"`" ;
+  else if [ is-clang "$(compiler)" ] {
+    OPTIONS on $(targets) += "toolset=`'$(INTRO_ROOT_DIR)/boost/toolset.sh' '$(compiler-prefix)/bin/clang++-wrapper'`" ;
   }
-  else
-  {
+  else {
     errors.error "an internal error." ;
   }
 
-  OPTIONS on $(targets) += stage ;
+  local variant = [ feature.get-values <variant> : $(properties) ] ;
+  OPTIONS on $(targets) += "variant=$(variant)" ;
 
-  CLEANUP_COMMAND on $(targets) = "rm -rf \"$(boost-root)/bin.v2/libs/*/build/`\"$(INTRO_ROOT_DIR)/boost/toolset.sh\" \"$(compiler-prefix)/bin/g++-wrapper\"`\"" ;
+  OPTIONS on $(targets) += "runtime-link=shared" ;
+
+  local threading = [ feature.get-values <threading> : $(properties) ] ;
+  OPTIONS on $(targets) += "threading=$(threading)" ;
+
+  local std = [ feature.get-values <std> : $(properties) ] ;
+  OPTIONS on $(targets) += "std=$(std)" ;
+
+  local instruction-set = [ feature.get-values <intro-instruction-set> : $(properties) ] ;
+  if "$(instruction-set)" != "unspecified" {
+    OPTIONS on $(targets) += "instruction-set=$(instruction-set)" ;
+  }
+
+  local lto = [ feature.get-values <lto> : $(properties) ] ;
+  OPTIONS on $(targets) += "lto=$(lto)" ;
+  if "$(lto)" = "on" {
+    errors.error "TODO: unimplemented. `linkflags=...'" ;
+  }
+
+  local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
+  OPTIONS on $(targets) += "memory-checker=$(memory-checker)" ;
+  if "$(memory-checker)" = "on" {
+    errors.error "TODO: unimplemented. `cflags=... linkflags=...'" ;
+  }
+
+  local libstdcxx-debug-mode = [ feature.get-values <libstdc++-debug-mode> : $(properties) ] ;
+  OPTIONS on $(targets) += "libstdc++-debug-mode=$(libstdcxx-debug-mode)" ;
+
+  # The following options are necessary for Boost.Regex to guess ICU4C location.
+  OPTIONS on $(targets) += "include='$(includedir-native)'" ;
+  OPTIONS on $(targets) += "library-path='$(libdir-native)'" ;
+
+  OPTIONS on $(targets) += "install" ;
+
+  # FIXME: Are `CPATH' and `LIBRARY_PATH' necessary despite explicitly specified `include' and `library-path'?
+  local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
+  ENVIRONMENT_COMMANDS on $(targets) = "$(environment-commands)" ;
+
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions install
 {
-  if [ ! -x "$(BOOST_ROOT)/b2" ]; then
-    echo "ERROR: Boost $(VERSION) not found ($(COMPILER_DESCRIPTION), $(TRIPLET))." 1>&2
-    echo -n "ERROR: Boost $(VERSION) not found ($(COMPILER_DESCRIPTION), $(TRIPLET))." | $(AWACS)
+  $(PROPERTY_DUMP_COMMANDS)
+
+  if [ ! -x '$(BOOST_ROOT)/b2' ]; then
+    echo    "ERROR: Boost $(VERSION) not found ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: Boost $(VERSION) not found ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
 
-  '$(INTRO_ROOT_DIR)/boost/install.sh' $(TRIPLET) '$(COMPILER_DESCRIPTION)' $(IS_GCC) $(IS_CLANG) $(VERSION) $(CONCURRENCY) '$(AWACS)' '$(STREAM)' '$(BOOST_ROOT)' $(OPTIONS)
+  $(ENVIRONMENT_COMMANDS)
+
+  if [ -n '$(STREAM)' ]; then
+    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) $(OPTIONS) >> '$(STREAM)' 2>&1 )
+  else
+    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) $(OPTIONS) )
+  fi
   if [ $? -ne 0 ]; then
-    touch --no-create --date='2000/1/1' "$(<)"
+    echo    "ERROR: failed to build Boost $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to build Boost $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
 
-  [ -x "$(<)" ] || exit 1
+  [ -f '$(<)' ] || exit 1
 
-  # Clean up the build directory.
-  $(CLEANUP_COMMAND)
-
-  echo -n "Boost $(VERSION) ($(COMPILER_DESCRIPTION), $(TRIPLET)) was successfully built." | $(AWACS)
+  echo -n "Boost $(VERSION) ($(COMPILER_DESCRIPTION)) was successfully built." | $(AWACS)
   exit 0
 }
 
 
 
-rule install-req ( properties * )
-{
-  assert-specified   <triplet>            : $(properties) ;
-  assert-unspecified <multitarget>        : $(properties) ;
-  assert-specified   <multitarget-hidden> : $(properties) ;
-  assert-specified   <compiler>           : $(properties) ;
-  assert-unspecified <compiler-hidden>    : $(properties) ;
-  assert-unspecified <icu4c>              : $(properties) ;
-  assert-specified   <icu4c-hidden>       : $(properties) ;
-  assert-specified   <mpi-backend>        : $(properties) ;
-  assert-unspecified <mpi-backend-hidden> : $(properties) ;
-  #assert-specified   <openmpi>            : $(properties) ;
-  assert-unspecified <openmpi-hidden>     : $(properties) ;
-  assert-unspecified <boost>              : $(properties) ;
-  assert-specified   <boost-hidden>       : $(properties) ;
-
-  local version = [ feature.get-values <boost-hidden> : $(properties) ] ;
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local prefix-leaf = [ "$(INTRO_ROOT_DIR)/compilers.get-prefix-leaf" $(compiler) : $(GCC_FOR_CLANG) ] ;
-  local compiler-prefix = "$(PREFIX)/$(prefix-leaf)" ;
-  local compiler-abi-tag = [ "$(INTRO_ROOT_DIR)/compilers.get-abi-tag" $(compiler) : $(GCC_FOR_CLANG) ] ;
-  local boost-abi-version = [ regex.match "^([0-9]+\\.[0-9]+)\\.[0-9]+$" : $(version) : 1 ] ;
-  if ! $(boost-abi-version)
-  {
-    errors.error "an internal error." ;
-  }
-  local boost-abi-tag = [ regex.replace $(boost-abi-version) "\\." "_" ] ;
-  return <source>"$(compiler-prefix)/lib/libboost_regex-$(compiler-abi-tag)-$(boost-abi-tag).so.$(version)" ;
-}
-
-alias install : : <conditional>@install-req ;
+alias install : version.hpp ;
 explicit install ;
