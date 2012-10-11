@@ -77,9 +77,9 @@ if [ ${is_link} -eq 0 ]; then
     exec "${bindir}/clang++" "$@"
 elif [ ${is_link} -eq 1 ]; then
     if [ ${bits} -eq 64 ]; then
-	exec "${bindir}/clang++" "$@" -Wl,"-rpath='${prefix}/lib64'" -Wl,"-rpath='${prefix}/lib'" -Wl,--enable-new-dtags
+	exec "${bindir}/clang++" "$@" -Wl,"-rpath=${prefix}/lib64" -Wl,"-rpath=${prefix}/lib" -Wl,--enable-new-dtags
     elif [ ${bits} -eq 32 ]; then
-	exec "${bindir}/clang++" "$@" -Wl,"-rpath='${prefix}/lib32'" -Wl,"-rpath='${prefix}/lib'" -Wl,--enable-new-dtags
+	exec "${bindir}/clang++" "$@" -Wl,"-rpath=${prefix}/lib32" -Wl,"-rpath=${prefix}/lib" -Wl,--enable-new-dtags
     else
 	echo "${0}: error: an internal error" 1>&2
 	exit 1

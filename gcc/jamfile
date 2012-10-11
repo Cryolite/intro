@@ -420,6 +420,16 @@ actions make-install
   # Clean up the objdir `$(OBJDIR)'.
   { mkdir -p '$(OBJDIR)' && ( cd '$(OBJDIR)' && rm -rf * ); } || exit 1
 
+  if [ '$(MULTITARGET)' = 'no' ]; then
+    if [ `uname --machine` = 'x86_64' ]; then
+      ( cd '$(COMPILER_PREFIX)' && ln -sfT lib lib64 ) || exit 1
+    elif [ `uname --machine` = 'x86' ]; then
+      ( cd '$(COMPILER_PREFIX)' && ln -sfT lib lib32 ) || exit 1
+    else
+      exit 1
+    fi
+  fi
+
   if [ -f /etc/debian_version ] && grep -Fq 'wheezy/sid' /etc/debian_version; then
     if [ `uname --machine` = 'x86_64' -a `uname --operating-system` = 'GNU/Linux' ]; then
       LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu${LIBRARY_PATH:+:$LIBRARY_PATH}

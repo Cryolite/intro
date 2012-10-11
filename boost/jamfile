@@ -172,6 +172,8 @@ rule install ( targets * : sources * : properties * )
   OPTIONS on $(targets) += "include='$(includedir-native)'" ;
   OPTIONS on $(targets) += "library-path='$(libdir-native)'" ;
 
+  OPTIONS on $(targets) += "dll-path='$(libdir-native)'" ;
+
   OPTIONS on $(targets) += "install" ;
 
   # FIXME: Are `CPATH' and `LIBRARY_PATH' necessary despite explicitly specified `include' and `library-path'?
