@@ -137,8 +137,24 @@ rule install ( targets * : sources * : properties * )
     errors.error "an internal error." ;
   }
 
+  local toolset = [ feature.get-values <toolset> : $(properties) ] ;
+
   local variant = [ feature.get-values <variant> : $(properties) ] ;
   OPTIONS on $(targets) += "variant=$(variant)" ;
+  if "$(variant)" = "debug" {
+    switch "$(toolset)" {
+    case "gcc" :
+      OPTIONS on $(targets) += "cflags='-fvar-tracking -fvar-tracking-assignments'" ;
+      OPTIONS on $(targets) += "linkflags='-fvar-tracking -fvar-tracking-assignments'" ;
+    case "clang" :
+      # Do nothing.
+    case "icc" :
+      OPTIONS on $(targets) += "cflags='-debug full'" ;
+      OPTIONS on $(targets) += "linkflags='-debug full'" ;
+    case "*" :
+      errors.error "an internal error." ;
+    }
+  }
 
   OPTIONS on $(targets) += "runtime-link=shared" ;
 
@@ -156,7 +172,30 @@ rule install ( targets * : sources * : properties * )
   local lto = [ feature.get-values <lto> : $(properties) ] ;
   OPTIONS on $(targets) += "lto=$(lto)" ;
   if "$(lto)" = "on" {
-    errors.error "TODO: unimplemented. `linkflags=...'" ;
+    switch "$(toolset)" {
+    case "gcc" :
+      OPTIONS on $(targets) += "cflags='-flto'" ;
+      OPTIONS on $(targets) += "linkflags='-flto'" ;
+    case "clang" :
+      OPTIONS on $(targets) += "cflags='-flto'" ;
+      OPTIONS on $(targets) += "linkflags='-flto'" ;
+    case "icc" :
+      OPTIONS on $(targets) += "cflags='-ipo'" ;
+      OPTIONS on $(targets) += "linkflags='-ipo'" ;
+    case "*" :
+      errors.error "an internal error." ;
+    }
+
+    switch "$(variant)" {
+    case "debug" :
+      OPTIONS on $(targets) += "linkflags='-O0'" ;
+    case "release" :
+      OPTIONS on $(targets) += "linkflags='-O3'" ;
+    case "profile" :
+      OPTIONS on $(targets) += "linkflags='-O3'" ;
+    case "*" :
+      errors.error "an internal error." ;
+    }
   }
 
   local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;

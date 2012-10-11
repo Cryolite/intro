@@ -1108,7 +1108,7 @@ alias boost_iostreams_libs
   : <library>boost_iostreams_link
     <link>static:<library>z.lib
     <link>static:<library>bz2.lib
-    <library>boost_iostream.lib
+    <library>boost_iostreams.lib
   ;
 
 
