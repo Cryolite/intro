@@ -1408,7 +1408,15 @@ rule get-cflags ( properties * )
     result += "-finline-functions" ;
     result += "-Wno-inline" ;
     result += "-g" ;
-    result += "-pg" ;
+    if [ is-gcc "$(compiler)" ] || [ is-clang "$(compiler)" ] {
+      result += "-pg" ;
+    }
+    else if [ is-icc "$(compiler)" ] {
+      result += "-p" ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
   }
   else {
     errors.error "an internal error" ;
@@ -1594,7 +1602,15 @@ rule get-cxxflags ( properties * )
     result += "-finline-functions" ;
     result += "-Wno-inline" ;
     result += "-g" ;
-    result += "-pg" ;
+    if [ is-gcc "$(compiler)" ] || [ is-clang "$(compiler)" ] {
+      result += "-pg" ;
+    }
+    else if [ is-icc "$(compiler)" ] {
+      result += "-p" ;
+    }
+    else {
+      errors.error "an internal error." ;
+    }
   }
   else {
     errors.error "an internal error" ;
