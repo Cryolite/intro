@@ -712,14 +712,14 @@ actions make-install
   mkdir -p '$(INCLUDEDIR)' || exit 1
 
   if [ '$(BINDIR)' != '$(COMPILER_PREFIX)/bin' ]; then
-    ( cd '$(COMPILER_PREFIX)/bin' && find . -mindepth 1 -maxdepth 1 -newer before-make-install -execdir [ '{}' -ot after-make-install ] \; -execdir mv '{}' '$(BINDIR)' \; ) || exit 1
+    ( cd '$(COMPILER_PREFIX)/bin' && find . -mindepth 1 -maxdepth 1 -newer before-make-install -execdir [ '{}' -ot after-make-install ] \; -execdir mv -f '{}' '$(BINDIR)' \; ) || exit 1
   fi
   if [ '$(LIBDIR)' != '$(COMPILER_PREFIX)/lib' ]; then
-    ( cd '$(COMPILER_PREFIX)/lib' && find . -mindepth 1 -maxdepth 1 -newer before-make-install -execdir [ '{}' -ot after-make-install ] \; -execdir mv '{}' '$(LIBDIR)' \; ) || exit 1
+    ( cd '$(COMPILER_PREFIX)/lib' && find . -mindepth 1 -maxdepth 1 -newer before-make-install -execdir [ '{}' -ot after-make-install ] \; -execdir mv -f '{}' '$(LIBDIR)' \; ) || exit 1
     ( cd '$(COMPILER_PREFIX)/lib' && ln -sfT '$(LIBDIR)/clang' clang ) || exit 1
   fi
   if [ '$(INCLUDEDIR)' != '$(COMPILER_PREFIX)/include' ]; then
-    ( cd '$(COMPILER_PREFIX)/include' && find . -mindepth 1 -maxdepth 1 -newer before-make-install -execdir [ '{}' -ot after-make-install ] \; -execdir mv '{}' '$(INCLUDEDIR)' \; ) || exit 1
+    ( cd '$(COMPILER_PREFIX)/include' && find . -mindepth 1 -maxdepth 1 -newer before-make-install -execdir [ '{}' -ot after-make-install ] \; -execdir mv -f '{}' '$(INCLUDEDIR)' \; ) || exit 1
   fi
 
   rm -f '$(COMPILER_PREFIX)/bin/before-make-install' '$(COMPILER_PREFIX)/bin/after-make-install' || exit 1
@@ -729,22 +729,22 @@ actions make-install
   # LLVM gold plugin should be placed in `lib'.
   ( cd '$(COMPILER_PREFIX)/lib' && ln -sf '$(LIBDIR)/LLVMgold.so' . )
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to create a symlink to `LLVMgold.so' in `lib' for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR: failed to create a symlink to `LLVMgold.so' in `lib' for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." | $(AWACS)
+    echo    "ERROR: failed to create a symlink to \`LLVMgold.so' in \`lib' for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to create a symlink to \`LLVMgold.so' in \`lib' for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
 
   # LLVM plugin for binutils tools (`ar' and `nm'). See http://llvm.org/docs/GoldPlugin.html.
   ( cd '$(COMPILER_PREFIX)/lib' && mkdir -p bfd-plugins )
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to create `bfd-plugins' subdirectory in `lib' for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR: failed to create `bfd-plugins' subdirectory in `lib' for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." | $(AWACS)
+    echo    "ERROR: failed to create \`bfd-plugins' subdirectory in \`lib' for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to create \`bfd-plugins' subdirectory in \`lib' for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
   ( cd '$(COMPILER_PREFIX)/lib/bfd-plugins' && ln -sf '$(LIBDIR)/LLVMgold.so' . )
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to create a symlink to `LLVMgold.so' in `lib/bfd-plugins' for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR: failed to create a symlink to `LLVMgold.so' in `lib/bfd-plugins' for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." | $(AWACS)
+    echo    "ERROR: failed to create a symlink to \`LLVMgold.so' in \`lib/bfd-plugins' for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR: failed to create a symlink to \`LLVMgold.so' in \`lib/bfd-plugins' for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
 

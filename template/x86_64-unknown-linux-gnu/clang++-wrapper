@@ -65,21 +65,25 @@ if [ ! -x "${bindir}/gcc" ]; then
   exit 1
 fi
 
-if [ ! -x "${bindir}/clang++" ]; then
-  echo "${0}: error: \`${bindir}/clang++': not found" 1>&2
-  exit 1
+if [ -x "${bindir}/clang++" ]; then
+    compiler_path="${bindir}/clang++"
+elif [ -x "${bindir}/x86_64-unknown-linux-gnu-clang++" ]; then
+    compiler_path="${bindir}/x86_64-unknown-linux-gnu-clang++"
+else
+    echo "${0}: error: \`clang++': not found" 1>&2
+    exit 1
 fi
 
 ulimit -S -t 300
 ulimit -S -m 2097152
 
 if [ ${is_link} -eq 0 ]; then
-    exec "${bindir}/clang++" "$@"
+    exec "$compiler_path" "$@"
 elif [ ${is_link} -eq 1 ]; then
     if [ ${bits} -eq 64 ]; then
-	exec "${bindir}/clang++" "$@" -Wl,"-rpath=${prefix}/lib64" -Wl,"-rpath=${prefix}/lib" -Wl,--enable-new-dtags
+	exec "$compiler_path" "$@" -Wl,"-rpath=${prefix}/lib64" -Wl,"-rpath=${prefix}/lib" -Wl,--enable-new-dtags
     elif [ ${bits} -eq 32 ]; then
-	exec "${bindir}/clang++" "$@" -Wl,"-rpath=${prefix}/lib32" -Wl,"-rpath=${prefix}/lib" -Wl,--enable-new-dtags
+	exec "$compiler_path" "$@" -Wl,"-rpath=${prefix}/lib32" -Wl,"-rpath=${prefix}/lib" -Wl,--enable-new-dtags
     else
 	echo "${0}: error: an internal error" 1>&2
 	exit 1

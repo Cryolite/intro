@@ -332,8 +332,9 @@ actions make-install
     ( cd '$(OBJDIR)' && '$(SRCDIR)/source/runConfigureICU' $(OPTIONS) )
   fi
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`runConfigureICU' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR: failed to \`runConfigureICU' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
+    mv '$(OBJDIR)' "$(INTRO_ROOT_DIR)/objdir_$$"
+    echo    "ERROR:$$: failed to \`runConfigureICU' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR:$$: failed to \`runConfigureICU' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
 
@@ -346,8 +347,9 @@ actions make-install
     ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) )
   fi
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`make' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR: failed to \`make' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
+    mv '$(OBJDIR)' "$(INTRO_ROOT_DIR)/objdir_$$"
+    echo    "ERROR:$$: failed to \`make' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR:$$: failed to \`make' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
 
@@ -363,8 +365,9 @@ actions make-install
       echo    "WARNING: failed to \`make check' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
       echo -n "WARNING: failed to \`make check' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
     else
-      echo    "ERROR: failed to \`make check' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
-      echo -n "ERROR: failed to \`make check' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
+      mv '$(OBJDIR)' "$(INTRO_ROOT_DIR)/objdir_$$"
+      echo    "ERROR:$$: failed to \`make check' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
+      echo -n "ERROR:$$: failed to \`make check' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
       exit 1
     fi
   fi
@@ -375,8 +378,9 @@ actions make-install
     ( cd '$(OBJDIR)' && make install )
   fi
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`make install' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR: failed to \`make install' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
+    mv '$(OBJDIR)' "$(INTRO_ROOT_DIR)/objdir_$$"
+    echo    "ERROR:$$: failed to \`make install' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
+    echo -n "ERROR:$$: failed to \`make install' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
     exit 1
   fi
 
