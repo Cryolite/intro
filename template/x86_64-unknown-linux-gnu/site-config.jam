@@ -23,7 +23,8 @@ local gcc-latest-paths ;
 local clang-paths ;
 local clang-latest-paths ;
 
-rule get-gcc-path ( ph ) {
+rule get-gcc-path ( ph )
+{
   local tmp = [ SHELL "[ -x \"$(ph)/bin/g++-wrapper\" ] && env LANG=C \"$(ph)/bin/g++-wrapper\" --version | head --lines=1" ] ;
   local ver-date = [ regex.match "([0-9]+\\.[0-9]+\\.[0-9]+) ([0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]) \\(((experimental)|(prerelease))\\)" : "$(tmp)" : 1 2 ] ;
   local result ;
@@ -47,7 +48,8 @@ rule get-gcc-path ( ph ) {
   return $(result) ;
 }
 
-rule get-clang-path ( ph ) {
+rule get-clang-path ( ph )
+{
   local tmp = [ SHELL "[ -x \"$(ph)/bin/clang++-wrapper\" ] && env LANG=C \"$(ph)/bin/clang++-wrapper\" --version | head --lines=1" ] ;
   local ver-rev = [ regex.match "^clang version ([0-9]+\\.[0-9]+) \\(trunk ([0-9]+)\\)" : "$(tmp)" : 1 2 ] ;
   local result ;
