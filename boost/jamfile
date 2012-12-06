@@ -139,13 +139,15 @@ rule install ( targets * : sources * : properties * )
 
   local toolset = [ feature.get-values <toolset> : $(properties) ] ;
 
+  local std = [ feature.get-values <std> : $(properties) ] ;
+  OPTIONS on $(targets) += "std=$(std)" ;
+
   local variant = [ feature.get-values <variant> : $(properties) ] ;
   OPTIONS on $(targets) += "variant=$(variant)" ;
   if "$(variant)" = "debug" {
     switch "$(toolset)" {
     case "gcc" :
-      OPTIONS on $(targets) += "cflags='-fvar-tracking -fvar-tracking-assignments'" ;
-      OPTIONS on $(targets) += "linkflags='-fvar-tracking -fvar-tracking-assignments'" ;
+      # Do nothing.
     case "clang" :
       # Do nothing.
     case "icc" :
@@ -160,9 +162,6 @@ rule install ( targets * : sources * : properties * )
 
   local threading = [ feature.get-values <threading> : $(properties) ] ;
   OPTIONS on $(targets) += "threading=$(threading)" ;
-
-  local std = [ feature.get-values <std> : $(properties) ] ;
-  OPTIONS on $(targets) += "std=$(std)" ;
 
   local instruction-set = [ feature.get-values <intro-instruction-set> : $(properties) ] ;
   if "$(instruction-set)" != "unspecified" {
@@ -201,7 +200,19 @@ rule install ( targets * : sources * : properties * )
   local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
   OPTIONS on $(targets) += "memory-checker=$(memory-checker)" ;
   if "$(memory-checker)" = "on" {
-    errors.error "TODO: unimplemented. `cflags=... linkflags=...'" ;
+    switch "$(toolset)" {
+    case "gcc" :
+      OPTIONS on $(targets) += "cflags='-fsanitize=address'" ;
+      OPTIONS on $(targets) += "linkflags='-fsanitize=address'" ;
+    case "clang" :
+      OPTIONS on $(targets) += "cflags='-faddress-sanitizer'" ;
+      OPTIONS on $(targets) += "linkflags='-faddress-sanitizer'" ;
+    case "icc" :
+      OPTIONS on $(targets) += "cflags='-ftrapuv -check-pointers=rw -check-pointers-dangling=all -check-pointers-undimensioned'" ;
+      OPTIONS on $(targets) += "linkflags='-ftrapuv -check-pointers=rw -check-pointers-dangling=all -check-pointers-undimensioned'" ;
+    case "*" :
+      errors.error "an internal error." ;
+    }
   }
 
   local libstdcxx-debug-mode = [ feature.get-values <libstdc++-debug-mode> : $(properties) ] ;

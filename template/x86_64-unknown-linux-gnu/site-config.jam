@@ -1915,7 +1915,6 @@ constant INTRO_COMPILE_PROPERTIES
   : <exception-handling>off:<cflags>-fno-exceptions
     <rtti>off:<linkflags>-fno-rtti
     <c++-template-depth>1024
-    <toolset>gcc,<variant>debug:<cflags>"-fvar-tracking -fvar-tracking-assignments"
     <toolset>icc,<variant>debug:<cflags>"-debug full"
     $(INTRO_LTO_COMPILE_PROPERTIES)
     $(INTRO_SSP_COMPILE_PROPERTIES)
@@ -1925,7 +1924,6 @@ constant INTRO_COMPILE_PROPERTIES
 constant INTRO_LINK_PROPERTIES
   : <exception-handling>off:<linkflags>-fno-exceptions
     <rtti>off:<linkflags>-fno-rtti
-    <toolset>gcc,<variant>debug:<cflags>"-fvar-tracking -fvar-tracking-assignments"
     <toolset>icc,<variant>debug:<cflags>"-debug full"
     $(INTRO_LTO_LINK_PROPERTIES)
     $(INTRO_SSP_LINK_PROPERTIES)
