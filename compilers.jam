@@ -1507,19 +1507,7 @@ rule get-cflags ( properties * )
   }
   else if "$(memory-checker)" = "on" {
     if [ is-gcc "$(compiler)" ] {
-      local threading = [ feature.get-values <threading> : $(properties) ] ;
-      if "$(threading)" = "single" {
-        result += "-fmudflap" ;
-        result += "-lmudflap" ;
-      }
-      else if "$(threading)" = "multi" {
-        result += "-fmudflapth" ;
-        result += "-lmudflapth" ;
-        result += "-pthread" ;
-      }
-      else {
-        errors.error "an internal error." ;
-      }
+      result += "-fsanitize=address" ;
     }
     else if [ is-clang "$(compiler)" ] {
       result += "-faddress-sanitizer" ;
@@ -1740,19 +1728,7 @@ rule get-cxxflags ( properties * )
   }
   else if "$(memory-checker)" = "on" {
     if [ is-gcc "$(compiler)" ] {
-      local threading = [ feature.get-values <threading> : $(properties) ] ;
-      if "$(threading)" = "single" {
-        result += "-fmudflap" ;
-        result += "-lmudflap" ;
-      }
-      else if "$(threading)" = "multi" {
-        result += "-fmudflapth" ;
-        result += "-lmudflapth" ;
-        result += "-pthread" ;
-      }
-      else {
-        errors.error "an internal error." ;
-      }
+      result += "-fsanitize=address" ;
     }
     else if [ is-clang "$(compiler)" ] {
       result += "-faddress-sanitizer" ;
@@ -1893,14 +1869,6 @@ rule get-environment-commands ( prefix : properties * )
   commands += "LIBRARY_PATH=\"$(libdir)${LIBRARY_PATH:+:$LIBRARY_PATH}\"" ;
   commands += "export LIBRARY_PATH" ;
   local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
-  local mudflap ;
-  if [ is-gcc "$(compiler)" ] && "$(memory-checker)" = "on" {
-    mudflap = "on" ;
-  }
-  if "$(mudflap)" = "on" {
-    commands += "MUDFLAP_OPTIONS='-viol-abort -print-leaks -check-initialization'" ;
-    commands += "export MUDFLAP_OPTIONS" ;
-  }
   local lto = [ feature.get-values <lto> : $(properties) ] ;
   if [ is-icc "$(compiler)" ] {
     commands += "AR='/opt/intel/bin/xiar'" ;

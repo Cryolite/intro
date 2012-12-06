@@ -1879,14 +1879,12 @@ feature.feature memory-checker
   : propagated
   ;
 constant INTRO_MEMORY_CHECKER_COMPILE_PROPERTIES
-  : <toolset>gcc,<memory-checker>on,<threading>single:<cflags>-fmudflap
-    <toolset>gcc,<memory-checker>on,<threading>multi:<cflags>-fmudflapth
+  : <toolset>gcc,<memory-checker>on:<cflags>-fsanitize=address
     <toolset>clang,<memory-checker>on:<cflags>-faddress-sanitizer
     <toolset>icc,<memory-checker>on:<cflags>"-ftrapuv -check-pointers=rw -check-pointers-dangling=all -check-pointers-undimensioned"
   ;
 constant INTRO_MEMORY_CHECKER_LINK_PROPERTIES
-  : <toolset>gcc,<memory-checker>on,<threading>single:<linkflags>"-fmudflap -lmudflap"
-    <toolset>gcc,<memory-checker>on,<threading>multi:<linkflags>"-fmudflapth -lmudflapth"
+  : <toolset>gcc,<memory-checker>on:<linkflags>-fsanitize=address
     <toolset>clang,<memory-checker>on:<linkflags>-faddress-sanitizer
     <toolset>icc,<memory-checker>on:<linkflags>"-ftrapuv -check-pointers=rw -check-pointers-dangling=all -check-pointers-undimensioned"
   ;

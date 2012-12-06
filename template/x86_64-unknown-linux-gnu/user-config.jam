@@ -49,7 +49,7 @@ local prefix = "$(home)/local" ;
 # GCC & Clang configuration.
 # --------------------------
 
-using gcc ;
+using gcc : : "/usr/bin/g++" ;
 
 for local path-ver in $(INTRO_GCC_PATHS) $(INTRO_GCC_LATEST_PATHS) $(INTRO_CLANG_PATHS) $(INTRO_CLANG_LATEST_PATHS)
 {
