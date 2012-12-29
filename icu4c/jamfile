@@ -11,16 +11,14 @@ import "$(INTRO_ROOT_DIR)/compilers"
     is-clang
     is-icc
     get-compiler-description
-    get-compiler-prefix
-    get-bindir
-    get-libdir
-    get-includedir
+    get-full-prefix
     get-triplets
     get-cc
     get-cflags
     get-cxx
     get-cxxflags
     get-environment-commands
+    get-logfile-path
     get-property-dump-commands
   ;
 
@@ -63,11 +61,11 @@ rule download ( targets * : sources * : properties * )
   VERSION on $(targets) = "$(version)" ;
   local version-string = [ regex.replace "$(version)" "\\." "_" ] ;
   URL on $(targets) = http://download.icu-project.org/files/icu4c/$(version)/icu4c-$(version-string)-src.tgz ;
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
 }
 actions download
 {
-  $(PROPERTY_DUMP_COMMANDS)
+$(PROPERTY_DUMP_COMMANDS)
 
   rm -rf '$(<)' || exit 1
   if [ -n '$(STREAM)' ]; then
@@ -108,11 +106,11 @@ rule expand ( targets * : sources * : properties * )
 {
   local version = [ feature.get-values <icu4c-hidden> : $(properties) ] ;
   VERSION on $(targets) = "$(version)" ;
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
 }
 actions expand
 {
-  $(PROPERTY_DUMP_COMMANDS)
+$(PROPERTY_DUMP_COMMANDS)
 
   rm -rf '$(<:D)' || exit 1
   rm -rf '$(INTRO_ROOT_DIR)/icu' || exit 1
@@ -155,7 +153,8 @@ explicit srcdir ;
 
 rule location-conditional ( properties * )
 {
-  local includedir = [ get-includedir "$(PREFIX)" : $(properties) ] ;
+  local full-prefix = [ get-full-prefix "$(PREFIX)" : $(properties) ] ;
+  local includedir = "$(full-prefix)/include" ;
   return "<location>$(includedir)" ;
 }
 
@@ -175,7 +174,7 @@ explicit unicode/uchar.h ;
 rule make-install ( targets * : sources * : properties * )
 {
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local compiler-description = [ get-compiler-description $(compiler) ] ;
+  local compiler-description = [ get-compiler-description "$(compiler)" ] ;
   COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
 
   local version = [ feature.get-values <icu4c> : $(properties) ] ;
@@ -185,6 +184,7 @@ rule make-install ( targets * : sources * : properties * )
   local srcdir = "$(INTRO_ROOT_DIR)/icu-$(version)" ;
   SRCDIR on $(targets) = [ path.native "$(srcdir)" ] ;
 
+  # Set the path to objdir.
   local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
   local objdir-native = [ path.native "$(objdir)" ] ;
   OBJDIR on $(targets) = "$(objdir-native)" ;
@@ -201,6 +201,9 @@ rule make-install ( targets * : sources * : properties * )
   local triplets = [ get-triplets $(properties) ] ;
   local build-triplet = "$(triplets[1])" ;
   local host-triplet = "$(triplets[2])" ;
+  if "$(build-triplet)" = "x86_64-unknown-linux-gnu" && "$(host-triplet)" = "i686-pc-linux-gnu" {
+    build-triplet = "$(host-triplet)" ;
+  }
   BUILD_TRIPLET on $(targets) += "$(build-triplet)" ;
   HOST_TRIPLET on $(targets) += "$(host-triplet)" ;
 
@@ -226,24 +229,9 @@ rule make-install ( targets * : sources * : properties * )
   }
 
   # Set `--prefix' option for `configure' script.
-  local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
-  local compiler-prefix-native = [ path.native "$(compiler-prefix)" ] ;
-  OPTIONS on $(targets) += "--prefix='$(compiler-prefix-native)'" ;
-
-  # Set `--bindir' option for `configure' script.
-  local bindir = [ get-bindir "$(PREFIX)" : $(properties) ] ;
-  local bindir-native = [ path.native "$(bindir)" ] ;
-  OPTIONS on $(targets) += "--bindir='$(bindir-native)'" ;
-
-  # Set `--libdir' option for `configure' script.
-  local libdir = [ get-libdir "$(PREFIX)" : $(properties) ] ;
-  local libdir-native = [ path.native "$(libdir)" ] ;
-  OPTIONS on $(targets) += "--libdir='$(libdir-native)'" ;
-
-  # Set `--includedir' option for `configure' script.
-  local includedir = [ get-includedir "$(PREFIX)" : $(properties) ] ;
-  local includedir-native = [ path.native "$(includedir)" ] ;
-  OPTIONS on $(targets) += "--includedir='$(includedir-native)'" ;
+  local full-prefix = [ get-full-prefix "$(PREFIX)" : $(properties) ] ;
+  local full-prefix-native = [ path.native "$(full-prefix)" ] ;
+  OPTIONS on $(targets) += "--prefix='$(full-prefix-native)'" ;
 
   # Set `--build' and `--host' options for `configure' script.
   OPTIONS on $(targets) += "--build=$(build-triplet)" ;
@@ -251,19 +239,19 @@ rule make-install ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) += "--enable-strict" ;
 
-  OPTIONS on $(targets) += "--enable-shared" ;
-  OPTIONS on $(targets) += "--enable-static" ;
-
-  local threading = [ feature.get-values <threading> : $(properties) ] ;
-
-  if "$(threading)" = "single" {
-    OPTIONS on $(targets) += "--disable-threads" ;
-  }
-  else if "$(threading)" = "multi" {
-    OPTIONS on $(targets) += "--enable-threads" ;
-  }
-  else {
-    errors.error "an internal error." ;
+  # Set the link variants for `configure' script.
+  local link = [ feature.get-values <link> : $(properties) ] ;
+  switch "$(link)" {
+  case "shared" :
+    OPTIONS on $(targets) += "--enable-shared" ;
+    OPTIONS on $(targets) += "--disable-static" ;
+  case "static" :
+    OPTIONS on $(targets) += "--disable-shared" ;
+    OPTIONS on $(targets) += "--enable-static" ;
+  case "" :
+    errors.error "the value for `<link>' is empty" ;
+  case "*" :
+    errors.error "<link>$(link): unknown property" ;
   }
 
   if "$(host-triplet)" = "x86_64-unknown-linux-gnu" || "$(host-triplet)" = "x86_64-w64-mingw32" {
@@ -307,89 +295,94 @@ rule make-install ( targets * : sources * : properties * )
   local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
   ENVIRONMENT_COMMANDS on $(targets) = "$(environment-commands)" ;
 
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+  local logfile = [ get-logfile-path "icu4c" : "$(PREFIX)" : $(properties) ] ;
+  local logfile-native = [ path.native "$(logfile)" ] ;
+  LOGFILE on $(targets) = "$(logfile-native)" ;
+
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "$(logfile)" ] ;
 }
 actions make-install
 {
-  $(PROPERTY_DUMP_COMMANDS)
+  exit_with_error ()
+  {
+    echo "`LANG=C date`:ERROR: $1 (ICU4C $(VERSION), $(COMPILER_DESCRIPTION))" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+    echo -n "ERROR: $1 (ICU4C $(VERSION), $(COMPILER_DESCRIPTION))" | $(AWACS)
+    exit 1
+  }
 
-  [ -x '$(SRCDIR)/source/runConfigureICU' ] || exit 1
-  chmod +x '$(SRCDIR)/source/config.sub' || exit 1
-  [ `'$(SRCDIR)/source/config.sub' $(BUILD_TRIPLET)` = $(BUILD_TRIPLET) ] || exit 1
-  [ `'$(SRCDIR)/source/config.sub' $(HOST_TRIPLET)` = $(HOST_TRIPLET) ] || exit 1
+  echo "`LANG=C date`:INFO: initiation of ICU4C build process" | tee '$(LOGFILE)' >> '$(STREAM)'
+
+$(ENVIRONMENT_COMMANDS)
+
+$(PROPERTY_DUMP_COMMANDS)
+
+  [ -x '$(SRCDIR)/source/runConfigureICU' ] || exit_with_error "\`$(SRCDIR)/source/runConfigureICU' is not executable"
+  chmod +x '$(SRCDIR)/source/config.sub' || exit_with_error "failed to make \`$(SRCDIR)/source/config.sub' executable"
+  [ `'$(SRCDIR)/source/config.sub' $(BUILD_TRIPLET)` = $(BUILD_TRIPLET) ] || exit_with_error "\`--build=$(BUILD_TRIPLET)' is not supported"
+  [ `'$(SRCDIR)/source/config.sub' $(HOST_TRIPLET)` = $(HOST_TRIPLET) ] || exit_with_error "\`--host=$(HOST_TRIPLET)' is not supported"
 
   # Clean up objdir `$(OBJDIR)'.
-  { mkdir -p '$(OBJDIR)' && ( cd '$(OBJDIR)' && rm -rf * ); } || exit 1
+  { mkdir -p '$(OBJDIR)' && ( cd '$(OBJDIR)' && rm -rf * ); } || exit_with_error 'failed to clean up the old objdir'
 
-  $(ENVIRONMENT_COMMANDS)
+  echo "`LANG=C date`:INFO: @cflags: $(CFLAGS)" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+  echo "`LANG=C date`:INFO: @cxxflags: $(CXXFLAGS)" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+  ( cd '$(OBJDIR)' && echo -n '$(CFLAGS)' > cflags ) || exit_with_error 'failed to create @cflags'
+  ( cd '$(OBJDIR)' && echo -n '$(CXXFLAGS)' > cxxflags ) || exit_with_error 'failed to create @cxxflags'
 
-  ( cd '$(OBJDIR)' && echo -n '$(CFLAGS)' > cflags ) || exit 1
-  ( cd '$(OBJDIR)' && echo -n '$(CXXFLAGS)' > cxxflags ) || exit 1
-
-  if [ -n '$(STREAM)' ]; then
-    ( cd '$(OBJDIR)' && '$(SRCDIR)/source/runConfigureICU' $(OPTIONS) >> '$(STREAM)' 2>&1 )
-  else
-    ( cd '$(OBJDIR)' && '$(SRCDIR)/source/runConfigureICU' $(OPTIONS) )
-  fi
-  if [ $? -ne 0 ]; then
-    mv '$(OBJDIR)' "$(INTRO_ROOT_DIR)/objdir_$$"
-    echo    "ERROR:$$: failed to \`runConfigureICU' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR:$$: failed to \`runConfigureICU' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
-    exit 1
+  echo "`LANG=C date`:COMMAND: source/runConfigureICU $(OPTIONS:J= )" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+  tail --follow --lines=0 --sleep-interval=0.1 '$(LOGFILE)' >> '$(STREAM)' &
+  ( cd '$(OBJDIR)' && '$(SRCDIR)/source/runConfigureICU' $(OPTIONS) >> '$(LOGFILE)' 2>&1 )
+  result=$?
+  kill -TERM $!
+  if [ $result -ne 0 ]; then
+    exit_with_error "failed to \`runConfigureICU'"
   fi
 
   # Check the creation of `Makefile'.
-  [ -f '$(OBJDIR)/Makefile' ] || exit 1
+  [ -f '$(OBJDIR)/Makefile' ] || exit_with_error "failed to confirm the creation of \`Makefile'"
 
-  if [ -n '$(STREAM)' ]; then
-    ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) >> '$(STREAM)' 2>&1 )
-  else
-    ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) )
-  fi
-  if [ $? -ne 0 ]; then
-    mv '$(OBJDIR)' "$(INTRO_ROOT_DIR)/objdir_$$"
-    echo    "ERROR:$$: failed to \`make' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR:$$: failed to \`make' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
-    exit 1
+  echo "`LANG=C date`:COMMAND: make" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+  tail --follow --lines=0 --sleep-interval=0.1 '$(LOGFILE)' >> '$(STREAM)' &
+  ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) >> '$(LOGFILE)' 2>&1 )
+  result=$?
+  kill -TERM $!
+  if [ $result -ne 0 ]; then
+    exit_with_error "failed to \`make'"
   fi
 
-  if [ -n '$(STREAM)' ]; then
-    # `make check' of ICU4C does not support parallel build.
-    ( cd '$(OBJDIR)' && make check >> '$(STREAM)' 2>&1 )
-  else
-    # `make check' of ICU4C does not support parallel build.
-    ( cd '$(OBJDIR)' && make check )
-  fi
-  if [ $? -ne 0 ]; then
-    if uname | grep -Fq 'CYGWIN' && [ `echo $(VERSION) `x = 49.1.1x ]; then
-      echo    "WARNING: failed to \`make check' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
-      echo -n "WARNING: failed to \`make check' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
-    else
-      mv '$(OBJDIR)' "$(INTRO_ROOT_DIR)/objdir_$$"
-      echo    "ERROR:$$: failed to \`make check' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
-      echo -n "ERROR:$$: failed to \`make check' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
-      exit 1
-    fi
+  total_status=0
+
+  echo "`LANG=C date`:COMMAND: make check" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+  tail --follow --lines=0 --sleep-interval=0.1 '$(LOGFILE)' >> '$(STREAM)' &
+  # `make check' of ICU4C does not support parallel build.
+  ( cd '$(OBJDIR)' && make check >> '$(LOGFILE)' 2>&1 )
+  result=$?
+  kill -TERM $!
+  if [ $result -ne 0 ]; then
+    #exit_with_error "failed to \`make check'"
+    echo "`LANG=C date`:ERROR: failed to \`make check' (ICU4C $(VERSION), $(COMPILER_DESCRIPTION))" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+    echo -n "ERROR: failed to \`make check' (ICU4C $(VERSION), $(COMPILER_DESCRIPTION))" | $(AWACS)
+    total_status=1
   fi
 
-  if [ -n '$(STREAM)' ]; then
-    ( cd '$(OBJDIR)' && make install >> '$(STREAM)' 2>&1 )
-  else
-    ( cd '$(OBJDIR)' && make install )
-  fi
-  if [ $? -ne 0 ]; then
-    mv '$(OBJDIR)' "$(INTRO_ROOT_DIR)/objdir_$$"
-    echo    "ERROR:$$: failed to \`make install' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR:$$: failed to \`make install' ICU4C $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
-    exit 1
+  echo "`LANG=C date`:COMMAND: make install" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+  tail --follow --lines=0 --sleep-interval=0.1 '$(LOGFILE)' >> '$(STREAM)' &
+  ( cd '$(OBJDIR)' && make install >> '$(LOGFILE)' 2>&1 )
+  result=$?
+  kill -TERM $!
+  if [ $result -ne 0 ]; then
+    exit_with_error "failed to \`make install'"
   fi
 
-  # Clean up objdir `$(OBJDIR)'.
-  rm -rf '$(OBJDIR)' || exit 1
+  if [ $total_status -eq 0 ]; then
+    # Clean up objdir `$(OBJDIR)'.
+    rm -rf '$(OBJDIR)' || exit_with_error 'failed to clean up the objdir'
 
-  [ -f '$(<)' ] || exit 1
+    [ -f '$(<)' ] || exit_with_error 'failed to confirm the creation of the build target'
 
-  echo -n 'ICU4C $(VERSION) ($(COMPILER_DESCRIPTION)) was successfully built.' | $(AWACS)
+    echo -n 'ICU4C $(VERSION) ($(COMPILER_DESCRIPTION)) was successfully built.' | $(AWACS)
+    echo "`LANG=C date`:INFO: successful completion of ICU4C build process" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+  fi
   exit 0
 }
 

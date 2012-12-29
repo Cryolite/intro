@@ -12,9 +12,10 @@ import "$(INTRO_ROOT_DIR)/compilers"
     is-icc
     get-compiler-description
     get-compiler-prefix
-    get-libdir
-    get-includedir
+    get-full-prefix
+    get-triplets
     get-environment-commands
+    get-logfile-path
     get-property-dump-commands
   ;
 
@@ -67,18 +68,15 @@ explicit openmpi-dep ;
 
 rule location-conditional ( properties * )
 {
-  local includedir = [ get-includedir "$(PREFIX)" : $(properties) ] ;
-  local version = [ feature.get-values <boost-hidden> : $(properties) ] ;
-  version = [ regex.match "([0-9]+\\.[0-9]+)\\.[0-9]+" : "$(version)" : 1 ] ;
-  if ! "$(version)" {
-    errors.error "an internal error." ;
-  }
-  version = [ regex.replace "$(version)" "\\." "_" ] ;
-  return "<location>$(includedir)/boost-$(version)/boost" ;
+  local full-prefix = [ get-full-prefix "$(PREFIX)" : $(properties) ] ;
+  local libdir = "$(full-prefix)/lib" ;
+  return "<location>$(libdir)" ;
 }
 
-make version.hpp
+make boost.stage
   : compiler-dep
+    ../gmp//install
+    ../mpfr//install
     ../icu4c//install
     openmpi-dep
   : @install
@@ -92,7 +90,7 @@ make version.hpp
     $(USE_INSTRUCTION_SET)
     <conditional>@location-conditional
   ;
-explicit version.hpp ;
+explicit boost.stage ;
 
 rule install ( targets * : sources * : properties * )
 {
@@ -108,24 +106,44 @@ rule install ( targets * : sources * : properties * )
 
   local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
 
+  local full-prefix = [ get-full-prefix "$(PREFIX)" : $(properties) ] ;
+  local full-prefix-native = [ path.native "$(full-prefix)" ] ;
+  FULL_PREFIX on $(targets) = "$(full-prefix-native)" ;
+
+  ADDITIONAL_BUILD_OPTS on $(targets) = ;
+
+  ADDITIONAL_BUILD_OPTS on $(targets) += "--stagedir='$(full-prefix-native)'" ;
+
+  local triplets = [ get-triplets $(properties) ] ;
+  local build-triplet = "$(triplets[1])" ;
+  local host-triplet = "$(triplets[2])" ;
+
+  ADDITIONAL_BUILD_OPTS on $(targets) += "--build-type=minimal" ;
+  ADDITIONAL_BUILD_OPTS on $(targets) += "--layout=system" ;
+  ADDITIONAL_BUILD_OPTS on $(targets) += "--without-locale" ;
+  if "$(build-triplet)" = "x86_64-unknown-linux-gnu" && "$(host-triplet)" = "i686-pc-linux-gnu" {
+    ADDITIONAL_BUILD_OPTS on $(targets) += "--without-mpi" ;
+    ADDITIONAL_BUILD_OPTS on $(targets) += "--without-python" ;
+  }
+
+  local link = [ feature.get-values <link> : $(properties) ] ;
+  LINK on $(targets) = "$(link)" ;
+  if "$(link)" = "shared" {
+    ADDITIONAL_BUILD_OPTS on $(targets) += "--without-exception" ;
+  }
+
+  local threading = [ feature.get-values <threading> : $(properties) ] ;
+  THREADING on $(targets) = "$(threading)" ;
+  if "$(threading)" = "single" {
+    ADDITIONAL_BUILD_OPTS on $(targets) += "--without-locale" ;
+    ADDITIONAL_BUILD_OPTS on $(targets) += "--without-thread" ;
+    ADDITIONAL_BUILD_OPTS on $(targets) += "--without-wave" ;
+  }
+
   OPTIONS on $(targets) = ;
 
-  #OPTIONS on $(targets) += -sICU_PATH=\"$(compiler-prefix)\" ;
-
-  OPTIONS on $(targets) += "--prefix='$(compiler-prefix)'" ;
-
-  local libdir = [ get-libdir "$(PREFIX)" : $(properties) ] ;
-  local libdir-native = [ path.native "$(libdir)" ] ;
-  OPTIONS on $(targets) += "--libdir='$(libdir-native)'" ;
-
-  local includedir = [ get-includedir "$(PREFIX)" : $(properties) ] ;
-  local includedir-native = [ path.native "$(includedir)" ] ;
-  OPTIONS on $(targets) += "--includedir='$(includedir-native)'" ;
-
-  OPTIONS on $(targets) += --build-type=complete ;
-  OPTIONS on $(targets) += --layout=versioned ;
-  OPTIONS on $(targets) += --without-locale ;
-  OPTIONS on $(targets) += --without-mpi ;
+  # The following environment variable is required for ICC to detect ICU4C correctly.
+  OPTIONS on $(targets) += "-sICU_PATH='$(full-prefix-native)'" ;
 
   if [ is-gcc "$(compiler)" ] {
     OPTIONS on $(targets) += "toolset=`'$(INTRO_ROOT_DIR)/boost/toolset.sh' '$(compiler-prefix)/bin/g++-wrapper'`" ;
@@ -133,56 +151,118 @@ rule install ( targets * : sources * : properties * )
   else if [ is-clang "$(compiler)" ] {
     OPTIONS on $(targets) += "toolset=`'$(INTRO_ROOT_DIR)/boost/toolset.sh' '$(compiler-prefix)/bin/clang++-wrapper'`" ;
   }
+  else if [ is-icc "$(compiler)" ] {
+    OPTIONS on $(targets) += "toolset=`'$(INTRO_ROOT_DIR)/boost/toolset.sh' '$(compiler-prefix)/bin/icpc-wrapper'`" ;
+  }
   else {
     errors.error "an internal error." ;
   }
 
-  local toolset = [ feature.get-values <toolset> : $(properties) ] ;
-
-  local std = [ feature.get-values <std> : $(properties) ] ;
-  OPTIONS on $(targets) += "std=$(std)" ;
-
   local variant = [ feature.get-values <variant> : $(properties) ] ;
   OPTIONS on $(targets) += "variant=$(variant)" ;
-  if "$(variant)" = "debug" {
-    switch "$(toolset)" {
-    case "gcc" :
-      # Do nothing.
-    case "clang" :
-      # Do nothing.
-    case "icc" :
+  switch "$(variant)" {
+  case "debug" :
+    if [ is-icc "$(compiler)" ] {
       OPTIONS on $(targets) += "cflags='-debug full'" ;
       OPTIONS on $(targets) += "linkflags='-debug full'" ;
-    case "*" :
-      errors.error "an internal error." ;
     }
+    OPTIONS on $(targets) += "linkflags=-rdynamic" ;
+  case "release" :
+    # Do nothing.
+  case "profile" :
+    OPTIONS on $(targets) += "linkflags=-rdynamic" ;
+  case "" :
+    errors.error "the value for `<variant>' is empty" ;
+  case "*" :
+    errors.error "<variant>$(variant): unknown property" ;
   }
+
+  OPTIONS on $(targets) += "link=$(link)" ;
 
   OPTIONS on $(targets) += "runtime-link=shared" ;
 
-  local threading = [ feature.get-values <threading> : $(properties) ] ;
   OPTIONS on $(targets) += "threading=$(threading)" ;
 
+  local address-model = [ feature.get-values "<intro-address-model>" : $(properties) ] ;
+  switch "$(address-model)" {
+  case "64" :
+    OPTIONS on $(targets) += "address-model=64" ;
+  case "32" :
+    OPTIONS on $(targets) += "address-model=32" ;
+  case "" :
+    errors.error "the value for `<intro-address-model>' is empty" ;
+  case "*" :
+    errors.error "`<intro-address-model>$(address-model)': unknown property" ;
+  }
+
   local instruction-set = [ feature.get-values <intro-instruction-set> : $(properties) ] ;
-  if "$(instruction-set)" != "unspecified" {
+  switch "$(instruction-set)" {
+  case "unspecified" :
+    # Do nothing.
+  case "native" :
     OPTIONS on $(targets) += "instruction-set=$(instruction-set)" ;
+    if [ is-icc "$(compiler)" ] {
+      OPTIONS on $(targets) += "cflags=-xHost" ;
+      OPTIONS on $(targets) += "linkflags=-xHost" ;
+    }
+  case "" :
+    errors.error "the value for `<instruction-set>' is empty" ;
+  case "*" :
+    errors.error "<instruction-set>$(instruction-set): unknown property" ;
+  }
+
+  local std = [ feature.get-values <std> : $(properties) ] ;
+  OPTIONS on $(targets) += "std=$(std)" ;
+  switch "$(std)" {
+  case "c++03" :
+    if [ is-gcc "$(compiler)" ] {
+      OPTIONS on $(targets) += "cxxflags='-std=c++03'" ;
+    }
+    else if [ is-clang "$(compiler)" ] {
+      OPTIONS on $(targets) += "cxxflags='-std=c++03'" ;
+    }
+    else if [ is-icc "$(compiler)" ] {
+      OPTIONS on $(targets) += "cxxflags='-strict-ansi -fno-math-errno'" ;
+    }
+    else {
+      errors.error "unknown compiler" ;
+    }
+  case "c++11" :
+    if [ is-gcc "$(compiler)" ] {
+      OPTIONS on $(targets) += "cxxflags='-std=c++0x'" ;
+    }
+    else if [ is-clang "$(compiler)" ] {
+      OPTIONS on $(targets) += "cxxflags='-std=c++11'" ;
+    }
+    else if [ is-icc "$(compiler)" ] {
+      OPTIONS on $(targets) += "cxxflags='-std=c++11'" ;
+    }
+    else {
+      errors.error "unknown compiler" ;
+    }
+  case "" :
+    errors.error "the value for `<std>' is empty" ;
+  case "*" :
+    errors.error "<std>$(std): unknown property" ;
   }
 
   local lto = [ feature.get-values <lto> : $(properties) ] ;
   OPTIONS on $(targets) += "lto=$(lto)" ;
   if "$(lto)" = "on" {
-    switch "$(toolset)" {
-    case "gcc" :
+    if [ is-gcc "$(compiler)" ] {
       OPTIONS on $(targets) += "cflags='-flto'" ;
       OPTIONS on $(targets) += "linkflags='-flto'" ;
-    case "clang" :
+    }
+    else if [ is-clang "$(compiler)" ] {
       OPTIONS on $(targets) += "cflags='-flto'" ;
       OPTIONS on $(targets) += "linkflags='-flto'" ;
-    case "icc" :
+    }
+    else if [ is-icc "$(compiler)" ] {
       OPTIONS on $(targets) += "cflags='-ipo'" ;
       OPTIONS on $(targets) += "linkflags='-ipo'" ;
-    case "*" :
-      errors.error "an internal error." ;
+    }
+    else {
+      errors.error "unknown compiler" ;
     }
 
     switch "$(variant)" {
@@ -192,76 +272,172 @@ rule install ( targets * : sources * : properties * )
       OPTIONS on $(targets) += "linkflags='-O3'" ;
     case "profile" :
       OPTIONS on $(targets) += "linkflags='-O3'" ;
+    case "" :
+      errors.error "the value for `<variant>' is empty" ;
     case "*" :
-      errors.error "an internal error." ;
+      errors.error "<variant>$(variant): unknown property" ;
     }
   }
 
   local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
   OPTIONS on $(targets) += "memory-checker=$(memory-checker)" ;
-  if "$(memory-checker)" = "on" {
-    switch "$(toolset)" {
-    case "gcc" :
+  switch "$(memory-checker)" {
+  case "off" :
+    # Do nothing.
+  case "on" :
+    if [ is-gcc "$(compiler)" ] {
       OPTIONS on $(targets) += "cflags='-fsanitize=address'" ;
       OPTIONS on $(targets) += "linkflags='-fsanitize=address'" ;
-    case "clang" :
-      OPTIONS on $(targets) += "cflags='-faddress-sanitizer'" ;
-      OPTIONS on $(targets) += "linkflags='-faddress-sanitizer'" ;
-    case "icc" :
-      OPTIONS on $(targets) += "cflags='-ftrapuv -check-pointers=rw -check-pointers-dangling=all -check-pointers-undimensioned'" ;
-      OPTIONS on $(targets) += "linkflags='-ftrapuv -check-pointers=rw -check-pointers-dangling=all -check-pointers-undimensioned'" ;
-    case "*" :
-      errors.error "an internal error." ;
     }
+    else if [ is-clang "$(compiler)" ] {
+      OPTIONS on $(targets) += "cflags='-fsanitize=address'" ;
+      OPTIONS on $(targets) += "linkflags='-fsanitize=address'" ;
+    }
+    else if [ is-icc "$(compiler)" ] {
+      OPTIONS on $(targets) += "cflags='-fp-speculation safe -ftrapuv -check-pointers=rw -check-pointers-dangling=all -check-pointers-undimensioned'" ;
+      OPTIONS on $(targets) += "linkflags='-fp-speculation safe -ftrapuv -check-pointers=rw -check-pointers-dangling=all -check-pointers-undimensioned'" ;
+    }
+    else {
+      errors.error "unknown compiler" ;
+    }
+  case "" :
+    errors.error "the value for `<memory-checker>' is empty" ;
+  case "*" :
+    errors.error "<memory-checker>$(memory-checker): unknown property" ;
   }
 
   local libstdcxx-debug-mode = [ feature.get-values <libstdc++-debug-mode> : $(properties) ] ;
   OPTIONS on $(targets) += "libstdc++-debug-mode=$(libstdcxx-debug-mode)" ;
 
-  # The following options are necessary for Boost.Regex to guess ICU4C location.
-  OPTIONS on $(targets) += "include='$(includedir-native)'" ;
-  OPTIONS on $(targets) += "library-path='$(libdir-native)'" ;
-
-  OPTIONS on $(targets) += "dll-path='$(libdir-native)'" ;
-
-  OPTIONS on $(targets) += "install" ;
-
-  # FIXME: Are `CPATH' and `LIBRARY_PATH' necessary despite explicitly specified `include' and `library-path'?
   local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
   ENVIRONMENT_COMMANDS on $(targets) = "$(environment-commands)" ;
 
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+  local logfile = [ get-logfile-path "boost" : "$(PREFIX)" : $(properties) ] ;
+  local logfile-native = [ path.native "$(logfile)" ] ;
+  LOGFILE on $(targets) = "$(logfile-native)" ;
+
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "$(logfile)" ] ;
 }
 actions install
 {
-  $(PROPERTY_DUMP_COMMANDS)
+  exit_with_error ()
+  {
+    echo "`LANG=C date`:ERROR: $1 (Boost $(VERSION), $(COMPILER_DESCRIPTION))" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+    echo -n "ERROR: $1 (Boost $(VERSION), $(COMPILER_DESCRIPTION))" | $(AWACS)
+    exit 1
+  }
+
+  mkdir -p `dirname '$(LOGFILE)'`
+  echo "`LANG=C date`:INFO: initiation of Boost build process" | tee '$(LOGFILE)' >> '$(STREAM)'
+
+$(ENVIRONMENT_COMMANDS)
+
+$(PROPERTY_DUMP_COMMANDS)
 
   if [ ! -x '$(BOOST_ROOT)/b2' ]; then
-    echo    "ERROR: Boost $(VERSION) not found ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR: Boost $(VERSION) not found ($(COMPILER_DESCRIPTION))." | $(AWACS)
-    exit 1
+    exit_with_error "\`$(BOOST_ROOT)/b2' is not found"
   fi
 
-  $(ENVIRONMENT_COMMANDS)
-
-  if [ -n '$(STREAM)' ]; then
-    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) $(OPTIONS) >> '$(STREAM)' 2>&1 )
-  else
-    ( cd "$(BOOST_ROOT)" && ./b2 -d+2 -j$(CONCURRENCY) $(OPTIONS) )
-  fi
-  if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to build Boost $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR: failed to build Boost $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
-    exit 1
+  echo "`LANG=C date`:COMMAND: ./b2 -d+2 -j$(CONCURRENCY) $(ADDITIONAL_BUILD_OPTS:J= ) $(OPTIONS:J= ) stage" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+  tail --follow --lines=0 --sleep-interval=0.1 '$(LOGFILE)' >> '$(STREAM)' &
+  ( cd '$(BOOST_ROOT)' && ./b2 -d+2 -j$(CONCURRENCY) $(ADDITIONAL_BUILD_OPTS) $(OPTIONS) stage >> '$(LOGFILE)' 2>&1 )
+  result=$?
+  kill -TERM $!
+  if [ $result -ne 0 ]; then
+    exit_with_error 'failed to build'
   fi
 
-  [ -f '$(<)' ] || exit 1
+  if [ '$(LINK)' = 'shared' ]; then
+    rm '$(FULL_PREFIX)/lib/libboost_test_exec_monitor.a' || exit_with_error "$(FULL_PREFIX)/lib/libboost_test_exec_monitor.a: could not delete"
+  fi
+
+  # Because some Boost test cases hang up on some environments, resource for
+  # processes shoud be limited in order for the processes to terminate in a
+  # reasonable length of time.
+  ulimit -St 1200
+  ulimit -Sm 2097152
+  # Because many Boost test cases crash, core files should be prevented from
+  # occupying large portion of disk space.
+  ulimit -Sc 0
+
+  get_clamped_concurrency ()
+  {
+    concurrency=$1
+    memory_per_concurrency=$2
+    if [ ! -f '/proc/meminfo' ]; then
+      exit 1
+    fi
+    mem=`grep -Eo '^MemFree:[[:space:]]+[[:digit:]]+[[:space:]]+kB' '/proc/meminfo'`
+    if [ $? -ne 0 ]; then
+      exit 1
+    fi
+    mem=`echo $mem | grep -Eo '[[:digit:]]+'`
+    con=`expr $mem / $memory_per_concurrency`
+    if [ $con -lt $concurrency ]; then
+      if [ $con -gt 0 ]; then
+        concurrency=$con
+      else
+        concurrency=1
+      fi
+    fi
+    return $concurrency
+  }
+
+  for i in '$(BOOST_ROOT)'/libs/*/test; do
+    libname=`echo -n "$i" | sed -e 's@$(BOOST_ROOT)/libs/\([^/]\{1,\}\)/test@\1@'`
+    if [ "$libname" = 'detail' ]; then
+      :
+    elif [ '$(LINK)' = 'shared' -a "$libname" = 'exception' ]; then
+      :
+    elif [ '$(THREADING)' = 'single' -a \( "$libname" = 'locale' -o "$libname" = 'thread' -o "$libname" = 'wave' \) ]; then
+      :
+    else
+      [ -d "$(BOOST_ROOT)/libs/$libname/test" ] || exit_with_error "\`$(BOOST_ROOT)/libs/$libname/test' is not a directory"
+      testdir="$(BOOST_ROOT)/libs/$libname/test"
+      if [ -f "$testdir/Jamfile.v2" -o -f "$testdir/Jamfile" ]; then
+        if [ -n '$(CONCURRENCY)' ]; then
+          concurrency=$(CONCURRENCY)
+        else
+          concurrency=1
+        fi
+        if [ "$libname" = 'multiprecision' ]; then
+          memory_per_concurrency=2097152
+        elif [ "$libname" = 'geometry' -o "$libname" = 'graph_parallel' -o "$libname" = 'intrusive' -o "$libname" = 'msm' -o "$libname" = 'range' -o "$libname" = 'spirit' -o "$libname" = 'xpressive' ]; then
+          memory_per_concurrency=1048576
+        else
+          memory_per_concurrency=524288
+        fi
+        get_clamped_concurrency $concurrency $memory_per_concurrency
+        concurrency=$?
+        logfile="`dirname '$(LOGFILE)'`/boost_$libname.txt"
+        echo "`LANG=C date`:INFO: initiation of tests for \`boost::$libname'" | tee "$logfile" >> '$(STREAM)'
+        echo "`LANG=C date`:INFO: concurrency=$concurrency" | tee -a "$logfile" >> '$(STREAM)'
+        echo "`LANG=C date`:COMMAND: cd \"$testdir\" && ../../../b2 -d+2 -j$concurrency $(OPTIONS:J= )" | tee -a "$logfile" >> '$(STREAM)'
+        tail --follow --lines=0 --sleep-interval=0.1 "$logfile" >> '$(STREAM)' &
+        ( cd "$testdir" && ../../../b2 -d+2 -j$concurrency $(OPTIONS) >> "$logfile" 2>&1 )
+        result=$?
+        kill -TERM $!
+        if [ $result -eq 0 ]; then
+          echo "`LANG=C date`:INFO: successful completion of tests for \`boost::$libname'" | tee -a "$logfile" >> '$(STREAM)'
+        else
+          echo "`LANG=C date`:ERROR: failed to test \`boost::$libname' (Boost $(VERSION), $(COMPILER_DESCRIPTION))" | tee -a "$logfile" >> '$(STREAM)'
+          echo -n "ERROR: failed to test \`boost::$libname' (Boost $(VERSION), $(COMPILER_DESCRIPTION))" | $(AWACS)
+        fi
+      fi
+    fi
+  done
+
+  # Clean up `bin.v2' directory.
+  ( cd '$(BOOST_ROOT)' && rm -rf 'bin.v2' ) || exit_with_error "failed to clean up \`bin.v2' directory"
+
+  touch '$(<)' || exit_with_error 'failed to update the build target'
 
   echo -n "Boost $(VERSION) ($(COMPILER_DESCRIPTION)) was successfully built." | $(AWACS)
+  echo "`LANG=C date`:INFO: successful completion of Boost build process" | tee -a '$(LOGFILE)' >> '$(STREAM)'
   exit 0
 }
 
 
 
-alias install : version.hpp ;
+alias install : boost.stage ;
 explicit install ;

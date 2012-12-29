@@ -15,6 +15,7 @@ import "$(INTRO_ROOT_DIR)/compilers"
     get-backend-gcc
     get-frontend-version
     split-frontend-and-backend
+    get-default-bits
   ;
 "$(INTRO_ROOT_DIR)/compilers.init" "$(INTRO_ROOT_DIR)" ;
 
@@ -102,7 +103,7 @@ local rule get-isl-latest-version ( )
   if ! "$(.isl-latest)" {
     .isl-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/isl/latest.sh\" || echo -n error" ] ;
     if "$(.isl-latest)" = "error" {
-      errors.error "failed to extract islL latest version." ;
+      errors.error "failed to extract isl latest version." ;
     }
   }
   return "$(.isl-latest)" ;
@@ -295,6 +296,10 @@ for local enabled-compiler in $(enabled-compilers) {
         clang-versions += "$(version)" ;
       }
     }
+    if ! "$(backend)" {
+      errors.error "an internal error." ;
+    }
+    compilers += "$(backend)" ;
   }
   if [ is-icc "$(enabled-compiler)" ] {
     local backend-gcc = [ get-backend-gcc "$(enabled-compiler)" ] ;
@@ -798,7 +803,7 @@ if "$(stream)" {
   ECHO STREAM... $(STREAM) ;
 }
 else {
-  constant STREAM : "" ;
+  constant STREAM : "/dev/null" ;
   ECHO STREAM... N/A ;
 }
 
@@ -1004,29 +1009,42 @@ feature valgrind-hidden : [ feature.values <valgrind> ] : propagated incidental 
   constant USE_VALGRIND : $(use-valgrind) ;
 }
 
-feature intro-address-model        : unspecified 64 32                        :                       ;
-feature intro-address-model-hidden : [ feature.values <intro-address-model> ] : propagated incidental ;
+feature intro-address-model          : 64 32                                    : propagated incidental ;
+feature intro-address-model-on-build : [ feature.values <intro-address-model> ] :                       ;
 {
   local use-address-model ;
   for local val in [ feature.values <intro-address-model> ] {
-    use-address-model += <intro-address-model-hidden>$(val):<intro-address-model>$(val) ;
+    use-address-model += <intro-address-model>$(val):<intro-address-model-on-build>$(val) ;
   }
   constant USE_ADDRESS_MODEL : $(use-address-model) ;
 }
 
-feature intro-instruction-set        : unspecified native                         :                       ;
-feature intro-instruction-set-hidden : [ feature.values <intro-instruction-set> ] : propagated incidental ;
+local default-bits = [ get-default-bits ] ;
+switch "$(default-bits)" {
+case "64" :
+  feature.set-default "intro-address-model" : "64" ;
+case "32" :
+  feature.set-default "intro-address-model" : "32" ;
+case "" :
+  errors.error "the value for `<intro-address-model>' feature is empty" ;
+case "*" :
+  errors.error "`<intro-address-model>$(default-bits)': unknown property" ;
+}
+
+feature intro-instruction-set          : unspecified native                         : propagated incidental ;
+feature intro-instruction-set-on-build : [ feature.values <intro-instruction-set> ] :                       ;
 {
   local use-instruction-set ;
   for local val in [ feature.values <intro-instruction-set> ] {
-    use-instruction-set += <intro-instruction-set-hidden>$(val):<intro-instruction-set>$(val) ;
+    use-instruction-set += <intro-instruction-set>$(val):<intro-instruction-set-on-build>$(val) ;
   }
   constant USE_INSTRUCTION_SET : $(use-instruction-set) ;
 }
 
-local default-host-os = [ feature.get-values <host-os> : [ feature.defaults <host-os> ] ] ;
-constant DEFAULT_COMPILER_PROPERTIES : "<variant>release/<link>shared/<runtime-link>shared/<runtime-debugging>off/<optimization>speed/<profiling>off/<inlining>full/<threading>multi/<intro-address-model-hidden>unspecified/<intro-instruction-set-hidden>unspecified/<std>c++03/<lto>off/<correct-call-stack>off/<ssp>off/<memory-checker>off/<libstdc++-debug-mode>off" ;
-constant DEFAULT_PROPERTIES : "<host-os>$(default-host-os)/<target-os>$(default-host-os)/<variant>debug/<std>c++03/<link>shared/<runtime-link>shared/<runtime-debugging>on/<optimization>off/<profiling>off/<inlining>off/<threading>single/<intro-address-model-hidden>unspecified/<intro-instruction-set-hidden>unspecified/<lto>off/<correct-call-stack>off/<ssp>off/<memory-checker>off/<libstdc++-debug-mode>off" ;
+local default-host-os = [ feature.get-values "<host-os>" : [ feature.defaults "<host-os>" ] ] ;
+constant DEFAULT_COMPILER_PROPERTIES : "<variant>release/<link>shared/<runtime-link>shared/<runtime-debugging>off/<optimization>speed/<profiling>off/<inlining>full/<threading>multi/<intro-address-model>$(default-bits)/<intro-instruction-set>unspecified/<std>c++03/<lto>off/<correct-call-stack>off/<ssp>off/<memory-checker>off/<libstdc++-debug-mode>off" ;
+constant DEFAULT_PROPERTIES : "<host-os>$(default-host-os)/<target-os>$(default-host-os)/<variant>debug/<std>c++03/<link>shared/<runtime-link>shared/<runtime-debugging>on/<optimization>off/<profiling>off/<inlining>off/<threading>single/<intro-address-model>$(default-bits)/<intro-instruction-set>unspecified/<lto>off/<correct-call-stack>off/<ssp>off/<memory-checker>off/<libstdc++-debug-mode>off" ;
+constant ADDRESS_MODEL_SENSIBLE_DEFAULT_RELEASE_PROPERTIES : "<variant>release/<link>shared/<runtime-link>shared/<threading>multi/<intro-instruction-set>unspecified/<std>c++03/<lto>off/<memory-checker>off/<libstdc++-debug-mode>off" ;
 
 for local enabled-compiler in $(enabled-compilers) {
   local srcs ;

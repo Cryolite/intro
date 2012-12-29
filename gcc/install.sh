@@ -36,8 +36,6 @@ compiler_prefix=$1
 shift
 compiler_description=$1
 shift
-libdir=$1
-shift
 
 echo "intro_root_dir: $intro_root_dir"
 echo "build_triplet: $build_triplet"
@@ -57,7 +55,6 @@ echo "srcdir: $srcdir"
 echo "objdir: $objdir"
 echo "compiler_prefix: $compiler_prefix"
 echo "compiler_description: $compiler_description"
-echo "libdir: $libdir"
 echo "configure_options: $@"
 
 
@@ -165,11 +162,7 @@ fi
 
 
 # `configure'.
-if [ -n "$stream" ]; then
-    ( cd "$objdir" && env LD_RUN_PATH="$libdir${LD_RUN_PATH:+:$LD_RUN_PATH}" "$srcdir/configure" "$@" >> "$stream" 2>&1 )
-else
-    ( cd "$objdir" && env LD_RUN_PATH="$libdir${LD_RUN_PATH:+:$LD_RUN_PATH}" "$srcdir/configure" "$@" )
-fi
+( cd "$objdir" && "$srcdir/configure" "$@" >> "$stream" 2>&1 )
 if [ $? -ne 0 ]; then
     mv "$objdir" "$intro_root_dir/objdir_$$"
     echo    "ERROR:$$: failed to \`configure' ${compiler_description}." 1>&2
@@ -188,25 +181,7 @@ fi
 # `$objdir/gmp' during the bootstrap procedure, whereas `<gmpxx.h>'
 # resides in `$srcdir/gmp'. So, `CPATH' environment variable is set
 # to include the paths to those header files.
-#LD_LIBRARY_PATH="$objdir/prev-opcodes/.libs:$objdir/prev-bfd/.libs${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-#export LD_LIBRARY_PATH
-if [ -n "$stream" ]; then
-    ( cd "$objdir" && env CPATH="$objdir/gmp:$srcdir/gmp${CPATH:+:$CPATH}" LD_RUN_PATH="$libdir${LD_RUN_PATH:+:$LD_RUN_PATH}" make --jobs=$concurrency >> "$stream" 2>&1 )
-    if [ $? -ne 0 ]; then
-	( cd "$objdir" && env CPATH="$objdir/gmp:$srcdir/gmp${CPATH:+:$CPATH}" LD_RUN_PATH="$libdir${LD_RUN_PATH:+:$LD_RUN_PATH}" make --jobs=$concurrency >> "$stream" 2>&1 )
-	if [ $? -ne 0 ]; then
-            ( cd "$objdir" && env CPATH="$objdir/gmp:$srcdir/gmp${CPATH:+:$CPATH}" LD_RUN_PATH="$libdir${LD_RUN_PATH:+:$LD_RUN_PATH}" make --jobs=$concurrency >> "$stream" 2>&1 )
-	fi
-    fi
-else
-    ( cd "$objdir" && env CPATH="$objdir/gmp:$srcdir/gmp${CPATH:+:$CPATH}" LD_RUN_PATH="$libdir${LD_RUN_PATH:+:$LD_RUN_PATH}" make --jobs=$concurrency )
-    if [ $? -ne 0 ]; then
-	( cd "$objdir" && env CPATH="$objdir/gmp:$srcdir/gmp${CPATH:+:$CPATH}" LD_RUN_PATH="$libdir${LD_RUN_PATH:+:$LD_RUN_PATH}" make --jobs=$concurrency )
-	if [ $? -ne 0 ]; then
-            ( cd "$objdir" && env CPATH="$objdir/gmp:$srcdir/gmp${CPATH:+:$CPATH}" LD_RUN_PATH="$libdir${LD_RUN_PATH:+:$LD_RUN_PATH}" make --jobs=$concurrency )
-	fi
-    fi
-fi
+( cd "$objdir" && env CPATH="$objdir/gmp:$srcdir/gmp${CPATH:+:$CPATH}" make --jobs=$concurrency >> "$stream" 2>&1 )
 if [ $? -ne 0 ]; then
     mv "$objdir" "$intro_root_dir/objdir_$$"
     echo    "ERROR:$$: failed to \`make' ${compiler_description}." 1>&2
@@ -215,12 +190,17 @@ if [ $? -ne 0 ]; then
 fi
 
 
+# `make check'.
+( cd "$objdir" && make -k check >> "$stream" 2>&1 )
+( cd "$objdir" && cp 'gcc/testsuite/gcc/gcc.sum' "$compiler_prefix" ) || exit 1
+( cd "$objdir" && cp 'gcc/testsuite/g++/g++.sum' "$compiler_prefix" ) || exit 1
+( cd "$objdir" && cp 'x86_64-unknown-linux-gnu/libgomp/testsuite/libgomp.sum' "$compiler_prefix" ) || exit 1
+( cd "$objdir" && cp 'x86_64-unknown-linux-gnu/libmudflap/testsuite/libmudflap.sum' "$compiler_prefix" ) || exit 1
+( cd "$objdir" && cp 'x86_64-unknown-linux-gnu/libstdc++-v3/testsuite/libstdc++.sum' "$compiler_prefix" ) || exit 1
+
+
 # `make install'.
-if [ -n "$stream" ]; then
-    ( cd "$objdir" && env LD_RUN_PATH="$libdir${LD_RUN_PATH:+:$LD_RUN_PATH}" make install >> "$stream" 2>&1 )
-else
-    ( cd "$objdir" && env LD_RUN_PATH="$libdir${LD_RUN_PATH:+:$LD_RUN_PATH}" make install )
-fi
+( cd "$objdir" && make install >> "$stream" 2>&1 )
 if [ $? -ne 0 ]; then
     mv "$objdir" "$intro_root_dir/objdir_$$"
     echo    "ERROR:$$: failed to \`make install' ${compiler_description}." 1>&2
@@ -248,6 +228,30 @@ fi
 
 
 # Install the modified specfile and wrapper scripts.
+install --mode=755 "${intro_root_dir}/template/${host_triplet}/vars64.sh" "${compiler_prefix}/bin"
+if [ $? -ne 0 ]; then
+    echo    "ERROR: failed to install \`vars64.sh' wrapper script to \`${compiler_prefix}/bin' for ${compiler_description}." 1>&2
+    echo -n "ERROR: failed to install \`vars64.sh' wrapper script to \`${compiler_prefix}/bin' for ${compiler_description}." | eval $awacs
+    exit 1
+fi
+install --mode=755 "${intro_root_dir}/template/${host_triplet}/vars64debug.sh" "${compiler_prefix}/bin"
+if [ $? -ne 0 ]; then
+    echo    "ERROR: failed to install \`vars64debug.sh' wrapper script to \`${compiler_prefix}/bin' for ${compiler_description}." 1>&2
+    echo -n "ERROR: failed to install \`vars64debug.sh' wrapper script to \`${compiler_prefix}/bin' for ${compiler_description}." | eval $awacs
+    exit 1
+fi
+install --mode=755 "${intro_root_dir}/template/${host_triplet}/vars32.sh" "${compiler_prefix}/bin"
+if [ $? -ne 0 ]; then
+    echo    "ERROR: failed to install \`vars32.sh' wrapper script to \`${compiler_prefix}/bin' for ${compiler_description}." 1>&2
+    echo -n "ERROR: failed to install \`vars32.sh' wrapper script to \`${compiler_prefix}/bin' for ${compiler_description}." | eval $awacs
+    exit 1
+fi
+install --mode=755 "${intro_root_dir}/template/${host_triplet}/vars32debug.sh" "${compiler_prefix}/bin"
+if [ $? -ne 0 ]; then
+    echo    "ERROR: failed to install \`vars32debug.sh' wrapper script to \`${compiler_prefix}/bin' for ${compiler_description}." 1>&2
+    echo -n "ERROR: failed to install \`vars32debug.sh' wrapper script to \`${compiler_prefix}/bin' for ${compiler_description}." | eval $awacs
+    exit 1
+fi
 install --mode=755 "${intro_root_dir}/template/${host_triplet}/hack-gcc-specs" "${compiler_prefix}/bin"
 if [ $? -ne 0 ]; then
     echo    "ERROR: failed to install the modified specfile for ${compiler_description}." 1>&2

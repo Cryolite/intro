@@ -4,9 +4,13 @@ import alias ;
 import errors ;
 import feature ;
 import make ;
+import path ;
 import "$(INTRO_ROOT_DIR)/compilers"
   : is-icc
+    get-backend-gcc
+    get-compiler-description
     get-frontend-version
+    get-compiler-prefix
     get-default-bindir
     get-property-dump-commands
   ;
@@ -47,46 +51,59 @@ explicit icpc-wrapper ;
 
 rule make-install ( targets * : sources * : properties * )
 {
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local compiler = [ feature.get-values "<compiler>" : $(properties) ] ;
+  local backend-gcc = [ get-backend-gcc "$(compiler)" ] ;
+  local compiler-description = [ get-compiler-description "$(backend-gcc)" ] ;
+  COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
+
   local version = [ get-frontend-version "$(compiler)" ] ;
   VERSION on $(targets) = "$(version)" ;
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+
+  local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
+  local logfile = "$(compiler-prefix)/icc.txt" ;
+  local logfile-native = [ path.native "$(logfile)" ] ;
+  LOGFILE on $(targets) = "$(logfile-native)" ;
+
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "$(logfile)" ] ;
 }
 actions make-install
 {
-  $(PROPERTY_DUMP_COMMANDS)
+  exit_with_error ()
+  {
+    echo "`LANG=C date`:ERROR: $1 (ICC $(VERSION), $(COMPILER_DESCRIPTION))" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+    echo -n "ERROR: $1 (ICC $(VERSION), $(COMPILER_DESCRIPTION))" | $(AWACS)
+    exit 1
+  }
+
+  mkdir -p `dirname '$(LOGFILE)'`
+  echo "`LANG=C date`:INFO: initiation of ICC wrappers installation process" | tee '$(LOGFILE)' >> '$(STREAM)'
+
+$(PROPERTY_DUMP_COMMANDS)
 
   rm -f '$(<:D)/icc-wrapper'
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to remove old \`$(<:D)/icc-wrapper'." 1>&2
-    echo -n "ERROR: failed to remove old \`$(<:D)/icc-wrapper'." | $(AWACS)
-    exit 1
+    exit_with_error "failed to remove old \`$(<:D)/icc-wrapper'"
   fi
 
   rm -f '$(<:D)/icpc-wrapper'
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to remove old \`$(<:D)/icpc-wrapper'." 1>&2
-    echo -n "ERROR: failed to remove old \`$(<:D)/icpc-wrapper'." | $(AWACS)
-    exit 1
+    exit_with_error "failed to remove old \`$(<:D)/icpc-wrapper'"
   fi
 
   install --mode=755 '$(INTRO_ROOT_DIR)/template/x86_64-unknown-linux-gnu/icc-wrapper' '$(<:D)'
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to install \`icc-wrapper' to \`$(<:D)'." 1>&2
-    echo -n "ERROR: failed to install \`icc-wrapper' to \`$(<:D)'." | $(AWACS)
-    exit 1
+    exit_with_error "failed to install \`icc-wrapper' to \`$(<:D)'"
   fi
 
   install --mode=755 '$(INTRO_ROOT_DIR)/template/x86_64-unknown-linux-gnu/icpc-wrapper' '$(<:D)'
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to install \`icpc-wrapper' to \`$(<:D)'." 1>&2
-    echo -n "ERROR: failed to install \`icpc-wrapper' to \`$(<:D)'." | $(AWACS)
-    exit 1
+    exit_with_error "failed to install \`icpc-wrapper' to \`$(<:D)'"
   fi
 
-  [ -f '$(<)' ] || exit 1
+  [ -f '$(<)' ] || exit_with_error 'failed to confirm the creation of the build target'
 
   echo -n 'Wrapper scripts for ICC $(VERSION) were successfully installed.' | $(AWACS)
+  echo "`LANG=C date`:INFO: successful completion of ICC wrappers installation process" | tee -a '$(LOGFILE)' >> '$(STREAM)'
   exit 0
 }
 

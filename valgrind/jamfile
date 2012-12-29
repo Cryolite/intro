@@ -11,14 +11,9 @@ import "$(INTRO_ROOT_DIR)/compilers"
     is-icc
     get-compiler-description
     get-compiler-prefix
-    get-default-bindir
-    get-default-libdir
-    get-default-includedir
     get-triplets
     get-cc
-    get-cflags
     get-cxx
-    get-cxxflags
     get-environment-commands
     get-property-dump-commands
   ;
@@ -58,11 +53,11 @@ rule download ( targets * : sources * : properties * )
   local version = [ feature.get-values <valgrind-hidden> : $(properties) ] ;
   VERSION on $(targets) = "$(version)" ;
   URL on $(targets) = http://valgrind.org/downloads/valgrind-$(version).tar.bz2 ;
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
 }
 actions download
 {
-  $(PROPERTY_DUMP_COMMANDS)
+$(PROPERTY_DUMP_COMMANDS)
 
   rm -rf '$(<)' || exit 1
   if [ -n '$(STREAM)' ]; then
@@ -102,11 +97,11 @@ rule expand ( targets * : sources * : properties * )
 {
   local version = [ feature.get-values <valgrind-hidden> : $(properties) ] ;
   VERSION on $(targets) = "$(version)" ;
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
 }
 actions expand
 {
-  $(PROPERTY_DUMP_COMMANDS)
+$(PROPERTY_DUMP_COMMANDS)
 
   rm -rf '$(<:D)' || exit 1
   [ -f '$(>)' ] || exit 1
@@ -143,11 +138,11 @@ if "$(VALGRIND)" = "trunk" {
 
 rule checkout-trunk ( targets * : sources * : properties * )
 {
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
 }
 actions checkout-trunk
 {
-  $(PROPERTY_DUMP_COMMANDS)
+$(PROPERTY_DUMP_COMMANDS)
 
   if [ ! -f '$(INTRO_ROOT_DIR)/valgrind-trunk/README' ]; then
     if [ -n '$(STREAM)' ]; then
@@ -208,8 +203,8 @@ explicit srcdir ;
 
 rule location-conditional ( properties * )
 {
-  local includedir = [ get-default-includedir "$(PREFIX)" : $(properties) ] ;
-  return "<location>$(includedir)" ;
+  local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
+  return "<location>$(compiler-prefix)/include" ;
 }
 
 make valgrind/valgrind.h
@@ -241,8 +236,10 @@ rule make-install ( targets * : sources * : properties * )
   local srcdir = "$(INTRO_ROOT_DIR)/valgrind-$(version)" ;
   SRCDIR on $(targets) = [ path.native "$(srcdir)" ] ;
 
+  # Set the path to objdir.
   local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
-  OBJDIR on $(targets) = [ path.native "$(objdir)" ] ;
+  local objdir-native = [ path.native "$(objdir)" ] ;
+  OBJDIR on $(targets) = "$(objdir-native)" ;
 
   OPTIONS on $(targets) = ;
 
@@ -251,140 +248,125 @@ rule make-install ( targets * : sources * : properties * )
   local compiler-prefix-native = [ path.native "$(compiler-prefix)" ] ;
   OPTIONS on $(targets) += "--prefix='$(compiler-prefix-native)'" ;
 
-  # Set `--bindir' option for `configure' script.
-  local bindir = [ get-default-bindir "$(PREFIX)" : $(properties) ] ;
-  local bindir-native = [ path.native "$(bindir)" ] ;
-  OPTIONS on $(targets) += "--bindir='$(bindir-native)'" ;
-
-  # Set `--libdir' option for `configure' script.
-  local libdir = [ get-default-libdir "$(PREFIX)" : $(properties) ] ;
-  local libdir-native = [ path.native "$(libdir)" ] ;
-  OPTIONS on $(targets) += "--libdir='$(libdir-native)'" ;
-
-  # Set `--includedir' option for `configure' script.
-  local includedir = [ get-default-includedir "$(PREFIX)" : $(properties) ] ;
-  local includedir-native = [ path.native "$(includedir)" ] ;
-  OPTIONS on $(targets) += "--includedir='$(includedir-native)'" ;
-
+  # Set `--build' and `--host' options for `configure' script.
   local triplets = [ get-triplets $(properties) ] ;
   local build-triplet = "$(triplets[1])" ;
   local host-triplet = "$(triplets[2])" ;
   BUILD_TRIPLET on $(targets) = "$(build-triplet)" ;
   HOST_TRIPLET on $(targets) = "$(host-triplet)" ;
 
-  # Set `--build' and `--host' options for `configure' script.
   OPTIONS on $(targets) += "--build=$(build-triplet)" ;
   OPTIONS on $(targets) += "--host=$(host-triplet)" ;
 
   OPTIONS on $(targets) += "--enable-tls" ;
 
-  OPTIONS on $(targets) += "--with-mpicc='$(compiler-prefix-native)/bin/mpicc'" ;
+  local address-model = [ feature.get-values "<intro-address-model>" : $(properties) ] ;
+  OPTIONS on $(targets) += "--with-mpicc='$(compiler-prefix-native)/address-model-$(address-model)/bin/mpicc'" ;
 
   local cc = [ get-cc "$(PREFIX)" : $(properties) ] ;
   local cc-native = [ path.native "$(cc)" ] ;
   OPTIONS on $(targets) += "CC='$(cc-native)'" ;
 
-  #local cflags = [ get-cflags $(properties) ] ;
-  #if "$(cflags)" {
-  #  OPTIONS on $(targets) += "CFLAGS='$(cflags)'" ;
-  #}
-
   local cxx = [ get-cxx "$(PREFIX)" : $(properties) ] ;
   local cxx-native = [ path.native "$(cxx)" ] ;
   OPTIONS on $(targets) += "CXX='$(cxx-native)'" ;
 
-  #local cxxflags = [ get-cxxflags $(properties) ] ;
-  #if "$(cxxflags)" {
-  #  OPTIONS on $(targets) += "CXXFLAGS='$(cxxflags)'" ;
-  #}
-
   local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
   ENVIRONMENT_COMMANDS on $(targets) = "$(environment-commands)" ;
 
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+  local logfile = "$(compiler-prefix)/valgrind.txt" ;
+  local logfile-native = [ path.native "$(logfile)" ] ;
+  LOGFILE on $(targets) = "$(logfile-native)" ;
+
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "$(logfile)" ] ;
 }
 actions make-install
 {
-  $(PROPERTY_DUMP_COMMANDS)
+  exit_with_error ()
+  {
+    echo "`LANG=C date`:ERROR: $1 (Valgrind $(VERSION), $(COMPILER_DESCRIPTION))" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+    echo -n "ERROR: $1 (Valgrind $(VERSION), $(COMPILER_DESCRIPTION))" | $(AWACS)
+    exit 1
+  }
+
+  mkdir -p `dirname '$(LOGFILE)'`
+  echo "`LANG=C date`:INFO: initiation of Valgrind build process" | tee '$(LOGFILE)' >> '$(STREAM)'
+
+$(ENVIRONMENT_COMMANDS)
+
+$(PROPERTY_DUMP_COMMANDS)
 
   # Clean up objdir `$(OBJDIR)'.
-  { mkdir -p '$(OBJDIR)' && ( cd '$(OBJDIR)' && rm -rf * ); } || exit 1
+  { mkdir -p '$(OBJDIR)' && ( cd '$(OBJDIR)' && rm -rf * ); } || exit_with_error 'failed to clean up the old objdir'
 
   # Valgrind sources should compile in the `SRCDIR', not `OBJDIR' that is
   # different from `SRCDIR'. So, let's first copy all the contents of
   # `SRCDIR' to `OBJDIR'.
-  cp -rT '$(SRCDIR)' '$(OBJDIR)' || exit 1
+  cp -rT '$(SRCDIR)' '$(OBJDIR)' || exit_with_error 'failed to copy SRCDIR to OBJDIR'
 
-  [ -x '$(OBJDIR)/configure' ] || exit 1
-  [ -x '$(OBJDIR)/config.sub' ] || exit 1
-  [ `'$(OBJDIR)/config.sub' $(BUILD_TRIPLET)` = $(BUILD_TRIPLET) ] || exit 1
-  [ `'$(OBJDIR)/config.sub' $(HOST_TRIPLET)` = $(HOST_TRIPLET) ] || exit 1
+  [ -x '$(OBJDIR)/configure' ] || exit_with_error "\`$(OBJDIR)/configure' is not executable"
+  [ -x '$(OBJDIR)/config.sub' ] || exit_with_error "\`$(OBJDIR)/config.sub' is not executable"
+  [ `'$(OBJDIR)/config.sub' $(BUILD_TRIPLET)` = $(BUILD_TRIPLET) ] || exit_with_error "\`--build=$(BUILD_TRIPLET)' is not supported"
+  [ `'$(OBJDIR)/config.sub' $(HOST_TRIPLET)` = $(HOST_TRIPLET) ] || exit_with_error "\`--host=$(HOST_TRIPLET)' is not supported"
 
-  $(ENVIRONMENT_COMMANDS)
-
-  if [ -n '$(STREAM)' ]; then
-    ( cd '$(OBJDIR)' && ./configure $(OPTIONS) >> '$(STREAM)' 2>&1 )
-  else
-    ( cd '$(OBJDIR)' && ./configure $(OPTIONS) )
-  fi
-  if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`configure' Valgrind $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR: failed to \`configure' Valgrind $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
-    exit 1
+  echo "`LANG=C date`:COMMAND: ./configure $(OPTIONS:J= )" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+  tail --follow --lines=0 --sleep-interval=0.1 '$(LOGFILE)' >> '$(STREAM)' &
+  ( cd '$(OBJDIR)' && ./configure $(OPTIONS) >> '$(LOGFILE)' 2>&1 )
+  result=$?
+  kill -TERM $!
+  if [ $result -ne 0 ]; then
+    exit_with_error "failed to \`configure'"
   fi
 
   # Check the creation of `Makefile'.
-  [ -f '$(OBJDIR)/Makefile' ] || exit 1
+  [ -f '$(OBJDIR)/Makefile' ] || exit_with_error "failed to confirm the creation of \`Makefile'"
 
-  if [ -n '$(STREAM)' ]; then
-    ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) >> '$(STREAM)' 2>&1 )
-  else
-    ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) )
-  fi
-  if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`make' Valgrind $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR: failed to \`make' Valgrind $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
-    exit 1
+  echo "`LANG=C date`:COMMAND: make" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+  tail --follow --lines=0 --sleep-interval=0.1 '$(LOGFILE)' >> '$(STREAM)' &
+  ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) >> '$(LOGFILE)' 2>&1 )
+  result=$?
+  kill -TERM $!
+  if [ $result -ne 0 ]; then
+    exit_with_error "failed to \`make'"
   fi
 
-  if [ -n '$(STREAM)' ]; then
-    ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) check >> '$(STREAM)' 2>&1 )
-  else
-    ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) check )
-  fi
-  if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`make check' Valgrind $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR: failed to \`make check' Valgrind $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
-    exit 1
+  echo "`LANG=C date`:COMMAND: make check" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+  tail --follow --lines=0 --sleep-interval=0.1 '$(LOGFILE)' >> '$(STREAM)' &
+  ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) check >> '$(LOGFILE)' 2>&1 )
+  result=$?
+  kill -TERM $!
+  if [ $result -ne 0 ]; then
+    exit_with_error "failed to \`make check'"
   fi
 
-  if [ -n '$(STREAM)' ]; then
-    ( cd '$(OBJDIR)' && make install >> '$(STREAM)' 2>&1 )
-  else
-    ( cd '$(OBJDIR)' && make install )
-  fi
-  if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`make install' Valgrind $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR: failed to \`make install' Valgrind $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
-    exit 1
+  echo "`LANG=C date`:COMMAND: make install" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+  tail --follow --lines=0 --sleep-interval=0.1 '$(LOGFILE)' >> '$(STREAM)' &
+  ( cd '$(OBJDIR)' && make install >> '$(LOGFILE)' 2>&1 )
+  result=$?
+  kill -TERM $!
+  if [ $result -ne 0 ]; then
+    exit_with_error "failed to \`make install'"
   fi
 
-  if [ -n '$(STREAM)' ]; then
-    # Some tests might deadlock with GCC 4.8. Forces the deadlocked tests to be killed by `ulimit'.
-    ( cd '$(OBJDIR)' && ulimit -S -t 60 && ulimit -S -m 2097152 && make --jobs=$(CONCURRENCY) regtest 2>&1 | tee regtest.log >> '$(STREAM)' 2>&1 )
-  else
-    # Some tests might deadlock with GCC 4.8. Forces the deadlocked tests to be killed by `ulimit'.
-    ( cd '$(OBJDIR)' && ulimit -S -t 60 && ulimit -S -m 2097152 && make --jobs=$(CONCURRENCY) regtest 2>&1 | tee regtest.log )
+  echo "`LANG=C date`:COMMAND: make regtest" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+  tail --follow --lines=0 --sleep-interval=0.1 '$(LOGFILE)' >> '$(STREAM)' &
+  # Some tests might deadlock with GCC 4.8. Forces the deadlocked tests to be killed by `ulimit'.
+  ( cd '$(OBJDIR)' && ulimit -S -t 60 && ulimit -S -m 2097152 && make --jobs=$(CONCURRENCY) regtest 2>&1 | tee regtest.log >> '$(LOGFILE)' 2>&1 )
+  result=$?
+  kill -TERM $!
+  if [ $result -ne 0 ]; then
+    # `make regtest' usually fails, so they are treated as just information.
+    echo "`LANG=C date`:INFO:\`make regtest': `grep -Eo "^==.*==$" "$(OBJDIR)/regtest.log"`" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+    echo -n "INFO:\`make regtest':" `grep -Eo "^==.*==$" "$(OBJDIR)/regtest.log"` | $(AWACS)
   fi
-  # `make regtest' usually fails, so they are treated as just information.
-  echo -n "INFO:\`make regtest':" `grep -Eo "^==.*==$" "$(OBJDIR)/regtest.log"` | $(AWACS)
 
   # Clean up objdir `$(OBJDIR)'.
-  rm -rf '$(OBJDIR)' || exit 1
+  rm -rf '$(OBJDIR)' || exit_with_error 'failed to clean up the objdir'
 
-  [ -f '$(<)' ] || exit 1
+  [ -f '$(<)' ] || exit_with_error 'failed to confirm the creation of the build target'
 
   echo -n 'Valgrind $(VERSION) ($(COMPILER_DESCRIPTION)) was successfully built.' | $(AWACS)
+  echo "`LANG=C date`:INFO: successful completion of Valgrind build process" | tee -a '$(LOGFILE)' >> '$(STREAM)'
   exit 0
 }
 

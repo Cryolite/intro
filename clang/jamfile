@@ -15,13 +15,7 @@ import "$(INTRO_ROOT_DIR)/compilers"
     get-backend-gcc
     get-compiler-description
     get-compiler-prefix
-    get-default-bindir
-    get-default-libdir
-    get-default-debug-libdir
-    get-default-includedir
-    get-bindir
-    get-libdir
-    get-includedir
+    get-full-prefix
     get-compiler-triplets
     get-triplets
     get-cc
@@ -29,6 +23,7 @@ import "$(INTRO_ROOT_DIR)/compilers"
     get-cxx
     get-cxxflags
     get-environment-commands
+    get-logfile-path
     get-property-dump-commands
   ;
 
@@ -106,21 +101,17 @@ rule download ( targets * : sources * : properties * )
   LLVM_SRC_URL on $(targets) = "http://llvm.org/releases/$(version)/llvm-$(version).src.tar.gz" ;
   CLANG_SRC_URL on $(targets) = "http://llvm.org/releases/$(version)/clang-$(version).src.tar.gz" ;
   COMPILER_RT_SRC_URL on $(targets) = "http://llvm.org/releases/$(version)/compiler-rt-$(version).src.tar.gz" ;
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
 }
 actions download
 {
-  $(PROPERTY_DUMP_COMMANDS)
+$(PROPERTY_DUMP_COMMANDS)
 
   ( cd '$(INTRO_ROOT_DIR)' && rm -rf 'llvm-$(VERSION).src.tar.gz' ) || exit 1
   ( cd '$(INTRO_ROOT_DIR)' && rm -rf 'clang-$(VERSION).src.tar.gz' ) || exit 1
   ( cd '$(INTRO_ROOT_DIR)' && rm -rf 'compiler-rt-$(VERSION).src.tar.gz' ) || exit 1
 
-  if [ -n '$(STREAM)' ]; then
-    ( cd '$(<:D)' && wget -- '$(LLVM_SRC_URL)' >> '$(STREAM)' 2>&1 )
-  else
-    ( cd '$(<:D)' && wget --quiet -- '$(LLVM_SRC_URL)' )
-  fi
+  ( cd '$(<:D)' && wget -- '$(LLVM_SRC_URL)' >> '$(STREAM)' 2>&1 )
   if [ $? -ne 0 ]; then
     echo    'ERROR: failed to download LLVM $(VERSION) tarball.' 1>&2
     echo -n 'ERROR: failed to download LLVM $(VERSION) tarball.' | $(AWACS)
@@ -129,25 +120,17 @@ actions download
   fi
   [ -f '$(INTRO_ROOT_DIR)/llvm-$(VERSION).src.tar.gz' ] || exit 1
 
-  if [ -n '$(STREAM)' ]; then
-    ( cd '$(<:D)' && wget -- '$(CLANG_SRC_URL)' >> '$(STREAM)' 2>&1 )
-  else
-    ( cd '$(<:D)' && wget --quiet -- '$(CLANG_SRC_URL)' )
-  fi
+  ( cd '$(<:D)' && wget -- '$(CLANG_SRC_URL)' >> '$(STREAM)' 2>&1 )
   if [ $? -ne 0 ]; then
-    echo    'ERROR: failed to download Clang $(VERSION) tarball.' 1>&2
-    echo -n 'ERROR: failed to download Clang $(VERSION) tarball.' | $(AWACS)
+    echo    'ERROR: failed to download clang $(VERSION) tarball.' 1>&2
+    echo -n 'ERROR: failed to download clang $(VERSION) tarball.' | $(AWACS)
     ( cd '$(INTRO_ROOT_DIR)' && rm -rf 'clang-$(VERSION).src.tar.gz' ) || exit 1
     ( cd '$(INTRO_ROOT_DIR)' && rm -rf 'llvm-$(VERSION).src.tar.gz' ) || exit 1
     exit 1
   fi
   [ -f '$(INTRO_ROOT_DIR)/clang-$(VERSION).src.tar.gz' ] || exit 1
 
-  if [ -n '$(STREAM)' ]; then
-    ( cd '$(<:D)' && wget -- '$(COMPILER_RT_SRC_URL)' >> '$(STREAM)' 2>&1 )
-  else
-    ( cd '$(<:D)' && wget --quiet -- '$(COMPILER_RT_SRC_URL)' )
-  fi
+  ( cd '$(<:D)' && wget -- '$(COMPILER_RT_SRC_URL)' >> '$(STREAM)' 2>&1 )
   if [ $? -ne 0 ]; then
     echo    'ERROR: failed to download Compiler-RT $(VERSION) tarball.' 1>&2
     echo -n 'ERROR: failed to download Compiler-RT $(VERSION) tarball.' | $(AWACS)
@@ -186,11 +169,11 @@ rule expand ( targets * : sources * : properties * )
 {
   local version = [ get-version-impl $(properties) ] ;
   VERSION on $(targets) = "$(version)" ;
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
 }
 actions expand
 {
-  $(PROPERTY_DUMP_COMMANDS)
+$(PROPERTY_DUMP_COMMANDS)
 
   rm -rf '$(<:D)' || exit 1
 
@@ -198,11 +181,7 @@ actions expand
   [ -f '$(INTRO_ROOT_DIR)/clang-$(VERSION).src.tar.gz' ] || exit 1
   [ -f '$(INTRO_ROOT_DIR)/compiler-rt-$(VERSION).src.tar.gz' ] || exit 1
 
-  if [ -n '$(STREAM)' ]; then
-    tar xzvf '$(INTRO_ROOT_DIR)/llvm-$(VERSION).src.tar.gz' --directory='$(INTRO_ROOT_DIR)' >> '$(STREAM)' 2>&1
-  else
-    tar xzf  '$(INTRO_ROOT_DIR)/llvm-$(VERSION).src.tar.gz' --directory='$(INTRO_ROOT_DIR)'
-  fi
+  tar xzvf '$(INTRO_ROOT_DIR)/llvm-$(VERSION).src.tar.gz' --directory='$(INTRO_ROOT_DIR)' >> '$(STREAM)' 2>&1
   if [ $? -ne 0 ]; then
     echo    'ERROR: failed to expand LLVM $(VERSION) tarball.' 1>&2
     echo -n 'ERROR: failed to expand LLVM $(VERSION) tarball.' | $(AWACS)
@@ -214,14 +193,10 @@ actions expand
   [ -d '$(INTRO_ROOT_DIR)/llvm-$(VERSION)' ] || exit 1
   [ ! -e '$(INTRO_ROOT_DIR)/llvm-$(VERSION).src' ] || exit 1
 
-  if [ -n '$(STREAM)' ]; then
-    tar xzvf '$(INTRO_ROOT_DIR)/clang-$(VERSION).src.tar.gz' --directory='$(INTRO_ROOT_DIR)' >> '$(STREAM)' 2>&1
-  else
-    tar xzf  '$(INTRO_ROOT_DIR)/clang-$(VERSION).src.tar.gz' --directory='$(INTRO_ROOT_DIR)'
-  fi
+  tar xzvf '$(INTRO_ROOT_DIR)/clang-$(VERSION).src.tar.gz' --directory='$(INTRO_ROOT_DIR)' >> '$(STREAM)' 2>&1
   if [ $? -ne 0 ]; then
-    echo    'ERROR: failed to expand Clang $(VERSION) tarball.' 1>&2
-    echo -n 'ERROR: failed to expand Clang $(VERSION) tarball.' | $(AWACS)
+    echo    'ERROR: failed to expand clang $(VERSION) tarball.' 1>&2
+    echo -n 'ERROR: failed to expand clang $(VERSION) tarball.' | $(AWACS)
     ( cd '$(INTRO_ROOT_DIR)' && rm -rf clang-$(VERSION).src )
     ( cd '$(INTRO_ROOT_DIR)' && rm -rf llvm-$(VERSION) )
     exit 1
@@ -231,11 +206,7 @@ actions expand
   [ -d '$(INTRO_ROOT_DIR)/llvm-$(VERSION)/tools/clang' ] || exit 1
   [ ! -e '$(INTRO_ROOT_DIR)/clang-$(VERSION).src' ] || exit 1
 
-  if [ -n '$(STREAM)' ]; then
-    tar xzvf '$(INTRO_ROOT_DIR)/compiler-rt-$(VERSION).src.tar.gz' --directory='$(INTRO_ROOT_DIR)' >> '$(STREAM)' 2>&1
-  else
-    tar xzf  '$(INTRO_ROOT_DIR)/compiler-rt-$(VERSION).src.tar.gz' --directory='$(INTRO_ROOT_DIR)'
-  fi
+  tar xzvf '$(INTRO_ROOT_DIR)/compiler-rt-$(VERSION).src.tar.gz' --directory='$(INTRO_ROOT_DIR)' >> '$(STREAM)' 2>&1
   if [ $? -ne 0 ]; then
     echo    'ERROR: failed to expand Compiler-RT $(VERSION) tarball.' 1>&2
     echo -n 'ERROR: failed to expand Compiler-RT $(VERSION) tarball.' | $(AWACS)
@@ -278,21 +249,20 @@ rule update-trunk ( targets * : sources * : properties * )
   local clang-dir = "$(llvm-dir)/tools/clang" ;
   CLANG_DIR on $(targets) = [ path.native "$(clang-dir)" ] ;
 
+  local extra-clang-tools-dir = "$(llvm-dir)/tools/clang/tools/extra" ;
+  EXTRA_CLANG_TOOLS_DIR on $(targets) = [ path.native "$(extra-clang-tools-dir)" ] ;
+
   local compiler-rt-dir = "$(llvm-dir)/projects/compiler-rt" ;
   COMPILER_RT_DIR on $(targets) = [ path.native "$(compiler-rt-dir)" ] ;
 
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
 }
 actions update-trunk
 {
-  $(PROPERTY_DUMP_COMMANDS)
+$(PROPERTY_DUMP_COMMANDS)
 
   if [ ! -f '$(LLVM_DIR)/README.txt' ]; then
-    if [ -n '$(STREAM)' ]; then
-      ( cd '$(INTRO_ROOT_DIR)' && svn checkout 'http://llvm.org/svn/llvm-project/llvm/trunk' llvm-trunk >> '$(STREAM)' 2>&1 )
-    else
-      ( cd '$(INTRO_ROOT_DIR)' && svn checkout 'http://llvm.org/svn/llvm-project/llvm/trunk' llvm-trunk )
-    fi
+    ( cd '$(INTRO_ROOT_DIR)' && svn checkout 'http://llvm.org/svn/llvm-project/llvm/trunk' llvm-trunk >> '$(STREAM)' 2>&1 )
     if [ $? -ne 0 ]; then
       ( cd '$(INTRO_ROOT_DIR)' && rm -rf llvm-trunk )
       echo    "ERROR: failed to \`svn checkout' LLVM repository." 1>&2
@@ -303,26 +273,29 @@ actions update-trunk
   fi
 
   if [ ! -d '$(CLANG_DIR)' ]; then
-    if [ -n '$(STREAM)' ]; then
-      ( cd '$(INTRO_ROOT_DIR)/llvm-trunk/tools' && svn checkout 'http://llvm.org/svn/llvm-project/cfe/trunk' clang >> '$(STREAM)' 2>&1 )
-    else
-      ( cd '$(INTRO_ROOT_DIR)/llvm-trunk/tools' && svn checkout 'http://llvm.org/svn/llvm-project/cfe/trunk' clang )
-    fi
+    ( cd '$(INTRO_ROOT_DIR)/llvm-trunk/tools' && svn checkout 'http://llvm.org/svn/llvm-project/cfe/trunk' clang >> '$(STREAM)' 2>&1 )
     if [ $? -ne 0 ]; then
       ( cd '$(INTRO_ROOT_DIR)' && rm -rf llvm-trunk )
-      echo    "ERROR: failed to \`svn checkout' Clang repository." 1>&2
-      echo -n "ERROR: failed to \`svn checkout' Clang repository." | $(AWACS)
+      echo    "ERROR: failed to \`svn checkout' clang repository." 1>&2
+      echo -n "ERROR: failed to \`svn checkout' clang repository." | $(AWACS)
       exit 1
     fi
     [ -d '$(CLANG_DIR)' ] || exit 1
   fi
 
-  if [ ! -e '$(COMPILER_RT_DIR)' ]; then
-    if [ -n '$(STREAM)' ]; then
-      ( cd '$(INTRO_ROOT_DIR)/llvm-trunk/projects' && svn checkout 'http://llvm.org/svn/llvm-project/compiler-rt/trunk' compiler-rt >> '$(STREAM)' 2>&1 )
-    else
-      ( cd '$(INTRO_ROOT_DIR)/llvm-trunk/projects' && svn checkout 'http://llvm.org/svn/llvm-project/compiler-rt/trunk' compiler-rt )
+  if [ ! -d '$(EXTRA_CLANG_TOOLS_DIR)' ]; then
+    ( cd '$(INTRO_ROOT_DIR)/llvm-trunk/tools/clang/tools' && svn checkout 'http://llvm.org/svn/llvm-project/clang-tools-extra/trunk' extra >> '$(STREAM)' 2>&1 )
+    if [ $? -ne 0 ]; then
+      ( cd '$(INTRO_ROOT_DIR)' && rm -rf llvm-trunk )
+      echo    "ERROR: failed to \`svn checkout' extra clang tools repository." 1>&2
+      echo -n "ERROR: failed to \`svn checkout' extra clang tools repository." | $(AWACS)
+      exit 1
     fi
+    [ -d '$(EXTRA_CLANG_TOOLS_DIR)' ] || exit 1
+  fi
+
+  if [ ! -e '$(COMPILER_RT_DIR)' ]; then
+    ( cd '$(INTRO_ROOT_DIR)/llvm-trunk/projects' && svn checkout 'http://llvm.org/svn/llvm-project/compiler-rt/trunk' compiler-rt >> '$(STREAM)' 2>&1 )
     if [ $? -ne 0 ]; then
       ( cd '$(INTRO_ROOT_DIR)' && rm -rf llvm-trunk )
       echo    "ERROR: failed to \`svn checkout' Compiler-RT repository." 1>&2
@@ -332,33 +305,28 @@ actions update-trunk
     [ -d '$(COMPILER_RT_DIR)' ] || exit 1
   fi
 
-  if [ -n '$(STREAM)' ]; then
-    ( cd '$(LLVM_DIR)' && svn update >> '$(STREAM)' 2>&1 )
-  else
-    ( cd '$(LLVM_DIR)' && svn update )
-  fi
+  ( cd '$(LLVM_DIR)' && svn update >> '$(STREAM)' 2>&1 )
   if [ $? -ne 0 ]; then
     echo    "ERROR: failed to \`svn update' LLVM repository." 1>&2
     echo -n "ERROR: failed to \`svn update' LLVM repository." | $(AWACS)
     exit 1
   fi
 
-  if [ -n '$(STREAM)' ]; then
-    ( cd '$(CLANG_DIR)' && svn update >> '$(STREAM)' 2>&1 )
-  else
-    ( cd '$(CLANG_DIR)' && svn update )
-  fi
+  ( cd '$(CLANG_DIR)' && svn update >> '$(STREAM)' 2>&1 )
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`svn update' Clang repository." 1>&2
-    echo -n "ERROR: failed to \`svn update' Clang repository." | $(AWACS)
+    echo    "ERROR: failed to \`svn update' clang repository." 1>&2
+    echo -n "ERROR: failed to \`svn update' clang repository." | $(AWACS)
     exit 1
   fi
 
-  if [ -n '$(STREAM)' ]; then
-    ( cd '$(COMPILER_RT_DIR)' && svn update >> '$(STREAM)' 2>&1 )
-  else
-    ( cd '$(COMPILER_RT_DIR)' && svn update )
+  ( cd '$(EXTRA_CLANG_TOOLS_DIR)' && svn update >> '$(STREAM)' 2>&1 )
+  if [ $? -ne 0 ]; then
+    echo    "ERROR: failed to \`svn update' extra clang tools repository." 1>&2
+    echo -n "ERROR: failed to \`svn update' extra clang tools repository." | $(AWACS)
+    exit 1
   fi
+
+  ( cd '$(COMPILER_RT_DIR)' && svn update >> '$(STREAM)' 2>&1 )
   if [ $? -ne 0 ]; then
     echo    "ERROR: failed to \`svn update' Compiler-RT repository." 1>&2
     echo -n "ERROR: failed to \`svn update' Compiler-RT repository." | $(AWACS)
@@ -386,25 +354,35 @@ explicit srcdir ;
 
 
 
+rule default-location-conditional ( properties * )
+{
+  local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
+  return "<location>$(compiler-prefix)/bin" ;
+}
+
+make clang-wrapper
+  : compiler-dep
+    srcdir
+  : @make-install
+  : $(USE_COMPILER)
+    $(USE_MULTITARGET)
+    $(USE_CLANG)
+    $(USE_ADDRESS_MODEL)
+    $(USE_INSTRUCTION_SET)
+    <conditional>@default-location-conditional
+  ;
+explicit clang-wrapper ;
+
 rule location-conditional ( properties * )
 {
-  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
-  local bindir ;
-  if [ is-clang "$(compiler)" ] {
-    bindir = [ get-default-bindir "$(PREFIX)" : $(properties) ] ;
-  }
-  else if [ is-gcc "$(compiler)" ] || [ is-icc "$(compiler)" ] {
-    bindir = [ get-bindir "$(PREFIX)" : $(properties) ] ;
-  }
-  else {
-    errors.error "an internal error." ;
-  }
-  return "<location>$(bindir)" ;
+  local full-prefix = [ get-full-prefix "$(PREFIX)" : $(properties) ] ;
+  return "<location>$(full-prefix)/bin" ;
 }
 
 make clang++-wrapper
   : compiler-dep
     srcdir
+    clang-wrapper/$(DEFAULT_COMPILER_PROPERTIES)
   : @make-install
   : $(USE_COMPILER)
     $(USE_MULTITARGET)
@@ -417,20 +395,45 @@ explicit clang++-wrapper ;
 
 rule make-install ( targets * : sources * : properties * )
 {
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local compiler-description ;
-  if [ is-gcc "$(compiler)" ] {
-    compiler-description = [ get-compiler-description "$(compiler)" ] ;
+  local is-default ;
+  if [ regex.match "(clang-wrapper)" : "$(targets[1])" : 1 ] {
+    is-default = "yes" ;
+    IS_DEFAULT on $(targets) = "1" ;
   }
-  else if [ is-clang "$(compiler)" ] {
-    local backend-gcc = [ get-backend-gcc "$(compiler)" ] ;
-    compiler-description = [ get-compiler-description "$(backend-gcc)" ] ;
-  }
-  else if [ is-icc "$(compiler)" ] {
-    compiler-description = [ get-compiler-description "$(compiler)" ] ;
+  else if [ regex.match "(clang\\+\\+-wrapper)" : "$(targets[1])" : 1 ] {
+    # Do nothing.
+    IS_DEFAULT on $(targets) = "0" ;
   }
   else {
-    errors.error "an internal error." ;
+    errors.error "an internal error" ;
+  }
+
+  if "$(targets[2])" {
+    errors.error "an internal error" ;
+  }
+
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local compiler-description ;
+  if "$(is-default)" {
+    if [ is-gcc "$(compiler)" ] {
+      compiler-description = [ get-compiler-description "$(compiler)" ] ;
+    }
+    else if [ is-clang "$(compiler)" ] {
+      local backend-gcc = [ get-backend-gcc "$(compiler)" ] ;
+      compiler-description = [ get-compiler-description "$(backend-gcc)" ] ;
+    }
+    else if [ is-icc "$(compiler)" ] {
+      compiler-description = [ get-compiler-description "$(compiler)" ] ;
+    }
+    else if ! "$(compiler)" {
+      errors.error "the value of `<compiler>' is empty" ;
+    }
+    else {
+      errors.error "unknown property `<compiler>$(compiler)'" ;
+    }
+  }
+  else {
+    compiler-description = [ get-compiler-description "$(compiler)" ] ;
   }
   COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
 
@@ -444,48 +447,26 @@ rule make-install ( targets * : sources * : properties * )
   CLANG_DIR on $(targets) = [ path.native "$(clang-dir)" ] ;
 
   local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
-  OBJDIR on $(targets) = [ path.native "$(objdir)" ] ;
+  local objdir-native = [ path.native "$(objdir)" ] ;
+  OBJDIR on $(targets) = "$(objdir-native)" ;
 
   OPTIONS on $(targets) = ;
 
-  # Set `--prefix' option for `configure' script.
   local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
   local compiler-prefix-native = [ path.native "$(compiler-prefix)" ] ;
-  COMPILER_PREFIX on $(targets) = "$(compiler-prefix-native)" ;
-  OPTIONS on $(targets) += "--prefix='$(compiler-prefix-native)'" ;
 
-  local bindir-native ;
-  local libdir-native ;
-  local includedir-native ;
-  if [ is-clang "$(compiler)" ] {
-    local bindir = [ get-default-bindir "$(PREFIX)" : $(properties) ] ;
-    bindir-native = [ path.native "$(bindir)" ] ;
+  local full-prefix = [ get-full-prefix "$(PREFIX)" : $(properties) ] ;
+  local full-prefix-native = [ path.native "$(full-prefix)" ] ;
 
-    local libdir = [ get-default-libdir "$(PREFIX)" : $(properties) ] ;
-    libdir-native = [ path.native "$(libdir)" ] ;
-
-    local includedir = [ get-default-includedir "$(PREFIX)" : $(properties) ] ;
-    includedir-native = [ path.native "$(includedir)" ] ;
+  # Set `--prefix' option for `configure' script.
+  if "$(is-default)" {
+    CLANG_PREFIX on $(targets) = "$(compiler-prefix-native)" ;
+    OPTIONS on $(targets) += "--prefix='$(compiler-prefix-native)'" ;
   }
   else {
-    local bindir = [ get-bindir "$(PREFIX)" : $(properties) ] ;
-    bindir-native = [ path.native "$(bindir)" ] ;
-
-    local libdir = [ get-libdir "$(PREFIX)" : $(properties) ] ;
-    libdir-native = [ path.native "$(libdir)" ] ;
-
-    local includedir = [ get-includedir "$(PREFIX)" : $(properties) ] ;
-    includedir-native = [ path.native "$(includedir)" ] ;
+    CLANG_PREFIX on $(targets) = "$(full-prefix-native)" ;
+    OPTIONS on $(targets) += "--prefix='$(full-prefix-native)'" ;
   }
-  # Set `--bindir' option for `configure' script.
-  BINDIR on $(targets) += "$(bindir-native)" ;
-  OPTIONS on $(targets) += "--bindir='$(bindir-native)'" ;
-  # Set `--libdir' option for `configure' script.
-  LIBDIR on $(targets) += "$(libdir-native)" ;
-  OPTIONS on $(targets) += "--libdir='$(libdir-native)'" ;
-  # Set `--includedir' option for `configure' script.
-  INCLUDEDIR on $(targets) += "$(includedir-native)" ;
-  OPTIONS on $(targets) += "--includedir='$(includedir-native)'" ;
 
   local build-triplet ;
   local host-triplet ;
@@ -512,87 +493,76 @@ rule make-install ( targets * : sources * : properties * )
   OPTIONS on $(targets) += "--host=$(host-triplet)" ;
   OPTIONS on $(targets) += "--target=$(target-triplet)" ;
 
-  local variant = [ feature.get-values <variant> : $(properties) ] ;
-
-  if [ is-clang "$(compiler)" ] {
-    # Do nothing.
-  }
-  else if [ is-gcc "$(compiler)" ] || [ is-icc "$(compiler)" ] {
-    if "$(variant)" = "debug" {
-      OPTIONS on $(targets) += "--disable-optimized" ;
-    }
-    else if "$(variant)" = "release" {
-      OPTIONS on $(targets) += "--enable-optimized" ;
-    }
-    else if "$(variant)" = "profile" {
-      OPTIONS on $(targets) += "--enable-optimized" ;
-      OPTIONS on $(targets) += "--enable-profiling" ;
-    }
-    else {
-      errors.error "an internal error." ;
+  local std = [ feature.get-values <std> : $(properties) ] ;
+  if "$(is-default)" {
+    if "$(std)" != "c++03" {
+      errors.error "an internal error" ;
     }
   }
   else {
-    errors.error "an internal error." ;
+    switch "$(std)" {
+    case "c++03" :
+      # Do nothing.
+    case "c++11" :
+      OPTIONS on $(targets) += "--enable-cxx11" ;
+    case "" :
+      errors.error "the value of `<std>' is empty" ;
+    case "*" :
+      errors.error "unknown property `<std>$(std)'" ;
+    }
   }
 
-  local gcc = [ feature.get-values <gcc> : $(properties) ] ;
-  GCC on $(targets) = "$(gcc)" ;
+  local variant = [ feature.get-values <variant> : $(properties) ] ;
+  if "$(is-default)" {
+    # Do nothing.
+  }
+  else {
+    switch "$(variant)" {
+    case "debug" :
+      OPTIONS on $(targets) += "--disable-optimized" ;
+    case "release" :
+      OPTIONS on $(targets) += "--enable-optimized" ;
+    case "profile" :
+      OPTIONS on $(targets) += "--enable-optimized" ;
+      OPTIONS on $(targets) += "--enable-profiling" ;
+    case "" :
+      errors.error "the value of `<variant>' is empty" ;
+    case "*" :
+      errors.error "<variant>$(variant): unknown property" ;
+    }
+  }
+
+  #OPTIONS on $(targets) += "--enable-targets=x86_64,x86" ;
 
   OPTIONS on $(targets) += "--enable-bindings=none" ;
 
-  #if "$(enabled-targets)" {
-  #  OPTIONS on $(targets) += "--enable-targets=x86_64,x86" ;
-  #}
-  #else {
-  #  OPTIONS on $(targets) += "--enable-targets=x86_64,x86" ;
-  #}
-
   local multittarget = [ feature.get-values <multitarget> : $(properties) ] ;
 
-  if ! [ is-builtin-gcc "$(compiler)" ] {
-    #OPTIONS on $(targets) += "--with-c-include-dirs='$(libdir-native)/gcc/$(target-triplet)/`'$(compiler-prefix-native)/bin/gcc' -dumpversion`/include:$(compiler-prefix-native)/include:/usr/include'" ;
-    OPTIONS on $(targets) += "--with-cxx-include-root=\"$(compiler-prefix-native)/include/c++/`'$(compiler-prefix-native)/bin/gcc' -dumpversion`\"" ;
-    OPTIONS on $(targets) += "--with-cxx-include-arch=$(target-triplet)" ;
-    if "$(target-triplet)" = "x86_64-unknown-linux-gnu" && "$(multitarget)" = "yes" {
-      OPTIONS on $(targets) += --with-cxx-include-32bit-dir=32 ;
-    }
+  #local rpaths ;
+  #if [ is-clang "$(compiler)" ] {
+  #  if ( "$(host-triplet)" = "x86_64-unknown-linux-gnu" && "$(target-triplet)" = "x86_64-unknown-linux-gnu" )
+  #     || ( "$(host-triplet)" = "x86_64-unknown-linux-gnu" && "$(target-triplet)" = "i686-pc-linux-gnu" )
+  #     || ( "$(host-triplet)" = "i686-pc-linux-gnu" && "$(target-triplet)" = "i686-pc-linux-gnu" ) {
+  #    OPTIONS on $(targets) += "--with-extra-ld-options='-Wl,-rpath=\"$(prefix-native)/lib\"'" ;
+  #  }
+  #}
+
+  #if ! [ is-builtin-gcc "$(compiler)" ] {
+  #  OPTIONS on $(targets) += "--with-cxx-include-root=\"$(compiler-prefix-native)/include/c++/`'$(compiler-prefix-native)/bin/gcc' -dumpversion`\"" ;
+  #  OPTIONS on $(targets) += "--with-cxx-include-arch=$(target-triplet)" ;
+  #  if "$(target-triplet)" = "x86_64-unknown-linux-gnu" && "$(multitarget)" = "yes" {
+  #    OPTIONS on $(targets) += --with-cxx-include-32bit-dir=32 ;
+  #  }
+  #}
+  OPTIONS on $(targets) += "--with-gcc-toolchain='$(compiler-prefix-native)'" ;
+
+  if "$(is-default)" {
+    # Enables LLVM gold plugin support. See http://llvm.org/docs/GoldPlugin.html.
+    OPTIONS on $(targets) += "--with-binutils-include='$(compiler-prefix-native)/include'" ;
   }
 
-  local rpaths ;
-  if [ is-clang "$(compiler)" ] {
-    if ( "$(host-triplet)" = "x86_64-unknown-linux-gnu" && "$(target-triplet)" = "x86_64-unknown-linux-gnu" )
-       || ( "$(host-triplet)" = "i686-pc-linux-gnu" && "$(target-triplet)" = "i686-pc-linux-gnu" ) {
-      rpaths += "$(libdir-native)" ;
-    }
-  }
-  else if [ is-gcc "$(compiler)" ] || [ is-icc "$(compiler)" ] {
-    if ( "$(host-triplet)" = "x86_64-unknown-linux-gnu" && "$(target-triplet)" = "x86_64-unknown-linux-gnu" )
-       || ( "$(host-triplet)" = "i686-pc-linux-gnu" && "$(target-triplet)" = "i686-pc-linux-gnu" ) {
-      local default-debug-libdir = [ get-default-debug-libdir "$(PREFIX)" : $(properties) ] ;
-      local default-libdir = [ get-default-libdir "$(PREFIX)" : $(properties) ] ;
-      rpaths += [ path.native "$(libdir-native)" ] ;
-      if "$(variant)" = "debug" {
-        rpaths += [ path.native "$(default-debug-libdir)" ] ;
-      }
-      rpaths += [ path.native "$(default-libdir)" ] ;
-    }
-  }
-  else {
-    errors.error "an internal error." ;
-  }
-  local rpath-opts = "-Wl,-rpath=\"$(rpaths)\"" ;
-  local rpath-opts = "$(rpath-opts:J= )" ;
-  OPTIONS on $(targets) += "--with-extra-ld-options='$(rpath-opts)'" ;
-
-  local default-includedir = [ get-default-includedir "$(PREFIX)" : $(properties) ] ;
-  local default-includedir-native = [ path.native "$(default-includedir)" ] ;
-
-  # Enables LLVM gold plugin support. See http://llvm.org/docs/GoldPlugin.html.
-  OPTIONS on $(targets) += "--with-binutils-include='$(default-includedir-native)'" ;
-
-  if [ is-clang "$(compiler)" ] {
-    OPTIONS on $(targets) += "CC='$(bindir-native)/gcc-wrapper'" ;
+  if "$(is-default)" {
+    OPTIONS on $(targets) += "CC='$(compiler-prefix-native)/bin/gcc-wrapper'" ;
   }
   else {
     local cc = [ get-cc "$(PREFIX)" : $(properties) ] ;
@@ -600,13 +570,16 @@ rule make-install ( targets * : sources * : properties * )
     OPTIONS on $(targets) += "CC='$(cc-native)'" ;
   }
 
-  local cflags = [ get-cflags $(properties) ] ;
-  if $(cflags) {
-    OPTIONS on $(targets) += "CFLAGS='$(cflags)'" ;
+  if ! "$(is-default)" {
+    local cflags = [ get-cflags $(properties) ] ;
+    if "$(cflags)" {
+      CFLAGS on $(targets) = "$(cflags)" ;
+      OPTIONS on $(targets) += "CFLAGS='@$(objdir-native)/cflags'" ;
+    }
   }
 
-  if [ is-clang "$(compiler)" ] {
-    OPTIONS on $(targets) += "CXX='$(bindir-native)/g++-wrapper'" ;
+  if "$(is-default)" {
+    OPTIONS on $(targets) += "CXX='$(compiler-prefix-native)/bin/g++-wrapper'" ;
   }
   else {
     local cxx = [ get-cxx "$(PREFIX)" : $(properties) ] ;
@@ -614,173 +587,157 @@ rule make-install ( targets * : sources * : properties * )
     OPTIONS on $(targets) += "CXX='$(cxx-native)'" ;
   }
 
-  local cxxflags = [ get-cxxflags $(properties) ] ;
-  if $(cxxflags) {
-    OPTIONS on $(targets) += "CXXFLAGS='$(cxxflags)'" ;
+  if ! "$(is-default)" {
+    local cxxflags = [ get-cxxflags $(properties) ] ;
+    if "$(cxxflags)" {
+      CXXFLAGS on $(targets) = "$(cxxflags)" ;
+      OPTIONS on $(targets) += "CXXFLAGS='@$(objdir-native)/cxxflags'" ;
+    }
   }
 
   local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
   ENVIRONMENT_COMMANDS on $(targets) = "$(environment-commands)" ;
 
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+  local logfile ;
+  if "$(is-default)" {
+    logfile = "$(compiler-prefix)/clang.txt" ;
+    local logfile-native = [ path.native "$(logfile)" ] ;
+    LOGFILE on $(targets) = "$(logfile-native)" ;
+  }
+  else {
+    logfile = [ get-logfile-path "clang" : "$(PREFIX)" : $(properties) ] ;
+    local logfile-native = [ path.native "$(logfile)" ] ;
+    LOGFILE on $(targets) = "$(logfile-native)" ;
+  }
+
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "$(logfile)" ] ;
 }
 actions make-install
 {
-  $(PROPERTY_DUMP_COMMANDS)
+  exit_with_error ()
+  {
+    echo "`LANG=C date`:ERROR: $1 (LLVM & clang $2, $(COMPILER_DESCRIPTION))" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+    echo -n "ERROR: $1 (LLVM & clang $2, $(COMPILER_DESCRIPTION))" | $(AWACS)
+    exit 1
+  }
 
-  [ -x '$(LLVM_DIR)/autoconf/config.sub' ] || exit 1
-  [ `'$(LLVM_DIR)/autoconf/config.sub' $(BUILD_TRIPLET)` = $(BUILD_TRIPLET) ] || exit 1
-  [ `'$(LLVM_DIR)/autoconf/config.sub' $(HOST_TRIPLET)` = $(HOST_TRIPLET) ] || exit 1
-  [ `'$(LLVM_DIR)/autoconf/config.sub' $(TARGET_TRIPLET)` = $(TARGET_TRIPLET) ] || exit 1
-  [ -x '$(LLVM_DIR)/configure' ] || exit 1
+  mkdir -p `dirname '$(LOGFILE)'`
+  echo "`LANG=C date`:INFO: initiation of LLVM & clang build process" | tee '$(LOGFILE)' >> '$(STREAM)'
 
-  if [ $(VERSION) = trunk ]; then
-    # Extract the revision number of Clang trunk.
+$(ENVIRONMENT_COMMANDS)
+
+$(PROPERTY_DUMP_COMMANDS)
+
+  if [ '$(VERSION)' = 'trunk' ]; then
+    # Extract the revision number of clang trunk.
     version=`( cd '$(CLANG_DIR)' && { env LANG=C svn info || exit 1; } | { grep -E 'Revision: [[:digit:]]+' || exit 1; } | { grep -oE '[[:digit:]]+' || exit 1; } )`
     if [ $? -ne 0 ]; then
-      echo    'ERROR: failed to extract LLVM & Clang trunk revision.' 1>&2
-      echo -n 'ERROR: failed to extract LLVM & Clang trunk revision.' | $(AWACS)
-      exit 1
+      exit_with_error 'failed to extract trunk revision'
     fi
     version="trunk rev.$version"
   else
-    version=$(VERSION)
+    version='$(VERSION)'
   fi
 
   # Clean up objdir `$(OBJDIR)'.
-  { mkdir -p '$(OBJDIR)' && ( cd '$(OBJDIR)' && rm -rf * ); } || exit 1
+  { mkdir -p '$(OBJDIR)' && ( cd '$(OBJDIR)' && rm -rf * ); } || exit_with_error 'failed to clean up the old objdir' "$version"
 
-  $(ENVIRONMENT_COMMANDS)
+  [ -x '$(LLVM_DIR)/configure' ] || exit_with_error "\`$(LLVM_DIR)/configure' is not executable" "$version"
+  [ -x '$(LLVM_DIR)/autoconf/config.sub' ] || exit_with_error "\`$(LLVM_DIR)/autoconf/config.sub' is not executable" "$version"
+  [ `'$(LLVM_DIR)/autoconf/config.sub' $(BUILD_TRIPLET)` = $(BUILD_TRIPLET) ] || exit_with_error "\`--build=$(BUILD_TRIPLET)' is not supported" "$version"
+  [ `'$(LLVM_DIR)/autoconf/config.sub' $(HOST_TRIPLET)` = $(HOST_TRIPLET) ] || exit_with_error "\`--host=$(HOST_TRIPLET)' is not supported" "$version"
+  [ `'$(LLVM_DIR)/autoconf/config.sub' $(TARGET_TRIPLET)` = $(TARGET_TRIPLET) ] || exit_with_error "\`--target=$(TARGET_TRIPLET)' is not supported" "$version"
 
-  if [ -n '$(STREAM)' ]; then
-    ( cd '$(OBJDIR)' && '$(LLVM_DIR)/configure' $(OPTIONS) >> '$(STREAM)' 2>&1 )
-  else
-    ( cd '$(OBJDIR)' && '$(LLVM_DIR)/configure' $(OPTIONS) )
+  if [ $(IS_DEFAULT) -eq 0 ]; then
+    echo "`LANG=C date`:INFO: @cflags: $(CFLAGS)" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+    echo "`LANG=C date`:INFO: @cxxflags: $(CXXFLAGS)" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+    ( cd '$(OBJDIR)' && echo -n '$(CFLAGS)' > cflags ) || exit_with_error 'failed to create @cflags' "$version"
+    ( cd '$(OBJDIR)' && echo -n '$(CXXFLAGS)' > cxxflags ) || exit_with_error 'failed to create @cxxflags' "$version"
   fi
-  if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`configure' LLVM & Clang $version ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR: failed to \`configure' LLVM & Clang $version ($(COMPILER_DESCRIPTION))." | $(AWACS)
-    exit 1
+
+  echo "`LANG=C date`:COMMAND: $(LLVM_DIR)/configure $(OPTIONS:J= )" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+  tail --follow --lines=0 --sleep-interval=0.1 '$(LOGFILE)' >> '$(STREAM)' &
+  ( cd '$(OBJDIR)' && '$(LLVM_DIR)/configure' $(OPTIONS) >> '$(LOGFILE)' 2>&1 )
+  result=$?
+  kill -TERM $!
+  if [ $result -ne 0 ]; then
+    exit_with_error "failed to \`configure'" "$version"
   fi
 
   # Check the creation of `Makefile'.
-  [ -f '$(OBJDIR)/Makefile' ] || exit 1
+  [ -f '$(OBJDIR)/Makefile' ] || exit_with_error "failed to confirm the creation of \`Makefile'" "$version"
 
-  if [ -n '$(STREAM)' ]; then
-    ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) >> '$(STREAM)' 2>&1 )
-  else
-    ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) )
+  echo "`LANG=C date`:COMMAND: make" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+  tail --follow --lines=0 --sleep-interval=0.1 '$(LOGFILE)' >> '$(STREAM)' &
+  ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) >> '$(LOGFILE)' 2>&1 )
+  result=$?
+  kill -TERM $!
+  if [ $result -ne 0 ]; then
+    exit_with_error "failed to \`make'" "$version"
   fi
+
+  echo "`LANG=C date`:COMMAND: make check" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+  tail --follow --lines=0 --sleep-interval=0.1 '$(LOGFILE)' >> '$(STREAM)' &
+  ( cd '$(OBJDIR)' && make check >> '$(LOGFILE)' 2>&1 )
+  result=$?
+  kill -TERM $!
+  if [ $result -ne 0 ]; then
+    exit_with_error "failed to \`make check'" "$version"
+  fi
+
+  echo "`LANG=C date`:COMMAND: make install" | tee -a '$(LOGFILE)' >> '$(STREAM)'
+  tail --follow --lines=0 --sleep-interval=0.1 '$(LOGFILE)' >> '$(STREAM)' &
+  ( cd '$(OBJDIR)' && make install >> '$(LOGFILE)' 2>&1 )
+  result=$?
+  kill -TERM $!
+  if [ $result -ne 0 ]; then
+    exit_with_error "failed to \`make install'" "$version"
+  fi
+
+  if [ $(IS_DEFAULT) -ne 0 ]; then
+    # LLVM plugin for binutils tools (`ar' and `nm'). See http://llvm.org/docs/GoldPlugin.html.
+    ( cd '$(CLANG_PREFIX)/lib' && mkdir -p bfd-plugins )
+    if [ $? -ne 0 ]; then
+      exit_with_error "failed to create \`bfd-plugins' subdirectory in \`$(CLANG_PREFIX)'" "$version"
+    fi
+    ( cd '$(CLANG_PREFIX)/lib/bfd-plugins' && ln -sf '../LLVMgold.so' . )
+    if [ $? -ne 0 ]; then
+      exit_with_error "failed to create a symlink to \`LLVMgold.so' in \`$(CLANG_PREFIX)/bfd-plugins'" "$version"
+    fi
+  fi
+
+  install --mode=755 '$(INTRO_ROOT_DIR)/template/$(HOST_TRIPLET)/clang-wrapper' '$(INTRO_ROOT_DIR)/template/$(HOST_TRIPLET)/clang++-wrapper' '$(CLANG_PREFIX)/bin'
   if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`make' LLVM & Clang $version ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR: failed to \`make' LLVM & Clang $version ($(COMPILER_DESCRIPTION))." | $(AWACS)
-    exit 1
+    exit_with_error "failed to install the wrapper scripts" "$version"
   fi
-
-  if [ -n '$(STREAM)' ]; then
-    ( cd '$(OBJDIR)' && make check >> '$(STREAM)' 2>&1 )
-  else
-    ( cd '$(OBJDIR)' && make check )
-  fi
-  if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`make check' LLVM & Clang $version ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR: failed to \`make check' LLVM & Clang $version ($(COMPILER_DESCRIPTION))." | $(AWACS)
-    exit 1
-  fi
-
-  touch '$(COMPILER_PREFIX)/bin/before-make-install' || exit 1
-  touch '$(COMPILER_PREFIX)/lib/before-make-install' || exit 1
-  touch '$(COMPILER_PREFIX)/include/before-make-install' || exit 1
-
-  if [ -n '$(STREAM)' ]; then
-    ( cd '$(OBJDIR)' && make install >> '$(STREAM)' 2>&1 )
-  else
-    ( cd '$(OBJDIR)' && make install )
-  fi
-  if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`make install' LLVM & Clang $version ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR: failed to \`make install' LLVM & Clang $version ($(COMPILER_DESCRIPTION))." | $(AWACS)
-    exit 1
-  fi
-
-  touch '$(COMPILER_PREFIX)/bin/after-make-install' || exit 1
-  touch '$(COMPILER_PREFIX)/lib/after-make-install' || exit 1
-  touch '$(COMPILER_PREFIX)/include/after-make-install' || exit 1
-
-  mkdir -p '$(BINDIR)' || exit 1
-  mkdir -p '$(LIBDIR)' || exit 1
-  mkdir -p '$(INCLUDEDIR)' || exit 1
-
-  if [ '$(BINDIR)' != '$(COMPILER_PREFIX)/bin' ]; then
-    ( cd '$(COMPILER_PREFIX)/bin' && find . -mindepth 1 -maxdepth 1 -newer before-make-install -execdir [ '{}' -ot after-make-install ] \; -execdir mv -f '{}' '$(BINDIR)' \; ) || exit 1
-  fi
-  if [ '$(LIBDIR)' != '$(COMPILER_PREFIX)/lib' ]; then
-    ( cd '$(COMPILER_PREFIX)/lib' && find . -mindepth 1 -maxdepth 1 -newer before-make-install -execdir [ '{}' -ot after-make-install ] \; -execdir mv -f '{}' '$(LIBDIR)' \; ) || exit 1
-    ( cd '$(COMPILER_PREFIX)/lib' && ln -sfT '$(LIBDIR)/clang' clang ) || exit 1
-  fi
-  if [ '$(INCLUDEDIR)' != '$(COMPILER_PREFIX)/include' ]; then
-    ( cd '$(COMPILER_PREFIX)/include' && find . -mindepth 1 -maxdepth 1 -newer before-make-install -execdir [ '{}' -ot after-make-install ] \; -execdir mv -f '{}' '$(INCLUDEDIR)' \; ) || exit 1
-  fi
-
-  rm -f '$(COMPILER_PREFIX)/bin/before-make-install' '$(COMPILER_PREFIX)/bin/after-make-install' || exit 1
-  rm -f '$(COMPILER_PREFIX)/lib/before-make-install' '$(COMPILER_PREFIX)/lib/after-make-install' || exit 1
-  rm -f '$(COMPILER_PREFIX)/include/before-make-install' '$(COMPILER_PREFIX)/include/after-make-install' || exit 1
-
-  # LLVM gold plugin should be placed in `lib'.
-  ( cd '$(COMPILER_PREFIX)/lib' && ln -sf '$(LIBDIR)/LLVMgold.so' . )
-  if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to create a symlink to \`LLVMgold.so' in \`lib' for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR: failed to create a symlink to \`LLVMgold.so' in \`lib' for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." | $(AWACS)
-    exit 1
-  fi
-
-  # LLVM plugin for binutils tools (`ar' and `nm'). See http://llvm.org/docs/GoldPlugin.html.
-  ( cd '$(COMPILER_PREFIX)/lib' && mkdir -p bfd-plugins )
-  if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to create \`bfd-plugins' subdirectory in \`lib' for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR: failed to create \`bfd-plugins' subdirectory in \`lib' for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." | $(AWACS)
-    exit 1
-  fi
-  ( cd '$(COMPILER_PREFIX)/lib/bfd-plugins' && ln -sf '$(LIBDIR)/LLVMgold.so' . )
-  if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to create a symlink to \`LLVMgold.so' in \`lib/bfd-plugins' for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR: failed to create a symlink to \`LLVMgold.so' in \`lib/bfd-plugins' for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." | $(AWACS)
-    exit 1
-  fi
-
-  install --mode=755 '$(INTRO_ROOT_DIR)/template/$(HOST_TRIPLET)/clang-wrapper' '$(INTRO_ROOT_DIR)/template/$(HOST_TRIPLET)/clang++-wrapper' '$(BINDIR)'
-  if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to install the wrapper scripts for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR: failed to install the wrapper scripts for LLVM & Clang $version ($(COMPILER_DESCRIPTION))." | $(AWACS)
-    exit 1
-  fi
-
-  # Check the creation of `clang++-wrapper'.
-  [ -x '$(<)' ] || exit 1
 
   # Clean up objdir `$(OBJDIR)'.
-  rm -rf '$(OBJDIR)' || exit 1
+  rm -rf '$(OBJDIR)' || exit_with_error 'failed to clean up the objdir' "$version"
 
-  echo -n "LLVM & Clang $version ($(COMPILER_DESCRIPTION)) was successfully built." | $(AWACS)
+  # Check the creation of `clang++-wrapper'.
+  [ -x '$(<)' ] || exit_with_error 'failed to confirm the creation of the build target' "$version"
+
+  echo -n "LLVM & clang $version ($(COMPILER_DESCRIPTION)) was successfully built." | $(AWACS)
+  echo "`LANG=C date`:INFO: successful completion of LLVM & clang build process" | tee -a '$(LOGFILE)' >> '$(STREAM)'
   exit 0
 }
 
 
 
-rule install-conditional ( properties * )
-{
-  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
-  if [ is-clang "$(compiler)" ] {
-    result = "<source>clang++-wrapper/$(DEFAULT_COMPILER_PROPERTIES)" ;
-  }
-  else if [ is-gcc "$(compiler)" ] || [ is-icc "$(compiler)" ] {
-    result = "<source>clang++-wrapper" ;
-  }
-  else {
-    errors.error "an internal error." ;
-  }
-  return $(result) ;
-}
+#rule install-conditional ( properties * )
+#{
+#  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
+#  if [ is-clang "$(compiler)" ] {
+#    result = "<source>clang++-wrapper/$(DEFAULT_COMPILER_PROPERTIES)" ;
+#  }
+#  else if [ is-gcc "$(compiler)" ] || [ is-icc "$(compiler)" ] {
+#    result = "<source>clang++-wrapper" ;
+#  }
+#  else {
+#    errors.error "an internal error." ;
+#  }
+#  return $(result) ;
+#}
 
-alias install : : <conditional>@install-conditional ;
+alias install : clang++-wrapper ;
 explicit install ;

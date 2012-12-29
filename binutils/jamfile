@@ -58,11 +58,11 @@ rule download ( targets * : sources * : properties * )
                         'http://ftp.tsukuba.wide.ad.jp/software/binutils/binutils-$(version).tar.bz2' \\
                         'http://ftp.jaist.ac.jp/pub/GNU/binutils/binutils-$(version).tar.bz2'         \\
                         'ftp://sourceware.org/pub/binutils/snapshots/binutils-$(version).tar.bz2'"    ;
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
 }
 actions download
 {
-  $(PROPERTY_DUMP_COMMANDS)
+$(PROPERTY_DUMP_COMMANDS)
 
   rm -rf '$(<)' || exit 1
 
@@ -107,11 +107,11 @@ rule expand ( targets * : sources * : properties * )
 {
   local version = [ feature.get-values <binutils-hidden> : $(properties) ] ;
   VERSION on $(targets) = $(version) ;
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
 }
 actions expand
 {
-  $(PROPERTY_DUMP_COMMANDS)
+$(PROPERTY_DUMP_COMMANDS)
 
   rm -rf '$(<:D)' || exit 1
   [ -f '$(>)' ] || exit 1
@@ -248,12 +248,11 @@ rule make-install ( targets * : sources * : properties * )
   local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
   ENVIRONMENT_COMMANDS on $(targets) = $(environment-commands) ;
 
-  local property-dump-commands = [ get-property-dump-commands $(properties) ] ;
-  PROPERTY_DUMP_COMMANDS on $(targets) = $(property-dump-commands) ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
 }
 actions make-install
 {
-  $(PROPERTY_DUMP_COMMANDS)
+$(PROPERTY_DUMP_COMMANDS)
 
   [ -x '$(SRCDIR)/configure' ] || exit 1
   [ -x '$(SRCDIR)/config.sub' ] || exit 1

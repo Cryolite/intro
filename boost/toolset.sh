@@ -77,6 +77,37 @@ elif echo -n "$1" | grep -Fq '/clang++-wrapper'; then
     echo "$0: error: cannot extract Clang version" 1>&2
     exit 1
   fi
+elif echo -n "$1" | grep -Fq '/icpc-wrapper'; then
+  if which dirname 1>/dev/null 2>&1; then
+    :
+  else
+    echo "$0: error: dirname: command not found" 1>&2
+    exit 1
+  fi
+  dir=`dirname "$1"`
+  [ -x "${dir}/g++-wrapper" ] || exit 1
+  tmp=`LANG=C "${dir}/g++-wrapper" --version | head --lines=1`
+  if echo -n "$tmp" | grep -Eq "[[:digit:]]+\\.[[:digit:]]+\\.[[:digit:]]+ [[:digit:]]{8} \\(((experimental)|(prerelease))\\)"; then
+    ver=`echo -n "$tmp" | grep -Eo "[[:digit:]]+\\.[[:digit:]]+\\.[[:digit:]]+"`
+    ver=`echo -n "$ver" | grep -Eo "^[[:digit:]]+\\.[[:digit:]]+"`
+    date=`echo -n "$tmp" | grep -Eo "[[:digit:]]{8}"`
+    gcc_ver="${ver}_${date}"
+  elif echo -n "$tmp" | grep -Eq "[[:digit:]]+\\.[[:digit:]]+\\.[[:digit:]]+"; then
+    ver=`echo -n "$tmp" | grep -Eo "[[:digit:]]+\\.[[:digit:]]+\\.[[:digit:]]+"`
+    gcc_ver="${ver}"
+  else
+    echo "$0: error: cannot extract GCC version" 1>&2
+    exit 1
+  fi
+  tmp=`LANG=C "$1" --version | head --lines=1`
+  if echo -n "$tmp" | grep -Eq "[[:digit:]]+\\.[[:digit:]]+\\.[[:digit:]]+"; then
+    ver=`echo -n "$tmp" | grep -Eo "[[:digit:]]+\\.[[:digit:]]+\\.[[:digit:]]+"`
+    echo -n "intel-${ver}_${gcc_ver}"
+    exit 0
+  else
+    echo "$0: error: cannot extract ICC version" 1>&2
+    exit 1
+  fi
 else
   echo "$0: $1: error: unknown command" 1>&2
   exit 1

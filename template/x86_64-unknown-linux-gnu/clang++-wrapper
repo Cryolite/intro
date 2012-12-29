@@ -47,7 +47,7 @@ fi
 
 if [ -f /etc/debian_version ] && grep -Fq 'wheezy/sid' /etc/debian_version; then
     if [ ${bits} -eq 64 ]; then
-	LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu${LIBRARY_PATH:+:${LIBRARY_PATH}}"
+	LIBRARY_PATH="${LIBRARY_PATH:+${LIBRARY_PATH}:}/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu"
 	export LIBRARY_PATH
     elif [ ${bits} -eq 32 ]; then
 	:

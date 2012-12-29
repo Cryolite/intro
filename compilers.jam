@@ -6,6 +6,7 @@ import path ;
 import property ;
 import regex ;
 
+
 local .root-dir ;
 
 local .gcc-versions ;
@@ -21,6 +22,7 @@ local .clang-versions ;
 local .clang-latest-version ;
 
 local .icc-system-version ;
+
 
 rule init ( root-dir )
 {
@@ -186,7 +188,7 @@ rule get-gcc-oldest-snapshot-version ( )
 
 rule get-clang-latest-version ( )
 {
-  if ! $(.clang-latest-version) {
+  if ! "$(.clang-latest-version)" {
     local clang-latest-version
       = [ SHELL "echo -n $(.clang-versions:J= ) | grep -Eo \"[[:digit:]]+\\.[[:digit:]]+\" | sort -u -t '.' -k 1,1n -k 2,2n | tail --lines=1 | tr --delete '\\n'" ] ;
     .clang-latest-version = $(clang-latest-version) ;
@@ -196,16 +198,14 @@ rule get-clang-latest-version ( )
 
 rule get-icc-system-version ( )
 {
-  if ! $(.icc-system-version)
-  {
+  if ! "$(.icc-system-version)" {
     local icc-system-version
       = [ SHELL "/opt/intel/bin/icpc --version                                         \\
                    | grep -Eo '^icpc \\(ICC\\) [[:digit:]]+.[[:digit:]]+.[[:digit:]]+' \\
                    | grep -Eo '[[:digit:]]+.[[:digit:]]+.[[:digit:]]+'                 \\
                    | grep -Eo '^[[:digit:]]+.[[:digit:]]+'                             \\
                    | tr --delete '\\n'" ] ;
-    if ! [ regex.match "^([0-9]+\\.[0-9]+)$" : "$(icc-system-version)" : 1 ]
-    {
+    if ! [ regex.match "^([0-9]+\\.[0-9]+)$" : "$(icc-system-version)" : 1 ] {
       errors.error "an internal error." ;
     }
     .icc-system-version = $(icc-system-version) ;
@@ -239,11 +239,9 @@ rule is-valid ( compiler )
       }
     }
   }
-  else if [ regex.match "^(icc-system-.+)$" : $(compiler) : 1 ]
-  {
+  else if [ regex.match "^(icc-system-.+)$" : $(compiler) : 1 ] {
     local backend = [ regex.match "^icc-system-(.+)$" : $(compiler) : 1 ] ;
-    if [ is-valid $(backend) ]
-    {
+    if [ is-valid $(backend) ] {
       result = yes ;
     }
   }
@@ -542,6 +540,163 @@ rule get-compiler-prefix ( prefix : properties * )
   return "$(prefix)/$(prefix-leaf)" ;
 }
 
+rule get-full-prefix ( prefix : properties * )
+{
+  local result = [ get-compiler-prefix "$(prefix)" : $(properties) ] ;
+
+  local variant = [ feature.get-values <variant> : $(properties) ] ;
+  switch "$(variant)" {
+  case "debug" :
+    result = "$(result)/debug" ;
+  case "release" :
+    result = "$(result)/release" ;
+  case "profile" :
+    result = "$(result)/profile" ;
+  case "" :
+    errors.error "the value for `<variant>' is empty" ;
+  case "*" :
+    errors.error "<variant>$(variant): an unknown property" ;
+  }
+
+  local link = [ feature.get-values <link> : $(properties) ] ;
+  switch "$(link)" {
+  case "shared" :
+    result = "$(result)/link-shared" ;
+  case "static" :
+    result = "$(result)/link-static" ;
+  case "" :
+    errors.error "the value for `<link>' is empty" ;
+  case "*" :
+    errors.error "<link>$(link): an unknown property" ;
+  }
+
+  local runtime-link = [ feature.get-values <runtime-link> : $(properties) ] ;
+  switch "$(runtime-link)" {
+  case "shared" :
+    # Do nothing.
+  case "static" :
+    errors.error "`<runtime-link>static' is not supported" ;
+  case "" :
+    errors.error "the value for `<runtime-link> is empty'" ;
+  case "*" :
+    errors.error "<runtime-link>$(runtime-link): an unknown property" ;
+  }
+
+  local threading = [ feature.get-values <threading> : $(properties) ] ;
+  switch "$(threading)" {
+  case "single" :
+    result = "$(result)/threading-single" ;
+  case "multi" :
+    result = "$(result)/threading-multi" ;
+  case "" :
+    errors.error "the value for `<threading>' is empty" ;
+  case "*" :
+    errors.error "<threading>$(threading): an unknown property" ;
+  }
+
+  local address-model = [ feature.get-values <intro-address-model> : $(properties) ] ;
+  switch "$(address-model)" {
+  case "unspecified" :
+    result = "$(result)/address-model-unspecified" ;
+  case "64" :
+    result = "$(result)/address-model-64" ;
+  case "32" :
+    result = "$(result)/address-model-32" ;
+  case "" :
+    errors.error "the value for `<intro-address-model>' is empty" ;
+  case "*" :
+    errors.error "<intro-address-model>$(address-model): an unknown property" ;
+  }
+
+  local instruction-set = [ feature.get-values <intro-instruction-set> : $(properties) ] ;
+  switch "$(instruction-set)" {
+  case "unspecified" :
+    result = "$(result)/instruction-set-unspecified" ;
+  case "native" :
+    result = "$(result)/instruction-set-native" ;
+  case "" :
+    errors.error "the value for `<intro-instruction-set>' is empty" ;
+  case "*" :
+    errors.error "<intro-instruction-set>$(instruction-set): an unknown property" ;
+  }
+
+  local std = [ feature.get-values <std> : $(properties) ] ;
+  switch "$(std)" {
+  case "c++03" :
+    result = "$(result)/c++03" ;
+  case "c++11" :
+    result = "$(result)/c++11" ;
+  case "" :
+    errors.error "the value for `<std>' is empty" ;
+  case "*" :
+    errors.error "<std>$(std): an unknown property" ;
+  }
+
+  local lto = [ feature.get-values <lto> : $(properties) ] ;
+  switch "$(lto)" {
+  case "off" :
+    result = "$(result)/lto-off" ;
+  case "on" :
+    result = "$(result)/lto-on" ;
+  case "" :
+    errors.error "the value for `<lto>' is empty" ;
+  case "*" :
+    errors.error "<lto>$(lto): an unknown property" ;
+  }
+
+  local correct-call-stack = [ feature.get-values <correct-call-stack> : $(properties) ] ;
+  switch "$(correct-call-stack)" {
+  case "off" :
+    # Do nothing.
+  case "on" :
+    errors.error "`<correct-call-stack>on' is not supported" ;
+  case "" :
+    errors.error "the value for `<correct-call-stack>' is empty" ;
+  case "*" :
+    errors.error "<correct-call-stack>$(correct-call-stack): an unknown property" ;
+  }
+
+  local ssp = [ feature.get-values <ssp> : $(properties) ] ;
+  switch "$(ssp)" {
+  case "off" :
+    # Do nothing.
+  case "on" :
+    errors.error "`<ssp>on' is not supported" ;
+  case "all" :
+    errors.error "`<ssp>all' is not supported" ;
+  case "" :
+    errors.error "the value for `<ssp>' is empty" ;
+  case "*" :
+    errors.error "<ssp>$(ssp): an unknown property" ;
+  }
+
+  local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
+  switch "$(memory-checker)" {
+  case "off" :
+    result = "$(result)/memory-checker-off" ;
+  case "on" :
+    result = "$(result)/memory-checker-on" ;
+  case "" :
+    errors.error "the value for `<memory-checker>' is empty" ;
+  case "*" :
+    errors.error "<memory-checker>$(memory-checker): an unknown property" ;
+  }
+
+  local libstdcxx-debug-mode = [ feature.get-values <libstdc++-debug-mode> : $(properties) ] ;
+  switch "$(libstdcxx-debug-mode)" {
+  case "off" :
+    result = "$(result)/libstdc++-debug-mode-off" ;
+  case "on" :
+    result = "$(result)/libstdc++-debug-mode-on" ;
+  case "" :
+    errors.error "the value for `<libstdc++-debug-mode>' is empty" ;
+  case "*" :
+    errors.error "<libstdc++-debug-mode>$(libstdcxx-debug-mode): unknown property" ;
+  }
+
+  return "$(result)" ;
+}
+
 rule get-backend-gcc ( compiler )
 {
   if ! [ is-clang "$(compiler)" ] && ! [ is-icc "$(compiler)" ] {
@@ -558,28 +713,23 @@ rule get-backend-gcc ( compiler )
 rule get-gcc-path ( prefix : compiler : gcc-for-clang ? )
 {
   local result ;
-  if [ is-gcc $(compiler) ]
-  {
-    if $(gcc-for-clang)
-    {
+  if [ is-gcc "$(compiler)" ] {
+    if "$(gcc-for-clang)" {
       errors.error "an internal error." ;
     }
-    local prefix-leaf = [ get-prefix-leaf $(compiler) : $(gcc-for-clang) ] ;
+    local prefix-leaf = [ get-prefix-leaf "$(compiler)" : $(gcc-for-clang) ] ;
     local compiler-prefix = "$(prefix)/$(prefix-leaf)" ;
     result = "$(compiler-prefix)/bin/gcc-wrapper" ;
   }
-  else if [ is-clang $(compiler) ]
-  {
-    if ! $(gcc-for-clang)
-    {
+  else if [ is-clang "$(compiler)" ] {
+    if ! "$(gcc-for-clang)" {
       errors.error "an internal error." ;
     }
-    local prefix-leaf = [ get-prefix-leaf $(compiler) : $(gcc-for-clang) ] ;
+    local prefix-leaf = [ get-prefix-leaf "$(compiler)" : "$(gcc-for-clang)" ] ;
     local compiler-prefix = "$(prefix)/$(prefix-leaf)" ;
     result = "$(compiler-prefix)/bin/gcc-wrapper" ;
   }
-  else
-  {
+  else {
     errors.error "`<compiler-hidden>$(compiler)' is not valid." ;
   }
   return $(result) ;
@@ -647,7 +797,7 @@ rule get-default-libdir ( prefix : properties * )
   local host-os = [ feature.get-values <host-os> : $(properties) ] ;
   local target-os = [ feature.get-values <target-os> : $(properties) ] ;
   local multitarget = [ feature.get-values <multitarget-hidden> : $(properties) ] ;
-  local address-model = [ feature.get-values <intro-address-model-hidden> : $(properties) ] ;
+  local address-model = [ feature.get-values <intro-address-model> : $(properties) ] ;
   local result ;
   if "$(multitarget)" = "yes" {
     if "$(build-os)" != "linux" {
@@ -717,60 +867,78 @@ rule get-compiler-triplets ( properties * )
           switch "$(multitarget)" {
           case "yes" : # `$(multitarget)' is `yes'.
             switch "$(address-model)" {
-            case "unspecified" : # `$(address-model)' is `unspecified'.
+            case "64" : # `$(address-model)' is `64'.
               target-triplet = "x86_64-unknown-linux-gnu" ;
               enabled-targets = "x86_64-unknown-linux-gnu,i686-pc-linux-gnu" ;
-            case "*" : # `$(address-model)' is other than `unspecified'.
-              errors.error "an internal error." ;
+            case "32" : # `$(address-model)' is `32'.
+              errors.error "`<multitarget>$(multitarget)' and `<address-model>32' are not compatible" ;
+            case "" :
+              errors.error "The value for `<intro-address-model>' feature is empty." ;
+            case "*" : # `$(address-model)' is other than `unspecified', `64' or `32'.
+              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
             }
           case "no" : # `$(multitarget)' is `no'.
             switch "$(address-model)" {
-            case "unspecified" : # `$(address-model)' is `unspecified'.
+            case "64" : # `<intro-address-model>64'
               target-triplet = "x86_64-unknown-linux-gnu" ;
               enabled-targets = "x86_64-unknown-linux-gnu" ;
-            case "*" : # `$(address-model)' is other than `unspecified'.
-              errors.error "an internal error." ;
+            case "" :
+              errors.error "The value for `<intro-address-model>' feature is empty." ;
+            case "*" :
+              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
             }
-          case "*" : # `$(multitarget)' is neither `yes' nor `no'.
-            errors.error "an internal error." ;
+          case "" :
+            errors.error "The value for `<multitarget>' feature is empty." ;
+          case "*" :
+            errors.error "`<multitarget>$(multitarget)' is an unknown property." ;
           }
-        case "windows" : # `$(target-os)' is `windows'
+        case "windows" : # The target OS is `windows'.
           switch "$(multitarget)" {
-          case "no" : # `$(multitarget)' is `no'.
+          case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "64" : # `$(address-model)' is `64'.
+            case "64" : # `<intro-address-model>64'
               target-triplet = "x86_64-w64-mingw32" ;
               enabled-targets = "x86_64-w64-mingw32" ;
-            case "32" : # `$(address-model)' is `32'.
+            case "32" : # `<intro-address-model>32'
               target-triplet = "i686-w64-mingw32" ;
               enabled-targets = "i686-w64-mingw32" ;
-            case "*" : # `$(address-model)' is neither `64' nor `32'.
-              errors.error "an internal error." ;
+            case "" :
+              errors.error "The value for `<intro-address-model>' feature is empty." ;
+            case "*" : # The value for `<intro-address-model>' feature is neither `64' nor `32'.
+              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
             }
-          case "*" : # `$(multitarget)' is other than `no'.
-            errors.error "an internal error." ;
+          case "" :
+            errors.error "The value for `<multitarget>' feature is empty." ;
+          case "*" : # The value for `<multitarget>' feature is other than `no'.
+            errors.error "`<multitarget>$(multitarget)' is an unknown property." ;
           }
-        case "cygwin" : # `$(target-os)' is `cygwin'.
+        case "cygwin" : # The target OS is `cygwin'.
           switch "$(multitarget)" {
-          case "no" : # `$(multitarget)' is `no'.
+          case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "unspecified" : # `$(address-model)' is `unspecified'.
+            case "32" : # `<intro-address-model>32'
               target-triplet = "i686-pc-cygwin" ;
               enabled-targets = "i686-pc-cygwin" ;
-            case "*" : # `$(address-model)' is other than `unspecified'.
-              errors.error "an internal error." ;
+            case "" :
+              errors.error "The value for `<intro-address-model>' is empty." ;
+            case "*" : # The value for `<intro-address-model>' feature is other than `32'.
+              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
             }
+          case "" :
+            errors.error "The value for `<multitarget>' is empty." ;
           case "*" : # `$(multitarget)' is other than `no'.
-            errors.error "an internal error." ;
+            errors.error "`<multitarget>$(multitarget)' is an unknown property." ;
           }
-        case "*" : # `$(target-os)' is neither `linux', `windows' nor `cygwin'.
+        case "" :
+          errors.error "an internal error." ;
+        case "*" : # The target OS is neither `linux', `windows' nor `cygwin'.
           errors.error "an internal error." ;
         }
-      case "windows" : # `$(host-os)' is `windows'.
+      case "windows" : # The host OS is `windows'.
         switch "$(target-os)" {
-        case "windows" : # `$(target-os)' is `windows'.
+        case "windows" : # The target OS is `windows'.
           switch "$(multitarget)" {
-          case "no" : # `$(multitarget)' is `no'.
+          case "no" : # `<multitarget>no'
             switch "$(address-model)" {
             case "64" : # `$(address-model)' is `64'.
               host-triplet = "x86_64-w64-mingw32" ;
@@ -783,72 +951,92 @@ rule get-compiler-triplets ( properties * )
             case "*" : # `$(address-model)' is neither `64' nor `32'.
               errors.error "an internal error." ;
             }
-          case "*" : # `$(multitarget)' is other than `no'.
-            errors.error "an internal error." ;
+          case "" :
+            errors.error "The value for `<multitarget>' feature is empty." ;
+          case "*" : # The value for `<multitarget>' feature is other than `no'.
+            errors.error "`<multitarget>$(multitarget)' is an unknown property." ;
           }
-        case "*" : # `$(target-os)' is other than `windows'.
+        case "" :
+          errors.error "an internal error." ;
+        case "*" : # The target OS is other than `windows'.
           errors.error "an internal error." ;
         }
-      case "cygwin" : # `$(host-os)' is `cygwin'.
+      case "cygwin" : # The host OS is `cygwin'.
         host-triplet = "i686-pc-cygwin" ;
         switch "$(target-os)" {
-        case "cygwin" : # `$(target-os)' is `cygwin'.
+        case "cygwin" : # The target OS is `cygwin'.
           switch "$(multitarget)" {
-          case "no" : # `$(multitarget)' is `no'.
+          case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "unspecified" : # `$(address-model)' is `unspecified'.
+            case "32" : # `<intro-address-model>32'
               target-triplet = "i686-pc-cygwin" ;
               enabled-targets = "i686-pc-cygwin" ;
-            case "*" : # `$(address-model)' is other than `unspecified'.
-              errors.error "an internal error." ;
+            case "" :
+              errors.error "The value for `<intro-address-model>' feature is empty." ;
+            case "*" : # The value for `<intro-address-model>' feature is other than `32'.
+              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
             }
-          case "*" : # `$(multitarget)' is other than `no'.
-            errors.error "an internal error." ;
+          case "" :
+            errors.error "The value for `<multitarget>' feature is empty." ;
+          case "*" : # The value for `<multitarget>' feature is other than `no'.
+            errors.error "`<multitarget>$(multitarget)' is an unknown property." ;
           }
-        case "*" : # `$(target-os)' is other than `cygwin'.
+        case "" :
+          errors.error "an internal error." ;
+        case "*" : # The target OS is other than `cygwin'.
           errors.error "an internal error." ;
         }
-      case "*" : # `$(host-os)' is neither `linux', `windows' nor `cygwin'.
+      case "" :
+        errors.error "an internal error." ;
+      case "*" : # The host OS is neither `linux', `windows' nor `cygwin'.
         errors.error "an internal error." ;
       }
-    case "32" : # `$(default-bits)' is `32'.
+    case "32" : # The default number of bits is `32'.
       build-triplet = "i686-pc-linux-gnu" ;
       switch "$(host-os)" {
-      case "linux" : # `$(host-os)' is `linux'.
+      case "linux" : # The host OS is `linux'.
         host-triplet = "i686-pc-linux-gnu" ;
         switch "$(target-os)" {
-        case "linux" : # `$(target-os)' is `linux'.
+        case "linux" : # The target OS is `linux'.
           switch "$(multitarget)" {
-          case "no" : # `$(multitarget)' is `no'.
+          case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "unspecified" : # `$(address-model)' is `unspecified'.
+            case "32" : # `<intro-address-model>32'
               target-triplet = "i686-pc-linux-gnu" ;
               enabled-targets = "i686-pc-linux-gnu" ;
-            case "*" : # `$(address-model)' is other than `unspecified'.
-              errors.error "an internal error." ;
+            case "" :
+              errors.error "The value for `<intro-address-model>' feature is empty." ;
+            case "*" : # The value for `<intro-address-model>' feature is other than `unspecified'.
+              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
             }
-          case "*" : # `$(multitarget)' is other than `no'.
-            errors.error "an internal error." ;
+          case "" :
+            errors.error "The value for `<multitarget>' feature is empty." ;
+          case "*" : # The value for `<multitarget>' feature is other than `no'.
+            errors.error "`<multitarget>$(multitarget)' is an unknown property." ;
           }
-        case "windows" : # `$(target-os)' is `windows'.
+        case "windows" : # The target OS is `windows'.
           switch "$(multitarget)" {
-          case "no" : # `$(multitarget)' is `no'.
+          case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "32" : # `$(address-model)' is `32'.
+            case "32" : # `<intro-address-model>32'
               target-triplet = "i686-w64-mingw32" ;
               enabled-targets = "i686-w64-mingw32" ;
-            case "64" : # `$(address-model)' is `64'.
+            case "64" : # `<intro-address-model>64'
               target-triplet = "x86_64-w64-mingw32" ;
               enabled-targets = "x86_64-w64-mingw32" ;
-            case "*" : # `$(address-model)' is neither `32' nor `64'.
-              errors.error "an internal error." ;
+            case "" :
+              errors.error "The value for `<intro-address-model>' feature is empty." ;
+            case "*" : # The value for `<intro-address-model>' feature is neither `32' nor `64'.
+              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
             }
-          case "*" : # `$(multitarget)' is other than `no'.
-            errors.error "an internal error." ;
+          case "" :
+            errors.error "The value for `<multitarget>' feature is empty." ;
+          case "*" : # The value for `<multitarget>' feature is other than `no'.
+            errors.error "`<multitarget>$(multitarget)' is an unknown property." ;
           }
-        case "cygwin" : # `$(target-os)' is `cygwin'.
+        case "cygwin" : # The target OS is `cygwin'.
           switch "$(multitarget)" {
-          case "no" : # `$(multitarget)' is `no'.
+          case "no" : # `<multitarget>no'
             switch "$(address-model)" {
             case "unspecified" : # `$(address-model)' is `unspecified'.
               target-triplet = "i686-pc-cygwin" ;
@@ -856,126 +1044,164 @@ rule get-compiler-triplets ( properties * )
             case "*" : # `$(address-model)' is other than `unspecified'.
               errors.error "an internal error." ;
             }
-          case "*" : # `$(multitarget)' is other than `no'.
-            errors.error "an internal error." ;
+          case "" :
+            errors.error "The value for `<multitarget>' feature is empty." ;
+          case "*" : # The value for `<multitarget>' feature is other than `no'.
+            errors.error "`<multitarget>$(multitarget)' is an unknown property." ;
           }
-        case "*" : # `$(target-os)' is neither `linux', `windows' nor `cygwin'.
+        case "" :
+          errors.error "an internal error." ;
+        case "*" : # The target OS is neither `linux', `windows' nor `cygwin'.
           errors.error "an internal error." ;
         }
-      case "windows" : # `$(host-os)' is `windows'.
+      case "windows" : # The host OS is `windows'.
         switch "$(target-os)" {
-        case "windows" : # `$(target-os)' is `windows'.
+        case "windows" : # The target OS is `windows'.
           switch "$(multitarget)" {
-          case "no" : # `$(multitarget)' is `no'.
+          case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "32" : # `$(address-model)' is `32'.
+            case "32" : # `<intro-address-model>32'
               host-triplet = "i686-w64-mingw32" ;
               target-triplet = "i686-w64-mingw32" ;
               enabled-targets = "i686-w64-mingw32" ;
-            case "64" : # `$(address-model)' is `64'.
+            case "64" : # `<intro-address-model>64'
               host-triplet = "x86_64-w64-mingw32" ;
               target-triplet = "x86_64-w64-mingw32" ;
               enabled-targets = "x86_64-w64-mingw32" ;
-            case "*" : # `$(address-model)' is neither `32' nor `64'.
-              errors.error "an internal error." ;
+            case "" :
+              errors.error "The value for `<intro-address-model>' feature is empty." ;
+            case "*" : # The value for `<intro-address-model>' feature is neither `32' nor `64'.
+              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
             }
-          case "*" : # `$(multitarget)' is other than `no'.
-            errors.error "an internal error." ;
+          case "" :
+            errors.error "The value for `<multitarget>' feature is empty." ;
+          case "*" : # The value for `<multitarget>' feature is other than `no'.
+            errors.error "`<multitarget>$(multitarget)' is an unknown property." ;
           }
-        case "*" : # `$(target-os)' is other than `windows'.
+        case "" :
+          errors.error "an internal error." ;
+        case "*" : # The target OS is other than `windows'.
           errors.error "an internal error." ;
         }
-      case "cygwin" : # `$(host-os)' is `cygwin'.
+      case "cygwin" : # The host OS is `cygwin'.
         host-triplet = "i686-pc-cygwin" ;
         switch "$(target-os)" {
-        case "cygwin" : # `$(target-os)' is `cygwin'.
+        case "cygwin" : # The target OS is `cygwin'.
           switch "$(multitarget)" {
-          case "no" : # `$(multitarget)' is `no'.
+          case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "unspecified" : # `$(address-model)' is `unspecified'.
+            case "32" : # `<intro-address-model>32'
               target-triplet = "i686-pc-cygwin" ;
               enabled-targets = "i686-pc-cygwin" ;
-            case "*" : # `$(address-model)' is other than `unspecified'.
-              errors.error "an internal error." ;
+            case "" :
+              errors.error "The value for `<intro-address-model>' feature is empty." ;
+            case "*" : # The value for `<intro-address-model>' feature is other than `32'.
+              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
             }
-          case "*" : # `$(multitarget)' is other than `no'.
-            errors.error "an internal error." ;
+          case "" :
+            errors.error "The value for `<multitarget>' feature is empty." ;
+          case "*" : # The value for `<multitarget>' feature is other than `no'.
+            errors.error "`<multitarget>$(multitarget)' is an unknown property." ;
           }
-        case "*" : # `$(target-os)' is other than `cygwin'.
+        case "" :
+          errors.error "an internal error." ;
+        case "*" : # The target OS is other than `cygwin'.
           errors.error "an internal error." ;
         }
+      case "" :
+        errors.error "an internal error." ;
       case "*" : # `$(host-os)' is neither `linux', `windows' nor `cygwin'.
         errors.error "an internal error." ;
       }
-    case "*" : # `$(default-bits)' is neither `64' nor `32'.
+    case "" :
+      errors.error "an internal error." ;
+    case "*" : # The default number of bits is neither `64' nor `32'.
       errors.error "an internal error." ;
     }
-  case "windows" : # `$(build-os)' is `windows'.
+  case "windows" : # The build OS is `windows'.
     switch "$(default-bits)" {
-    case "64" : # `$(default-bits)' is `64'.
+    case "64" : # The default number of bits is `64'.
       build-triplet = "x86_64-w64-mingw32" ;
       switch "$(host-os)" {
-      case "windows" : # `$(host-os)' is `windows'.
+      case "windows" : # The host OS is `windows'.
         host-triplet = "x86_64-w64-mingw32" ;
         switch "$(target-os)" {
-        case "windows" : # `$(target-os)' is `windows'.
+        case "windows" : # The target OS is `windows'.
           switch "$(multitarget)" {
-          case "no" : # `$(multitarget)' is `no'.
+          case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "unspecified" : # `$(address-model)' is `unspecified'.
+            case "64" : # `<intro-address-model>64'
               target-triplet = "x86_64-w64-mingw32" ;
               enabled-targets = "x86_64-w64-mingw32" ;
-            case "*" : # `$(address-model)' is other than `unspecified'.
-              errors.error "an internal error." ;
+            case "" :
+              errors.error "The value for `<intro-address-model>' feature is empty." ;
+            case "*" : # The value for `<intro-address-model>' feature is other than `64'.
+              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
             }
-          case "*" : # `$(multitarget)' is other than `no'.
-            errors.error "an internal error." ;
+          case "" :
+            errors.error "The value for `<multitarget>' feature is empty." ;
+          case "*" : # The value for `<multitarget>' feature is other than `no'.
+            errors.error "`<multitarget>$(multitarget)' is an unknown property." ;
           }
-        case "*" : # `$(target-os)' is other than `windows'.
+        case "" :
+          errors.error "an internal error." ;
+        case "*" : # The target OS is other than `windows'.
           errors.error "an internal error." ;
         }
-      case "*" : # `$(host-os)' is other than `windows'.
+      case "" :
+        errors.error "an internal error." ;
+      case "*" : # The host OS is other than `windows'.
         errors.error "an internal error." ;
       }
-    case "32" : # `$(default-bits)' is `32'.
+    case "32" : # The default number of bits is `32'.
       build-triplet = "i686-w64-mingw32" ;
       switch "$(host-os)" {
-      case "windows" : # `$(host-os)' is `windows'.
+      case "windows" : # The host OS is `windows'.
         host-triplet = "i686-w64-mingw32" ;
         switch "$(target-os)" {
-        case "windows" : # `$(target-os)' is `windows'.
+        case "windows" : # The target OS is `windows'.
           switch "$(multitarget)" {
-          case "no" : # `$(multitarget)' is `no'.
+          case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "unspecified" : # `$(address-model)' is `unspecified'.
+            case "32" : # `<intro-address-model>32'
               target-triplet = "i686-w64-mingw32" ;
               enabled-targets = "i686-w64-mingw32" ;
-            case "*" : # `$(address-model)' is other than `unspecified'.
-              errors.error "an internal error." ;
+            case "" :
+              errors.error "The value for `<intro-address-model>' feature is empty." ;
+            case "*" : # The value for `<intro-address-model>' feature is other than `32'.
+              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
             }
-          case "*" : # `$(multitarget)' is other than `no'.
-            errors.error "an internal error." ;
+          case "" :
+            errors.error "The value for `<multitarget>' feature is empty." ;
+          case "*" : # The value for `<multitarget>' feature is other than `no'.
+            errors.error "`<multitarget>$(multitarget)' is an unknown property." ;
           }
-        case "*" : # `$(target-os)' is other than `windows'.
+        case "" :
+          errors.error "an internal error." ;
+        case "*" : # The target OS is other than `windows'.
           errors.error "an internal error." ;
         }
-      case "*" : # `$(host-os)' is other than `windows'.
+      case "" :
+        errors.error "an internal error." ;
+      case "*" : # The host OS is other than `windows'.
         errors.error "an internal error." ;
       }
-    case "*" : # `$(default-bits)' is neither `64' nor `32'.
+    case "" :
+      errors.error "an internal error." ;
+    case "*" : # The default number of bits is neither `64' nor `32'.
       errors.error "an internal error." ;
     }
-  case "cygwin" : # `$(build-os)' is `cygwin'.
+  case "cygwin" : # The build OS is `cygwin'.
     switch "$(default-bits)" {
-    case "32" : # `$(default-bits)' is `32'.
+    case "32" : # The default number of bits is `32'.
       build-triplet = "i686-pc-cygwin" ;
       switch "$(host-os)" {
-      case "cygwin" : # `$(host-os)' is `cygwin'.
+      case "cygwin" : # The host OS is `cygwin'.
         host-triplet = "i686-pc-cygwin" ;
         switch "$(target-os)" {
-        case "cygwin" : # `$(target-os)' is `cygwin'.
+        case "cygwin" : # The target OS is `cygwin'.
           switch "$(multitarget)" {
-          case "no" : # `$(multitarget)' is `no'.
+          case "no" : # `<multitarget>no'
             switch "$(address-model)" {
             case "unspecified" : # `$(address-model)' is `unspecified'.
               target-triplet = "i686-pc-cygwin" ;
@@ -983,19 +1209,29 @@ rule get-compiler-triplets ( properties * )
             case "*" : # `$(address-model)' is other than `unspecified'.
               errors.error "an internal error." ;
             }
-          case "*" : # `$(multitarget)' is other than `no'.
-            errors.error "an internal error." ;
+          case "" :
+            errors.error "The value for `<multitarget>' feature is empty." ;
+          case "*" : # The value for `<multitarget>' feature is other than `no'.
+            errors.error "`<multitarget>$(multitarget)' is an unknown property." ;
           }
-        case "*" : # `$(target-os)' is other than `cygwin'.
+        case "" :
+          errors.error "an internal error." ;
+        case "*" : # The target OS is other than `cygwin'.
           errors.error "an internal error." ;
         }
-      case "*" : # `$(host-os)' is other than `cygwin'.
+      case "" :
+        errors.error "an internal error." ;
+      case "*" : # The host OS is other than `cygwin'.
         errors.error "an internal error." ;
       }
-    case "*" : # `$(default-bits)' is other than `32'.
+    case "" :
+      errors.error "an internal error." ;
+    case "*" : # The default number of bits is other than `32'.
       errors.error "an internal error." ;
     }
-  case "*" : # `$(build-os)' is neither `linux', `windows' nor `cygwin'.
+  case "" :
+    errors.error "an internal error." ;
+  case "*" : # The build OS is neither `linux', `windows' nor `cygwin'.
     errors.error "an internal error." ;
   }
   if ! "$(build-triplet)" {
@@ -1025,8 +1261,8 @@ rule normalize-properties ( properties * )
   if "$(address-model)" {
     properties = [ property.change $(properties) : <address-model> $(address-model) ] ;
   }
-  properties = [ property.change $(properties) : <intro-instruction-set-hidden> ] ;
   properties = [ property.change $(properties) : <intro-instruction-set> ] ;
+  properties = [ property.change $(properties) : <intro-instruction-set-on-build> ] ;
   if "$(instruction-set)" != "unspecified" {
     properties += "<instruction-set>$(instruction-set)" ;
   }
@@ -1114,211 +1350,265 @@ rule get-triplets ( properties * )
   local address-model = [ feature.get-values <intro-address-model> : $(properties) ] ;
   local build-triplet ;
   local host-triplet ;
-  if "$(build-os)" = "linux" {
-    if "$(default-bits)" = "64" {
-      if "$(host-os)" = "linux" {
+  switch "$(build-os)" {
+  case "linux" : # The build OS is `linux'.
+    switch "$(default-bits)" {
+    case "64" : # The default number of bits is `64'.
+      switch "$(host-os)" {
+      case "linux" : # The host OS is `linux'.
         build-triplet = "x86_64-unknown-linux-gnu" ;
-        if "$(target-os)" = "linux" {
-          if "$(multitarget)" = "yes" {
-            if "$(address-model)" = "unspecified" {
+        switch "$(target-os)" {
+        case "linux" : # The target OS is `linux'.
+          switch "$(multitarget)" {
+          case "yes" : # `<multitarget>yes'
+            switch "$(address-model)" {
+            case "64" : # `<intro-address-model>64'
               host-triplet = "x86_64-unknown-linux-gnu" ;
-            }
-            else if "$(address-model)" = "32" {
+            case "32" : # `<intro-address-model>32'
               host-triplet = "i686-pc-linux-gnu" ;
+            case "" :
+              errors.error "The value for `<intro-address-model>' feature is empty." ;
+            case "*" : # The value for `<intro-address-model>' feature is neither `64' nor `32'.
+              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
             }
-            else { # `$(address-model)' is neither `unspecified' nor `32'.
-              errors.error "an internal error." ;
-            }
-          }
-          else if "$(multitarget)" = "no" {
-            if "$(address-model)" = "unspecified" {
+          case "no" : # `<multitarget>no'
+            switch "$(address-model)" {
+            case "64" : # `<intro-address-model>64'
               host-triplet = "x86_64-unknown-linux-gnu" ;
+            case "" :
+              errors.error "The value for `<intro-address-model>' feature is empty." ;
+            case "*" : # The value for `<intro-address-model>' feature is other than `64'.
+              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
             }
-            else { # `$(address-model)' is other than `unspecified'.
-              errors.error "an internal error." ;
-            }
+          case "" :
+            errors.error "The value for `<multitarget>' feature is empty." ;
+          case "*" : # The value for `<multitarget>' feature is neither `yes' nor `no'.
+            errors.error "`<multitarget>$(multitarget)' is an unknown property." ;
           }
-          else { # `$(multitarget)' is neither `yes' nor `no'.
-            errors.error "an internal error." ;
-          }
-        }
-        else if "$(target-os)" = "windows" {
-          if "$(multitarget)" = "no" {
-            if "$(address-model)" = "64" {
+        case "windows" : # The target OS is `windows'.
+          switch "$(multitarget)" {
+          case "no" : # `<multitarget>no'
+            switch "$(address-model)" {
+            case "64" : # `<intro-address-model>64'
               host-triplet = "x86_64-w64-mingw32" ;
-            }
-            else if "$(address-model)" = "32" {
+            case "32" : # `<intro-address-model>32'
               host-triplet = "i686-w64-mingw32" ;
+            case "" :
+              errors.error "The value for `<intro-address-model>' feature is empty." ;
+            case "*" : # The value for `<intro-address-model>' feature is neither `64' nor `32'.
+              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
             }
-            else { # `$(address-model)' is neither `64' nor `32'.
-              errors.error "an internal error." ;
-            }
+          case "" :
+            errors.error "The value for `<multitarget>' feature is empty." ;
+          case "*" : # The value for `<multitarget>' feature is other than `no'.
+            errors.error "`<multitarget>$(multitarget)' is an unknown property." ;
           }
-          else { # `$(multitarget)' is other than `no'.
-            errors.error "an internal error." ;
-          }
-        }
-        else if "$(target-os)" = "cygwin" {
-          if "$(multitarget)" = "no" {
-            if "$(address-model)" = "unspecified" {
+        case "cygwin" : # The target OS is `cygwin'.
+          switch "$(multitarget)" {
+          case "no" : # `<multitarget>no'
+            switch "$(address-model)" {
+            case "32" : # `<intro-address-model>32'
               host-triplet = "i686-pc-cygwin" ;
+            case "" :
+              errors.error "The value for `<intro-address-model>' feature is empty." ;
+            case "*" : # The value for `<intro-address-model>' is other than `32'.
+              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
             }
-            else { # `$(address-model)' is other than `unspecified'.
-              errors.error "an internal error." ;
-            }
+          case "" :
+            errors.error "The value for `<multitarget>' feature is empty." ;
+          case "*" : # The value for `<multitarget>' feature is other than `no'.
+            errors.error "`<multitarget>$(multitarget)' is an unknown property." ;
           }
-          else { # `$(multitarget)' is other than `no'.
-            errors.error "an internal error." ;
-          }
-        }
-        else { # `$(target-os)' is neither `linux', `windows' nor `cygwin'.
+        case "" :
+          errors.error "an internal error." ;
+        case "*" : # The target OS is neither `linux', `windows' nor `cygwin'.
           errors.error "an internal error." ;
         }
-      }
-      else { # `$(host-os)' is other than `linux'.
+      case "" :
+        errors.error "an internal error." ;
+      case "*" : # The host OS is other than `linux'.
         errors.error "an internal error." ;
       }
-    }
-    else if "$(default-bits)" = "32" {
-      if "$(host-os)" = "linux" {
+    case "32" : # The default number of bits is `32'.
+      switch "$(host-os)" {
+      case "linux" : # The host OS is `linux'.
         build-triplet = "i686-pc-linux-gnu" ;
-        if "$(target-os)" = "linux" {
-          if "$(multitarget)" = "no" {
-            if "$(address-model)" = "unspecified" {
+        switch "$(target-os)" {
+        case "linux" : # The target OS is `linux'.
+          switch "$(multitarget)" {
+          case "no" : # `<multitarget>no'
+            switch "$(address-model)" {
+            case "32" : # `<intro-address-model>32'
               host-triplet = "i686-pc-linux-gnu" ;
+            case "" :
+              errors.error "The value for `<intro-address-model>' feature is empty." ;
+            case "*" : # The value for `<intro-address-model>' feature is other than `32'.
+              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
             }
-            else { # `$(address-model)' is other than `unspecified'.
-              errors.error "an internal error." ;
-            }
+          case "" :
+            errors.error "The value for `<multitarget>' feature is empty." ;
+          case "*" : # The value for `<multitarget>' feature is other than `no'.
+            errors.error "`<multitarget>$(multitarget)' is an unknown property." ;
           }
-          else { # `$(multitarget)' is other than `no'.
-            errors.error "an internal error." ;
-          }
-        }
-        else if "$(target-os)" = "windows" {
-          if "$(multitarget)" = "no" {
-            if "$(address-model)" = "32" {
+        case "windows" : # The target OS is `windows'.
+          switch "$(multitarget)" {
+          case "no" : # `<multitarget>no'
+            switch "$(address-model)" {
+            case "32" : # `<intro-address-model>32'
               host-triplet = "i686-w64-mingw32" ;
-            }
-            else if "$(address-model)" = "64" {
+            case "64" : # `<intro-address-model>64'
               host-triplet = "x86_64-w64-mingw32" ;
+            case "" :
+              errors.error "The value for `<intro-address-model>' feature is empty." ;
+            case "*" : # The value for `<intro-address-model>' feature is neither `32' nor `64'.
+              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
             }
-            else { # `$(address-model)' is neither `32' nor `64'.
-              errors.error "an internal error." ;
-            }
+          case "" :
+            errors.error "The value for `<multitarget>' feature is empty." ;
+          case "*" : # The value for `<multitarget>' feature is other than `no'.
+            errors.error "`<multitarget>$(multitarget)' is an unknown property." ;
           }
-          else { # `$(multitarget)' is other than `no'.
-            errors.error "an internal error." ;
-          }
-        }
-        else if "$(target-os)" = "cygwin" {
-          if "$(multitarget)" = "no" {
-            if "$(address-model)" = "unspecified" {
+        case "cygwin" : # The target OS is `cygwin'.
+          switch "$(multitarget)" {
+          case "no" : # `<multitarget>no'
+            switch "$(address-model)" {
+            case "32" : # `<intro-address-model>32'
               host-triplet = "i686-pc-cygwin" ;
+            case "" :
+              errors.error "The value for `<intro-address-model>' feature is empty." ;
+            case "*" : # The value for `<intro-address-model>' feature is other than `32'.
+              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
             }
-            else { # `$(address-model)' is other than `unspecified'.
-              errors.error "an internal error." ;
-            }
+          case "" :
+            errors.error "The value for `<multitarget>' feature is empty." ;
+          case "*" : # The value for `<multitarget>' feature is other than `no'.
+            errors.error "`<multitarget>$(multitarget)' is an unknown property." ;
           }
-          else { # `$(multitarget)' is other than `no'.
-            errors.error "an internal error." ;
-          }
-        }
-        else { # `$(target-os)' is neither `linux', `windows' nor `cygwin'.
+        case "" :
+          errors.error "an internal error." ;
+        case "*" : # The target OS is neither `linux', `windows' nor `cygwin'.
           errors.error "an internal error." ;
         }
-      }
-      else { # `$(host-os)' is other than `linux'.
+      case "" :
+        errors.error "an internal error." ;
+      case "*" : # The host OS is other than `linux'.
         errors.error "an internal error." ;
       }
-    }
-    else { # `$(default-bits)' is neither `64' nor `32'.
+    case "" :
+      errors.error "an internal error." ;
+    case "*" : # The default number of bits is neither `64' nor `32'.
       errors.error "an internal error." ;
     }
-  }
-  else if "$(build-os)" = "windows" {
-    if "$(default-bits)" = "64" {
-      if "$(host-os)" = "windows" {
+  case "windows" : # The build OS is `windows'.
+    switch "$(default-bits)" {
+    case "64" : # The default number of bits is `64'.
+      switch "$(host-os)" {
+      case "windows" : # The host OS is `windows'.
         build-triplet = "x86_64-w64-mingw32" ;
-        if "$(target-os)" = "windows" {
-          if "$(multitarget)" = "no" {
-            if "$(address-model)" = "unspecified" {
+        switch "$(target-os)" {
+        case "windows" : # The target OS is `windows'.
+          switch "$(multitarget)" {
+          case "no" : # `<multitarget>no'
+            switch "$(address-model)" {
+            case "64" : # `<intro-address-model>64'
               host-triplet = "x86_64-w64-mingw32" ;
+            case "" :
+              errors.error "The value for `<intro-address-model>' feature is empty." ;
+            case "*" : # The value for `<intro-address-model>' feature is other than `64'.
+              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
             }
-            else { # `$(address-model)' is other than `unspecified'.
-              errors.error "an internal error." ;
-            }
+          case "" :
+            errors.error "The value for `<multitarget>' feature is empty." ;
+          case "*" : # The value for `<multitarget>' feature is other than `no'.
+            errors.error "`<multitarget>$(multitarget)' is an unknown property." ;
           }
-          else { # `$(multitarget)' is other than `no'.
-            errors.error "an internal error." ;
-          }
-        }
-        else { # `$(target-os)' is other than `windows'.
+        case "" :
+          errors.error "an internal error." ;
+        case "*" : # The target OS is other than `windows'.
           errors.error "an internal error." ;
         }
-      }
-      else { # `$(host-os)' is other than `windows'.
+      case "" :
+        errors.error "an internal error." ;
+      case "*" : # The host OS is other than `windows'.
         errors.error "an internal error." ;
       }
-    }
-    else if "$(default-bits)" = "32" {
-      if "$(host-os)" = "windows" {
+    case "32" : # The default number of bits is `32'.
+      switch "$(host-os)" {
+      case "windows" : # The host OS is `windows'.
         build-triplet = "i686-w64-mingw32" ;
-        if "$(target-os)" = "windows" {
-          if "$(multitarget)" = "no" {
-            if "$(address-model)" = "unspecified" {
+        switch "$(target-os)" {
+        case "windows" : # The target OS is `windows'.
+          switch "$(multitarget)" {
+          case "no" : # `<multitarget>no'
+            switch "$(address-model)" {
+            case "32" : # `<intro-address-model>32'
               host-triplet = "i686-w64-mingw32" ;
+            case "" :
+              errors.error "The value for `<intro-address-model>' feature is empty." ;
+            case "*" : # The value for `<intro-address-model>' feature is other than `32'.
+              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
             }
-            else { # `$(address-model)' is other than `unspecified'.
-              errors.error "an internal error." ;
-            }
+          case "" :
+            errors.error "The value for `<multitarget>' feature is empty." ;
+          case "*" : # The value for `<multitarget>' feature is other than `no'.
+            errors.error "`<multitarget>$(multitarget)' is an unknown property." ;
           }
-          else { # `$(multitarget)' is other than `no'.
-            errors.error "an internal error." ;
-          }
-        }
-        else { # `$(target-os)' is other than `windows'.
+        case "" :
+          errors.error "an internal error." ;
+        case "*" : # The target OS is other than `windows'.
           errors.error "an internal error." ;
         }
-      }
-      else { # `$(host-os)' is other than `windows'.
+      case "" :
+        errors.error "an internal error." ;
+      case "*" : # The host OS is other than `windows'.
         errors.error "an internal error." ;
       }
-    }
-    else { # `$(default-bits)' is neither `64' nor `32'.
+    case "" :
+      errors.error "an internal error." ;
+    case "*" : # The default number of bits is neither `64' nor `32'.
       errors.error "an internal error." ;
     }
-  }
-  else if "$(build-os)" = "cygwin" {
-    if "$(default-bits)" = "32" {
-      if "$(host-os)" = "cygwin" {
+  case "cygwin" : # The build OS is `cygwin'.
+    switch "$(default-bits)" {
+    case "32" : # The default number of bits is `32'.
+      switch "$(host-os)" {
+      case "cygwin" : # The host OS is `cygwin'.
         build-triplet = "i686-pc-cygwin" ;
-        if "$(target-os)" = "cygwin" {
-          if "$(multitarget)" = "no" {
-            if "$(address-model)" = "unspecified" {
+        switch "$(target-os)" {
+        case "cygwin" : # The target OS is `cygwin'.
+          switch "$(multitarget)" {
+          case "no" : # `<multitarget>no'
+            switch "$(address-model)" {
+            case "32" : # `<intro-address-model>32'
               host-triplet = "i686-pc-cygwin" ;
+            case "" :
+              errors.error "The value for `<intro-address-model>' feature is empty." ;
+            case "*" : # The value for `<intro-address-model>' feature is other than `32'.
+              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
             }
-            else { # `$(address-model)' is other than `unspecified'.
-              errors.error "an internal error." ;
-            }
+          case "" :
+            errors.error "The value for `<multitarget>' feature is empty." ;
+          case "*" : # The value for `<multitarget>' feature is other than `no'.
+            errors.error "`<multitarget>$(multitarget)' is an unknown property." ;
           }
-          else { # `$(multitarget)' is other than `no'.
-            errors.error "an internal error." ;
-          }
-        }
-        else { # `$(target-os)' is other than `cygwin'.
+        case "" :
+          errors.error "an internal error." ;
+        case "*" : # The target OS is other than `cygwin'.
           errors.error "an internal error." ;
         }
-      }
-      else { # `$(host-os)' is other than `cygwin'.
+      case "" :
+        errors.error "an internal error." ;
+      case "*" : # The host OS is other than `cygwin'.
         errors.error "an internal error." ;
       }
-    }
-    else { # `$(default-bits)' is other than `32'.
+    case "" :
+      errors.error "an internal error." ;
+    case "*" : # The default number of bits is other than `32'.
       errors.error "an internal error." ;
     }
-  }
-  else { # `$(build-os)' is neither `linux', `windows' nor `cygwin'.
+  case "" :
+    errors.error "an internal error." ;
+  case "*" : # The build OS is neither `linux', `windows' nor `cygwin'.
     errors.error "an internal error." ;
   }
   if ! $(build-triplet) {
@@ -1362,12 +1652,11 @@ rule get-cflags ( properties * )
   local result ;
 
   local variant = [ feature.get-values <variant> : $(properties) ] ;
-  if "$(variant)" = "debug" {
-    result += "-O0" ;
+  switch "$(variant)" {
+  case "debug" :
     result += "-g" ;
     if [ is-gcc "$(compiler)" ] {
-      result += "-fvar-tracking" ;
-      result += "-fvar-tracking-assignments" ;
+      # Do nothing.
     }
     else if [ is-clang "$(compiler)" ] {
       # Do nothing.
@@ -1378,17 +1667,14 @@ rule get-cflags ( properties * )
     else {
       errors.error "an internal error." ;
     }
+    result += "-O0" ;
     result += "-fno-inline" ;
     result += "-rdynamic" ;
-  }
-  else if "$(variant)" = "release" {
-    result += "-O3" ;
-    result += "-finline-functions" ;
+  case "release" :
     result += "-Wno-inline" ;
-  }
-  else if "$(variant)" = "profile" {
     result += "-O3" ;
     result += "-finline-functions" ;
+  case "profile" :
     result += "-Wno-inline" ;
     result += "-g" ;
     if [ is-gcc "$(compiler)" ] || [ is-clang "$(compiler)" ] {
@@ -1400,30 +1686,34 @@ rule get-cflags ( properties * )
     else {
       errors.error "an internal error." ;
     }
-  }
-  else {
-    errors.error "an internal error" ;
+    result += "-O3" ;
+    result += "-finline-functions" ;
+    result += "-rdynamic" ;
+  case "" :
+    errors.error "the value for `<variant>' is empty" ;
+  case "*" :
+    errors.error "<variant>$(variant): unknown property" ;
   }
 
-  local address-model = [ feature.get-values <intro-address-model-hidden> : $(properties) ] ;
-  if "$(address-model)" = "unspecified" {
+  local address-model = [ feature.get-values <intro-address-model> : $(properties) ] ;
+  switch "$(address-model)" {
+  case "unspecified" :
     # Do nothing.
-  }
-  else if "$(address-model)" = "64" {
+  case "64" :
     result += "-m64" ;
-  }
-  else if "$(address-model)" = "32" {
+  case "32" :
     result += "-m32" ;
-  }
-  else {
-    errors.error "an internal error." ;
+  case "" :
+    errors.error "the value for `<intro-address-model>' is empty" ;
+  case "*" :
+    errors.error "<intro-address-model>$(address-model): unknown property" ;
   }
 
-  local instruction-set = [ feature.get-values <intro-instruction-set-hidden> : $(properties) ] ;
-  if "$(instruction-set)" = "unspecified" {
+  local instruction-set = [ feature.get-values <intro-instruction-set> : $(properties) ] ;
+  switch "$(instruction-set)" {
+  case "unspecified" :
     # Do nothing.
-  }
-  else if "$(instruction-set)" = "native" {
+  case "native" :
     if [ is-gcc "$(compiler)" ] || [ is-clang "$(compiler)" ] {
       result += "-march=native" ;
       result += "-mtune=native" ;
@@ -1434,16 +1724,17 @@ rule get-cflags ( properties * )
     else {
       errors.error "an internal error." ;
     }
-  }
-  else {
-    errors.error "an internal error." ;
+  case "" :
+    errors.error "the value for `<intro-instruction-set>' is empty" ;
+  case "*" :
+    errors.error "<intro-instruction-set>$(instruction-set): unknown property" ;
   }
 
   local lto = [ feature.get-values <lto> : $(properties) ] ;
-  if "$(lto)" = "off" {
+  switch "$(lto)" {
+  case "off" :
     # Do nothing.
-  }
-  else if "$(lto)" = "on" {
+  case "on" :
     if [ is-gcc "$(compiler)" ] || [ is-clang "$(compiler)" ] {
       result += "-flto" ;
     }
@@ -1453,49 +1744,61 @@ rule get-cflags ( properties * )
     else {
       errors.error "an internal error." ;
     }
-  }
-  else {
-    errors.error "an internal error." ;
+  case "" :
+    errors.error "the value for `<lto>' is empty" ;
+  case "*" :
+    errors.error "<lto>$(lto): unknown property" ;
   }
 
   local correct-call-stack = [ feature.get-values <correct-call-stack> : $(properties) ] ;
-  if "$(correct-call-stack)" = "off" {
+  switch "$(correct-call-stack)" {
+  case "off" :
     # Do nothing.
-  }
-  else if "$(correct-call-stack)" = "on" {
-    result += "-fno-omit-frame-pointer" ;
-    result += "-fno-optimize-sibling-calls" ;
-  }
-  else {
-    errors.error "an internal error." ;
+  case "on" :
+    errors.error "`<correct-call-stack>on' is not supported" ;
+    #result += "-fno-omit-frame-pointer" ;
+    #result += "-fno-optimize-sibling-calls" ;
+  case "" :
+    errors.error "the value for `<correct-call-stack>' is empty" ;
+  case "*" :
+    errors.error "<correct-call-stack>$(correct-call-stack): unknown property" ;
   }
 
   local ssp = [ feature.get-values <ssp> : $(properties) ] ;
-  if "$(ssp)" = "off" {
+  switch "$(ssp)" {
+  case "off" :
     # Do nothing.
-  }
-  else if "$(ssp)" = "on" {
-    result += "-fstack-protector" ;
-  }
-  else if "$(ssp)" = "all" {
-    result += "-fstack-protector-all" ;
-  }
-  else {
-    errors.error "an internal error." ;
+  case "on" :
+    errors.error "`<ssp>on' is not supported" ;
+    #result += "-fstack-protector" ;
+    #if [ is-icc "$(compiler)" ] {
+    #  result += "-fstack-security-check" ;
+    #2A}
+  case "all" :
+    errors.error "`<ssp>all' is not supported" ;
+    #result += "-fstack-protector-all" ;
+    #if [ is-icc "$(compiler)" ] {
+    #  result += "-fstack-security-check" ;
+    #}
+  case "" :
+    errors.error "the value for `<ssp>' is empty" ;
+  case "*" :
+    errors.error "<ssp>$(ssp): unknown property" ;
   }
 
   local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
-  if "$(memory-checker)" = "off" {
+  switch "$(memory-checker)" {
+  case "off" :
     # Do nothing.
-  }
-  else if "$(memory-checker)" = "on" {
+  case "on" :
     if [ is-gcc "$(compiler)" ] {
       result += "-fsanitize=address" ;
     }
     else if [ is-clang "$(compiler)" ] {
-      result += "-faddress-sanitizer" ;
+      result += "-fsanitize=address" ;
     }
     else if [ is-icc "$(compiler)" ] {
+      result += "-fp-speculation safe" ;
       result += "-ftrapuv" ;
       result += "-check-pointers=rw" ;
       result += "-check-pointers-dangling=all" ;
@@ -1504,9 +1807,10 @@ rule get-cflags ( properties * )
     else {
       errors.error "an internal error." ;
     }
-  }
-  else {
-    errors.error "an internal error." ;
+  case "" :
+    errors.error "the value for `<memory-checker>' is empty" ;
+  case "*" :
+    errors.error "<memory-checker>$(memory-checker): unknown property" ;
   }
 
   return "$(result:J= )" ;
@@ -1541,110 +1845,24 @@ rule get-cxx ( prefix : properties * : gcc-for-clang ? )
 rule get-cxxflags ( properties * )
 {
   local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
-  local result ;
 
-  local variant = [ feature.get-values <variant> : $(properties) ] ;
-  if "$(variant)" = "debug" {
-    result += "-O0" ;
-    result += "-g" ;
-    if [ is-gcc "$(compiler)" ] {
-      result += "-fvar-tracking" ;
-      result += "-fvar-tracking-assignments" ;
-    }
-    else if [ is-clang "$(compiler)" ] {
-      # Do nothing.
-    }
-    else if [ is-icc "$(compiler)" ] {
-      result += "-debug full" ;
-    }
-    else {
-      errors.error "an internal error." ;
-    }
-    result += "-fno-inline" ;
-    result += "-rdynamic" ;
-  }
-  else if "$(variant)" = "release" {
-    result += "-O3" ;
-    result += "-finline-functions" ;
-    result += "-Wno-inline" ;
-  }
-  else if "$(variant)" = "profile" {
-    result += "-O3" ;
-    result += "-finline-functions" ;
-    result += "-Wno-inline" ;
-    result += "-g" ;
-    if [ is-gcc "$(compiler)" ] || [ is-clang "$(compiler)" ] {
-      result += "-pg" ;
-    }
-    else if [ is-icc "$(compiler)" ] {
-      result += "-p" ;
-    }
-    else {
-      errors.error "an internal error." ;
-    }
-  }
-  else {
-    errors.error "an internal error" ;
-  }
-
-  local runtime-link = [ feature.get-values <runtime-link> : $(properties) ] ;
-  if "$(runtime-link)" = "shared" {
-    # Do nothing.
-  }
-  else if "$(runtime-link)" = "static" {
-    result += "-static-libstdc++" ;
-  }
-  else {
-    errors.error "an internal error." ;
-  }
-
-  local address-model = [ feature.get-values <intro-address-model-hidden> : $(properties) ] ;
-  if "$(address-model)" = "unspecified" {
-    # Do nothing.
-  }
-  else if "$(address-model)" = "64" {
-    result += "-m64" ;
-  }
-  else if "$(address-model)" = "32" {
-    result += "-m32" ;
-  }
-  else {
-    errors.error "an internal error." ;
-  }
-
-  local instruction-set = [ feature.get-values <intro-instruction-set-hidden> : $(properties) ] ;
-  if "$(instruction-set)" = "unspecified" {
-    # Do nothing.
-  }
-  else if "$(instruction-set)" = "native" {
-    if [ is-gcc "$(compiler)" ] || [ is-clang "$(compiler)" ] {
-      result += "-march=native" ;
-      result += "-mtune=native" ;
-    }
-    else if [ is-icc "$(compiler)" ] {
-      result += "-xHost" ;
-    }
-    else {
-      errors.error "an internal error." ;
-    }
-  }
-  else {
-    errors.error "an internal error." ;
-  }
+  local result = [ get-cflags $(properties) ] ;
 
   local std = [ feature.get-values <std> : $(properties) ] ;
-  if "$(std)" = "c++03" {
+  switch "$(std)" {
+  case "c++03" :
     if [ is-gcc "$(compiler)" ] || [ is-clang "$(compiler)" ] {
       result += "-std=c++03" ;
     }
     else if [ is-icc "$(compiler)" ] {
       # ICC does not have either `-std=c++98' or `-std=c++03'.
+      result += "-strict-ansi" ;
+      result += "-fno-math-errno" ;
     }
     else {
       errors.error "an internal error." ;
     }
-  }
-  else if "$(std)" = "c++11" {
+  case "c++11" :
     if [ is-gcc "$(compiler)" ] {
       # GCC 4.6.x does not support `-std=c++11'.
       result += "-std=c++0x" ;
@@ -1655,91 +1873,23 @@ rule get-cxxflags ( properties * )
     else {
       errors.error "an internal error." ;
     }
-  }
-  else {
-    errors.error "an internal error." ;
-  }
-
-  local lto = [ feature.get-values <lto> : $(properties) ] ;
-  if "$(lto)" = "off" {
-    # Do nothing.
-  }
-  else if "$(lto)" = "on" {
-    if [ is-gcc "$(compiler)" ] || [ is-clang "$(compiler)" ] {
-      result += "-flto" ;
-    }
-    else if [ is-icc "$(compiler)" ] {
-      result += "-ipo" ;
-    }
-    else {
-      errors.error "an internal error." ;
-    }
-  }
-  else {
-    errors.error "an internal error." ;
-  }
-
-  local correct-call-stack = [ feature.get-values <correct-call-stack> : $(properties) ] ;
-  if "$(correct-call-stack)" = "off" {
-    # Do nothing.
-  }
-  else if "$(correct-call-stack)" = "on" {
-    result += "-fno-omit-frame-pointer" ;
-    result += "-fno-optimize-sibling-calls" ;
-  }
-  else {
-    errors.error "an internal error." ;
-  }
-
-  local ssp = [ feature.get-values <ssp> : $(properties) ] ;
-  if "$(ssp)" = "off" {
-    # Do nothing.
-  }
-  else if "$(ssp)" = "on" {
-    result += "-fstack-protector" ;
-  }
-  else if "$(ssp)" = "all" {
-    result += "-fstack-protector-all" ;
-  }
-  else {
-    errors.error "an internal error." ;
-  }
-
-  local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
-  if "$(memory-checker)" = "off" {
-    # Do nothing.
-  }
-  else if "$(memory-checker)" = "on" {
-    if [ is-gcc "$(compiler)" ] {
-      result += "-fsanitize=address" ;
-    }
-    else if [ is-clang "$(compiler)" ] {
-      result += "-faddress-sanitizer" ;
-    }
-    else if [ is-icc "$(compiler)" ] {
-      result += "-ftrapuv" ;
-      result += "-check-pointers=rw" ;
-      result += "-check-pointers-dangling=all" ;
-      result += "-check-pointers-undimensioned" ;
-    }
-    else {
-      errors.error "an internal error." ;
-    }
-  }
-  else {
-    errors.error "an internal error." ;
+  case "" :
+    errors.error "the value for `<std>' is empty" ;
+  case "*" :
+    errors.error "<std>$(std): unknown property" ;
   }
 
   local libstdcxx-debug-mode = [ feature.get-values <libstdc++-debug-mode> : $(properties) ] ;
-  if "$(libstdcxx-debug-mode)" = "off" {
+  switch "$(libstdcxx-debug-mode)" {
+  case "off" :
     # Do nothing.
-  }
-  else if "$(libstdcxx-debug-mode)" = "on" {
+  case "on" :
     result += "-D_GLIBCXX_DEBUG" ;
     result += "-D_GLIBCXX_DEBUG_PEDANTIC" ;
-  }
-  else {
-    errors.error "an internal error." ;
+  case "" :
+    errors.error "the value for `<libstdc++-debug-mode>' is empty" ;
+  case "*" :
+    errors.error "<libstdc++-debug-mode>$(libstdcxx-debug-mode): unknown property" ;
   }
 
   return "$(result:J= )" ;
@@ -1789,83 +1939,349 @@ rule get-rpath-commands ( prefix : properties * )
 
 rule get-environment-commands ( prefix : properties * )
 {
-  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
+  local commands ;
+
+  local triplets = [ get-triplets $(properties) ] ;
+  local build-triplet = "$(triplets[1])" ;
+  local host-triplet = "$(triplets[2])" ;
+
   local compiler-prefix = [ get-compiler-prefix "$(prefix)" : $(properties) ] ;
-  local variant = [ feature.get-values <variant> : $(properties) ] ;
+  local compiler-prefix-native = [ path.native "$(compiler-prefix)" ] ;
+  local full-prefix = [ get-full-prefix "$(prefix)" : $(properties) ] ;
+
+  local address-model = [ feature.get-values "<intro-address-model>" : $(properties) ] ;
+
+  # Set `PATH' environment variable.
+  local default-bindir-native = [ path.native "$(compiler-prefix)/bin" ] ;
+  local address-model-bindir-native = [ path.native "$(compiler-prefix)/address-model-$(address-model)/bin" ] ;
+  local full-bindir-native = [ path.native "$(full-prefix)/bin" ] ;
+  switch "$(build-triplet)" {
+  case "x86_64-unknown-linux-gnu" :
+    commands += "PATH=\"$(default-bindir-native)${PATH:+:$PATH}\"" ;
+    commands += "PATH=\"$(address-model-bindir-native)${PATH:+:$PATH}\"" ;
+    commands += "PATH=\"$(full-bindir-native)${PATH:+:$PATH}\"" ;
+    commands += "export PATH" ;
+  case "i686-pc-linux-gnu" :
+    commands += "PATH=\"$(default-bindir-native)${PATH:+:$PATH}\"" ;
+    commands += "PATH=\"$(full-bindir-native)${PATH:+:$PATH}\"" ;
+    commands += "export PATH" ;
+  case "i686-pc-cygwin" :
+    commands += "PATH=\"$(default-bindir-native)${PATH:+;$PATH}\"" ;
+    commands += "PATH=\"$(full-bindir-native)${PATH:+;$PATH}\"" ;
+  case "x86_64-w64-mingw32" :
+    commands += "PATH=\"$(default-bindir-native);$PATH\"" ;
+    commands += "PATH=\"$(full-bindir-native);$PATH\"" ;
+  case "i686-w64-mingw32" :
+    commands += "PATH=\"$(default-bindir-native);$PATH\"" ;
+    commands += "PATH=\"$(full-bindir-native);$PATH\"" ;
+  case "" :
+    errors.error "the value for `--build' is empty" ;
+  case "*" :
+    errors.error "`--build=$(build-triplet)': unknown option" ;
+  }
+
+  local variant = [ feature.get-values "<variant>" : $(properties) ] ;
   local is-debug ;
   if "$(variant)" = "debug" {
     is-debug = "yes" ;
   }
-  local default-bindir = "$(compiler-prefix)/bin" ;
-  local bindir = [ get-bindir "$(prefix)" : $(properties) ] ;
-  local libdir = [ get-libdir "$(prefix)" : $(properties) ] ;
-  local default-libdir ;
-  if [ regex.match "(/lib64)" : "$(libdir)" : 1 ] {
-    default-libdir = "$(compiler-prefix)/lib64" ;
-  }
-  else {
-    default-libdir = "$(compiler-prefix)/lib" ;
-  }
-  local default-debug-libdir ;
-  if "$(is-debug)" {
-    default-debug-libdir = "$(default-libdir)/debug" ;
-  }
-  local includedir = [ get-includedir $(prefix) : $(properties) ] ;
-  local triplets = [ get-triplets $(properties) ] ;
-  local build-triplet = "$(triplets[1])" ;
-  local host-triplet = "$(triplets[2])" ;
-  local commands ;
-  if "$(build-triplet)" in x86_64-unknown-linux-gnu i686-pc-linux-gnu {
-    commands += "PATH=\"$(default-bindir)${PATH:+:$PATH}\"" ;
-    commands += "export PATH" ;
-    if "$(host-triplet)" in x86_64-unknown-linux-gnu i686-pc-linux-gnu {
-      if [ is-icc "$(compiler)" ] {
-        if "$(host-triplet)" = "x86_64-unknown-linux-gnu" {
-          commands += "LD_LIBRARY_PATH=\"/opt/intel/composerxe/lib/intel64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"" ;
-        }
-        else if "$(host-triplet)" = "i686-pc-linux-gnu" {
-          commands += "LD_LIBRARY_PATH=\"/opt/intel/composerxe/lib/ia32${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"" ;
-        }
-        else {
-          errors.error "an internal error." ;
-        }
+
+  switch "$(build-triplet)" {
+  case "x86_64-unknown-linux-gnu" :
+    switch "$(host-triplet)" {
+    case "x86_64-unknown-linux-gnu" :
+      if "$(is-debug)" {
+        commands += "pwd_=`pwd`; cd \"$(compiler-prefix-native)\"; . \"bin/vars64debug.sh\"; cd \"$pwd_\"; unset pwd_" ;
       }
-      commands += "LD_LIBRARY_PATH=\"$(default-libdir)${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"" ;
-      if "$(is-debug)" && "$(default-debug-libdir)" != "$(default-libdir)" {
-        commands += "LD_LIBRARY_PATH=\"$(default-debug-libdir):$LD_LIBRARY_PATH\"" ;
+      else {
+        commands += "pwd_=`pwd`; cd \"$(compiler-prefix-native)\"; . \"bin/vars64.sh\"; cd \"$pwd_\"; unset pwd_" ;
       }
-      if "$(libdir)" != "$(default-libdir)" && "$(libdir)" != "$(default-debug-libdir)" {
-        commands += "LD_LIBRARY_PATH=\"$(libdir):$LD_LIBRARY_PATH\"" ;
+    case "i686-pc-linux-gnu" :
+      if "$(is-debug)" {
+        commands += "pwd_=`pwd`; cd \"$(compiler-prefix-native)\"; . \"bin/vars32debug.sh\"; cd \"$pwd_\"; unset pwd_" ;
       }
+      else {
+        commands += "pwd_=`pwd`; cd \"$(compiler-prefix-native)\"; . \"bin/vars32.sh\"; cd \"$pwd_\"; unset pwd_" ;
+      }
+    case "i686-pc-cygwin" :
+      if "$(is-debug)" {
+        commands += "pwd_=`pwd`; cd \"$(compiler-prefix-native)\"; . \"bin/varsdebug.sh\"; cd \"$pwd_\"; unset pwd_" ;
+      }
+      else {
+        commands += "pwd_=`pwd`; cd \"$(compiler-prefix-native)\"; . \"bin/vars.sh\"; cd \"$pwd_\"; unset pwd_" ;
+      }
+    case "x86_64-w64-mingw32" :
+      if "$(is-debug)" {
+        commands += "pwd_=`pwd`; cd \"$(compiler-prefix-native)\"; . \"bin/varsdebug.sh\"; cd \"$pwd_\"; unset pwd_" ;
+      }
+      else {
+        commands += "pwd_=`pwd`; cd \"$(compiler-prefix-native)\"; . \"bin/vars.sh\"; cd \"$pwd_\"; unset pwd_" ;
+      }
+    case "i686-w64-mingw32" :
+      if "$(is-debug)" {
+        commands += "pwd_=`pwd`; cd \"$(compiler-prefix-native)\"; . \"bin/varsdebug.sh\"; cd \"$pwd_\"; unset pwd_" ;
+      }
+      else {
+        commands += "pwd_=`pwd`; cd \"$(compiler-prefix-native)\"; . \"bin/vars.sh\"; cd \"$pwd_\"; unset pwd_" ;
+      }
+    case "" :
+      errors.error "the value for `--host' is empty" ;
+    case "*" :
+      errors.error "`--host=$(host-triplet)': unknown option" ;
     }
-    commands += "export LD_LIBRARY_PATH" ;
+  case "i686-pc-linux-gnu" :
+    switch "$(host-triplet)" {
+    case "x86_64-unknown-linux-gnu" :
+      errors.error "`--build=i686-pc-linux-gnu' and `--host=x86_64-unknown-linux-gnu' are not compatible" ;
+    case "i686-pc-linux-gnu" :
+      if "$(is-debug)" {
+        commands += "pwd_=`pwd`; cd \"$(compiler-prefix-native)\"; . \"bin/varsdebug.sh\"; cd \"$pwd_\"; unset pwd_" ;
+      }
+      else {
+        commands += "pwd_=`pwd`; cd \"$(compiler-prefix-native)\"; . \"bin/vars.sh\"; cd \"$pwd_\"; unset pwd_" ;
+      }
+    case "i686-pc-cygwin" :
+      if "$(is-debug)" {
+        commands += "pwd_=`pwd`; cd \"$(compiler-prefix-native)\"; . \"bin/varsdebug.sh\"; cd \"$pwd_\"; unset pwd_" ;
+      }
+      else {
+        commands += "pwd_=`pwd`; cd \"$(compiler-prefix-native)\"; . \"bin/vars.sh\"; cd \"$pwd_\"; unset pwd_" ;
+      }
+    case "x86_64-w64-mingw32" :
+      if "$(is-debug)" {
+        commands += "pwd_=`pwd`; cd \"$(compiler-prefix-native)\"; . \"bin/varsdebug.sh\"; cd \"$pwd_\"; unset pwd_" ;
+      }
+      else {
+        commands += "pwd_=`pwd`; cd \"$(compiler-prefix-native)\"; . \"bin/vars.sh\"; cd \"$pwd_\"; unset pwd_" ;
+      }
+    case "i686-w64-mingw32" :
+      if "$(is-debug)" {
+        commands += "pwd_=`pwd`; cd \"$(compiler-prefix-native)\"; . \"bin/varsdebug.sh\"; cd \"$pwd_\"; unset pwd_" ;
+      }
+      else {
+        commands += "pwd_=`pwd`; cd \"$(compiler-prefix-native)\"; . \"bin/vars.sh\"; cd \"$pwd_\"; unset pwd_" ;
+      }
+    case "" :
+      errors.error "the value for `--host' is empty" ;
+    case "*" :
+      errors.error "`--host=$(host-triplet)': unknown option" ;
+    }
+  case "i686-pc-cygwin" :
+    switch "$(host-triplet)" {
+    case "x86_64-unknown-linux-gnu" :
+      errors.error "`--build=i686-pc-cygwin' and `--host=x86_64-unknown-linux-gnu' are not compatible" ;
+    case "i686-pc-linux-gnu" :
+      errors.error "`--build=i686-pc-cygwin' and `--host=i686-pc-linux-gnu' are not compatible" ;
+    case "i686-pc-cygwin" :
+      if "$(is-debug)" {
+        commands += "pwd_=`pwd`; cd \"$(compiler-prefix-native)\"; . \"bin/varsdebug.sh\"; cd \"$pwd_\"; unset pwd_" ;
+      }
+      else {
+        commands += "pwd_=`pwd`; cd \"$(compiler-prefix-native)\"; . \"bin/vars.sh\"; cd \"$pwd_\"; unset pwd_" ;
+      }
+    case "x86_64-w64-mingw32" :
+      errors.error "`--build=i686-pc-cygwin' and `--host=x86_64-w64-mingw32' are not compatible" ;
+    case "i686-w64-mingw32" :
+      errors.error "`--build=i686-pc-cygwin' and `--hsot=i686-w64-mingw32' are not compatible" ;
+    case "" :
+      errors.error "the value for `--host' is empty" ;
+    case "*" :
+      errors.error "`--host=$(host-triplet)': unknown option" ;
+    }
+  case "x86_64-w64-mingw32" :
+    switch "$(host-triplet)" {
+    case "x86_64-unknown-linux-gnu" :
+      errors.error "`--build=x86_64-w64-mingw32' and `--host=x86_64-unknown-linux-gnu' are not compatible" ;
+    case "i686-pc-linux-gnu" :
+      errors.error "`--build=x86_64-w64-mingw32' and `--host=i686-pc-linux-gnu' are not compatible" ;
+    case "i686-pc-cygwin" :
+      errors.error "`--build=x86_64-w64-mingw32' and `--host=i686-pc-cygwin' are not compatible" ;
+    case "x86_64-w64-mingw32" :
+      errors.error "sorry, unimplemented" ;
+    case "i686-w64-mingw32" :
+      errors.error "`--build=x86_64-w64-mingw32' and `--host=i686-w64-mingw32' are not compatible" ;
+    case "" :
+      errors.error "the value for `--host' is empty" ;
+    case "*" :
+      errors.error "`--host=$(host-triplet)': unknown option" ;
+    }
+  case "i686-w64-mingw32" :
+    switch "$(host-triplet)" {
+    case "x86_64-unknown-linux-gnu" :
+      errors.error "`--build=x86_64-w64-mingw32' and `--host=x86_64-unknown-linux-gnu' are not compatible" ;
+    case "i686-pc-linux-gnu" :
+      errors.error "`--build=x86_64-w64-mingw32' and `--host=i686-pc-linux-gnu' are not compatible" ;
+    case "i686-pc-cygwin" :
+      errors.error "`--build=x86_64-w64-mingw32' and `--host=i686-pc-cygwin' are not compatible" ;
+    case "x86_64-w64-mingw32" :
+      errors.error "sorry, unimplemented" ;
+    case "i686-w64-mingw32" :
+      errors.error "`--build=x86_64-w64-mingw32' and `--host=i686-w64-mingw32' are not compatible" ;
+    case "" :
+      errors.error "the value for `--host' is empty" ;
+    case "*" :
+      errors.error "`--host=$(host-triplet)': unknown option" ;
+    }
+  case "" :
+    errors.error "the value for `--build' is empty" ;
+  case "*" :
+    errors.error "`--build=$(build-triplet)': unknown option" ;
   }
-  else if "$(build-triplet)" in x86_64-w64-mingw32 i686-w64-mingw32 i686-pc-cygwin {
-    commands += "PATH=\"$(libdir);$(bindir)${PATH:+;$PATH}\"" ;
-    commands += "export PATH" ;
+
+  # Set `CPATH' environment variable.
+  local full-includedir-native = [ path.native "$(full-prefix)/include" ] ;
+  switch "$(build-triplet)" {
+  case "x86_64-unknown-linux-gnu" :
+    commands += "CPATH=\"$(full-includedir-native)${CPATH:+:$CPATH}\"" ;
+    commands += "export CPATH" ;
+  case "i686-pc-linux-gnu" :
+    commands += "CPATH=\"$(full-includedir-native)${CPATH:+:$CPATH}\"" ;
+    commands += "export CPATH" ;
+  case "i686-pc-cygwin" :
+    commands += "CPATH=\"$(full-includedir-native)${CPATH:+:$CPATH}\"" ;
+  case "x86_64-w64-mingw32" :
+    commands += "CPATH=\"$(full-includedir-native):$CPATH" ;
+  case "i686-w64-mingw32" :
+    commands += "CPATH=\"$(full-includedir-native):$CPATH" ;
+  case "" :
+    errors.error "the value for `--build' is empty" ;
+  case "*" :
+    errors.error "`--build=$(build-triplet)': unknown option" ;
   }
-  else {
-    errors.error "`--build=$(build-triplet)' is not valid" ;
+
+  # Set `LIBRARY_PATH' environment variable.
+  local full-libdir-native = [ path.native "$(full-prefix)/lib" ] ;
+  switch "$(build-triplet)" {
+  case "x86_64-unknown-linux-gnu" :
+    commands += "LIBRARY_PATH=\"$(full-libdir-native)${LIBRARY_PATH:+:$LIBRARY_PATH}\"" ;
+    commands += "export LIBRARY_PATH" ;
+  case "i686-pc-linux-gnu" :
+    commands += "LIBRARY_PATH=\"$(full-libdir-native)${LIBRARY_PATH:+:$LIBRARY_PATH}\"" ;
+    commands += "export LIBRARY_PATH" ;
+  case "i686-pc-cygwin" :
+    commands += "LIBRARY_PATH=\"$(full-libdir-native)${LIBRARY_PATH:+:$LIBRARY_PATH}\"" ;
+  case "x86_64-w64-mingw32" :
+    commands += "LIBRARY_PATH=\"$(full-libdir-native):$LIBRARY_PATH\"" ;
+  case "i686-w64-mingw32" :
+    commands += "LIBRARY_PATH=\"$(full-libdir-native):$LIBRARY_PATH\"" ;
+  case "" :
+    errors.error "the value for `--build' is empty" ;
+  case "*" :
+    errors.error "`--build=$(build-triplet)': unknown option" ;
   }
-  commands += "CPATH=\"$(includedir)${CPATH:+:$CPATH}\"" ;
-  commands += "export CPATH" ;
-  commands += "LIBRARY_PATH=\"$(libdir)${LIBRARY_PATH:+:$LIBRARY_PATH}\"" ;
-  commands += "export LIBRARY_PATH" ;
-  local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
-  local lto = [ feature.get-values <lto> : $(properties) ] ;
+
+  # Set `LD_LIBRARY_PATH' environment variable for `*-linux-gnu'.
+  switch "$(build-triplet)" {
+  case "x86_64-unknown-linux-gnu" :
+    switch "$(host-triplet)" {
+    case "x86_64-unknown-linux-gnu" :
+      commands += "LD_LIBRARY_PATH=\"$(full-libdir-native)${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"" ;
+      commands += "export LD_LIBRARY_PATH" ;
+    case "i686-pc-linux-gnu" :
+      commands += "LD_LIBRARY_PATH=\"$(full-libdir-native)${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"" ;
+      commands += "export LD_LIBRARY_PATH" ;
+    case "i686-pc-cygwin" :
+      # Do nothing.
+    case "x86_64-w64-mingw32" :
+      # Do nothing.
+    case "i686-w64-mingw32" :
+      # Do nothing.
+    case "" :
+      errors.error "the value for `--host' is empty" ;
+    case "*" :
+      errors.error "`--host=$(host-triplet)': unknown option" ;
+    }
+  case "i686-pc-linux-gnu" :
+    switch "$(host-triplet)" {
+    case "x86_64-unknown-linux-gnu" :
+      errors.error "`--build=i686-pc-linux-gnu' and `--host=x86_64-unknown-linux-gnu' are not compatible" ;
+    case "i686-pc-linux-gnu" :
+      commands += "LD_LIBRARY_PATH=\"$(full-libdir-native)${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"" ;
+      commands += "export LD_LIBRARY_PATH" ;
+    case "i686-pc-cygwin" :
+      # Do nothing.
+    case "x86_64-w64-mingw32" :
+      # Do nothing.
+    case "i686-w64-mingw32" :
+      # Do nothing.
+    case "" :
+      errors.error "the value for `--host' is empty" ;
+    case "*" :
+      errors.error "`--host=$(host-triplet)': unknown option" ;
+    }
+  case "i686-pc-cygwin" :
+    # Do nothing.
+  case "x86_64-w64-mingw32" :
+    # Do nothing.
+  case "i686-w64-mingw32" :
+    # Do nothing.
+  case "" :
+    errors.error "the value for `--build' is empty" ;
+  case "*" :
+    errors.error "`--build=$(build-triplet)': unknown option" ;
+  }
+
+  local compiler = [ feature.get-values "<compiler-hidden>" : $(properties) ] ;
+
   if [ is-icc "$(compiler)" ] {
+    switch "$(host-triplet)" {
+    case "x86_64-unknown-linux-gnu" :
+      commands += "eval `bash -c '. /opt/intel/bin/compilervars.sh intel64; echo \"${IDB_HOME:+IDB_HOME=\\\"$IDB_HOME\\\"; export IDB_HOME}\"; echo \"${TBBROOT:+TBBROOT=\\\"$TBBROOT\\\"; export TBBROOT}\"; echo \"${MKLROOT:+MKLROOT=\\\"$MKLROOT\\\"; export MKLROOT}\"; echo \"${IPPROOT:+IPPROOT=\\\"$IPPROOT\\\"; export IPPROOT}\"; echo \"${MIC_LD_LIBRARY_PATH:+MIC_LD_LIBRARY_PATH=\\\"$MIC_LD_LIBRARY_PATH\\\"; export MIC_LD_LIBRARY_PATH}\"; echo \"${INTEL_LICENSE_FILE:+INTEL_LICENSE_FILE=\\\"$INTEL_LICENSE_FILE\\\"; export INTEL_LICENSE_FILE}\"; echo \"${NLSPATH:+NLSPATH=\\\"$NLSPATH\\\"; export NLSPATH}\"; echo \"${MANPATH:+MANPATH=\\\"$MANPATH\\\"; export MANPATH}\"; echo \"${PATH:+PATH=\\\"$PATH\\\"; export PATH}\"; echo \"${LD_LIBRARY_PATH:+LD_LIBRARY_PATH=\\\"$LD_LIBRARY_PATH\\\"; export LD_LIBRARY_PATH}\"; echo \"${DYLD_LIBRARY_PATH:+DYLD_LIBRARY_PATH=\\\"$DYLD_LIBRARY_PATH\\\"; export DYLD_LIBRARY_PATH}\"; echo \"${INCLUDE:+INCLUDE=\\\"$INCLUDE\\\"; export INCLUDE}\"; echo \"${CPATH:+CPATH=\\\"$CPATH\\\"; export CPATH}\"; echo \"${LIBRARY_PATH:+LIBRARY_PATH=\\\"$LIBRARY_PATH\\\"; export LIBRARY_PATH}\"'`" ;
+    case "i686-pc-linux-gnu" :
+      commands += "eval `bash -c '. /opt/intel/bin/compilervars.sh ia32; echo \"${IDB_HOME:+IDB_HOME=\\\"$IDB_HOME\\\"; export IDB_HOME}\"; echo \"${TBBROOT:+TBBROOT=\\\"$TBBROOT\\\"; export TBBROOT}\"; echo \"${MKLROOT:+MKLROOT=\\\"$MKLROOT\\\"; export MKLROOT}\"; echo \"${IPPROOT:+IPPROOT=\\\"$IPPROOT\\\"; export IPPROOT}\"; echo \"${MIC_LD_LIBRARY_PATH:+MIC_LD_LIBRARY_PATH=\\\"$MIC_LD_LIBRARY_PATH\\\"; export MIC_LD_LIBRARY_PATH}\"; echo \"${INTEL_LICENSE_FILE:+INTEL_LICENSE_FILE=\\\"$INTEL_LICENSE_FILE\\\"; export INTEL_LICENSE_FILE}\"; echo \"${NLSPATH:+NLSPATH=\\\"$NLSPATH\\\"; export NLSPATH}\"; echo \"${MANPATH:+MANPATH=\\\"$MANPATH\\\"; export MANPATH}\"; echo \"${PATH:+PATH=\\\"$PATH\\\"; export PATH}\"; echo \"${LD_LIBRARY_PATH:+LD_LIBRARY_PATH=\\\"$LD_LIBRARY_PATH\\\"; export LD_LIBRARY_PATH}\"; echo \"${DYLD_LIBRARY_PATH:+DYLD_LIBRARY_PATH=\\\"$DYLD_LIBRARY_PATH\\\"; export DYLD_LIBRARY_PATH}\"; echo \"${INCLUDE:+INCLUDE=\\\"$INCLUDE\\\"; export INCLUDE}\"; echo \"${CPATH:+CPATH=\\\"$CPATH\\\"; export CPATH}\"; echo \"${LIBRARY_PATH:+LIBRARY_PATH=\\\"$LIBRARY_PATH\\\"; export LIBRARY_PATH}\"'`" ;
+    case "*" :
+      errors.error "an internal error." ;
+    }
     commands += "AR='/opt/intel/bin/xiar'" ;
     commands += "export AR" ;
     commands += "LD='/opt/intel/bin/xild'" ;
     commands += "export LD" ;
   }
+
   commands = "$(commands:J=\n)" ;
   return "$(commands)" ;
 }
 
-rule get-property-dump-commands ( properties * )
+rule get-logfile-path ( library-short-name : prefix : properties * )
 {
+  local full-prefix = [ get-full-prefix "$(prefix)" : $(properties) ] ;
+  return "$(full-prefix)/$(library-short-name).txt" ;
+}
+
+rule get-property-dump-commands ( properties * : stream-path : logfile-path )
+{
+  local stream-native = [ path.native "$(stream-path)" ] ;
+  local logfile-native = [ path.native "$(logfile-path)" ] ;
+
   local result ;
+
+  for local f in variant
+                 link
+                 threading
+                 intro-address-model
+                 intro-instruction-set
+                 std
+                 lto
+                 memory-checker
+                 libstdc++-debug-mode
+  {
+    local v = [ feature.get-values "<$(f)>" : $(properties) ] ;
+    local p ;
+    if ! "$(v)" {
+      p = "<$(f)>" ;
+    }
+    else if "$(f)" = "intro-address-model" {
+      p = "<address-model>$(v)" ;
+    }
+    else if "$(f)" = "intro-instruction-set" {
+      p = "<instruction-set>$(v)" ;
+    }
+    else {
+      p = "<$(f)>$(v)" ;
+    }
+    result += "echo \"`LANG=C date`:INFO: $(p)\" | tee -a '$(logfile-native)' >> '$(stream-native)'" ;
+  }
+
   for local f in compiler
                  multitarget
                  host-os
@@ -1889,16 +2305,18 @@ rule get-property-dump-commands ( properties * )
                  clang
                  valgrind
                  variant
-                 std
-                 link
-                 runtime-link
                  runtime-debugging
                  optimization
                  profiling
                  inlining
+                 link
+                 runtime-link
                  threading
                  intro-address-model
+                 intro-address-model-on-build
                  intro-instruction-set
+                 intro-instruction-set-on-build
+                 std
                  lto
                  correct-call-stack
                  ssp
@@ -1906,12 +2324,20 @@ rule get-property-dump-commands ( properties * )
                  libstdc++-debug-mode
   {
     local v = [ feature.get-values "<$(f)>" : $(properties) ] ;
+    local p ;
     if ! "$(v)" {
-      result += "echo '<$(f)>: '" ;
+      p = "<$(f)>" ;
     }
     else {
-      result += "echo '<$(f)>: $(v)'" ;
+      p = "<$(f)>$(v)" ;
     }
+    result += "echo \"`LANG=C date`:INFO: ($(p))\" | tee -a '$(logfile-native)' >> '$(stream-native)'" ;
   }
+
+  result += "echo \"`LANG=C date`:INFO: PATH=$PATH\" | tee -a '$(logfile-native)' >> '$(stream-native)'" ;
+  result += "echo \"`LANG=C date`:INFO: CPATH=$CPATH\" | tee -a '$(logfile-native)' >> '$(stream-native)'" ;
+  result += "echo \"`LANG=C date`:INFO: LIBRARY_PATH=$LIBRARY_PATH\" | tee -a '$(logfile-native)' >> '$(stream-native)'" ;
+  result += "echo \"`LANG=C date`:INFO: LD_LIBRARY_PATH=$LD_LIBRARY_PATH\" | tee -a '$(logfile-native)' >> '$(stream-native)'" ;
+
   return "$(result:J=\n)" ;
 }

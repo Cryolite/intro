@@ -1,85 +1,115 @@
 #!/usr/bin/env sh
 
-bits=
-is_link=1
-for arg in "$@"; do
-    if [ "${arg}" = '-m64' ]; then
-	if [ "${bits}" = '32' ]; then
-	    echo "${0}: error: both \`-m64' and \`-m32' cannot be specified simultaneously" 1>&2
-	    exit 1
-	fi
-	bits=64
-    fi
-    if [ "${arg}" = '-m32' ]; then
-	if [ "${bits}" = '64' ]; then
-	    echo "${0}: error: both \`-m64' and \`-m32' cannot be specified simultaneously" 1>&2
-	    exit 1
-	fi
-	bits=32
-    fi
-    if [ "${arg}" = '-fsyntax-only' -o "${arg}" = '-c' -o "${arg}" = '-M' -o "${arg}" = '-MM' -o "${arg}" = '-E' -o "${arg}" = '-S' ]; then
-	is_link=0
-    fi
-done
+bindir=`(cd \`dirname "$0"\`; pwd)`
 
-if false; then
-    mkdir -p "${HOME}/tmp"
-    if [ $is_link -eq 0 ]; then
-	echo "$@" > "${HOME}/tmp/cc-compile.$$.log"
-    elif [ $is_link -eq 1 ]; then
-	echo "$@" > "${HOME}/tmp/cc-link.$$.log"
-    else
-	echo "${0}: error: an internal error" 1>&2
-	exit 1
-    fi
-fi
+bits=0
+is_link=0
 
-if [ -z "${bits}" ]; then
-    if [ `uname --machine` = 'x86_64' ]; then
-	bits=64
-    elif [ `uname --machine` = 'x86' ]; then
-	bits=32
-    else
-	echo "${0}: error: unsupported architecture" 1>&2
-	exit 1
-    fi
-fi
-
-if [ -f /etc/debian_version ] && grep -Fq 'wheezy/sid' /etc/debian_version; then
-    if [ ${bits} -eq 64 ]; then
-	LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu${LIBRARY_PATH:+:${LIBRARY_PATH}}"
-	export LIBRARY_PATH
-    elif [ ${bits} -eq 32 ]; then
-	:
-    else
-	echo "${0}: error: an internal error" 1>&2
-	exit 1
-    fi
-fi
-
-bindir=`(cd \`dirname "${0}"\`; pwd)`
-prefix=`dirname "${bindir}"`
-
-if [ ! -x "${bindir}/gcc" ]; then
-  echo "${0}: error: \`${bindir}/gcc': not found" 1>&2
+if [ ! -x "$bindir/gcc" ]; then
+  echo "$0: error: \`$bindir/gcc': not found" 1>&2
   exit 1
 fi
 
-ulimit -S -t 300
-ulimit -S -m 2097152
+dryrun=`"$bindir/gcc" -### "$@" 2>&1`
 
-if [ ${is_link} -eq 0 ]; then
-    exec "${bindir}/gcc" "$@"
-elif [ ${is_link} -eq 1 ]; then
-    if [ ${bits} -eq 64 ]; then
-	exec "${bindir}/gcc" "$@" -Wl,"-rpath=${prefix}/lib64" -Wl,"-rpath=${prefix}/lib" -Wl,--enable-new-dtags
-    elif [ ${bits} -eq 32 ]; then
-	exec "${bindir}/gcc" "$@" -Wl,"-rpath=${prefix}/lib32" -Wl,"-rpath=${prefix}/lib" -Wl,--enable-new-dtags
-    else
-	echo "${0}: error: an internal error" 1>&2
-	exit 1
+cc1_cl=`echo "$dryrun" | grep -F \`"$bindir/gcc" -print-prog-name=cc1\``
+if [ -n "$cc1_cl" ]; then
+    if echo "$cc1_cl" | grep -Eq '[[:space:]]-m32[[:space:]]'; then
+        if [ $bits -eq 64 ]; then
+            echo "$0: error: failed to detect whether the target is 64-bit or 32-bit" 1>&2
+            exit 1
+        fi
+        bits=32
     fi
+    if echo "$cc1_cl" | grep -Evq '[[:space:]]-m32[[:space:]]'; then
+        if [ $bits -eq 32 ]; then
+            echo "$0: error: failed to detect whether the target is 64-bit or 32-bit" 1>&2
+            exit 1
+        fi
+        bits=64
+    fi
+fi
+
+as_cl=`echo "$dryrun" | grep -F \`"$bindir/gcc" -print-prog-name=as\``
+if echo "$as_cl" | grep -Eq '[[:space:]]--64[[:space:]]'; then
+    if [ $bits -eq 32 ]; then
+        echo "$0: error: failed to detect whether the target is 64-bit or 32-bit" 1>&2
+        exit 1
+    fi
+    bits=64
+fi
+if echo "$as_cl" | grep -Eq '[[:space:]]--32[[:space:]]'; then
+    if [ $bits -eq 64 ]; then
+        echo "$0: error: failed to detect whether the target is 64-bit or 32-bit" 1>&2
+        exit 1
+    fi
+    bits=32
+fi
+
+collect2_cl=`echo "$dryrun" | grep -F \`"$bindir/gcc" -print-prog-name=collect2\``
+if echo "$collect2_cl" | grep -Eq '[[:space:]]-m[[:space:]]+elf_x86_64[[:space:]]'; then
+    if [ $bits -eq 32 ]; then
+        echo "$0: error: failed to detect whether the target is 64-bit or 32-bit" 1>&2
+        exit 1
+    fi
+    bits=64
+    is_link=1
+fi
+if echo "$collect2_cl" | grep -Eq '[[:space:]]-m[[:space:]]+elf_i386[[:space:]]'; then
+    if [ $bits -eq 64 ]; then
+        echo "$0: error: failed to detect whether the target is 64-bit or 32-bit" 1>&2
+        exit 1
+    fi
+    bits=32
+    is_link=1
+fi
+
+if false; then
+    mkdir -p "$HOME/tmp"
+    if [ $is_link -eq 0 ]; then
+        echo "$@" > "$HOME/tmp/cc-compile.$$.log"
+    elif [ $is_link -eq 1 ]; then
+        echo "$@" > "$HOME/tmp/cc-link.$$.log"
+    else
+        echo "$0: error: an internal error" 1>&2
+        exit 1
+    fi
+fi
+
+if [ $is_link -eq 0 ]; then
+    exec "$bindir/gcc" "$@"
+fi
+
+if [ $is_link -ne 1 ]; then
+    echo "$0: error: an internal error" 1>&2
+    exit 1
+fi
+
+if [ $bits -eq 0 ]; then
+    echo "$0: error: an internal error" 1>&2
+    exit 1
+fi
+
+if [ -f '/etc/debian_version' ] && grep -Fq 'wheezy/sid' '/etc/debian_version'; then
+    if [ $bits -eq 64 ]; then
+        LIBRARY_PATH="${LIBRARY_PATH:+${LIBRARY_PATH}:}/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu"
+        export LIBRARY_PATH
+        debian_multiarch_workaround_link_options="-Wl,-rpath-link=/usr/lib/x86_64-linux-gnu -Wl,-rpath-link=/lib/x86_64-linux-gnu"
+    elif [ $bits -eq 32 ]; then
+        :
+    else
+        echo "$0: error: an internal error" 1>&2
+        exit 1
+    fi
+fi
+
+prefix=`dirname "$bindir"`
+
+if [ $bits -eq 64 ]; then
+    exec "$bindir/gcc" "$@" -Wl,"-rpath=$prefix/lib64" -Wl,"-rpath=$prefix/lib" $debian_multiarch_workaround_link_options -Wl,--enable-new-dtags
+elif [ $bits -eq 32 ]; then
+    exec "$bindir/gcc" "$@" -Wl,"-rpath=$prefix/lib32" -Wl,"-rpath=$prefix/lib" -Wl,--enable-new-dtags
 else
-    echo "${0}: error: an internal error" 1>&2
+    echo "$0: error: an internal error" 1>&2
     exit 1
 fi

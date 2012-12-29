@@ -17,7 +17,6 @@ import "$(INTRO_ROOT_DIR)/compilers"
     get-compiler-description
     get-compiler-prefix
     get-default-bindir
-    get-default-libdir
     get-compiler-triplets
     get-property-dump-commands
   ;
@@ -42,33 +41,29 @@ rule download ( targets * : sources * : properties * )
   }
   local version = [ get-frontend-version "$(compiler)" ] ;
   VERSION on $(targets) = $(version) ;
-  local url_prefix = "http://ftp.dti.ad.jp/pub/lang/gcc" ;          # Japan ++
-  #local url_prefix = "http://ftp.tsukuba.wide.ad.jp/software/gcc" ; # Japan +++
   if [ is-gcc-release "$(compiler)" ] {
-    URLS on $(targets) = "'http://ftp.dti.ad.jp/pub/lang/gcc/releases/gcc-$(version)/gcc-$(version).tar.bz2'           \\
+    URLS on $(targets) = "'http://core.ring.gr.jp/pub/lang/egcs/releases/gcc-$(version)/gcc-$(version).tar.bz2'        \\
+                          'http://ftp.dti.ad.jp/pub/lang/gcc/releases/gcc-$(version)/gcc-$(version).tar.bz2'           \\
                           'http://ftp.tsukuba.wide.ad.jp/software/gcc/releases/gcc-$(version)/gcc-$(version).tar.bz2'" ;
   }
   else if [ is-gcc-snapshot "$(compiler)" ] {
-    URLS on $(targets) = "'http://ftp.dti.ad.jp/pub/lang/gcc/snapshots/$(version)/gcc-$(version).tar.bz2'           \\
+    URLS on $(targets) = "'http://core.ring.gr.jp/pub/lang/egcs/snapshots/$(version)/gcc-$(version).tar.bz2'        \\
+                          'http://ftp.dti.ad.jp/pub/lang/gcc/snapshots/$(version)/gcc-$(version).tar.bz2'           \\
                           'http://ftp.tsukuba.wide.ad.jp/software/gcc/snapshots/$(version)/gcc-$(version).tar.bz2'" ;
   }
   else {
     errors.error "an internal error." ;
   }
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
 }
 actions download
 {
-  $(PROPERTY_DUMP_COMMANDS)
+$(PROPERTY_DUMP_COMMANDS)
 
   rm -rf '$(<)' || exit $?
 
   for url in $(URLS) ; do
-    if [ -n '$(STREAM)' ]; then
-      ( cd '$(<:D)' && wget -- "$url" >> '$(STREAM)' 2>&1 )
-    else
-      ( cd '$(<:D)' && wget --quiet -- "$url" )
-    fi
+    ( cd '$(<:D)' && wget -- "$url" >> '$(STREAM)' 2>&1 )
     if [ $? -eq 0 ]; then
       break
     fi
@@ -116,19 +111,15 @@ rule expand ( targets * : sources * : properties * )
   }
   local version = [ get-frontend-version "$(compiler)" ] ;
   VERSION on $(targets) = "$(version)" ;
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
 }
 actions expand
 {
-  $(PROPERTY_DUMP_COMMANDS)
+$(PROPERTY_DUMP_COMMANDS)
 
   rm -rf '$(<:D)' || exit 1
   [ -f '$(>)' ] || exit 1
-  if [ -n '$(STREAM)' ]; then
-    tar xjvf '$(>)' --directory='$(INTRO_ROOT_DIR)' >> '$(STREAM)' 2>&1
-  else
-    tar xjf '$(>)' --directory='$(INTRO_ROOT_DIR)'
-  fi
+  tar xjvf '$(>)' --directory='$(INTRO_ROOT_DIR)' >> '$(STREAM)' 2>&1
   if [ $? -ne 0 ]; then
     echo    'ERROR: failed to expand GCC $(VERSION) tarball.' 1>&2
     echo -n 'ERROR: failed to expand GCC $(VERSION) tarball.' | $(AWACS)
@@ -250,11 +241,6 @@ rule make-install ( targets * : sources * : properties * )
 
   # Set `--prefix' option for `configure' script.
   OPTIONS on $(targets) += "--prefix='$(compiler-prefix-native)'" ;
-
-  local libdir = [ get-default-libdir "$(PREFIX)" : $(properties) ] ;
-  local libdir-native = [ path.native "$(libdir)" ] ;
-  LIBDIR on $(targets) = "$(libdir-native)" ;
-  OPTIONS on $(targets) += "--libdir='$(libdir-native)'" ;
 
   local triplets = [ get-compiler-triplets $(properties) ] ;
   local build-triplet = "$(triplets[1])" ;
@@ -409,30 +395,22 @@ rule make-install ( targets * : sources * : properties * )
 
   #OPTIONS on $(targets) += "--enable-concept-checks" ;
 
+  OPTIONS on $(targets) += "--enable-symvers" ;
+
   INSTALL_SCRIPT on $(targets) = "$(INTRO_ROOT_DIR)/gcc/install.sh" ;
 
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
 }
 actions make-install
 {
-  $(PROPERTY_DUMP_COMMANDS)
+$(PROPERTY_DUMP_COMMANDS)
 
   # Clean up the objdir `$(OBJDIR)'.
   { mkdir -p '$(OBJDIR)' && ( cd '$(OBJDIR)' && rm -rf * ); } || exit 1
 
-  if [ '$(MULTITARGET)' = 'no' ]; then
-    if [ `uname --machine` = 'x86_64' ]; then
-      ( cd '$(COMPILER_PREFIX)' && ln -sfT lib lib64 ) || exit 1
-    elif [ `uname --machine` = 'x86' ]; then
-      ( cd '$(COMPILER_PREFIX)' && ln -sfT lib lib32 ) || exit 1
-    else
-      exit 1
-    fi
-  fi
-
-  if [ -f /etc/debian_version ] && grep -Fq 'wheezy/sid' /etc/debian_version; then
+  if [ -f '/etc/debian_version' ] && grep -Fq 'wheezy/sid' '/etc/debian_version'; then
     if [ `uname --machine` = 'x86_64' -a `uname --operating-system` = 'GNU/Linux' ]; then
-      LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu${LIBRARY_PATH:+:$LIBRARY_PATH}
+      LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu${LIBRARY_PATH:+:$LIBRARY_PATH}"
       export LIBRARY_PATH
     fi
   fi
@@ -455,7 +433,6 @@ actions make-install
                       '$(OBJDIR)'               \
                       '$(COMPILER_PREFIX)'      \
                       '$(COMPILER_DESCRIPTION)' \
-                      '$(LIBDIR)'               \
                       $(OPTIONS)
   if [ $? -ne 0 ]; then
     exit 1

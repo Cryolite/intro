@@ -55,7 +55,6 @@ for local path-ver in $(INTRO_GCC_PATHS) $(INTRO_GCC_LATEST_PATHS) $(INTRO_CLANG
 {
   local ph = ;
   local ver = ;
-  local rev = ;
   {
     local tmp = [ regex.split "$(path-ver)" "," ] ;
     ph = "$(tmp[1])" ;
@@ -67,6 +66,26 @@ for local path-ver in $(INTRO_GCC_PATHS) $(INTRO_GCC_LATEST_PATHS) $(INTRO_CLANG
   }
   using gcc : $(ver) : "$(ph)" ;
   ECHO $(ver) $(ph) ;
+}
+
+
+# ------------------
+# ICC configuration.
+# ------------------
+
+for local path-ver in $(INTRO_ICC_PATHS) $(INTRO_ICC_LATEST_PATHS) {
+  local ph ;
+  local ver ;
+  {
+    local tmp = [ regex.split "$(path-ver)" "," ] ;
+    ph = "$(tmp[1])" ;
+    ver = "$(tmp[2])" ;
+  }
+  if ! "$(ph)" || ! "$(ver)" {
+    errors.error "an internal error." ;
+  }
+  using intel : $(ver) : "$(ph)" ;
+  ECHO "intel-$(ver): $(ph)" ;
 }
 
 
