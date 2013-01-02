@@ -704,315 +704,298 @@ rule get-compiler-triplets ( properties * )
   local host-triplet ;
   local target-triplet ;
   local enabled-targets ;
-  if "$(build-os)" = "linux" {
-    if "$(default-bits)" = "64" {
+  switch "$(build-os)" {
+  case "linux" : # `$(build-os)' is `linux'.
+    switch "$(default-bits)" {
+    case "64" : # `$(default-bits)' is `64'.
       build-triplet = "x86_64-unknown-linux-gnu" ;
-      if "$(host-os)" = "linux" {
+      switch "$(host-os)" {
+      case "linux" : # `$(host-os)' is `linux'.
         host-triplet = "x86_64-unknown-linux-gnu" ;
-        if "$(target-os)" = "linux" {
-          if "$(multitarget)" = "yes" {
-            if "$(address-model)" = "unspecified" {
+        switch "$(target-os)" {
+        case "linux" : # `$(target-os)' is `linux'.
+          switch "$(multitarget)" {
+          case "yes" : # `$(multitarget)' is `yes'.
+            switch "$(address-model)" {
+            case "unspecified" : # `$(address-model)' is `unspecified'.
               target-triplet = "x86_64-unknown-linux-gnu" ;
               enabled-targets = "x86_64-unknown-linux-gnu,i686-pc-linux-gnu" ;
-            }
-            else { # `$(address-model)' is other than `unspecified'.
+            case "*" : # `$(address-model)' is other than `unspecified'.
               errors.error "an internal error." ;
             }
-          }
-          else if "$(multitarget)" = "no" {
-            if "$(address-model)" = "unspecified" {
+          case "no" : # `$(multitarget)' is `no'.
+            switch "$(address-model)" {
+            case "unspecified" : # `$(address-model)' is `unspecified'.
               target-triplet = "x86_64-unknown-linux-gnu" ;
               enabled-targets = "x86_64-unknown-linux-gnu" ;
-            }
-            else { # `$(address-model)' is other than `unspecified'.
+            case "*" : # `$(address-model)' is other than `unspecified'.
               errors.error "an internal error." ;
             }
-          }
-          else { # `$(multitarget)' is neither `yes' nor `no'.
+          case "*" : # `$(multitarget)' is neither `yes' nor `no'.
             errors.error "an internal error." ;
           }
-        }
-        else if "$(target-os)" = "windows" {
-          if "$(multitarget)" = "no" {
-            if "$(address-model)" = "64" {
+        case "windows" : # `$(target-os)' is `windows'
+          switch "$(multitarget)" {
+          case "no" : # `$(multitarget)' is `no'.
+            switch "$(address-model)" {
+            case "64" : # `$(address-model)' is `64'.
               target-triplet = "x86_64-w64-mingw32" ;
               enabled-targets = "x86_64-w64-mingw32" ;
-            }
-            else if "$(address-model)" = "32" {
+            case "32" : # `$(address-model)' is `32'.
               target-triplet = "i686-w64-mingw32" ;
               enabled-targets = "i686-w64-mingw32" ;
-            }
-            else { # `$(address-model)' is neither `64' nor `32'.
+            case "*" : # `$(address-model)' is neither `64' nor `32'.
               errors.error "an internal error." ;
             }
-          }
-          else { # `$(multitarget)' is other than `no'.
+          case "*" : # `$(multitarget)' is other than `no'.
             errors.error "an internal error." ;
           }
-        }
-        else if "$(target-os)" = "cygwin" {
-          if "$(multitarget)" = "no" {
-            if "$(address-model)" = "unspecified" {
+        case "cygwin" : # `$(target-os)' is `cygwin'.
+          switch "$(multitarget)" {
+          case "no" : # `$(multitarget)' is `no'.
+            switch "$(address-model)" {
+            case "unspecified" : # `$(address-model)' is `unspecified'.
               target-triplet = "i686-pc-cygwin" ;
               enabled-targets = "i686-pc-cygwin" ;
-            }
-            else { # `$(address-model)' is other than `unspecified'.
+            case "*" : # `$(address-model)' is other than `unspecified'.
               errors.error "an internal error." ;
             }
-          }
-          else { # `$(multitarget)' is other than `no'.
+          case "*" : # `$(multitarget)' is other than `no'.
             errors.error "an internal error." ;
           }
-        }
-        else { # `$(target-os)' is neither `linux', `windows' nor `cygwin'.
+        case "*" : # `$(target-os)' is neither `linux', `windows' nor `cygwin'.
           errors.error "an internal error." ;
         }
-      }
-      else if "$(host-os)" = "windows" {
-        if "$(target-os)" = "windows" {
-          if "$(multitarget)" = "no" {
-            if "$(address-model)" = "64" {
+      case "windows" : # `$(host-os)' is `windows'.
+        switch "$(target-os)" {
+        case "windows" : # `$(target-os)' is `windows'.
+          switch "$(multitarget)" {
+          case "no" : # `$(multitarget)' is `no'.
+            switch "$(address-model)" {
+            case "64" : # `$(address-model)' is `64'.
               host-triplet = "x86_64-w64-mingw32" ;
               target-triplet = "x86_64-w64-mingw32" ;
               enabled-targets = "x86_64-w64-mingw32" ;
-            }
-            else if "$(address-model)" = "32" {
+            case "32" : # `$(address-model)' is `32'.
               host-triplet = "i686-w64-mingw32" ;
               target-triplet = "i686-w64-mingw32" ;
               enabled-targets = "i686-w64-mingw32" ;
-            }
-            else { # `$(address-model)' is neither `64' nor `32'.
+            case "*" : # `$(address-model)' is neither `64' nor `32'.
               errors.error "an internal error." ;
             }
-          }
-          else { # `$(multitarget)' is other than `no'.
+          case "*" : # `$(multitarget)' is other than `no'.
             errors.error "an internal error." ;
           }
-        }
-        else { # `$(target-os)' is other than `windows'.
+        case "*" : # `$(target-os)' is other than `windows'.
           errors.error "an internal error." ;
         }
-      }
-      else if "$(host-os)" = "cygwin" {
+      case "cygwin" : # `$(host-os)' is `cygwin'.
         host-triplet = "i686-pc-cygwin" ;
-        if "$(target-os)" = "cygwin" {
-          if "$(multitarget)" = "no" {
-            if "$(address-model)" = "unspecified" {
+        switch "$(target-os)" {
+        case "cygwin" : # `$(target-os)' is `cygwin'.
+          switch "$(multitarget)" {
+          case "no" : # `$(multitarget)' is `no'.
+            switch "$(address-model)" {
+            case "unspecified" : # `$(address-model)' is `unspecified'.
               target-triplet = "i686-pc-cygwin" ;
               enabled-targets = "i686-pc-cygwin" ;
-            }
-            else { # `$(address-model)' is other than `unspecified'.
+            case "*" : # `$(address-model)' is other than `unspecified'.
               errors.error "an internal error." ;
             }
-          }
-          else { # `$(multitarget)' is other than `no'.
+          case "*" : # `$(multitarget)' is other than `no'.
             errors.error "an internal error." ;
           }
-        }
-        else { # `$(target-os)' is other than `cygwin'.
+        case "*" : # `$(target-os)' is other than `cygwin'.
           errors.error "an internal error." ;
         }
-      }
-      else { # `$(host-os)' is neither `linux', `windows' nor `cygwin'.
+      case "*" : # `$(host-os)' is neither `linux', `windows' nor `cygwin'.
         errors.error "an internal error." ;
       }
-    }
-    else if "$(default-bits)" = "32" {
+    case "32" : # `$(default-bits)' is `32'.
       build-triplet = "i686-pc-linux-gnu" ;
-      if "$(host-os)" = "linux" {
+      switch "$(host-os)" {
+      case "linux" : # `$(host-os)' is `linux'.
         host-triplet = "i686-pc-linux-gnu" ;
-        if "$(target-os)" = "linux" {
-          if "$(multitarget)" = "no" {
-            if "$(address-model)" = "unspecified" {
+        switch "$(target-os)" {
+        case "linux" : # `$(target-os)' is `linux'.
+          switch "$(multitarget)" {
+          case "no" : # `$(multitarget)' is `no'.
+            switch "$(address-model)" {
+            case "unspecified" : # `$(address-model)' is `unspecified'.
               target-triplet = "i686-pc-linux-gnu" ;
               enabled-targets = "i686-pc-linux-gnu" ;
-            }
-            else { # `$(address-model)' is other than `unspecified'.
+            case "*" : # `$(address-model)' is other than `unspecified'.
               errors.error "an internal error." ;
             }
-          }
-          else { # `$(multitarget)' is other than `no'.
+          case "*" : # `$(multitarget)' is other than `no'.
             errors.error "an internal error." ;
           }
-        }
-        else if "$(target-os)" = "windows" {
-          if "$(multitarget)" = "no" {
-            if "$(address-model)" = "32" {
+        case "windows" : # `$(target-os)' is `windows'.
+          switch "$(multitarget)" {
+          case "no" : # `$(multitarget)' is `no'.
+            switch "$(address-model)" {
+            case "32" : # `$(address-model)' is `32'.
               target-triplet = "i686-w64-mingw32" ;
               enabled-targets = "i686-w64-mingw32" ;
-            }
-            else if "$(address-model)" = "64" {
+            case "64" : # `$(address-model)' is `64'.
               target-triplet = "x86_64-w64-mingw32" ;
               enabled-targets = "x86_64-w64-mingw32" ;
-            }
-            else { # `$(address-model)' is neither `32' nor `64'.
+            case "*" : # `$(address-model)' is neither `32' nor `64'.
               errors.error "an internal error." ;
             }
-          }
-          else { # `$(multitarget)' is other than `no'.
+          case "*" : # `$(multitarget)' is other than `no'.
             errors.error "an internal error." ;
           }
-        }
-        else if "$(target-os)" = "cygwin" {
-          if "$(multitarget)" = "no" {
-            if "$(address-model)" = "unspecified" {
+        case "cygwin" : # `$(target-os)' is `cygwin'.
+          switch "$(multitarget)" {
+          case "no" : # `$(multitarget)' is `no'.
+            switch "$(address-model)" {
+            case "unspecified" : # `$(address-model)' is `unspecified'.
               target-triplet = "i686-pc-cygwin" ;
               enabled-targets = "i686-pc-cygwin" ;
-            }
-            else { # `$(address-model)' is other than `unspecified'.
+            case "*" : # `$(address-model)' is other than `unspecified'.
               errors.error "an internal error." ;
             }
-          }
-          else { # `$(multitarget)' is other than `no'.
+          case "*" : # `$(multitarget)' is other than `no'.
             errors.error "an internal error." ;
           }
-        }
-        else { # `$(target-os)' is neither `linux', `windows' nor `cygwin'.
+        case "*" : # `$(target-os)' is neither `linux', `windows' nor `cygwin'.
           errors.error "an internal error." ;
         }
-      }
-      else if "$(host-os)" = "windows" {
-        if "$(target-os)" = "windows" {
-          if "$(multitarget)" = "no" {
-            if "$(address-model)" = "32" {
+      case "windows" : # `$(host-os)' is `windows'.
+        switch "$(target-os)" {
+        case "windows" : # `$(target-os)' is `windows'.
+          switch "$(multitarget)" {
+          case "no" : # `$(multitarget)' is `no'.
+            switch "$(address-model)" {
+            case "32" : # `$(address-model)' is `32'.
               host-triplet = "i686-w64-mingw32" ;
               target-triplet = "i686-w64-mingw32" ;
               enabled-targets = "i686-w64-mingw32" ;
-            }
-            else if "$(address-model)" = "64" {
+            case "64" : # `$(address-model)' is `64'.
               host-triplet = "x86_64-w64-mingw32" ;
               target-triplet = "x86_64-w64-mingw32" ;
               enabled-targets = "x86_64-w64-mingw32" ;
-            }
-            else { # `$(address-model)' is neither `32' nor `64'.
+            case "*" : # `$(address-model)' is neither `32' nor `64'.
               errors.error "an internal error." ;
             }
-          }
-          else { # `$(multitarget)' is other than `no'.
+          case "*" : # `$(multitarget)' is other than `no'.
             errors.error "an internal error." ;
           }
-        }
-        else { # `$(target-os)' is other than `windows'.
+        case "*" : # `$(target-os)' is other than `windows'.
           errors.error "an internal error." ;
         }
-      }
-      else if "$(host-os)" = "cygwin" {
+      case "cygwin" : # `$(host-os)' is `cygwin'.
         host-triplet = "i686-pc-cygwin" ;
-        if "$(target-os)" = "cygwin" {
-          if "$(multitarget)" = "no" {
-            if "$(address-model)" = "unspecified" {
+        switch "$(target-os)" {
+        case "cygwin" : # `$(target-os)' is `cygwin'.
+          switch "$(multitarget)" {
+          case "no" : # `$(multitarget)' is `no'.
+            switch "$(address-model)" {
+            case "unspecified" : # `$(address-model)' is `unspecified'.
               target-triplet = "i686-pc-cygwin" ;
               enabled-targets = "i686-pc-cygwin" ;
-            }
-            else { # `$(address-model)' is other than `unspecified'.
+            case "*" : # `$(address-model)' is other than `unspecified'.
               errors.error "an internal error." ;
             }
-          }
-          else { # `$(multitarget)' is other than `no'.
+          case "*" : # `$(multitarget)' is other than `no'.
             errors.error "an internal error." ;
           }
-        }
-        else { # `$(target-os)' is other than `cygwin'.
+        case "*" : # `$(target-os)' is other than `cygwin'.
           errors.error "an internal error." ;
         }
-      }
-      else { # `$(host-os)' is neither `linux', `windows' nor `cygwin'.
+      case "*" : # `$(host-os)' is neither `linux', `windows' nor `cygwin'.
         errors.error "an internal error." ;
       }
-    }
-    else { # `$(default-bits)' is neither `64' nor `32'.
+    case "*" : # `$(default-bits)' is neither `64' nor `32'.
       errors.error "an internal error." ;
     }
-  }
-  else if "$(build-os)" = "windows" {
-    if "$(default-bits)" = "64" {
+  case "windows" : # `$(build-os)' is `windows'.
+    switch "$(default-bits)" {
+    case "64" : # `$(default-bits)' is `64'.
       build-triplet = "x86_64-w64-mingw32" ;
-      if "$(host-os)" = "windows" {
+      switch "$(host-os)" {
+      case "windows" : # `$(host-os)' is `windows'.
         host-triplet = "x86_64-w64-mingw32" ;
-        if "$(target-os)" = "windows" {
-          if "$(multitarget)" = "no" {
-            if "$(address-model)" = "unspecified" {
+        switch "$(target-os)" {
+        case "windows" : # `$(target-os)' is `windows'.
+          switch "$(multitarget)" {
+          case "no" : # `$(multitarget)' is `no'.
+            switch "$(address-model)" {
+            case "unspecified" : # `$(address-model)' is `unspecified'.
               target-triplet = "x86_64-w64-mingw32" ;
               enabled-targets = "x86_64-w64-mingw32" ;
-            }
-            else { # `$(address-model)' is other than `unspecified'.
+            case "*" : # `$(address-model)' is other than `unspecified'.
               errors.error "an internal error." ;
             }
-          }
-          else { # `$(multitarget)' is other than `no'.
+          case "*" : # `$(multitarget)' is other than `no'.
             errors.error "an internal error." ;
           }
-        }
-        else { # `$(target-os)' is other than `windows'.
+        case "*" : # `$(target-os)' is other than `windows'.
           errors.error "an internal error." ;
         }
-      }
-      else { # `$(host-os)' is other than `windows'.
+      case "*" : # `$(host-os)' is other than `windows'.
         errors.error "an internal error." ;
       }
-    }
-    else if "$(default-bits)" = "32" {
+    case "32" : # `$(default-bits)' is `32'.
       build-triplet = "i686-w64-mingw32" ;
-      if "$(host-os)" = "windows" {
+      switch "$(host-os)" {
+      case "windows" : # `$(host-os)' is `windows'.
         host-triplet = "i686-w64-mingw32" ;
-        if "$(target-os)" = "windows" {
-          if "$(multitarget)" = "no" {
-            if "$(address-model)" = "unspecified" {
+        switch "$(target-os)" {
+        case "windows" : # `$(target-os)' is `windows'.
+          switch "$(multitarget)" {
+          case "no" : # `$(multitarget)' is `no'.
+            switch "$(address-model)" {
+            case "unspecified" : # `$(address-model)' is `unspecified'.
               target-triplet = "i686-w64-mingw32" ;
               enabled-targets = "i686-w64-mingw32" ;
-            }
-            else { # `$(address-model)' is other than `unspecified'.
+            case "*" : # `$(address-model)' is other than `unspecified'.
               errors.error "an internal error." ;
             }
-          }
-          else { # `$(multitarget)' is other than `no'.
+          case "*" : # `$(multitarget)' is other than `no'.
             errors.error "an internal error." ;
           }
-        }
-        else { # `$(target-os)' is other than `windows'.
+        case "*" : # `$(target-os)' is other than `windows'.
           errors.error "an internal error." ;
         }
-      }
-      else { # `$(host-os)' is other than `windows'.
+      case "*" : # `$(host-os)' is other than `windows'.
         errors.error "an internal error." ;
       }
-    }
-    else { # `$(default-bits)' is neither `64' nor `32'.
+    case "*" : # `$(default-bits)' is neither `64' nor `32'.
       errors.error "an internal error." ;
     }
-  }
-  else if "$(build-os)" = "cygwin" {
-    if "$(default-bits)" = "32" {
+  case "cygwin" : # `$(build-os)' is `cygwin'.
+    switch "$(default-bits)" {
+    case "32" : # `$(default-bits)' is `32'.
       build-triplet = "i686-pc-cygwin" ;
-      if "$(host-os)" = "cygwin" {
+      switch "$(host-os)" {
+      case "cygwin" : # `$(host-os)' is `cygwin'.
         host-triplet = "i686-pc-cygwin" ;
-        if "$(target-os)" = "cygwin" {
-          if "$(multitarget)" = "no" {
-            if "$(address-model)" = "unspecified" {
+        switch "$(target-os)" {
+        case "cygwin" : # `$(target-os)' is `cygwin'.
+          switch "$(multitarget)" {
+          case "no" : # `$(multitarget)' is `no'.
+            switch "$(address-model)" {
+            case "unspecified" : # `$(address-model)' is `unspecified'.
               target-triplet = "i686-pc-cygwin" ;
               enabled-targets = "i686-pc-cygwin" ;
-            }
-            else { # `$(address-model)' is other than `unspecified'.
+            case "*" : # `$(address-model)' is other than `unspecified'.
               errors.error "an internal error." ;
             }
-          }
-          else { # `$(multitarget)' is other than `no'.
+          case "*" : # `$(multitarget)' is other than `no'.
             errors.error "an internal error." ;
           }
-        }
-        else { # `$(target-os)' is other than `cygwin'.
+        case "*" : # `$(target-os)' is other than `cygwin'.
           errors.error "an internal error." ;
         }
-      }
-      else { # `$(host-os)' is other than `cygwin'.
+      case "*" : # `$(host-os)' is other than `cygwin'.
         errors.error "an internal error." ;
       }
-    }
-    else { # `$(default-bits)' is other than `32'.
+    case "*" : # `$(default-bits)' is other than `32'.
       errors.error "an internal error." ;
     }
-  }
-  else { # `$(build-os)' is neither `linux', `windows' nor `cygwin'.
+  case "*" : # `$(build-os)' is neither `linux', `windows' nor `cygwin'.
     errors.error "an internal error." ;
   }
   if ! "$(build-triplet)" {

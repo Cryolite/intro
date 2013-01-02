@@ -58,7 +58,8 @@ rule download ( targets * : sources * : properties * )
 {
   local version = [ feature.get-values <isl-hidden> : $(properties) ] ;
   VERSION on $(targets) = "$(version)" ;
-  URL on $(targets) = "http://ftp.tsukuba.wide.ad.jp/software/gcc/infrastructure/isl-$(version).tar.bz2" ;
+  URL on $(targets) = "ftp://ftp.linux.student.kuleuven.be/pub/people/skimo/isl/isl-$(version).tar.bz2" ;
+  #URL on $(targets) = "http://ftp.tsukuba.wide.ad.jp/software/gcc/infrastructure/isl-$(version).tar.bz2" ;
   #URL on $(targets) = "http://www.ring.gr.jp/archives/lang/egcs/infrastructure/isl-$(version).tar.bz2" ;
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }

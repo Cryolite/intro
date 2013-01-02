@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-src=`curl --silent 'http://www.multiprecision.org/index.php?prog=mpc&page=download'` || exit 1
+src=`wget --quiet --output-document=- 'http://www.multiprecision.org/index.php?prog=mpc&page=download'` || exit 1
 src=`echo "$src" | grep -Eo 'mpc-[[:digit:]]+(\.[[:digit:]]+){0,2}\.tar\.((gz)|(bz2))'` || exit 1
 src=`echo "$src" | grep -Eo '^mpc-[[:digit:]]+(\.[[:digit:]]+){0,2}'` || exit 1
 src=`echo "$src" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,2}$'` || exit 1
