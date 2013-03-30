@@ -268,9 +268,12 @@ if "$(cloog-for-gcc)" != "system" && ! "$(cloog-for-gcc)" in $(cloog-versions) {
 ECHO cloog-for-gcc... $(cloog-for-gcc) ;
 
 
-local enabled-compilers = [ option.get enable-compilers : : IMPLIED ] ;
+local enabled-compilers = [ option.get enable-compilers : : "IMPLIED" ] ;
 if "$(enabled-compilers)" = "IMPLIED" {
   errors.error "`--enable-compilers' should be specified with a value." ;
+}
+if ! "$(enabled-compilers)" {
+  errors.error "`--enable-compilers' option is required." ;
 }
 enabled-compilers = [ regex.split "$(enabled-compilers)" "," ] ;
 for local enabled-compiler in $(enabled-compilers) {
@@ -335,6 +338,56 @@ if "$(multitarget)" = "IMPLIED" {
   multitarget = "yes" ;
 }
 ECHO multitarget... $(multitarget) ;
+
+
+local gcc-check = [ option.get "with-gcc-check" : "UNSPECIFIED" : "IMPLIED" ] ;
+switch "$(gcc-check)" {
+case "UNSPECIFIED" :
+  gcc-check = [ option.get "without-gcc-check" : "UNSPECIFIED" : "IMPLIED" ] ;
+  switch "$(gcc-check)" {
+  case "UNSPECIFIED" :
+    gcc-check = "yes" ;
+  case "IMPLIED" :
+    gcc-check = "no" ;
+  case "*" :
+    errors.error "`--without-gcc-check' cannot have any value." ;
+  }
+case "IMPLIED" :
+  gcc-check = [ option.get "without-gcc-check" : "UNSPECIFIED" : "IMPLIED" ] ;
+  switch "$(gcc-check)" {
+  case "UNSPECIFIED" :
+    gcc-check = "yes" ;
+  case "IMPLIED" :
+    errors.error "`--with-gcc-check' and `--without-gcc-check' cannot be specified simultaneously." ;
+  case "*" :
+    errors.error "`--without-gcc-check' cannot have any value." ;
+  }
+case "yes" :
+  gcc-check = [ option.get "without-gcc-check" : "UNSPECIFIED" : "IMPLIED" ] ;
+  switch "$(gcc-check)" {
+  case "UNSPECIFIED" :
+    gcc-check = "yes" ;
+  case "IMPLIED" :
+    errors.error "`--with-gcc-check' and `--without-gcc-check' cannot be specified simultaneously." ;
+  case "*" :
+    errors.error "`--without-gcc-check' cannot have any value." ;
+  }
+case "no" :
+  gcc-check = [ option.get "without-gcc-check" : "UNSPECIFIED" : "IMPLIED" ] ;
+  switch "$(gcc-check)" {
+  case "UNSPECIFIED" :
+    gcc-check = "no" ;
+  case "IMPLIED" :
+    errors.error "`--with-gcc-check' and `--without-gcc-check' cannot be specified simultaneously." ;
+  case "*" :
+    errors.error "`--without-gcc-check' cannot have any value." ;
+  }
+case "" :
+  errors.error "the value for `--with-gcc-check' is an empty string." ;
+case "*" :
+  errors.error "an invalid value `$(gcc-check)' is specified for `--with-gcc-check'." ;
+}
+ECHO gcc-check... $(gcc-check) ;
 
 
 local gmp = [ option.get "enable-gmp" : : "latest" ] ;
@@ -701,6 +754,9 @@ else {
 
 constant COMPILERS : $(compilers) ;
 ECHO COMPILERS... $(COMPILERS) ;
+
+constant GCC_CHECK : "$(gcc-check)" ;
+ECHO GCC_CHECK... $(GCC_CHECK) ;
 
 if $(gmp-versions) {
   constant GMP_VERSIONS : $(gmp-versions) ;

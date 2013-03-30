@@ -427,6 +427,7 @@ $(PROPERTY_DUMP_COMMANDS)
                       '$(ISL_FOR_GCC)'          \
                       '$(CLOOG_FOR_GCC)'        \
                       $(CONCURRENCY)            \
+                      '$(GCC_CHECK)'            \
                       '$(AWACS)'                \
                       '$(STREAM)'               \
                       '$(SRCDIR)'               \

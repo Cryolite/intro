@@ -24,6 +24,8 @@ cloog_for_gcc=$1
 shift
 concurrency=$1
 shift
+gcc_check=$1
+shift
 awacs=$1
 shift
 stream=$1
@@ -49,6 +51,7 @@ echo "mpc_for_gcc: $mpc_for_gcc"
 echo "isl_for_gcc: $isl_for_gcc"
 echo "cloog_for_gcc: $cloog_for_gcc"
 echo "concurrency: $concurrency"
+echo "gcc_check: $gcc_check"
 echo "awacs: $awacs"
 echo "stream: $stream"
 echo "srcdir: $srcdir"
@@ -190,13 +193,15 @@ if [ $? -ne 0 ]; then
 fi
 
 
-# `make check'.
-( cd "$objdir" && make -k check >> "$stream" 2>&1 )
-( cd "$objdir" && cp 'gcc/testsuite/gcc/gcc.sum' "$compiler_prefix" ) || exit 1
-( cd "$objdir" && cp 'gcc/testsuite/g++/g++.sum' "$compiler_prefix" ) || exit 1
-( cd "$objdir" && cp 'x86_64-unknown-linux-gnu/libgomp/testsuite/libgomp.sum' "$compiler_prefix" ) || exit 1
-( cd "$objdir" && cp 'x86_64-unknown-linux-gnu/libmudflap/testsuite/libmudflap.sum' "$compiler_prefix" ) || exit 1
-( cd "$objdir" && cp 'x86_64-unknown-linux-gnu/libstdc++-v3/testsuite/libstdc++.sum' "$compiler_prefix" ) || exit 1
+if [ "$gcc_check" = 'yes' ]; then
+  # `make check'.
+  ( cd "$objdir" && make -k check >> "$stream" 2>&1 )
+  ( cd "$objdir" && cp 'gcc/testsuite/gcc/gcc.sum' "$compiler_prefix" ) || exit 1
+  ( cd "$objdir" && cp 'gcc/testsuite/g++/g++.sum' "$compiler_prefix" ) || exit 1
+  ( cd "$objdir" && cp 'x86_64-unknown-linux-gnu/libgomp/testsuite/libgomp.sum' "$compiler_prefix" ) || exit 1
+  ( cd "$objdir" && cp 'x86_64-unknown-linux-gnu/libmudflap/testsuite/libmudflap.sum' "$compiler_prefix" ) || exit 1
+  ( cd "$objdir" && cp 'x86_64-unknown-linux-gnu/libstdc++-v3/testsuite/libstdc++.sum' "$compiler_prefix" ) || exit 1
+fi
 
 
 # `make install'.
