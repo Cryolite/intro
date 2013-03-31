@@ -341,7 +341,8 @@ rule make-install ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) += "--enable-libssp" ;
 
-  OPTIONS on $(targets) += "--enable-libquadmath" ;
+  #OPTIONS on $(targets) += "--enable-libquadmath" ;
+  OPTIONS on $(targets) += "--disable-libquadmath" ;
 
   if "$(target-triplet)" = "x86_64-w64-mingw32" || "$(target-triplet)" = "i686-w64-mingw32" {
     # The target is `*-w64-mingw32.'
