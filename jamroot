@@ -340,6 +340,56 @@ if "$(multitarget)" = "IMPLIED" {
 ECHO multitarget... $(multitarget) ;
 
 
+local with-gold = [ option.get "with-gold" : "UNSPECIFIED" : "IMPLIED" ] ;
+switch "$(with-gold)" {
+case "UNSPECIFIED" :
+  with-gold = [ option.get "without-gold" : "UNSPECIFIED" : "IMPLIED" ] ;
+  switch "$(with-gold)" {
+  case "UNSPECIFIED" :
+    with-gold = "no" ;
+  case "IMPLIED" :
+    with-gold = "no" ;
+  case "*" :
+    errors.error "`--without-gold' cannot have any value." ;
+  }
+case "IMPLIED" :
+  with-gold = [ option.get "without-gold" : "UNSPECIFIED" : "IMPLIED" ] ;
+  switch "$(with-gold)" {
+  case "UNSPECIFIED" :
+    with-gold = "yes" ;
+  case "IMPLIED" :
+    errors.error "`--with-gold' and `--without-gold' cannot be specified simultaneously." ;
+  case "*" :
+    errors.error "`--without-gold' cannot have any value." ;
+  }
+case "yes" :
+  with-gold = [ option.get "without-gold" : "UNSPECIFIED" : "IMPLIED" ] ;
+  switch "$(with-gold)" {
+  case "UNSPECIFIED" :
+    with-gold = "yes" ;
+  case "IMPLIED" :
+    errors.error "`--with-gold' and `--without-gold' cannot be specified simultaneously." ;
+  case "*" :
+    errors.error "`--without-gold' cannot have any value." ;
+  }
+case "no" :
+  with-gold = [ option.get "without-gold" : "UNSPECIFIED" : "IMPLIED" ] ;
+  switch "$(with-gold)" {
+  case "UNSPECIFIED" :
+    with-gold = "no" ;
+  case "IMPLIED" :
+    errors.error "`--with-gold' and `--without-gold' cannot be specified simultaneously." ;
+  case "*" :
+    errors.error "`--without-gold' cannot have any value." ;
+  }
+case "" :
+  errors.error "the value for `--with-gold' is an empty string." ;
+case "*" :
+  errors.error "an invalid value `$(with-gold)' is specified for `--with-gold'." ;
+}
+ECHO with-gold... $(with-gold) ;
+
+
 local gcc-check = [ option.get "with-gcc-check" : "UNSPECIFIED" : "IMPLIED" ] ;
 switch "$(gcc-check)" {
 case "UNSPECIFIED" :
@@ -754,6 +804,9 @@ else {
 
 constant COMPILERS : $(compilers) ;
 ECHO COMPILERS... $(COMPILERS) ;
+
+constant WITH_GOLD : "$(with-gold)" ;
+ECHO WITH_GOLD... $(WITH_GOLD) ;
 
 constant GCC_CHECK : "$(gcc-check)" ;
 ECHO GCC_CHECK... $(GCC_CHECK) ;

@@ -267,16 +267,23 @@ rule make-install ( targets * : sources * : properties * )
 
   # Set the linker configuration to be used by the installed GCC front-end.
   if [ is-gcc "$(compiler)" ] || [ is-icc "$(compiler)" ] {
-    # gold linker has a bug that ignores `LD_RUN_PATH' environment variable.
-    # http://sourceware.org/bugzilla/show_bug.cgi?id=13764
-    # If the day comes when this bug is fixed, gold can become the default
-    # linker.
-    OPTIONS on $(targets) += "--enable-ld=default" ;
-    OPTIONS on $(targets) += "--enable-gold" ;
+    switch "$(WITH_GOLD)" {
+    case "yes" :
+      OPTIONS on $(targets) += "--enable-ld" ;
+      OPTIONS on $(targets) += "--enable-gold=default" ;
+    case "no" :
+      OPTIONS on $(targets) += "--enable-ld=default" ;
+      OPTIONS on $(targets) += "--enable-gold" ;
+    case "*" :
+      errors.error "an internal error." ;
+    }
   }
   else if [ is-clang "$(compiler)" ] {
     # Clang requires gold linker in order to enable plugin support.
     # See http://llvm.org/docs/GoldPlugin.html.
+    if "$(WITH_GOLD)" != "yes" {
+      errors.error "Because Clang requires gold linker to enable plugin support, specify `--with-gold'. See also http://llvm.org/docs/GoldPlugin.html." ;
+    }
     OPTIONS on $(targets) += "--enable-ld" ;
     OPTIONS on $(targets) += "--enable-gold=default" ;
   }
@@ -341,7 +348,7 @@ rule make-install ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) += "--enable-libssp" ;
 
-  #OPTIONS on $(targets) += "--enable-libquadmath" ;
+  # `--enable-libquadmath' causes an error on Ubuntu 12.04 or above.
   OPTIONS on $(targets) += "--disable-libquadmath" ;
 
   if "$(target-triplet)" = "x86_64-w64-mingw32" || "$(target-triplet)" = "i686-w64-mingw32" {
@@ -396,7 +403,7 @@ rule make-install ( targets * : sources * : properties * )
 
   #OPTIONS on $(targets) += "--enable-concept-checks" ;
 
-  OPTIONS on $(targets) += "--enable-symvers" ;
+  OPTIONS on $(targets) += "--enable-symvers=gnu-versioned-namespace" ;
 
   INSTALL_SCRIPT on $(targets) = "$(INTRO_ROOT_DIR)/gcc/install.sh" ;
 
