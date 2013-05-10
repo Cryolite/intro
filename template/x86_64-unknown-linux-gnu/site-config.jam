@@ -3983,6 +3983,11 @@ rule launcher-conditional ( properties * )
     launchers += "LD_PRELOAD=\"$(debug-libdir-native)/libstdc++.so${LD_PRELOAD:+ ${LD_PRELOAD}}\"" ;
   }
 
+  local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
+  if "$(memory-checker)" = "on" {
+    launchers += "asan2line" ;
+  }
+
   local catchsegv = [ feature.get-values <catchsegv> : $(properties) ] ;
   if "$(catchsegv)" = "on" {
     launchers += "SEGFAULT_SIGNALS=all" ;
@@ -3998,8 +4003,8 @@ rule launcher-conditional ( properties * )
     launchers += "'$(default-bindir)/valgrind' --quiet --error-exitcode=1 --leak-check=full" ;
   }
 
-  local result = <testing.launcher>"$(launchers)" ;
-  return "$(result)" ;
+  local result = <testing.launcher>$(launchers) ;
+  return $(result) ;
 }
 
 constant INTRO_RUN_PROPERTIES

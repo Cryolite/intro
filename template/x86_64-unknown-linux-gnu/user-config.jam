@@ -44,6 +44,9 @@ local home = [ modules.peek : HOME ] ;
 # Modify the following lines.
 local prefix = "$(home)/local" ;
 
+local docbook-xsl-path ;
+local docbook-dtd-path ;
+
 
 # --------------------------
 # GCC & Clang configuration.
@@ -150,10 +153,9 @@ using xsltproc ;
 # BoostBook configuration.
 # ------------------------
 
-using boostbook
-  : "/usr/share/xml/docbook/stylesheet/nwalsh"
-  : "/usr/share/xml/docbook/schema/dtd/4.2"
-  ;
+if "$(docbook-xsl-path)" && "$(docbook-dtd-path)" {
+  using boostbook : "$(docbook-xsl-path)" : "$(docbook-dtd-path)" ;
+}
 
 
 # ----------------------

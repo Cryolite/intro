@@ -1,0 +1,544 @@
+#!/usr/bin/env bash
+
+# Test if `optget' is an enhanced version or an old version.
+if getopt --test 2>&1 | grep -Fq -- '--'; then
+  echo "bootstrap: requires and enhanced version of \`getopt'" >&2
+  exit 1
+fi
+getopt --test
+if [ $? -ne 4 ]; then
+  echo "bootstrap: requires and enhanced version of \`getopt'" >&2
+  exit 1
+fi
+
+set -e
+
+args=`getopt                    \
+      -n 'bootstrap'            \
+      -l 'prefix:'              \
+      -l 'with-binutils:'       \
+      -l 'with-gmp-for-gcc:'    \
+      -l 'with-mpfr-for-gcc:'   \
+      -l 'with-mpc-for-gcc:'    \
+      -l 'with-isl-for-gcc:'    \
+      -l 'with-cloog-for-gcc:'  \
+      -l 'enable-compilers:'    \
+      -l 'enable-multitarget::' \
+      -l 'disable-multitarget'  \
+      -l 'with-gold::'          \
+      -l 'without-gold'         \
+      -l 'with-gcc-check::'     \
+      -l 'without-gcc-check'    \
+      -l 'enable-gmp::'         \
+      -l 'enable-mpfr::'        \
+      -l 'enable-mpc::'         \
+      -l 'enable-isl::'         \
+      -l 'enable-cloog::'       \
+      -l 'enable-ppl::'         \
+      -l 'enable-icu4c::'       \
+      -l 'enable-openmpi::'     \
+      -l 'with-mpi-backend:'    \
+      -l 'enable-boost::'       \
+      -l 'enable-clang::'       \
+      -l 'enable-valgrind::'    \
+      -l 'concurrency:'         \
+      -o 'an' -- "$@"`
+eval "args=($args)"
+
+prev_arg=
+prefix=
+binutils=system
+gmp_for_gcc=system
+mpfr_for_gcc=system
+mpc_for_gcc=system
+isl_for_gcc=system
+cloog_for_gcc=system
+compilers=
+multitarget=no
+gold=no
+gcc_check=yes
+gmp=
+mpfr=
+mpc=
+isl=
+cloog=
+ppl=
+icu4c=
+openmpi=
+mpi_backend=
+boost=
+clang=
+valgrind=
+concurrency=1
+declare -a delegated_opts
+declare -a delegated_args
+for arg in "${args[@]}"; do
+  if [ -z "$prev_arg" ]; then
+    case "$arg" in
+    --prefix)
+      prev_arg=--prefix
+      ;;
+    -a)
+      delegated_opts=("${delegated_opts[@]}" -a)
+      ;;
+    -n)
+      delegated_opts=("${delegated_opts[@]}" -n)
+      ;;
+    --with-binutils)
+      prev_arg=--with-binutils
+      ;;
+    --with-gmp-for-gcc)
+      prev_arg=--with-gmp-for-gcc
+      ;;
+    --with-mpfr-for-gcc)
+      prev_arg=--with-mpfr-for-gcc
+      ;;
+    --with-mpc-for-gcc)
+      prev_arg=--with-mpc-for-gcc
+      ;;
+    --with-isl-for-gcc)
+      prev_arg=--with-isl-for-gcc
+      ;;
+    --with-cloog-for-gcc)
+      prev_arg=--with-cloog-for-gcc
+      ;;
+    --enable-compilers)
+      prev_arg=--enable-compilers
+      ;;
+    --enable-multitarget)
+      prev_arg=--enable-multitarget
+      ;;
+    --disable-multitarget)
+      multitarget=no
+      ;;
+    --with-gold)
+      prev_arg=--with-gold
+      ;;
+    --without-gold)
+      gold=no
+      ;;
+    --with-gcc-check)
+      prev_arg=--with-gcc-check
+      ;;
+    --without-gcc-check)
+      gcc_check=no
+      ;;
+    --enable-gmp)
+      prev_arg=--enable-gmp
+      ;;
+    --enable-mpfr)
+      prev_arg=--enable-mpfr
+      ;;
+    --enable-mpc)
+      prev_arg=--enable-mpc
+      ;;
+    --enable-isl)
+      prev_arg=--enable-isl
+      ;;
+    --enable-cloog)
+      prev_arg=--enable-cloog
+      ;;
+    --enable-ppl)
+      prev_arg=--enable-ppl
+      ;;
+    --enable-icu4c)
+      prev_arg=--enable-icu4c
+      ;;
+    --enable-openmpi)
+      prev_arg=--enable-openmpi
+      ;;
+    --with-mpi-backend)
+      prev_arg=--with-mpi-backend
+      ;;
+    --enable-boost)
+      prev_arg=--enable-boost
+      ;;
+    --enable-clang)
+      prev_arg=--enable-clang
+      ;;
+    --enable-valgrind)
+      prev_arg=--enable-valgrind
+      ;;
+    --concurrency)
+      prev_arg=--concurrency
+      ;;
+    --)
+      ;;
+    *)
+      delegated_args=("${delegated_args[@]}" "$arg")
+      ;;
+    esac
+  else
+    # `$prev_arg' is not empty.
+    case "$prev_arg" in
+    --prefix)
+      prefix="$arg"
+      ;;
+    --with-binutils)
+      binutils="$arg"
+      ;;
+    --with-gmp-for-gcc)
+      gmp_for_gcc="$arg"
+      ;;
+    --with-mpfr-for-gcc)
+      mpfr_for_gcc="$arg"
+      ;;
+    --with-mpc-for-gcc)
+      mpc_for_gcc="$arg"
+      ;;
+    --with-isl-for-gcc)
+      isl_for_gcc="$arg"
+      ;;
+    --with-cloog-for-gcc)
+      cloog_for_gcc="$arg"
+      ;;
+    --enable-compilers)
+      compilers="$arg"
+      ;;
+    --enable-multitarget)
+      case "$arg" in
+      '')
+        multitarget=yes
+        ;;
+      yes)
+        multitarget=yes
+        ;;
+      no)
+        multitarget=no
+        ;;
+      *)
+        echo "bootstrap: option \`--enable-multitarget' doesn't allow argument \`$arg'" >&2
+        exit 1
+        ;;
+      esac
+      ;;
+    --disable-multitarget)
+      echo "bootstrap: an internal error" >&2
+      exit 1
+      ;;
+    --with-gold)
+      case "$arg" in
+      '')
+        gold=yes
+        ;;
+      yes)
+        gold=yes
+        ;;
+      no)
+        gold=no
+        ;;
+      *)
+        echo "bootstrap: option \`--with-gold' doesn't allow argument \`$arg'" >&2
+        exit 1
+        ;;
+      esac
+      ;;
+    --without-gold)
+      echo "bootstrap: an internal error" >&2
+      exit 1
+      ;;
+    --with-gcc-check)
+      case "$arg" in
+      '')
+        gcc_check=yes
+        ;;
+      yes)
+        gcc_check=yes
+        ;;
+      no)
+        gcc_check=no
+        ;;
+      *)
+        echo "bootstrap: option \`--with-gcc-check' doesn't allow argument \`$arg'" >&2
+        exit 1
+        ;;
+      esac
+      ;;
+    --without-gcc-check)
+      echo "bootstrap: an internal error" >&2
+      exit 1
+      ;;
+    --enable-gmp)
+      if [ -z "$arg" ]; then
+        gmp=latest
+      else
+        gmp="$arg"
+      fi
+      ;;
+    --enable-mpfr)
+      if [ -z "$arg" ]; then
+        mpfr=latest
+      else
+        mpfr="$arg"
+      fi
+      ;;
+    --enable-mpc)
+      if [ -z "$arg" ]; then
+        mpc=latest
+      else
+        mpc="$arg"
+      fi
+      ;;
+    --enable-isl)
+      if [ -z "$arg" ]; then
+        isl=latest
+      else
+        isl="$arg"
+      fi
+      ;;
+    --enable-cloog)
+      if [ -z "$arg" ]; then
+        cloog=latest
+      else
+        cloog="$arg"
+      fi
+      ;;
+    --enable-ppl)
+      if [ -z "$arg" ]; then
+        ppl=latest
+      else
+        ppl="$arg"
+      fi
+      ;;
+    --enable-icu4c)
+      if [ -z "$arg" ]; then
+        icu4c=latest
+      else
+        icu4c="$arg"
+      fi
+      ;;
+    --enable-openmpi)
+      if [ -z "$arg" ]; then
+        openmpi=latest
+      else
+        openmpi="$arg"
+      fi
+      ;;
+    --with-mpi-backend)
+      if [ -z "$arg" ]; then
+        echo "bootstrap: option \`--with-mpi-backend' requires an argument" >&2
+        exit 1
+      fi
+      mpi_backend="$arg"
+      ;;
+    --enable-boost)
+      if [ -z "$arg" ]; then
+        boost=latest
+      else
+        boost="$arg"
+      fi
+      ;;
+    --enable-clang)
+      if [ -z "$arg" ]; then
+        clang=latest
+      else
+        clang="$arg"
+      fi
+      ;;
+    --enable-valgrind)
+      if [ -z "$arg" ]; then
+        valgrind=latest
+      else
+        valgrind="$arg"
+      fi
+      ;;
+    --concurrency)
+      if echo "$arg" | grep -Eq '[[:digit:]]+'; then
+        concurrency=$arg
+      else
+        echo "bootstrap: option \`--concurrency' doesn't allow value \`$arg'"
+        exit 1
+      fi
+      ;;
+    *)
+      echo "bootstrap: an internal error" >&2
+      exit 1
+      ;;
+    esac
+    prev_arg=
+  fi
+done
+
+delegated_opts=("${delegated_opts[@]}" --prefix="$prefix")
+
+delegated_opts=("${delegated_opts[@]}" --with-binutils="$binutils")
+
+delegated_opts=("${delegated_opts[@]}" --with-gmp-for-gcc="$gmp_for_gcc")
+
+delegated_opts=("${delegated_opts[@]}" --with-mpfr-for-gcc="$mpfr_for_gcc")
+
+delegated_opts=("${delegated_opts[@]}" --with-mpc-for-gcc="$mpc_for_gcc")
+
+delegated_opts=("${delegated_opts[@]}" --with-isl-for-gcc="$isl_for_gcc")
+
+delegated_opts=("${delegated_opts[@]}" --with-cloog-for-gcc="$cloog_for_gcc")
+
+delegated_opts=("${delegated_opts[@]}" --enable-compilers="$compilers")
+
+if [ -z "$compilers" ]; then
+  echo "bootstrap: requires \`--enable-compilers' option" >&2
+  exit 1
+fi
+
+case "$multitarget" in
+yes)
+  delegated_opts=("${delegated_opts[@]}" --enable-multitarget)
+  ;;
+no)
+  delegated_opts=("${delegated_opts[@]}" --disable-multitarget)
+  ;;
+*)
+  echo "bootstrap: an internal error" >&2
+  exit 1
+  ;;
+esac
+
+case "$gold" in
+yes)
+  delegated_opts=("${delegated_opts[@]}" --with-gold)
+  ;;
+no)
+  delegated_opts=("${delegated_opts[@]}" --without-gold)
+  ;;
+*)
+  echo "bootstrap: an internal error" >&2
+  exit 1
+  ;;
+esac
+
+case "$gcc_check" in
+yes)
+  delegated_opts=("${delegated_opts[@]}" --with-gcc-check)
+  ;;
+no)
+  delegated_opts=("${delegated_opts[@]}" --without-gcc-check)
+  ;;
+*)
+  echo "bootstrap: an internal error" >&2
+  exit 1
+  ;;
+esac
+
+if [ -n "$gmp" ]; then
+  delegated_opts=("${delegated_opts[@]}" --enable-gmp="$gmp")
+fi
+
+if [ -n "$mpfr" ]; then
+  delegated_opts=("${delegated_opts[@]}" --enable-mpfr="$mpfr")
+fi
+
+if [ -n "$mpc" ]; then
+  delegated_opts=("${delegated_opts[@]}" --enable-mpc="$mpc")
+fi
+
+if [ -n "$isl" ]; then
+  delegated_opts=("${delegated_opts[@]}" --enable-isl="$isl")
+fi
+
+if [ -n "$cloog" ]; then
+  delegated_opts=("${delegated_opts[@]}" --enable-cloog="$cloog")
+fi
+
+if [ -n "$ppl" ]; then
+  delegated_opts=("${delegated_opts[@]}" --enable-ppl="$ppl")
+fi
+
+if [ -n "$icu4c" ]; then
+  delegated_opts=("${delegated_opts[@]}" --enable-icu4c="$icu4c")
+fi
+
+if [ -n "$openmpi" ]; then
+  delegated_opts=("${delegated_opts[@]}" --enable-openmpi="$openmpi")
+fi
+
+if [ -n "$mpi_backend" ]; then
+  delegated_opts=("${delegated_opts[@]}" --with-mpi-backend="$mpi_backend")
+fi
+
+if [ -n "$boost" ]; then
+  delegated_opts=("${delegated_opts[@]}" --enable-boost="$boost")
+fi
+
+if [ -n "$clang" ]; then
+  delegated_opts=("${delegated_opts[@]}" --enable-clang="$clang")
+fi
+
+if [ -n "$valgrind" ]; then
+  delegated_opts=("${delegated_opts[@]}" --enable-valgrind="$valgrind")
+fi
+
+if [ -n "$concurrency" ]; then
+  delegated_opts=("${delegated_opts[@]}" --concurrency=$concurrency)
+fi
+
+
+intro_root=`(cd \`dirname "$0"\`; pwd)`
+
+set +e
+boost_latest=`$intro_root/boost-latest.sh`
+exval=$?
+if [ $exval -ne 0 ]; then
+  echo "bootstrap: failed to invoke \`boost-latest.sh'" >&2
+  exit $exval
+fi
+set -e
+
+if [ ! -d "$prefix/boost/$boost_latest" ]; then
+  boost_tag=`echo $boost_latest | sed -e 's/\./_/g'`
+  mkdir -p "$prefix/boost"
+  pushd "$prefix/boost"
+  wget "http://downloads.sourceforge.net/project/boost/boost/$boost_latest/boost_${boost_tag}.tar.bz2"
+  tar xjvf boost_${boost_tag}.tar.bz2
+  rm boost_${boost_tag}.tar.bz2
+  mv boost_$boost_tag $boost_latest
+  ln -sfT $boost_latest latest
+  popd
+  if [ -x "$prefix/bin/bjam" ]; then
+    rm "$prefix/bin/bjam"
+  fi
+fi
+
+if [ ! -x "$prefix/bin/bjam" ]; then
+  pushd "$prefix/boost/latest"
+  ./bootstrap.sh
+  mkdir -p "$prefix/bin"
+  cp bjam "$prefix/bin"
+  popd
+fi
+
+cp "$intro_root/template/x86_64-unknown-linux-gnu/site-config.jam" "$HOME"
+sed -i "s@^local prefix = \"\$(home)/local\" ;@local prefix = \"$prefix\" ;@" "$HOME/site-config.jam"
+
+cp "$intro_root/template/x86_64-unknown-linux-gnu/user-config.jam" "$HOME"
+sed -i "s@^local prefix = \"\$(home)/local\" ;@local prefix = \"$prefix\" ;@" "$HOME/user-config.jam"
+if [ -f '/usr/share/xml/docbook/stylesheet/docbook-xsl/VERSION' ]; then
+  sed -i 's@^local docbook-xsl-path ;$@local docbook-xsl-path = "/usr/share/xml/docbook/stylesheet/docbook-xsl" ;@' "$HOME/user-config.jam"
+elif [ -f '/usr/share/sgml/docbook/xsl-stylesheets/VERSION' ]; then
+  sed -i 's@^local docbook-xsl-path ;$@local docbook-xsl-path = "/usr/share/sgml/docbook/xsl-stylesheets" ;@' "$HOME/user-config.jam"
+fi
+if [ -f '/usr/share/xml/docbook/schema/dtd/4.2/docbookx.dtd' ]; then
+  sed -i 's@^local docbook-dtd-path ;$@local docbook-dtd-path = "/usr/share/xml/docbook/schema/dtd/4.2" ;@' "$HOME/user-config.jam"
+elif [ -f '/usr/share/sgml/docbook/sgml-dtd-4.2-1.0-51.el6/docbookx.dtd' ]; then
+  sed -i 's@^local docbook-dtd-path ;$@local docbook-dtd-path = "/usr/share/sgml/docbook/sgml-dtd-4.2-1.0-51.el6" ;@' "$HOME/user-config.jam"
+fi
+
+BOOST_ROOT="$prefix/boost/latest"
+export BOOST_ROOT
+BOOST_BUILD_PATH="$BOOST_ROOT/tools/build/v2"
+export BOOST_BUIKD_PATH
+
+stream_file_path=`mktemp ${TMPDIR:-/tmp}/intro_stream.XXXXXX`
+tail -s 0.1 -F "$stream_file_path" &
+tail_pid=$!
+
+set +e
+set -x
+"$prefix/bin/bjam" -d+2 "${delegated_opts[@]}" --with-stream="$stream_file_path" "${delegated_args[@]}" >> "$stream_file_path" 2>&1
+exval=$?
+set +x
+
+sleep 1
+kill -TERM $tail_pid
+rm -f "$stream_file_path"
+
+exit $exval
