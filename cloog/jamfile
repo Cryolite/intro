@@ -49,8 +49,10 @@ explicit compiler-dep ;
 
 
 for local version in $(CLOOG_VERSIONS) {
-  make "$(INTRO_ROOT_DIR)/cloog-$(version).tar.gz" : : @download ;
-  explicit "$(INTRO_ROOT_DIR)/cloog-$(version).tar.gz" ;
+  if "$(version)" != "trunk" {
+    make "$(INTRO_ROOT_DIR)/cloog-$(version).tar.gz" : : @download ;
+    explicit "$(INTRO_ROOT_DIR)/cloog-$(version).tar.gz" ;
+  }
 }
 
 rule download ( targets * : sources * : properties * )
@@ -83,19 +85,21 @@ $(PROPERTY_DUMP_COMMANDS)
 
 
 for local version in $(CLOOG_VERSIONS) {
-  # Use `README' file as a target representing the completion of
-  # decompression action. It is suitable for the purpose because of the
-  # following reasons;
-  #
-  #   - The name of this file is considered stable even if the version
-  #     changes.
-  #   - This file won't be modified during the build procedure.
-  #
-  make "$(INTRO_ROOT_DIR)/cloog-$(version)/README"
-    : "$(INTRO_ROOT_DIR)/cloog-$(version).tar.gz"
-    : @expand
-    ;
-  explicit "$(INTRO_ROOT_DIR)/cloog-$(version)/README" ;
+  if "$(version)" != "trunk" {
+    # Use `README' file as a target representing the completion of
+    # decompression action. It is suitable for the purpose because of the
+    # following reasons;
+    #
+    #   - The name of this file is considered stable even if the version
+    #     changes.
+    #   - This file won't be modified during the build procedure.
+    #
+    make "$(INTRO_ROOT_DIR)/cloog-$(version)/README"
+      : "$(INTRO_ROOT_DIR)/cloog-$(version).tar.gz"
+      : @expand
+      ;
+    explicit "$(INTRO_ROOT_DIR)/cloog-$(version)/README" ;
+  }
 }
 
 rule expand ( targets * : sources * : properties * )
@@ -125,6 +129,73 @@ $(PROPERTY_DUMP_COMMANDS)
   # time of the source directory could be older than the one of the tarball.
   # Such behavior is not desirable because the decompression always happens.
   # Therefore, `touch' is required.
+  touch --no-create '$(<)'
+  [ -f '$(<)' ] || exit 1
+  exit 0
+}
+
+
+
+if "trunk" in $(CLOOG_VERSIONS) {
+  make "$(INTRO_ROOT_DIR)/cloog-trunk/README"
+    : # no source
+    : @update-trunk
+    ;
+  explicit "$(INTRO_ROOT_DIR)/cloog-trunk/README" ;
+  always "$(INTRO_ROOT_DIR)/cloog-trunk/README" ;
+}
+
+rule update-trunk ( targets * : sources * : properties * )
+{
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
+}
+actions update-trunk
+{
+$(PROPERTY_DUMP_COMMANDS)
+
+  if [ ! -f '$(<)' ]; then
+    ( cd '$(INTRO_ROOT_DIR)' && git clone 'git://repo.or.cz/cloog.git' cloog-trunk >> '$(STREAM)' 2>&1 )
+    if [ $? -ne 0 ]; then
+      ( cd '$(INTRO_ROOT_DIR)' && rm -rf cloog-trunk )
+      echo    "ERROR: failed to \`git clone' CLooG repository." 1>&2
+      echo -n "ERROR: failed to \`git clone' CLooG repository." | $(AWACS)
+      exit 1
+    fi
+    [ -f '$(<)' ] || exit 1
+  fi
+
+  ( cd '$(INTRO_ROOT_DIR)/cloog-trunk' && git clean -ffdx >> '$(STREAM)' 2>&1 )
+  if [ $? -ne 0 ]; then
+    ( cd '$(INTRO_ROOT_DIR)' && rm -rf cloog-trunk )
+    echo    "ERROR: failed to \`git clean -ffdx' CLooG repository." 1>&2
+    echo -n "ERROR: failed to \`git clean -ffdx' CLooG repository." | $(AWACS)
+    exit 1
+  fi
+
+  ( cd '$(INTRO_ROOT_DIR)/cloog-trunk' && git pull --ff-only >> '$(STREAM)' 2>&1 )
+  if [ $? -ne 0 ]; then
+    ( cd '$(INTRO_ROOT_DIR)' && rm -rf cloog-trunk )
+    echo    "ERROR: failed to \`git pull --ff-only' CLooG repository." 1>&2
+    echo -n "ERROR: failed to \`git pull --ff-only' CLooG repository." | $(AWACS)
+    exit 1
+  fi
+
+  #( cd '$(INTRO_ROOT_DIR)/cloog-trunk' && ./get_submodules.sh >> '$(STREAM)' 2>&1 )
+  #if [ $? -ne 0 ]; then
+  #  ( cd '$(INTRO_ROOT_DIR)' && rm -rf cloog-trunk )
+  #  echo    "ERROR: failed to execute \`./get_submodules.sh' in CLooG repository." 1>&2
+  #  echo -n "ERROR: failed to execute \`./get_submodules.sh' in CLooG repository." | $(AWACS)
+  #  exit 1
+  #fi
+
+  ( cd '$(INTRO_ROOT_DIR)/cloog-trunk' && ./autogen.sh >> '$(STREAM)' 2>&1 )
+  if [ $? -ne 0 ]; then
+    ( cd '$(INTRO_ROOT_DIR)' && rm -rf cloog-trunk )
+    echo    "ERROR: failed to execute \`./autogen.sh' in CLooG repository." 1>&2
+    echo -n "ERROR: failed to execute \`./autogen.sh' in CLooG repository." | $(AWACS)
+    exit 1
+  fi
+
   touch --no-create '$(<)'
   [ -f '$(<)' ] || exit 1
   exit 0
