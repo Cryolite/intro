@@ -9,7 +9,6 @@ import "$(INTRO_ROOT_DIR)/compilers"
   : is-gcc
     is-clang
     is-icc
-    get-compiler-description
     get-full-prefix
     get-triplets
     get-cc
@@ -17,7 +16,6 @@ import "$(INTRO_ROOT_DIR)/compilers"
     get-cxx
     get-cxxflags
     get-environment-commands
-    get-logfile-path
     get-property-dump-commands
   ;
 
@@ -56,37 +54,28 @@ for local version in $(MPC_VERSIONS) {
 rule download ( targets * : sources * : properties * )
 {
   local version = [ feature.get-values <mpc-hidden> : $(properties) ] ;
-  VERSION on $(targets) = "$(version)" ;
-  URLS on $(targets) = "'http://ftp.tsukuba.wide.ad.jp/software/mpc/mpc-$(version).tar.gz' \\
-                        'http://www.multiprecision.org/mpc/download/mpc-$(version).tar.gz' \\
-                        'http://ftp.dti.ad.jp/pub/lang/gcc/infrastructure/mpc-$(version).tar.gz'" ;
+  URLS on $(targets)  = "'http://ftp.tsukuba.wide.ad.jp/software/mpc/mpc-$(version).tar.gz'" ;
+  URLS on $(targets) += "'http://www.multiprecision.org/mpc/download/mpc-$(version).tar.gz'" ;
+  URLS on $(targets) += "'http://ftp.dti.ad.jp/pub/lang/gcc/infrastructure/mpc-$(version).tar.gz'" ;
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
 }
 actions download
 {
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-
-  rm -rf '$(<)' || exit 1
-
+  LINENO_ADJ=`grep -Fn e4bdc492-66af-4692-bdfd-f79fcd3ad5df '$(INTRO_ROOT_DIR)/mpc/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+mpc/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
+  rm -rf '$(<)'
+  trap "rm -rf '$(<)'" EXIT HUP INT QUIT TERM
   for url in $(URLS) ; do
-    if [ -n '$(STREAM)' ]; then
-      ( cd '$(<:D)' && wget -- "$url" >> '$(STREAM)' 2>&1 )
-    else
-      ( cd '$(<:D)' && wget --quiet -- "$url" )
-    fi
-    if [ $? -eq 0 ]; then
-      break
-    fi
+    ( cd '$(<:D)' && wget -- "$url" ) && break
   done
-
-  if [ ! -f '$(<)' ]; then
-    echo    'ERROR: failed to download MPC $(VERSION) tarball.' 1>&2
-    echo -n 'ERROR: failed to download MPC $(VERSION) tarball.' | $(AWACS)
-    rm -rf '$(<)'
-    exit 1
-  fi
-
-  exit 0
+  [ -f '$(<)' ]
+  trap - EXIT HUP INT QUIT TERM
+EOS
 }
 
 
@@ -109,34 +98,29 @@ for local version in $(MPC_VERSIONS) {
 
 rule expand ( targets * : sources * : properties * )
 {
-  local version = [ feature.get-values <mpc-hidden> : $(properties) ] ;
-  VERSION on $(targets) = "$(version)" ;
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
 }
 actions expand
 {
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-
-  rm -rf '$(<:D)' || exit 1
-  [ -f '$(>)' ] || exit 1
-  if [ -n '$(STREAM)' ]; then
-    tar xzvf '$(>)' --directory='$(INTRO_ROOT_DIR)' >> '$(STREAM)' 2>&1
-  else
-    tar xzf '$(>)' --directory='$(INTRO_ROOT_DIR)'
-  fi
-  if [ $? -ne 0 ]; then
-    echo    'ERROR: failed to expand MPC $(VERSION) tarball.' 1>&2
-    echo -n 'ERROR: failed to expand MPC $(VERSION) tarball.' | $(AWACS)
-    rm -rf '$(<:D)'
-    exit 1
-  fi
+  LINENO_ADJ=`grep -Fn 735bc1c6-1b2a-4ef1-9f13-4e44b72429ec '$(INTRO_ROOT_DIR)/mpc/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+mpc/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
+  rm -rf '$(<:D)'
+  [ -f '$(>)' ]
+  trap "rm -rf '$(>)' '$(<:D)'" EXIT HUP INT QUIT TERM
+  tar xzvf '$(>)' -C '$(INTRO_ROOT_DIR)'
   # If the timestamp of the tarball's contents is restored, the modification
   # time of the source directory could be older than the one of the tarball.
   # Such behavior is not desirable because the decompression always happens.
   # Therefore, `touch' is required.
   touch --no-create '$(<)'
-  [ -f '$(<)' ] || exit 1
-  exit 0
+  [ -f '$(<)' ]
+  trap - EXIT HUP INT QUIT TERM
+EOS
 }
 
 
@@ -178,30 +162,24 @@ explicit mpc.h ;
 
 rule make-install ( targets * : sources * : properties * )
 {
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local compiler-description = [ get-compiler-description "$(compiler)" ] ;
-  COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
-
+  # Sets the path to the source directory.
   local version = [ feature.get-values <mpc> : $(properties) ] ;
-  VERSION on $(targets) = "$(version)" ;
-
-  # Set the path to the source directory.
   local srcdir = "$(INTRO_ROOT_DIR)/mpc-$(version)" ;
   SRCDIR on $(targets) = [ path.native "$(srcdir)" ] ;
 
-  # Set the path to objdir.
+  # Sets the path to objdir.
   local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
   local objdir-native = [ path.native "$(objdir)" ] ;
   OBJDIR on $(targets) = "$(objdir-native)" ;
 
   OPTIONS on $(targets) = ;
 
-  # Set `--prefix' option for `configure' script.
+  # Sets `--prefix' option for `configure' script.
   local full-prefix = [ get-full-prefix "$(PREFIX)" : $(properties) ] ;
   local full-prefix-native = [ path.native "$(full-prefix)" ] ;
   OPTIONS on $(targets) += "--prefix='$(full-prefix-native)'" ;
 
-  # Set `--build' and `--host' options for `configure' script.
+  # Sets `--build' and `--host' options for `configure' script.
   local triplets = [ get-triplets $(properties) ] ;
   local build-triplet = "$(triplets[1])" ;
   local host-triplet = "$(triplets[2])" ;
@@ -210,7 +188,7 @@ rule make-install ( targets * : sources * : properties * )
   OPTIONS on $(targets) += "--build=$(build-triplet)" ;
   OPTIONS on $(targets) += "--host=$(host-triplet)" ;
 
-  # Set the link variants for `configure' script.
+  # Sets the link variants for `configure' script.
   local link = [ feature.get-values <link> : $(properties) ] ;
   switch "$(link)" {
   case "shared" :
@@ -226,17 +204,17 @@ rule make-install ( targets * : sources * : properties * )
     errors.error "<link>$(link): an unknown property" ;
   }
 
-  # `--with-mpfr` option is necessary for MPC to detect the correct location
-  # of MPFR, even if `CPATH`, `LIBRARY_PATH` and `LD_LIBRARY_PATH` include
-  # the path to installed MPFR headers and libraries. This seems due to old
-  # versions of `libtool`.
-  OPTIONS on $(targets) += "--with-mpfr='$(full-prefix-native)'" ;
-
   # `--with-gmp` option is necessary for MPC to detect the correct location
   # of GMP, even if `CPATH`, `LIBRARY_PATH` and `LD_LIBRARY_PATH` include
   # the path to installed GMP headers and libraries. This seems due to old
   # versions of `libtool`.
   OPTIONS on $(targets) += "--with-gmp='$(full-prefix-native)'" ;
+
+  # `--with-mpfr` option is necessary for MPC to detect the correct location
+  # of MPFR, even if `CPATH`, `LIBRARY_PATH` and `LD_LIBRARY_PATH` include
+  # the path to installed MPFR headers and libraries. This seems due to old
+  # versions of `libtool`.
+  OPTIONS on $(targets) += "--with-mpfr='$(full-prefix-native)'" ;
 
   local cc = [ get-cc "$(PREFIX)" : $(properties) ] ;
   local cc-native = [ path.native "$(cc)" ] ;
@@ -260,7 +238,7 @@ rule make-install ( targets * : sources * : properties * )
     OPTIONS on $(targets) += "CFLAGS='@$(objdir-native)/cflags'" ;
   }
 
-  # `CXX' and `CXXFLAGS' are not used for MPFR build.
+  # NOTE: `CXX' and `CXXFLAGS' are not used for MPC build.
   local cxx = [ get-cxx "$(PREFIX)" : $(properties) ] ;
   local cxx-native = [ path.native "$(cxx)" ] ;
   OPTIONS on $(targets) += "CXX='$(cxx-native)'" ;
@@ -283,87 +261,56 @@ rule make-install ( targets * : sources * : properties * )
   local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
   ENVIRONMENT_COMMANDS on $(targets) = "$(environment-commands)" ;
 
-  local logfile = [ get-logfile-path "mpc" : "$(PREFIX)" : $(properties) ] ;
-  local logfile-native = [ path.native "$(logfile)" ] ;
-  LOGFILE on $(targets) = "$(logfile-native)" ;
-
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "$(logfile)" ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : /dev/null ] ;
 }
 actions make-install
 {
-  exit_with_error ()
-  {
-    echo "`LANG=C date`:ERROR: $1 (MPC $(VERSION), $(COMPILER_DESCRIPTION))" | tee -a '$(LOGFILE)' >> '$(STREAM)'
-    echo -n "ERROR: $1 (MPC $(VERSION), $(COMPILER_DESCRIPTION))" | $(AWACS)
-    exit 1
-  }
-
-  echo "`LANG=C date`:INFO: initiation of MPC build process" | tee '$(LOGFILE)' >> '$(STREAM)'
-
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(ENVIRONMENT_COMMANDS)
-
 $(PROPERTY_DUMP_COMMANDS)
+  LINENO_ADJ=`grep -Fn 4303a643-7118-4019-bcd4-b0a2938f54cd '$(INTRO_ROOT_DIR)/mpc/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+mpc/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
 
-  [ -x '$(SRCDIR)/configure' ] || exit_with_error "\`$(SRCDIR)/configure' is not executable"
-  [ -x '$(SRCDIR)/config.sub' ] || exit_with_error "\`$(SRCDIR)/config.sub' is not executable"
-  [ `'$(SRCDIR)/config.sub' $(BUILD_TRIPLET)` = $(BUILD_TRIPLET) ] || exit_with_error "\`--build=$(BUILD_TRIPLET)' is not supported"
-  [ `'$(SRCDIR)/config.sub' $(HOST_TRIPLET)` = $(HOST_TRIPLET) ] || exit_with_error "\`--host=$(HOST_TRIPLET)' is not supported"
+  cleanup ()
+  {
+    if [ -d '$(OBJDIR)' ]; then
+      mv -n '$(OBJDIR)' "$(INTRO_ROOT_DIR)/objdir_$$"
+    fi
+  }
+  rm -rf '$(OBJDIR)'
+  cleanup
+  trap cleanup EXIT HUP INT QUIT TERM
 
-  # Clean up objdir `$(OBJDIR)'.
-  { mkdir -p '$(OBJDIR)' && ( cd '$(OBJDIR)' && rm -rf * ); } || exit_with_error 'failed to clean up the old objdir'
+  # Creates `objdir`.
+  ( cd '$(INTRO_ROOT_DIR)' && mkdir objdir )
 
-  echo "`LANG=C date`:INFO: @cflags: $(CFLAGS)" | tee -a '$(LOGFILE)' >> '$(STREAM)'
-  echo "`LANG=C date`:INFO: @cxxflags: $(CXXFLAGS)" | tee -a '$(LOGFILE)' >> '$(STREAM)'
-  ( cd '$(OBJDIR)' && echo -n '$(CFLAGS)' > cflags ) || exit_with_error 'failed to create @cflags'
-  ( cd '$(OBJDIR)' && echo -n '$(CXXFLAGS)' > cxxflags ) || exit_with_error 'failed to create @cxxflags'
+  [ -x '$(SRCDIR)/configure' ]
+  [ -x '$(SRCDIR)/config.sub' ]
+  [ `'$(SRCDIR)/config.sub' $(BUILD_TRIPLET)` = $(BUILD_TRIPLET) ]
+  [ `'$(SRCDIR)/config.sub' $(HOST_TRIPLET)` = $(HOST_TRIPLET) ]
 
-  echo "`LANG=C date`:COMMAND: ./configure $(OPTIONS:J= )" | tee -a '$(LOGFILE)' >> '$(STREAM)'
-  tail --follow --lines=0 --sleep-interval=0.1 '$(LOGFILE)' >> '$(STREAM)' &
-  ( cd '$(OBJDIR)' && '$(SRCDIR)/configure' $(OPTIONS) >> '$(LOGFILE)' 2>&1 )
-  result=$?
-  kill -TERM $!
-  if [ $result -ne 0 ]; then
-    exit_with_error "failed to \`configure'"
-  fi
+  ( cd '$(OBJDIR)' && echo -n '$(CFLAGS)' > cflags )
+  ( cd '$(OBJDIR)' && echo -n '$(CXXFLAGS)' > cxxflags )
 
-  # Check the creation of `Makefile'.
-  [ -f '$(OBJDIR)/Makefile' ] || exit_with_error "failed to confirm the creation of \`Makefile'"
+  ( cd '$(OBJDIR)' && '$(SRCDIR)/configure' $(OPTIONS) )
 
-  echo "`LANG=C date`:COMMAND: make" | tee -a '$(LOGFILE)' >> '$(STREAM)'
-  tail --follow --lines=0 --sleep-interval=0.1 '$(LOGFILE)' >> '$(STREAM)' &
-  ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) >> '$(LOGFILE)' 2>&1 )
-  result=$?
-  kill -TERM $!
-  if [ $result -ne 0 ]; then
-    exit_with_error "failed to \`make'"
-  fi
+  # Checks the creation of `Makefile`.
+  [ -f '$(OBJDIR)/Makefile' ]
 
-  echo "`LANG=C date`:COMMAND: make check" | tee -a '$(LOGFILE)' >> '$(STREAM)'
-  tail --follow --lines=0 --sleep-interval=0.1 '$(LOGFILE)' >> '$(STREAM)' &
-  ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) check >> '$(LOGFILE)' 2>&1 )
-  result=$?
-  kill -TERM $!
-  if [ $result -ne 0 ]; then
-    exit_with_error "failed to \`make check'"
-  fi
+  ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) )
 
-  echo "`LANG=C date`:COMMAND: make install" | tee -a '$(LOGFILE)' >> '$(STREAM)'
-  tail --follow --lines=0 --sleep-interval=0.1 '$(LOGFILE)' >> '$(STREAM)' &
-  ( cd '$(OBJDIR)' && make install >> '$(LOGFILE)' 2>&1 )
-  result=$?
-  kill -TERM $!
-  if [ $result -ne 0 ]; then
-    exit_with_error "failed to \`make install'"
-  fi
+  ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) check )
 
-  # Clean up objdir `$(OBJDIR)'.
-  rm -rf '$(OBJDIR)' || exit_with_error 'failed to clean up the objdir'
+  ( cd '$(OBJDIR)' && make install )
 
-  [ -f '$(<)' ] || exit_with_error 'failed to confirm the creation of the build target'
+  # Cleans up `objdir`.
+  rm -rf '$(OBJDIR)'
 
-  echo -n 'MPC $(VERSION) ($(COMPILER_DESCRIPTION)) was successfully built.' | $(AWACS)
-  echo "`LANG=C date`:INFO: successful completion of MPC build process" | tee -a '$(LOGFILE)' >> '$(STREAM)'
-  exit 0
+  [ -f '$(<)' ]
+EOS
 }
 
 

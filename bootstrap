@@ -11,7 +11,8 @@ if [ $? -ne 4 ]; then
   exit 1
 fi
 
-set -e
+PS4='+$0:$LINENO: '
+set -ex
 
 args=`getopt                    \
       -n 'bootstrap'            \
@@ -474,14 +475,7 @@ fi
 
 intro_root=`(cd \`dirname "$0"\`; pwd)`
 
-set +e
-boost_latest=`$intro_root/boost-latest.sh`
-exval=$?
-if [ $exval -ne 0 ]; then
-  echo "bootstrap: failed to invoke \`boost-latest.sh'" >&2
-  exit $exval
-fi
-set -e
+boost_latest=`"$intro_root/boost-latest.sh"`
 
 if [ ! -d "$prefix/boost/$boost_latest" ]; then
   boost_tag=`echo $boost_latest | sed -e 's/\./_/g'`
@@ -527,18 +521,18 @@ export BOOST_ROOT
 BOOST_BUILD_PATH="$BOOST_ROOT/tools/build/v2"
 export BOOST_BUIKD_PATH
 
-stream_file_path=`mktemp ${TMPDIR:-/tmp}/intro_stream.XXXXXX`
-tail -s 0.1 -F "$stream_file_path" &
-tail_pid=$!
+tmpdir=`mktemp -d`
 
-set +e
-set -x
-"$prefix/bin/bjam" -d+2 "${delegated_opts[@]}" --with-stream="$stream_file_path" "${delegated_args[@]}" >> "$stream_file_path" 2>&1
-exval=$?
-set +x
+stdout="$tmpdir/stdout"
+touch "$stdout"
+tail -s 0.1 -F "$stdout" &
+stdout_tail_pid=$!
 
-sleep 1
-kill -TERM $tail_pid
-rm -f "$stream_file_path"
+stderr="$tmpdir/stderr"
+touch "$stderr"
+tail -s 0.1 -F "$stderr" >&2 &
+stderr_tail_pid=$!
 
-exit $exval
+trap 'kill -TERM $stdout_tail_pid $stderr_tail_pid; wait; rm -rf "$tmpdir"' EXIT HUP INT QUIT TERM
+
+"$prefix/bin/bjam" "${delegated_opts[@]}" --with-stream="$stdout" --stdout="$stdout" --stderr="$stderr" "${delegated_args[@]}"

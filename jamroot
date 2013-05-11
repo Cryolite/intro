@@ -725,6 +725,32 @@ else {
 }
 
 
+local stdout = [ option.get "stdout" : : "IMPLIED" ] ;
+if "$(stdout)" = "IMPLIED" {
+  errors.error "option `--stdout' requires an argument" ;
+}
+if "$(stdout)" {
+  ECHO --stdout... $(stdout) ;
+}
+else {
+  stdout = "/dev/null" ;
+  ECHO --stdout... /dev/null (default) ;
+}
+
+
+local stderr = [ option.get "stderr" : : "IMPLIED" ] ;
+if "$(stderr)" = "IMPLIED" {
+  errors.error "option `--stderr' requires an argument" ;
+}
+if "$(stderr)" {
+  ECHO --stderr... $(stderr) ;
+}
+else {
+  stderr = "/dev/null" ;
+  ECHO --stderr... /dev/null (default) ;
+}
+
+
 
 
 
@@ -915,6 +941,12 @@ else {
   constant STREAM : "/dev/null" ;
   ECHO STREAM... N/A ;
 }
+
+constant STDOUT_ : "$(stdout)" ;
+ECHO STDOUT_... $(STDOUT_) ;
+
+constant STDERR_ : "$(stderr)" ;
+ECHO STDERR_... $(STDERR_) ;
 
 
 

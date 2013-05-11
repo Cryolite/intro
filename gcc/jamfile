@@ -14,7 +14,6 @@ import "$(INTRO_ROOT_DIR)/compilers"
     is-icc
     get-frontend-version
     get-backend-gcc
-    get-compiler-description
     get-compiler-prefix
     get-default-bindir
     get-compiler-triplets
@@ -40,16 +39,15 @@ rule download ( targets * : sources * : properties * )
     errors.error "an internal error." ;
   }
   local version = [ get-frontend-version "$(compiler)" ] ;
-  VERSION on $(targets) = $(version) ;
   if [ is-gcc-release "$(compiler)" ] {
-    URLS on $(targets) = "'http://core.ring.gr.jp/pub/lang/egcs/releases/gcc-$(version)/gcc-$(version).tar.bz2'        \\
-                          'http://ftp.dti.ad.jp/pub/lang/gcc/releases/gcc-$(version)/gcc-$(version).tar.bz2'           \\
-                          'http://ftp.tsukuba.wide.ad.jp/software/gcc/releases/gcc-$(version)/gcc-$(version).tar.bz2'" ;
+    URLS on $(targets)  = "'http://core.ring.gr.jp/pub/lang/egcs/releases/gcc-$(version)/gcc-$(version).tar.bz2'" ;
+    URLS on $(targets) += "'http://ftp.dti.ad.jp/pub/lang/gcc/releases/gcc-$(version)/gcc-$(version).tar.bz2'" ;
+    URLS on $(targets) += "'http://ftp.tsukuba.wide.ad.jp/software/gcc/releases/gcc-$(version)/gcc-$(version).tar.bz2'" ;
   }
   else if [ is-gcc-snapshot "$(compiler)" ] {
-    URLS on $(targets) = "'http://core.ring.gr.jp/pub/lang/egcs/snapshots/$(version)/gcc-$(version).tar.bz2'        \\
-                          'http://ftp.dti.ad.jp/pub/lang/gcc/snapshots/$(version)/gcc-$(version).tar.bz2'           \\
-                          'http://ftp.tsukuba.wide.ad.jp/software/gcc/snapshots/$(version)/gcc-$(version).tar.bz2'" ;
+    URLS on $(targets)  = "'http://core.ring.gr.jp/pub/lang/egcs/snapshots/$(version)/gcc-$(version).tar.bz2'" ;
+    URLS on $(targets) += "'http://ftp.dti.ad.jp/pub/lang/gcc/snapshots/$(version)/gcc-$(version).tar.bz2'" ;
+    URLS on $(targets) += "'http://ftp.tsukuba.wide.ad.jp/software/gcc/snapshots/$(version)/gcc-$(version).tar.bz2'" ;
   }
   else {
     errors.error "an internal error." ;
@@ -58,25 +56,21 @@ rule download ( targets * : sources * : properties * )
 }
 actions download
 {
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-
-  rm -rf '$(<)' || exit $?
-
+  LINENO_ADJ=`grep -Fn 73f66309-1b4e-4509-95e7-0d497563bfde '$(INTRO_ROOT_DIR)/gcc/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+gcc/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
+  rm -rf '$(<)'
+  trap "rm -rf '$(<)'" EXIT HUP INT QUIT TERM
   for url in $(URLS) ; do
-    ( cd '$(<:D)' && wget -- "$url" >> '$(STREAM)' 2>&1 )
-    if [ $? -eq 0 ]; then
-      break
-    fi
+    ( cd '$(<:D)' && wget -- "$url" ) && break
   done
-
-  if [ ! -f '$(<)' ]; then
-    echo    'ERROR: failed to download GCC $(VERSION) tarball.' 1>&2
-    echo -n 'ERROR: failed to download GCC $(VERSION) tarball.' | $(AWACS)
-    rm -rf '$(<)'
-    exit 1
-  fi
-
-  exit 0
+  [ -f '$(<)' ]
+  trap - EXIT HUP INT QUIT TERM
+EOS
 }
 
 
@@ -99,40 +93,29 @@ for local version in [ get-gcc-versions $(COMPILERS) ] {
 
 rule expand ( targets * : sources * : properties * )
 {
-  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
-  if [ is-gcc "$(compiler)" ] {
-    # Do nothing.
-  }
-  else if [ is-clang "$(compiler)" ] || [ is-icc "$(compiler)" ] {
-    compiler = [ get-backend-gcc "$(compiler)" ] ;
-  }
-  else {
-    errors.error "an internal error." ;
-  }
-  local version = [ get-frontend-version "$(compiler)" ] ;
-  VERSION on $(targets) = "$(version)" ;
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
 }
 actions expand
 {
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-
-  rm -rf '$(<:D)' || exit 1
-  [ -f '$(>)' ] || exit 1
-  tar xjvf '$(>)' --directory='$(INTRO_ROOT_DIR)' >> '$(STREAM)' 2>&1
-  if [ $? -ne 0 ]; then
-    echo    'ERROR: failed to expand GCC $(VERSION) tarball.' 1>&2
-    echo -n 'ERROR: failed to expand GCC $(VERSION) tarball.' | $(AWACS)
-    rm -rf '$(<:D)'
-    exit 1
-  fi
+  LINENO_ADJ=`grep -Fn aff7efdc-c590-40fa-af74-e417dfe54658 '$(INTRO_ROOT_DIR)/gcc/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+gcc/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
+  rm -rf '$(<:D)'
+  [ -f '$(>)' ]
+  trap "rm -rf '$(>)' '$(<:D)'" EXIT HUP INT QUIT TERM
+  tar xjvf '$(>)' -C '$(INTRO_ROOT_DIR)'
   # If the timestamp of the tarball's contents is restored, the modification
   # time of the source directory could be older than the one of the tarball.
   # Such behavior is not desirable because the decompression always happens.
   # Therefore, `touch' is required.
   touch --no-create '$(<)'
-  [ -f '$(<)' ] || exit 1
-  exit 0
+  [ -f '$(<)' ]
+  trap - EXIT HUP INT QUIT TERM
+EOS
 }
 
 
@@ -211,20 +194,16 @@ rule make-install ( targets * : sources * : properties * )
 {
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local version ;
-  local compiler-description ;
   if [ is-gcc "$(compiler)" ] {
     version = [ get-frontend-version "$(compiler)" ] ;
-    compiler-description = [ get-compiler-description "$(compiler)" ] ;
   }
   else if [ is-clang "$(compiler)" ] || [ is-icc "$(compiler)" ] {
     local backend-gcc = [ get-backend-gcc "$(compiler)" ] ;
     version = [ get-frontend-version "$(backend-gcc)" ] ;
-    compiler-description = [ get-compiler-description "$(backend-gcc)" ] ;
   }
   else {
     errors.error "an internal error." ;
   }
-  COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
 
   local srcdir = "$(INTRO_ROOT_DIR)/gcc-$(version)" ;
   SRCDIR on $(targets) = "$(srcdir)" ;
@@ -292,7 +271,6 @@ rule make-install ( targets * : sources * : properties * )
   }
 
   local multitarget = [ feature.get-values <multitarget> : $(properties) ] ;
-  MULTITARGET on $(targets) = "$(multitarget)" ;
 
   if "$(target-triplet)" = "x86_64-unknown-linux-gnu" && "$(multitarget)" = "yes" {
     if "$(host-triplet)" != "x86_64-unknown-linux-gnu" {
@@ -401,61 +379,152 @@ rule make-install ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) += "--enable-libstdcxx-debug" ;
 
-  #OPTIONS on $(targets) += "--enable-concept-checks" ;
-
   OPTIONS on $(targets) += "--enable-symvers=gnu-versioned-namespace" ;
-
-  INSTALL_SCRIPT on $(targets) = "$(INTRO_ROOT_DIR)/gcc/install.sh" ;
 
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
 }
 actions make-install
 {
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
+  LINENO_ADJ=`grep -Fn 5b21d7be-6009-4ae7-a9bc-2b245392e71f '$(INTRO_ROOT_DIR)/gcc/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+gcc/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
 
-  # Clean up the objdir `$(OBJDIR)'.
-  { mkdir -p '$(OBJDIR)' && ( cd '$(OBJDIR)' && rm -rf * ); } || exit 1
+  cleanup ()
+  {
+    if [ -d '$(OBJDIR)' ]; then
+      mv -n '$(OBJDIR)' "$(INTRO_ROOT_DIR)/objdir_$$"
+    fi
 
-  if [ -f '/etc/debian_version' ] && grep -Fq 'wheezy/sid' '/etc/debian_version'; then
-    if [ `uname --machine` = 'x86_64' -a `uname --operating-system` = 'GNU/Linux' ]; then
+    # Restores the hacked configure scripts.
+    if [ -e '$(SRCDIR)/isl/real-configure' ]; then
+      [ -x '$(SRCDIR)/isl/real-configure' ]
+      mv -f '$(SRCDIR)/isl/real-configure' '$(SRCDIR)/isl/configure'
+    fi
+    if [ -e '$(SRCDIR)/cloog/real-configure' ]; then
+      [ -x '$(SRCDIR)/cloog/real-configure' ]
+      mv -f '$(SRCDIR)/cloog/real-configure' '$(SRCDIR)/cloog/configure'
+    fi
+
+    # Removes symlinks in GCC source tree.
+    ( cd '$(SRCDIR)' && rm -f bfd binutils gas gold gprof ld opcodes gmp mpfr mpc isl cloog )
+  }
+  rm -rf '$(OBJDIR)'
+  cleanup
+  trap cleanup EXIT HUP INT QUIT TERM
+
+  if [ -n '$(BINUTILS)' ]; then
+    # Creates symlinks to source directories of GNU Binutils libraries and
+    # tools (opcodes, bfd, binutils, gas, ld, gold, gprof) in GCC source
+    # tree.
+    ( cd '$(SRCDIR)' && ln -sf ../binutils-$(BINUTILS)/{bfd,binutils,gas,gold,gprof,ld,opcodes} . )
+  fi
+
+  if [ -n '$(GMP_FOR_GCC)' ]; then
+    # Creates a symlink to GMP source tree in GCC source tree.
+    ( cd '$(SRCDIR)' && ln -sfT ../gmp-$(GMP_FOR_GCC) gmp )
+  fi
+
+  if [ -n '$(MPFR_FOR_GCC)' ]; then
+    # Creates a symlink to MPFR source tree in GCC source tree.
+    ( cd '$(SRCDIR)' && ln -sfT ../mpfr-$(MPFR_FOR_GCC) mpfr )
+  fi
+
+  if [ -n '$(MPC_FOR_GCC)' ]; then
+    # Creates a symlink to MPC source tree in GCC source tree.
+    ( cd '$(SRCDIR)' && ln -sfT ../mpc-$(MPC_FOR_GCC) mpc )
+  fi
+
+  if [ \( `echo $(ISL_FOR_GCC) `x != x \) -a \( `echo $(CLOOG_FOR_GCC) `x != x \) ]; then
+    # Creates a symlink to ISL source tree in GCC source tree.
+    ( cd '$(SRCDIR)' && ln -sfT ../isl-$(ISL_FOR_GCC) isl )
+    # An ad-hoc workaround that enables ISL configure script to find GMP
+    # build directory during GCC bootstrap procedure.
+    ( cd '$(SRCDIR)' && mv -n isl/configure isl/real-configure )
+    cat - > '$(SRCDIR)/isl/configure' << 'EOF'
+#!/usr/bin/env sh
+
+echo original options for isl configure script: "$@"
+dir=`dirname "$0"`
+"$dir/real-configure" --srcdir='$(SRCDIR)/isl' --build=$(BUILD_TRIPLET) --host=$(HOST_TRIPLET) --disable-shared --enable-static --with-gmp=build --with-gmp-builddir='$(OBJDIR)/gmp'
+EOF
+    chmod +x '$(SRCDIR)/isl/configure'
+  fi
+
+  if [ \( `echo $(ISL_FOR_GCC) `x != x \) -a \( `echo $(CLOOG_FOR_GCC) `x != x \) ]; then
+    # Creates a symlink to CLooG source tree in GCC source tree.
+    ( cd '$(SRCDIR)' && ln -sfT ../cloog-$(CLOOG_FOR_GCC) cloog )
+    # An ad-hoc workaround that enables CLooG configure script to find GMP
+    # and ISL build directories during GCC bootstrap procedure.
+    ( cd '$(SRCDIR)' && mv -n cloog/configure cloog/real-configure )
+    cat - > '$(SRCDIR)/cloog/configure' << 'EOF'
+#!/usr/bin/env sh
+
+echo original options for CLooG configure script: "$@"
+dir=`dirname "$0"`
+"$dir/real-configure" --srcdir='$(SRCDIR)/cloog' --build=$(BUILD_TRIPLET) --host=$(HOST_TRIPLET) --disable-shared --enable-static --with-gmp=build --with-gmp-builddir='$(OBJDIR)/gmp' --with-isl=build --with-isl-builddir='$(OBJDIR)/isl' --with-osl=no --with-bits=gmp
+EOF
+    chmod +x '$(SRCDIR)/cloog/configure'
+  fi
+
+  # Creates `objdir`.
+  ( cd '$(INTRO_ROOT_DIR)' && mkdir objdir )
+
+  if [ -f /etc/debian_version ] && grep -Fq wheezy/sid /etc/debian_version; then
+    if [ `uname --machine` = x86_64 -a `uname --operating-system` = GNU/Linux ]; then
       LIBRARY_PATH="/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu${LIBRARY_PATH:+:$LIBRARY_PATH}"
       export LIBRARY_PATH
     fi
   fi
 
-  '$(INSTALL_SCRIPT)' '$(INTRO_ROOT_DIR)'       \
-                      $(BUILD_TRIPLET)          \
-                      $(HOST_TRIPLET)           \
-                      $(TARGET_TRIPLET)         \
-                      $(MULTITARGET)            \
-                      '$(BINUTILS)'             \
-                      '$(GMP_FOR_GCC)'          \
-                      '$(MPFR_FOR_GCC)'         \
-                      '$(MPC_FOR_GCC)'          \
-                      '$(ISL_FOR_GCC)'          \
-                      '$(CLOOG_FOR_GCC)'        \
-                      $(CONCURRENCY)            \
-                      '$(GCC_CHECK)'            \
-                      '$(AWACS)'                \
-                      '$(STREAM)'               \
-                      '$(SRCDIR)'               \
-                      '$(OBJDIR)'               \
-                      '$(COMPILER_PREFIX)'      \
-                      '$(COMPILER_DESCRIPTION)' \
-                      $(OPTIONS)
-  if [ $? -ne 0 ]; then
-    exit 1
+  [ -x '$(SRCDIR)/configure' ]
+  [ -x '$(SRCDIR)/config.sub' ]
+  [ `'$(SRCDIR)/config.sub' $(BUILD_TRIPLET)` = $(BUILD_TRIPLET) ]
+  [ `'$(SRCDIR)/config.sub' $(HOST_TRIPLET)` = $(HOST_TRIPLET) ]
+  [ `'$(SRCDIR)/config.sub' $(TARGET_TRIPLET)` = $(TARGET_TRIPLET) ]
+
+  # `configure`.
+  ( cd '$(OBJDIR)' && '$(SRCDIR)/configure' $(OPTIONS) )
+
+  # Checks the creation of `Makefile`.
+  [ -f '$(OBJDIR)/Makefile' ]
+
+  # `make`.
+  # ISL and CLooG require GMP. However, they will fail to find GMP header
+  # files, `<gmp.h>` and `<gmpxx.h>`. `<gmp.h>` will be created in
+  # `(OBJDIR)/gmp` during the bootstrap procedure, whereas `<gmpxx.h>`
+  # resides in `(SRCDIR)/gmp`. So, `CPATH` environment variable is set to
+  # include the paths to those header files.
+  ( cd '$(OBJDIR)' && env CPATH="$(OBJDIR)/gmp:$(SRCDIR)/gmp${CPATH:+:$CPATH}" make --jobs=$(CONCURRENCY) )
+
+  if [ $(GCC_CHECK) = yes ]; then
+    # `make check`.
+    ( cd '$(OBJDIR)' && make -k check )
+    ( cd '$(OBJDIR)' && cp gcc/testsuite/{gcc/gcc.sum,g++/g++.sum} x86_64-unknown-linux-gnu/{libgomp/testsuite/libgomp.sum,libmudflap/testsuite/libmudflap.sum,libstdc++-v3/testsuite/libstdc++.sum} '$(COMPILER_PREFIX)' )
   fi
 
-  # Check the creation of `g++-wrapper'.
-  [ -x '$(<)' ] || exit 1
+  # `make install`.
+  ( cd '$(OBJDIR)' && make install )
 
-  # Clean up the OBJDIR.
-  rm -rf '$(OBJDIR)' || exit 1
+  # Cleans up the `objdir`.
+  rm -rf '$(OBJDIR)'
 
-  echo -n '$(COMPILER_DESCRIPTION) was successfully built.' | $(AWACS)
-  echo -n 'NOTE: Binutils $(BINUTILS), GMP $(GMP_FOR_GCC), MPFR $(MPFR_FOR_GCC), MPC $(MPC_FOR_GCC), isl $(ISL_FOR_GCC), CLooG $(CLOOG_FOR_GCC) were bootstrapped alongside.' | $(AWACS)
-  exit 0
+  # A workaround. Creates a symlink to `ld` in the directory where the
+  # installed GCC front end searches for subprograms.
+  ( cd '$(COMPILER_PREFIX)/libexec/gcc/$(HOST_TRIPLET)'/`'$(COMPILER_PREFIX)/bin/gcc' -dumpversion` && ln -sf ../../../../bin/ld real-ld )
+
+  # Some configure scripts (e.g. MPC's) require `ld` instead of `real-ld`.
+  ( cd '$(COMPILER_PREFIX)/libexec/gcc/$(HOST_TRIPLET)'/`'$(COMPILER_PREFIX)/bin/gcc' -dumpversion` && ln -sf ../../../../bin/ld ld )
+
+  # Installs the modified specfile and wrapper scripts.
+  install --mode=755 '$(INTRO_ROOT_DIR)/template/$(HOST_TRIPLET)'/{vars64.sh,vars64debug.sh,vars32.sh,vars32debug.sh,hack-gcc-specs,gcc-wrapper,g++-wrapper} '$(COMPILER_PREFIX)/bin'
+
+  # Checks the creation of `g++-wrapper`.
+  [ -x '$(<)' ]
+EOS
 }
 
 
