@@ -123,7 +123,7 @@ EOS
 
 
 
-if "trunk" in $(CLOOG_VERSIONS) {
+if trunk in $(CLOOG_VERSIONS) {
   make "$(INTRO_ROOT_DIR)/cloog-trunk/README"
     : # no source
     : @update-trunk
@@ -134,58 +134,34 @@ if "trunk" in $(CLOOG_VERSIONS) {
 
 rule update-trunk ( targets * : sources * : properties * )
 {
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions update-trunk
 {
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
+  LINENO_ADJ=`grep -Fn 189848b9-2424-45d1-910b-459a00e36516 '$(INTRO_ROOT_DIR)/cloog/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+cloog/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
+
+  if [ -f '$(<)' ]; then
+    ( cd '$(INTRO_ROOT_DIR)/cloog-trunk' && git clean -ffdx )
+  fi
+
+  trap "rm -rf '$(INTRO_ROOT_DIR)/cloog-trunk'" ERR HUP INT QUIT TERM
 
   if [ ! -f '$(<)' ]; then
-    ( cd '$(INTRO_ROOT_DIR)' && git clone 'git://repo.or.cz/cloog.git' cloog-trunk >> '$(STREAM)' 2>&1 )
-    if [ $? -ne 0 ]; then
-      ( cd '$(INTRO_ROOT_DIR)' && rm -rf cloog-trunk )
-      echo    "ERROR: failed to \`git clone' CLooG repository." 1>&2
-      echo -n "ERROR: failed to \`git clone' CLooG repository." | $(AWACS)
-      exit 1
-    fi
-    [ -f '$(<)' ] || exit 1
+    ( cd '$(INTRO_ROOT_DIR)' && git clone 'git://repo.or.cz/cloog.git' cloog-trunk )
   fi
-
-  ( cd '$(INTRO_ROOT_DIR)/cloog-trunk' && git clean -ffdx >> '$(STREAM)' 2>&1 )
-  if [ $? -ne 0 ]; then
-    ( cd '$(INTRO_ROOT_DIR)' && rm -rf cloog-trunk )
-    echo    "ERROR: failed to \`git clean -ffdx' CLooG repository." 1>&2
-    echo -n "ERROR: failed to \`git clean -ffdx' CLooG repository." | $(AWACS)
-    exit 1
-  fi
-
-  ( cd '$(INTRO_ROOT_DIR)/cloog-trunk' && git pull --ff-only >> '$(STREAM)' 2>&1 )
-  if [ $? -ne 0 ]; then
-    ( cd '$(INTRO_ROOT_DIR)' && rm -rf cloog-trunk )
-    echo    "ERROR: failed to \`git pull --ff-only' CLooG repository." 1>&2
-    echo -n "ERROR: failed to \`git pull --ff-only' CLooG repository." | $(AWACS)
-    exit 1
-  fi
-
-  #( cd '$(INTRO_ROOT_DIR)/cloog-trunk' && ./get_submodules.sh >> '$(STREAM)' 2>&1 )
-  #if [ $? -ne 0 ]; then
-  #  ( cd '$(INTRO_ROOT_DIR)' && rm -rf cloog-trunk )
-  #  echo    "ERROR: failed to execute \`./get_submodules.sh' in CLooG repository." 1>&2
-  #  echo -n "ERROR: failed to execute \`./get_submodules.sh' in CLooG repository." | $(AWACS)
-  #  exit 1
-  #fi
-
-  ( cd '$(INTRO_ROOT_DIR)/cloog-trunk' && ./autogen.sh >> '$(STREAM)' 2>&1 )
-  if [ $? -ne 0 ]; then
-    ( cd '$(INTRO_ROOT_DIR)' && rm -rf cloog-trunk )
-    echo    "ERROR: failed to execute \`./autogen.sh' in CLooG repository." 1>&2
-    echo -n "ERROR: failed to execute \`./autogen.sh' in CLooG repository." | $(AWACS)
-    exit 1
-  fi
-
+  [ -f '$(<)' ]
+  ( cd '$(INTRO_ROOT_DIR)/cloog-trunk' && git pull --ff-only )
+  #( cd '$(INTRO_ROOT_DIR)/cloog-trunk' && ./get_submodules.sh )
+  ( cd '$(INTRO_ROOT_DIR)/cloog-trunk' && ./autogen.sh )
   touch --no-create '$(<)'
-  [ -f '$(<)' ] || exit 1
-  exit 0
+  [ -f '$(<)' ]
+EOS
 }
 
 
