@@ -64,12 +64,11 @@ $(PROPERTY_DUMP_COMMANDS)
   PS4='+gcc/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
   rm -rf '$(<)'
-  trap "rm -rf '$(<)'" EXIT HUP INT QUIT TERM
+  trap "rm -rf '$(<)'" ERR HUP INT QUIT TERM
   for url in $(URLS) ; do
     ( cd '$(<:D)' && wget -- "$url" ) && break
   done
   [ -f '$(<)' ]
-  trap - EXIT HUP INT QUIT TERM
 EOS
 }
 
@@ -106,7 +105,7 @@ $(PROPERTY_DUMP_COMMANDS)
   set -ex
   rm -rf '$(<:D)'
   [ -f '$(>)' ]
-  trap "rm -rf '$(>)' '$(<:D)'" EXIT HUP INT QUIT TERM
+  trap "rm -rf '$(>)' '$(<:D)'" ERR HUP INT QUIT TERM
   tar xjvf '$(>)' -C '$(INTRO_ROOT_DIR)'
   # If the timestamp of the tarball's contents is restored, the modification
   # time of the source directory could be older than the one of the tarball.
@@ -114,7 +113,6 @@ $(PROPERTY_DUMP_COMMANDS)
   # Therefore, `touch' is required.
   touch --no-create '$(<)'
   [ -f '$(<)' ]
-  trap - EXIT HUP INT QUIT TERM
 EOS
 }
 
@@ -412,9 +410,11 @@ $(PROPERTY_DUMP_COMMANDS)
     # Removes symlinks in GCC source tree.
     ( cd '$(SRCDIR)' && rm -f bfd binutils gas gold gprof ld opcodes gmp mpfr mpc isl cloog )
   }
+
   rm -rf '$(OBJDIR)'
   cleanup
-  trap cleanup EXIT HUP INT QUIT TERM
+
+  trap cleanup ERR HUP INT QUIT TERM
 
   if [ -n '$(BINUTILS)' ]; then
     # Creates symlinks to source directories of GNU Binutils libraries and
@@ -509,8 +509,10 @@ EOF
   # `make install`.
   ( cd '$(OBJDIR)' && make install )
 
-  # Cleans up the `objdir`.
+  # Cleans up the `objdir`, restores the hacked configure scripts and
+  # removes symlinks in GCC source tree.
   rm -rf '$(OBJDIR)'
+  cleanup
 
   # A workaround. Creates a symlink to `ld` in the directory where the
   # installed GCC front end searches for subprograms.

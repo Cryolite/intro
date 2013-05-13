@@ -70,10 +70,9 @@ $(PROPERTY_DUMP_COMMANDS)
   PS4='+icu4c/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
   rm -rf '$(<)'
-  trap "rm -rf '$(<)'" EXIT HUP INT QUIT TERM
+  trap "rm -rf '$(<)'" ERR HUP INT QUIT TERM
   ( cd '$(<:D)' && wget -- '$(URL)' )
   [ -f '$(<)' ]
-  trap - EXIT HUP INT QUIT TERM
 EOS
 }
 
@@ -112,7 +111,7 @@ $(PROPERTY_DUMP_COMMANDS)
   rm -rf '$(<:D)'
   rm -rf '$(INTRO_ROOT_DIR)/icu'
   [ -f '$(>)' ]
-  trap "rm -rf '$(>)' '$(INTRO_ROOT_DIR)/icu' '$(<:D)'" EXIT HUP INT QUIT TERM
+  trap "rm -rf '$(>)' '$(INTRO_ROOT_DIR)/icu' '$(<:D)'" ERR HUP INT QUIT TERM
   tar xzvf '$(>)' -C '$(INTRO_ROOT_DIR)'
   [ -d '$(INTRO_ROOT_DIR)/icu' ]
   mv -n '$(INTRO_ROOT_DIR)/icu' '$(<:D)'
@@ -122,7 +121,6 @@ $(PROPERTY_DUMP_COMMANDS)
   # Therefore, `touch' is required.
   touch --no-create '$(<)'
   [ -f '$(<)' ]
-  trap - EXIT HUP INT QUIT TERM
 EOS
 }
 
@@ -292,15 +290,15 @@ $(PROPERTY_DUMP_COMMANDS)
   PS4='+icu4c/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
 
+  rm -rf '$(OBJDIR)'
+
   cleanup ()
   {
     if [ -d '$(OBJDIR)' ]; then
       mv -n '$(OBJDIR)' "$(INTRO_ROOT_DIR)/objdir_$$"
     fi
   }
-  rm -rf '$(OBJDIR)'
-  cleanup
-  trap cleanup EXIT HUP INT QUIT TERM
+  trap cleanup ERR HUP INT QUIT TERM
 
   # Creates `objdir`.
   ( cd '$(INTRO_ROOT_DIR)' && mkdir objdir )

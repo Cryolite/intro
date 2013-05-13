@@ -63,10 +63,9 @@ $(PROPERTY_DUMP_COMMANDS)
   PS4='+valgrind/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
   rm -rf '$(<)'
-  trap "rm -rf '$(<)'" EXIT HUP INT QUIT TERM
+  trap "rm -rf '$(<)'" ERR HUP INT QUIT TERM
   ( cd '$(<:D)' && wget -- '$(URL)' )
   [ -f '$(<)' ]
-  trap - EXIT HUP INT QUIT TERM
 EOS
 }
 
@@ -103,7 +102,7 @@ $(PROPERTY_DUMP_COMMANDS)
   set -ex
   rm -rf '$(<:D)'
   [ -f '$(>)' ]
-  trap "rm -rf '$(>)' '$(<:D)'" EXIT HUP INT QUIT TERM
+  trap "rm -rf '$(>)' '$(<:D)'" ERR HUP INT QUIT TERM
   tar xjvf '$(>)' -C '$(INTRO_ROOT_DIR)'
   # If the timestamp of the tarball's contents is restored, the modification
   # time of the source directory could be older than the one of the tarball.
@@ -111,7 +110,6 @@ $(PROPERTY_DUMP_COMMANDS)
   # Therefore, `touch' is required.
   touch --no-create '$(<)'
   [ -f '$(<)' ]
-  trap - EXIT HUP INT QUIT TERM
 EOS
 }
 
@@ -140,18 +138,20 @@ $(PROPERTY_DUMP_COMMANDS)
   PS4='+valgrind/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
 
+  if [ -d '$(INTRO_ROOT_DIR)/valgrind-trunk' ]; then
+    ( cd '$(INTRO_ROOT_DIR)/valgrind-trunk' && svn status | grep -E '^?' | cut -c9- | xargs -d '\n' rm -r )
+  fi
+
   cleanup ()
   {
     ( cd '$(INTRO_ROOT_DIR)' && rm -rf valgrind-trunk )
   }
   trap cleanup ERR HUP INT QUIT TERM
 
-  if [ ! -e '$(INTRO_ROOT_DIR)/valgrind-trunk/README' ]; then
+  if [ ! -d '$(INTRO_ROOT_DIR)/valgrind-trunk' ]; then
     ( cd '$(INTRO_ROOT_DIR)' && svn checkout svn://svn.valgrind.org/valgrind/trunk valgrind-trunk )
-  else
-    ( cd '$(INTRO_ROOT_DIR)' && svn status | grep -E '^?' | cut -c9- | xargs -d '\n' rm -r )
   fi
-  [ -f '$(INTRO_ROOT_DIR)/valgrind-trunk/README' ]
+  [ -d '$(INTRO_ROOT_DIR)/valgrind-trunk' ]
 
   ( cd '$(INTRO_ROOT_DIR)/valgrind-trunk' && svn update )
 

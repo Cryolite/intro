@@ -118,7 +118,7 @@ $(PROPERTY_DUMP_COMMANDS)
     ( cd '$(INTRO_ROOT_DIR)' && rm -rf 'compiler-rt-$(VERSION).src.tar.gz' )
   }
   cleanup
-  trap cleanup EXIT HUP INT QUIT TERM
+  trap cleanup ERR HUP INT QUIT TERM
 
   ( cd '$(<:D)' && wget -- '$(LLVM_SRC_URL)' )
   [ -f '$(INTRO_ROOT_DIR)/llvm-$(VERSION).src.tar.gz' ]
@@ -130,7 +130,6 @@ $(PROPERTY_DUMP_COMMANDS)
   [ -f '$(INTRO_ROOT_DIR)/compiler-rt-$(VERSION).src.tar.gz' ]
 
   [ -f '$(<)' ]
-  trap - EXIT HUP INT QUIT TERM
 EOS
 }
 
@@ -188,7 +187,7 @@ $(PROPERTY_DUMP_COMMANDS)
     ( cd '$(INTRO_ROOT_DIR)' && rm -rf '$(INTRO_ROOT_DIR)/compiler-rt-$(VERSION).src' )
     rm -rf '$(<:D)'
   }
-  trap cleanup EXIT HUP INT QUIT TERM
+  trap cleanup ERR HUP INT QUIT TERM
 
   tar xzvf '$(INTRO_ROOT_DIR)/llvm-$(VERSION).src.tar.gz' -C '$(INTRO_ROOT_DIR)'
   [ -d '$(INTRO_ROOT_DIR)/llvm-$(VERSION).src' ]
@@ -214,7 +213,6 @@ $(PROPERTY_DUMP_COMMANDS)
   # Therefore, `touch' is required.
   touch --no-create '$(<)'
   [ -f '$(<)' ]
-  trap - EXIT HUP INT QUIT TERM
 EOS
 }
 
@@ -257,16 +255,20 @@ $(PROPERTY_DUMP_COMMANDS)
   PS4='+clang/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
 
+  if [ -d '$(LLVM_DIR)' ]; then
+    ( cd '$(LLVM_DIR)' && svn status | grep -E '^?' | cut -c9- | xargs -d '\n' rm -r )
+  fi
+
   cleanup ()
   {
     ( cd '$(INTRO_ROOT_DIR)' && rm -rf llvm-trunk )
   }
-  trap cleanup EXIT HUP INT QUIT TERM
+  trap cleanup ERR HUP INT QUIT TERM
 
-  if [ ! -f '$(LLVM_DIR)/README.txt' ]; then
+  if [ ! -e '$(LLVM_DIR)' ]; then
     ( cd '$(INTRO_ROOT_DIR)' && svn checkout 'http://llvm.org/svn/llvm-project/llvm/trunk' llvm-trunk )
   fi
-  [ -f '$(LLVM_DIR)/README.txt' ]
+  [ -d '$(LLVM_DIR)' ]
 
   if [ ! -e '$(CLANG_DIR)' ]; then
     ( cd '$(INTRO_ROOT_DIR)/llvm-trunk/tools' && svn checkout 'http://llvm.org/svn/llvm-project/cfe/trunk' clang )
@@ -287,7 +289,6 @@ $(PROPERTY_DUMP_COMMANDS)
 
   touch --no-create '$(<)'
   [ -f '$(<)' ]
-  trap - EXIT HUP INT QUIT TERM
 EOS
 }
 
@@ -542,15 +543,15 @@ $(PROPERTY_DUMP_COMMANDS)
   PS4='+clang/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
 
+  rm -rf '$(OBJDIR)'
+
   cleanup ()
   {
     if [ -d '$(OBJDIR)' ]; then
       mv -n '$(OBJDIR)' "$(INTRO_ROOT_DIR)/objdir_$$"
     fi
   }
-  rm -rf '$(OBJDIR)'
-  cleanup
-  trap cleanup EXIT HUP INT QUIT TERM
+  trap cleanup ERR HUP INT QUIT TERM
 
   # Creates `objdir`.
   ( cd '$(INTRO_ROOT_DIR)' && mkdir objdir )

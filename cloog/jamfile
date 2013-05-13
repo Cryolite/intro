@@ -67,10 +67,9 @@ $(PROPERTY_DUMP_COMMANDS)
   PS4='+cloog/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
   rm -rf '$(<)'
-  trap "rm -rf '$(<)'" EXIT HUP INT QUIT TERM
+  trap "rm -rf '$(<)'" ERR HUP INT QUIT TERM
   ( cd '$(<:D)' && wget -- '$(URL)' )
   [ -f '$(<)' ]
-  trap - EXIT HUP INT QUIT TERM
 EOS
 }
 
@@ -107,7 +106,7 @@ $(PROPERTY_DUMP_COMMANDS)
   set -ex
   rm -rf '$(<:D)'
   [ -f '$(>)' ]
-  trap "rm -rf '$(>)' '$(<:D)'" EXIT HUP INT QUIT TERM
+  trap "rm -rf '$(>)' '$(<:D)'" ERR HUP INT QUIT TERM
   tar xzvf '$(>)' -C '$(INTRO_ROOT_DIR)'
   # If the timestamp of the tarball's contents is restored, the modification
   # time of the source directory could be older than the one of the tarball.
@@ -115,7 +114,6 @@ $(PROPERTY_DUMP_COMMANDS)
   # Therefore, `touch' is required.
   touch --no-create '$(<)'
   [ -f '$(<)' ]
-  trap - EXIT HUP INT QUIT TERM
 EOS
 }
 
@@ -294,15 +292,15 @@ $(PROPERTY_DUMP_COMMANDS)
   PS4='+cloog/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
 
+  rm -rf '$(OBJDIR)'
+
   cleanup ()
   {
     if [ -d '$(OBJDIR)' ]; then
       mv -n '$(OBJDIR)' "$(INTRO_ROOT_DIR)/objdir_$$"
     fi
   }
-  rm -rf '$(OBJDIR)'
-  cleanup
-  trap cleanup EXIT HUP INT QUIT TERM
+  trap cleanup ERR HUP INT QUIT TERM
 
   # Creates `objdir`.
   ( cd '$(INTRO_ROOT_DIR)' && mkdir objdir )

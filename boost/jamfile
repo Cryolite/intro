@@ -320,12 +320,13 @@ $(PROPERTY_DUMP_COMMANDS)
   PS4='+boost/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
 
+  ( cd '$(BOOST_ROOT)' && rm -rf bin.v2 )
+
   cleanup ()
   {
     ( cd '$(BOOST_ROOT)' && rm -rf bin.v2 )
   }
-  cleanup
-  trap cleanup EXIT HUP INT QUIT TERM
+  trap cleanup ERR HUP INT QUIT TERM
 
   [ -x '$(BOOST_ROOT)/b2' ]
 
@@ -394,6 +395,8 @@ $(PROPERTY_DUMP_COMMANDS)
       fi
     fi
   done
+
+  ( cd '$(BOOST_ROOT)' && rm -rf bin.v2 )
 
   touch '$(<)'
 EOS

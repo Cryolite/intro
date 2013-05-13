@@ -74,11 +74,10 @@ $(PROPERTY_DUMP_COMMANDS)
   PS4='+isl/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
   rm -rf '$(<:D)'
-  trap "rm -rf '$(<:D)'" EXIT HUP INT QUIT TERM
+  trap "rm -rf '$(<:D)'" ERR HUP INT QUIT TERM
   ( cd '$(INTRO_ROOT_DIR)/isl-trunk' && git archive --prefix='isl-$(VERSION)/' 'isl-$(VERSION)' | tar -xv -C '$(INTRO_ROOT_DIR)' )
   ( cd '$(INTRO_ROOT_DIR)/isl-$(VERSION)' && ./autogen.sh )
   [ -f '$(<)' ]
-  trap - EXIT HUP INT QUIT TERM
 EOS
 }
 
@@ -249,15 +248,15 @@ $(PROPERTY_DUMP_COMMANDS)
   PS4='+isl/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
 
+  rm -rf '$(OBJDIR)'
+
   cleanup ()
   {
     if [ -d '$(OBJDIR)' ]; then
       mv -n '$(OBJDIR)' "$(INTRO_ROOT_DIR)/objdir_$$"
     fi
   }
-  rm -rf '$(OBJDIR)'
-  cleanup
-  trap cleanup EXIT HUP INT QUIT TERM
+  trap cleanup ERR HUP INT QUIT TERM
 
   # Creates `objdir`.
   ( cd '$(INTRO_ROOT_DIR)' && mkdir objdir )
