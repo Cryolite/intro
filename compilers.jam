@@ -735,46 +735,6 @@ rule get-gcc-path ( prefix : compiler : gcc-for-clang ? )
   return $(result) ;
 }
 
-rule get-compiler-description ( compiler )
-{
-  if ! [ is-valid "$(compiler)" ] {
-    errors.error "an internal error." ;
-  }
-  local result ;
-  if [ is-gcc "$(compiler)" ] {
-    local version = [ get-frontend-version "$(compiler)" ] ;
-    result = "GCC $(version)" ;
-  }
-  else if [ is-clang "$(compiler)" ] {
-    if [ regex.match "^(clang-trunk-.+)" : "$(compiler)" : 1 ] {
-      local backend-version = [ get-backend-version "$(compiler)" ] ;
-      result = "Clang trunk + libstdc++ $(backend-version)" ;
-    }
-    else if [ regex.match "^(clang-.+)" : "$(compiler)" : 1 ] {
-      local frontend-version = [ get-frontend-version "$(compiler)" ] ;
-      local backend-version = [ get-backend-version "$(compiler)" ] ;
-      result = "Clang $(frontend-version) + libstdc++ $(backend-version)" ;
-    }
-    else {
-      errors.error "an internal error." ;
-    }
-  }
-  else if [ is-icc "$(compiler)" ] {
-    if [ regex.match "^(icc-system-.+)" : "$(compiler)" : 1 ] {
-      local frontend-version = [ get-frontend-version "$(compiler)" ] ;
-      local backend-version = [ get-backend-version "$(compiler)" ] ;
-      result = "ICC $(frontend-version) + libstdc++ $(backend-version)" ;
-    }
-    else {
-      errors.error "an internal error." ;
-    }
-  }
-  else {
-    errors.error "an internal error." ;
-  }
-  return "$(result)" ;
-}
-
 rule get-default-bits ( )
 {
   local bits = [ SHELL "{ file --dereference /bin/sh | grep -Fq '64-bit'; } && echo -n 64 || echo -n 32" ] ;
@@ -1895,48 +1855,6 @@ rule get-cxxflags ( properties * )
   return "$(result:J= )" ;
 }
 
-rule get-abi-tag ( compiler )
-{
-  if ! [ is-valid "$(compiler)" ] {
-    errors.error "an internal error." ;
-  }
-  local result ;
-  if [ is-gcc "$(compiler)" ] {
-    local version = [ get-frontend-version "$(compiler)" ] ;
-    local abi-version = [ regex.match "^([0-9]+\\.[0-9]+)" : "$(version)" : 1 ] ;
-    local version-tag = [ regex.replace "$(abi-version)" "\\." "" ] ;
-    result = "gcc$(version-tag)" ;
-  }
-  else if [ is-clang "$(compiler)" ] {
-    local version = [ get-backend-version "$(compiler)" ] ;
-    local abi-version = [ regex.match "^([0-9]+\\.[0-9]+)" : "$(version)" : 1 ] ;
-    local version-tag = [ regex.replace "$(abi-version)" "\\." "" ] ;
-    result = "gcc$(version-tag)" ;
-  }
-  return "$(result)" ;
-}
-
-rule get-rpath-commands ( prefix : properties * )
-{
-  local build-triplet = [ get-build-triplet $(properties) ] ;
-  local host-triplet = [ get-host-triplet $(properties) ] ;
-  local variant = [ feature.get-values <variant> : $(properties) ] ;
-  local default-libdir = [ path.native [ get-default-libdir $(properties) ] ] ;
-  local default-debug-libdir = [ path.native [ get-default-debug-libdir $(properties) ] ] ;
-  local result ;
-  if $(build-triplet) = x86_64-unknown-linux-gnu || $(build-triplet) = i686-pc-linux-gnu {
-    if $(host-triplet) = $(build-triplet) {
-      if $(variant) = debug && "$(default-debug-libdir)" != "$(default-libdir)" {
-        result = "LD_RUN_PATH=\"$(default-libdir):$(default-debug-libdir)${LD_RUN_PATH:+:$LD_RUN_PATH}\"" ;
-      }
-      else {
-        result = "LD_RUN_PATH=\"$(default-libdir)${LD_RUN_PATH:+:$LD_RUN_PATH}\"" ;
-      }
-    }
-  }
-  return $(result) ;
-}
-
 rule get-environment-commands ( prefix : properties * )
 {
   local commands ;
@@ -2242,17 +2160,8 @@ rule get-environment-commands ( prefix : properties * )
   return "$(commands)" ;
 }
 
-rule get-logfile-path ( library-short-name : prefix : properties * )
+rule get-property-dump-commands ( properties * )
 {
-  local full-prefix = [ get-full-prefix "$(prefix)" : $(properties) ] ;
-  return "$(full-prefix)/$(library-short-name).txt" ;
-}
-
-rule get-property-dump-commands ( properties * : stream-path : logfile-path )
-{
-  local stream-native = [ path.native "$(stream-path)" ] ;
-  local logfile-native = [ path.native "$(logfile-path)" ] ;
-
   local result ;
 
   for local f in variant
@@ -2279,7 +2188,7 @@ rule get-property-dump-commands ( properties * : stream-path : logfile-path )
     else {
       p = "<$(f)>$(v)" ;
     }
-    result += "echo \"`LANG=C date`:INFO: $(p)\" | tee -a '$(logfile-native)' >> '$(stream-native)'" ;
+    result += "echo \"`LANG=C date`:INFO: $(p)\"" ;
   }
 
   for local f in compiler
@@ -2331,13 +2240,13 @@ rule get-property-dump-commands ( properties * : stream-path : logfile-path )
     else {
       p = "<$(f)>$(v)" ;
     }
-    result += "echo \"`LANG=C date`:INFO: ($(p))\" | tee -a '$(logfile-native)' >> '$(stream-native)'" ;
+    result += "echo \"`LANG=C date`:INFO: ($(p))\"" ;
   }
 
-  result += "echo \"`LANG=C date`:INFO: PATH=$PATH\" | tee -a '$(logfile-native)' >> '$(stream-native)'" ;
-  result += "echo \"`LANG=C date`:INFO: CPATH=$CPATH\" | tee -a '$(logfile-native)' >> '$(stream-native)'" ;
-  result += "echo \"`LANG=C date`:INFO: LIBRARY_PATH=$LIBRARY_PATH\" | tee -a '$(logfile-native)' >> '$(stream-native)'" ;
-  result += "echo \"`LANG=C date`:INFO: LD_LIBRARY_PATH=$LD_LIBRARY_PATH\" | tee -a '$(logfile-native)' >> '$(stream-native)'" ;
+  result += "echo \"`LANG=C date`:INFO: PATH=$PATH\"" ;
+  result += "echo \"`LANG=C date`:INFO: CPATH=$CPATH\"" ;
+  result += "echo \"`LANG=C date`:INFO: LIBRARY_PATH=$LIBRARY_PATH\"" ;
+  result += "echo \"`LANG=C date`:INFO: LD_LIBRARY_PATH=$LD_LIBRARY_PATH\"" ;
 
   return "$(result:J=\n)" ;
 }
