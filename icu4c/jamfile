@@ -58,7 +58,7 @@ rule download ( targets * : sources * : properties * )
   local version = [ feature.get-values <icu4c-hidden> : $(properties) ] ;
   local version-string = [ regex.replace "$(version)" "\\." "_" ] ;
   URL on $(targets) = http://download.icu-project.org/files/icu4c/$(version)/icu4c-$(version-string)-src.tgz ;
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions download
 {
@@ -98,7 +98,7 @@ for local version in $(ICU4C_VERSIONS) {
 
 rule expand ( targets * : sources * : properties * )
 {
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions expand
 {
@@ -279,7 +279,7 @@ rule make-install ( targets * : sources * : properties * )
   local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
   ENVIRONMENT_COMMANDS on $(targets) = "$(environment-commands)" ;
 
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : /dev/null ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions make-install
 {

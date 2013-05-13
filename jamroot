@@ -35,7 +35,7 @@ local .valgrind-latest ;
 local rule get-boost-latest-version ( )
 {
   if ! "$(.boost-latest)" {
-    .boost-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/boost-latest.sh\" || echo -n error" ] ;
+    .boost-latest = [ SHELL "'$(INTRO_ROOT_DIR)/boost/latest.sh' || echo -n error" ] ;
     if "$(.boost-latest)" = "error" {
       errors.error "failed to extract Boost latest version." ;
     }
@@ -46,7 +46,7 @@ local rule get-boost-latest-version ( )
 local rule get-binutils-latest-version ( )
 {
   if ! "$(.binutils-latest)" {
-    .binutils-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/binutils-latest.sh\" || echo -n error" ] ;
+    .binutils-latest = [ SHELL "'$(INTRO_ROOT_DIR)/binutils/latest.sh' || echo -n error" ] ;
     if "$(.binutils-latest)" = "error" {
       errors.error "failed to extract binutils latest version." ;
     }
@@ -57,7 +57,7 @@ local rule get-binutils-latest-version ( )
 local rule get-gmp-latest-version ( )
 {
   if ! "$(.gmp-latest)" {
-    .gmp-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/gmp-latest.sh\" || echo -n error" ] ;
+    .gmp-latest = [ SHELL "'$(INTRO_ROOT_DIR)/gmp/latest.sh' || echo -n error" ] ;
     if "$(.gmp-latest)" = "error" {
       errors.error "failed to extract GMP latest version." ;
     }
@@ -68,7 +68,7 @@ local rule get-gmp-latest-version ( )
 local rule get-mpfr-latest-version ( )
 {
   if ! "$(.mpfr-latest)" {
-    .mpfr-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/mpfr-latest.sh\" || echo -n error" ] ;
+    .mpfr-latest = [ SHELL "'$(INTRO_ROOT_DIR)/mpfr/latest.sh' || echo -n error" ] ;
     if "$(.mpfr-latest)" = "error" {
       errors.error "failed to extract MPFR latest version." ;
     }
@@ -79,7 +79,7 @@ local rule get-mpfr-latest-version ( )
 local rule get-mpc-latest-version ( )
 {
   if ! "$(.mpc-latest)" {
-    .mpc-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/mpc-latest.sh\" || echo -n error" ] ;
+    .mpc-latest = [ SHELL "'$(INTRO_ROOT_DIR)/mpc/latest.sh' || echo -n error" ] ;
     if "$(.mpc-latest)" = "error" {
       errors.error "failed to extract MPC latest version." ;
     }
@@ -90,7 +90,7 @@ local rule get-mpc-latest-version ( )
 local rule get-ppl-latest-version ( )
 {
   if ! "$(.ppl-latest)" {
-    .ppl-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/ppl-latest.sh\" || echo -n error" ] ;
+    .ppl-latest = [ SHELL "'$(INTRO_ROOT_DIR)/ppl/latest.sh' || echo -n error" ] ;
     if "$(.ppl-latest)" = "error" {
       errors.error "failed to extract PPL latest version." ;
     }
@@ -123,7 +123,7 @@ local rule get-cloog-latest-version ( )
 local rule get-icu4c-latest-version ( )
 {
   if ! "$(.icu4c-latest)" {
-    .icu4c-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/icu4c-latest.sh\" || echo -n error" ] ;
+    .icu4c-latest = [ SHELL "'$(INTRO_ROOT_DIR)/icu4c/latest.sh' || echo -n error" ] ;
     if "$(.icu4c-latest)" = "error" {
       errors.error "failed to extract ICU4C latest version." ;
     }
@@ -134,7 +134,7 @@ local rule get-icu4c-latest-version ( )
 local rule get-openmpi-latest-version ( )
 {
   if ! "$(.openmpi-latest)" {
-    .openmpi-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/openmpi-latest.sh\" || echo -n error" ] ;
+    .openmpi-latest = [ SHELL "'$(INTRO_ROOT_DIR)/openmpi/latest.sh' || echo -n error" ] ;
     if "$(.openmpi-latest)" = "error" {
       errors.error "failed to extract OpenMPI latest version." ;
     }
@@ -713,18 +713,6 @@ else {
 }
 
 
-local stream = [ option.get "with-stream" : : "IMPLIED" ] ;
-if "$(stream)" = "IMPLIED" {
-  errors.error "No value for `--with-stream' option is specified." ;
-}
-if "$(stream)" {
-  ECHO stream... $(stream) ;
-}
-else {
-  ECHO stream... N/A ;
-}
-
-
 local stdout = [ option.get "stdout" : : "IMPLIED" ] ;
 if "$(stdout)" = "IMPLIED" {
   errors.error "option `--stdout' requires an argument" ;
@@ -931,15 +919,6 @@ if "$(awacs)" {
 else {
   constant AWACS : "cat > /dev/null" ;
   ECHO AWACS... N/A ;
-}
-
-if "$(stream)" {
-  constant STREAM : "$(stream)" ;
-  ECHO STREAM... $(STREAM) ;
-}
-else {
-  constant STREAM : "/dev/null" ;
-  ECHO STREAM... N/A ;
 }
 
 constant STDOUT_ : "$(stdout)" ;

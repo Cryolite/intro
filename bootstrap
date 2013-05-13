@@ -475,7 +475,7 @@ fi
 
 intro_root=`(cd \`dirname "$0"\`; pwd)`
 
-boost_latest=`"$intro_root/boost-latest.sh"`
+boost_latest=`"$intro_root/boost/latest.sh"`
 
 if [ ! -d "$prefix/boost/$boost_latest" ]; then
   boost_tag=`echo $boost_latest | sed -e 's/\./_/g'`
@@ -535,4 +535,4 @@ stderr_tail_pid=$!
 
 trap 'kill -TERM $stdout_tail_pid $stderr_tail_pid; wait; rm -rf "$tmpdir"' EXIT HUP INT QUIT TERM
 
-"$prefix/bin/bjam" "${delegated_opts[@]}" --with-stream="$stdout" --stdout="$stdout" --stderr="$stderr" "${delegated_args[@]}"
+"$prefix/bin/bjam" "${delegated_opts[@]}" --stdout="$stdout" --stderr="$stderr" "${delegated_args[@]}"
