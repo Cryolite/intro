@@ -9,7 +9,6 @@ import "$(INTRO_ROOT_DIR)/compilers"
   : is-gcc
     is-clang
     is-icc
-    get-compiler-description
     get-compiler-prefix
     get-triplets
     get-cc
@@ -51,28 +50,23 @@ explicit "$(INTRO_ROOT_DIR)/valgrind-$(VALGRIND).tar.bz2" ;
 rule download ( targets * : sources * : properties * )
 {
   local version = [ feature.get-values <valgrind-hidden> : $(properties) ] ;
-  VERSION on $(targets) = "$(version)" ;
   URL on $(targets) = http://valgrind.org/downloads/valgrind-$(version).tar.bz2 ;
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions download
 {
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-
-  rm -rf '$(<)' || exit 1
-  if [ -n '$(STREAM)' ]; then
-    ( cd '$(<:D)' && wget -- '$(URL)' >> '$(STREAM)' 2>&1 )
-  else
-    ( cd '$(<:D)' && wget --quiet -- '$(URL)' )
-  fi
-  if [ $? -ne 0 ]; then
-    echo    'ERROR: failed to download Valgrind $(VERSION) tarball.' 1>&2
-    echo -n 'ERROR: failed to download Valgrind $(VERSION) tarball.' | $(AWACS)
-    rm -rf '$(<)'
-    exit 1
-  fi
-  [ -f '$(<)' ] || exit 1
-  exit 0
+  LINENO_ADJ=`grep -Fn 13f39dab-dea3-401a-9cb3-bec2b13b48d7 '$(INTRO_ROOT_DIR)/valgrind/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+valgrind/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
+  rm -rf '$(<)'
+  trap "rm -rf '$(<)'" ERR HUP INT QUIT TERM
+  ( cd '$(<:D)' && wget -- '$(URL)' )
+  [ -f '$(<)' ]
+EOS
 }
 
 
@@ -95,34 +89,28 @@ if "$(VALGRIND)" != "trunk" {
 
 rule expand ( targets * : sources * : properties * )
 {
-  local version = [ feature.get-values <valgrind-hidden> : $(properties) ] ;
-  VERSION on $(targets) = "$(version)" ;
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions expand
 {
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-
-  rm -rf '$(<:D)' || exit 1
-  [ -f '$(>)' ] || exit 1
-  if [ -n '$(STREAM)' ]; then
-    tar xjvf '$(>)' --directory='$(INTRO_ROOT_DIR)' >> '$(STREAM)' 2>&1
-  else
-    tar xjf '$(>)' --directory='$(INTRO_ROOT_DIR)'
-  fi
-  if [ $? -ne 0 ]; then
-    echo    'ERROR: failed to expand Valgrind $(VERSION) tarball.' 1>&2
-    echo -n 'ERROR: failed to expand Valgrind $(VERSION) tarball.' | $(AWACS)
-    rm -rf '$(<:D)'
-    exit 1
-  fi
+  LINENO_ADJ=`grep -Fn a37090d7-4f37-4068-b88f-4db88c6806be '$(INTRO_ROOT_DIR)/valgrind/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+valgrind/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
+  rm -rf '$(<:D)'
+  [ -f '$(>)' ]
+  trap "rm -rf '$(>)' '$(<:D)'" ERR HUP INT QUIT TERM
+  tar xjvf '$(>)' -C '$(INTRO_ROOT_DIR)'
   # If the timestamp of the tarball's contents is restored, the modification
   # time of the source directory could be older than the one of the tarball.
   # Such behavior is not desirable because the decompression always happens.
   # Therefore, `touch' is required.
   touch --no-create '$(<)'
-  [ -f '$(<)' ] || exit 1
-  exit 0
+  [ -f '$(<)' ]
+EOS
 }
 
 
@@ -138,54 +126,39 @@ if "$(VALGRIND)" = "trunk" {
 
 rule checkout-trunk ( targets * : sources * : properties * )
 {
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions checkout-trunk
 {
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
+  LINENO_ADJ=`grep -Fn 326bcabc-3331-49c6-b4e8-d7c5398b93cc '$(INTRO_ROOT_DIR)/valgrind/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+valgrind/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
 
-  if [ ! -f '$(INTRO_ROOT_DIR)/valgrind-trunk/README' ]; then
-    if [ -n '$(STREAM)' ]; then
-      ( cd '$(INTRO_ROOT_DIR)' && svn checkout svn://svn.valgrind.org/valgrind/trunk valgrind-trunk >> '$(STREAM)' 2>&1 )
-    else
-      ( cd '$(INTRO_ROOT_DIR)' && svn checkout svn://svn.valgrind.org/valgrind/trunk valgrind-trunk )
-    fi
-    if [ $? -ne 0 ]; then
-      ( cd '$(INTRO_ROOT_DIR)' && rm -rf valgrind-trunk )
-      echo    "ERROR: failed to \`svn checkout' Valgrind repository." 1>&2
-      echo -n "ERROR: failed to \`svn checkout' Valgrind repository." | $(AWACS)
-      exit 1
-    fi
-    [ -f '$(INTRO_ROOT_DIR)/valgrind-trunk/README' ] || exit 1
+  if [ -d '$(INTRO_ROOT_DIR)/valgrind-trunk' ]; then
+    ( cd '$(INTRO_ROOT_DIR)/valgrind-trunk' && svn status | grep -E '^?' | cut -c9- | xargs -d '\n' rm -r )
   fi
 
-  if [ -n '$(STREAM)' ]; then
-    ( cd '$(INTRO_ROOT_DIR)/valgrind-trunk' && svn update >> '$(STREAM)' 2>&1 )
-  else
-    ( cd '$(INTRO_ROOT_DIR)/valgrind-trunk' && svn update )
-  fi
-  if [ $? -ne 0 ]; then
+  cleanup ()
+  {
     ( cd '$(INTRO_ROOT_DIR)' && rm -rf valgrind-trunk )
-    echo    "ERROR: failed to \`svn update' Valgrind repository." 1>&2
-    echo -n "ERROR: failed to \`svn update' Valgrind repository." | $(AWACS)
-    exit 1
-  fi
+  }
+  trap cleanup ERR HUP INT QUIT TERM
 
-  if [ -n '$(STREAM)' ]; then
-    ( cd '$(INTRO_ROOT_DIR)/valgrind-trunk' && ./autogen.sh >> '$(STREAM)' 2>&1 )
-  else
-    ( cd '$(INTRO_ROOT_DIR)/valgrind-trunk' && ./autogen.sh )
+  if [ ! -d '$(INTRO_ROOT_DIR)/valgrind-trunk' ]; then
+    ( cd '$(INTRO_ROOT_DIR)' && svn checkout svn://svn.valgrind.org/valgrind/trunk valgrind-trunk )
   fi
-  if [ $? -ne 0 ]; then
-    ( cd '$(INTRO_ROOT_DIR)' && rm -rf valgrind-trunk )
-    echo    "ERROR: failed to \`autogen.sh' Valgrind repository." 1>&2
-    echo -n "ERROR: failed to \`autogen.sh' Valgrind repository." | $(AWACS)
-    exit 1
-  fi
+  [ -d '$(INTRO_ROOT_DIR)/valgrind-trunk' ]
 
-  [ -f '$(<)' ] || exit 1
+  ( cd '$(INTRO_ROOT_DIR)/valgrind-trunk' && svn update )
 
-  exit 0
+  ( cd '$(INTRO_ROOT_DIR)/valgrind-trunk' && ./autogen.sh )
+
+  [ -f '$(<)' ]
+EOS
 }
 
 
@@ -225,30 +198,24 @@ explicit valgrind/valgrind.h ;
 
 rule make-install ( targets * : sources * : properties * )
 {
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local compiler-description = [ get-compiler-description "$(compiler)" ] ;
-  COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
-
+  # Sets the path to the source directory.
   local version = [ feature.get-values <valgrind> : $(properties) ] ;
-  VERSION on $(targets) = "$(version)" ;
-
-  # Set the path to the source directory.
   local srcdir = "$(INTRO_ROOT_DIR)/valgrind-$(version)" ;
   SRCDIR on $(targets) = [ path.native "$(srcdir)" ] ;
 
-  # Set the path to objdir.
+  # Sets the path to `objdir`.
   local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
   local objdir-native = [ path.native "$(objdir)" ] ;
   OBJDIR on $(targets) = "$(objdir-native)" ;
 
   OPTIONS on $(targets) = ;
 
-  # Set `--prefix' option for `configure' script.
+  # Sets `--prefix' option for `configure' script.
   local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
   local compiler-prefix-native = [ path.native "$(compiler-prefix)" ] ;
   OPTIONS on $(targets) += "--prefix='$(compiler-prefix-native)'" ;
 
-  # Set `--build' and `--host' options for `configure' script.
+  # Sets `--build' and `--host' options for `configure' script.
   local triplets = [ get-triplets $(properties) ] ;
   local build-triplet = "$(triplets[1])" ;
   local host-triplet = "$(triplets[2])" ;
@@ -274,100 +241,58 @@ rule make-install ( targets * : sources * : properties * )
   local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
   ENVIRONMENT_COMMANDS on $(targets) = "$(environment-commands)" ;
 
-  local logfile = "$(compiler-prefix)/valgrind.txt" ;
-  local logfile-native = [ path.native "$(logfile)" ] ;
-  LOGFILE on $(targets) = "$(logfile-native)" ;
-
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "$(logfile)" ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions make-install
 {
-  exit_with_error ()
-  {
-    echo "`LANG=C date`:ERROR: $1 (Valgrind $(VERSION), $(COMPILER_DESCRIPTION))" | tee -a '$(LOGFILE)' >> '$(STREAM)'
-    echo -n "ERROR: $1 (Valgrind $(VERSION), $(COMPILER_DESCRIPTION))" | $(AWACS)
-    exit 1
-  }
-
-  mkdir -p `dirname '$(LOGFILE)'`
-  echo "`LANG=C date`:INFO: initiation of Valgrind build process" | tee '$(LOGFILE)' >> '$(STREAM)'
-
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(ENVIRONMENT_COMMANDS)
-
 $(PROPERTY_DUMP_COMMANDS)
+  LINENO_ADJ=`grep -Fn a3a42b9d-b386-411f-a19b-b86cb8e994c2 '$(INTRO_ROOT_DIR)/valgrind/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+valgrind/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
 
-  # Clean up objdir `$(OBJDIR)'.
-  { mkdir -p '$(OBJDIR)' && ( cd '$(OBJDIR)' && rm -rf * ); } || exit_with_error 'failed to clean up the old objdir'
+  rm -rf '$(OBJDIR)'
+
+  cleanup ()
+  {
+    if [ -d '$(OBJDIR)' ]; then
+      mv -n '$(OBJDIR)' "$(INTRO_ROOT_DIR)/objdir_$$"
+    fi
+  }
+  trap cleanup ERR HUP INT QUIT TERM
 
   # Valgrind sources should compile in the `SRCDIR', not `OBJDIR' that is
   # different from `SRCDIR'. So, let's first copy all the contents of
   # `SRCDIR' to `OBJDIR'.
-  cp -rT '$(SRCDIR)' '$(OBJDIR)' || exit_with_error 'failed to copy SRCDIR to OBJDIR'
+  cp -rnT '$(SRCDIR)' '$(OBJDIR)'
 
-  [ -x '$(OBJDIR)/configure' ] || exit_with_error "\`$(OBJDIR)/configure' is not executable"
-  [ -x '$(OBJDIR)/config.sub' ] || exit_with_error "\`$(OBJDIR)/config.sub' is not executable"
-  [ `'$(OBJDIR)/config.sub' $(BUILD_TRIPLET)` = $(BUILD_TRIPLET) ] || exit_with_error "\`--build=$(BUILD_TRIPLET)' is not supported"
-  [ `'$(OBJDIR)/config.sub' $(HOST_TRIPLET)` = $(HOST_TRIPLET) ] || exit_with_error "\`--host=$(HOST_TRIPLET)' is not supported"
+  [ -x '$(OBJDIR)/configure' ]
+  [ -x '$(OBJDIR)/config.sub' ]
+  [ `'$(OBJDIR)/config.sub' $(BUILD_TRIPLET)` = $(BUILD_TRIPLET) ]
+  [ `'$(OBJDIR)/config.sub' $(HOST_TRIPLET)` = $(HOST_TRIPLET) ]
 
-  echo "`LANG=C date`:COMMAND: ./configure $(OPTIONS:J= )" | tee -a '$(LOGFILE)' >> '$(STREAM)'
-  tail --follow --lines=0 --sleep-interval=0.1 '$(LOGFILE)' >> '$(STREAM)' &
-  ( cd '$(OBJDIR)' && ./configure $(OPTIONS) >> '$(LOGFILE)' 2>&1 )
-  result=$?
-  kill -TERM $!
-  if [ $result -ne 0 ]; then
-    exit_with_error "failed to \`configure'"
-  fi
+  ( cd '$(OBJDIR)' && ./configure $(OPTIONS) )
 
-  # Check the creation of `Makefile'.
-  [ -f '$(OBJDIR)/Makefile' ] || exit_with_error "failed to confirm the creation of \`Makefile'"
+  # Checks the creation of `Makefile`.
+  [ -f '$(OBJDIR)/Makefile' ]
 
-  echo "`LANG=C date`:COMMAND: make" | tee -a '$(LOGFILE)' >> '$(STREAM)'
-  tail --follow --lines=0 --sleep-interval=0.1 '$(LOGFILE)' >> '$(STREAM)' &
-  ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) >> '$(LOGFILE)' 2>&1 )
-  result=$?
-  kill -TERM $!
-  if [ $result -ne 0 ]; then
-    exit_with_error "failed to \`make'"
-  fi
+  ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) )
 
-  echo "`LANG=C date`:COMMAND: make check" | tee -a '$(LOGFILE)' >> '$(STREAM)'
-  tail --follow --lines=0 --sleep-interval=0.1 '$(LOGFILE)' >> '$(STREAM)' &
-  ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) check >> '$(LOGFILE)' 2>&1 )
-  result=$?
-  kill -TERM $!
-  if [ $result -ne 0 ]; then
-    exit_with_error "failed to \`make check'"
-  fi
+  ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) check )
 
-  echo "`LANG=C date`:COMMAND: make install" | tee -a '$(LOGFILE)' >> '$(STREAM)'
-  tail --follow --lines=0 --sleep-interval=0.1 '$(LOGFILE)' >> '$(STREAM)' &
-  ( cd '$(OBJDIR)' && make install >> '$(LOGFILE)' 2>&1 )
-  result=$?
-  kill -TERM $!
-  if [ $result -ne 0 ]; then
-    exit_with_error "failed to \`make install'"
-  fi
+  ( cd '$(OBJDIR)' && make install )
 
-  echo "`LANG=C date`:COMMAND: make regtest" | tee -a '$(LOGFILE)' >> '$(STREAM)'
-  tail --follow --lines=0 --sleep-interval=0.1 '$(LOGFILE)' >> '$(STREAM)' &
   # Some tests might deadlock with GCC 4.8. Forces the deadlocked tests to be killed by `ulimit'.
-  ( cd '$(OBJDIR)' && ulimit -S -t 60 && ulimit -S -m 2097152 && make --jobs=$(CONCURRENCY) regtest 2>&1 | tee regtest.log >> '$(LOGFILE)' 2>&1 )
-  result=$?
-  kill -TERM $!
-  if [ $result -ne 0 ]; then
-    # `make regtest' usually fails, so they are treated as just information.
-    echo "`LANG=C date`:INFO:\`make regtest': `grep -Eo "^==.*==$" "$(OBJDIR)/regtest.log"`" | tee -a '$(LOGFILE)' >> '$(STREAM)'
-    echo -n "INFO:\`make regtest':" `grep -Eo "^==.*==$" "$(OBJDIR)/regtest.log"` | $(AWACS)
-  fi
+  ( cd '$(OBJDIR)' && ulimit -S -t 60 && ulimit -S -m 2097152 && make --jobs=$(CONCURRENCY) regtest ) || true
 
-  # Clean up objdir `$(OBJDIR)'.
-  rm -rf '$(OBJDIR)' || exit_with_error 'failed to clean up the objdir'
+  # Cleans up `objdir`.
+  rm -rf '$(OBJDIR)'
 
-  [ -f '$(<)' ] || exit_with_error 'failed to confirm the creation of the build target'
-
-  echo -n 'Valgrind $(VERSION) ($(COMPILER_DESCRIPTION)) was successfully built.' | $(AWACS)
-  echo "`LANG=C date`:INFO: successful completion of Valgrind build process" | tee -a '$(LOGFILE)' >> '$(STREAM)'
-  exit 0
+  [ -f '$(<)' ]
+EOS
 }
 
 
