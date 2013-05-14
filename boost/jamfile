@@ -10,12 +10,10 @@ import "$(INTRO_ROOT_DIR)/compilers"
   : is-gcc
     is-clang
     is-icc
-    get-compiler-description
     get-compiler-prefix
     get-full-prefix
     get-triplets
     get-environment-commands
-    get-logfile-path
     get-property-dump-commands
   ;
 
@@ -94,13 +92,8 @@ explicit boost.stage ;
 
 rule install ( targets * : sources * : properties * )
 {
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local compiler-description = [ get-compiler-description "$(compiler)" ] ;
-  COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
-
   # Set 'BOOST_ROOT'.
   local version = [ feature.get-values <boost> : $(properties) ] ;
-  VERSION on $(targets) = "$(version)" ;
   local boost-root = "$(PREFIX)/boost/$(version)" ;
   BOOST_ROOT on $(targets) = [ path.native "$(boost-root)" ] ;
 
@@ -144,6 +137,8 @@ rule install ( targets * : sources * : properties * )
 
   # The following environment variable is required for ICC to detect ICU4C correctly.
   OPTIONS on $(targets) += "-sICU_PATH='$(full-prefix-native)'" ;
+
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
 
   if [ is-gcc "$(compiler)" ] {
     OPTIONS on $(targets) += "toolset=`'$(INTRO_ROOT_DIR)/boost/toolset.sh' '$(compiler-prefix)/bin/g++-wrapper'`" ;
@@ -312,43 +307,33 @@ rule install ( targets * : sources * : properties * )
   local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
   ENVIRONMENT_COMMANDS on $(targets) = "$(environment-commands)" ;
 
-  local logfile = [ get-logfile-path "boost" : "$(PREFIX)" : $(properties) ] ;
-  local logfile-native = [ path.native "$(logfile)" ] ;
-  LOGFILE on $(targets) = "$(logfile-native)" ;
-
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "$(logfile)" ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions install
 {
-  exit_with_error ()
-  {
-    echo "`LANG=C date`:ERROR: $1 (Boost $(VERSION), $(COMPILER_DESCRIPTION))" | tee -a '$(LOGFILE)' >> '$(STREAM)'
-    echo -n "ERROR: $1 (Boost $(VERSION), $(COMPILER_DESCRIPTION))" | $(AWACS)
-    exit 1
-  }
-
-  mkdir -p `dirname '$(LOGFILE)'`
-  echo "`LANG=C date`:INFO: initiation of Boost build process" | tee '$(LOGFILE)' >> '$(STREAM)'
-
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(ENVIRONMENT_COMMANDS)
-
 $(PROPERTY_DUMP_COMMANDS)
+  LINENO_ADJ=`grep -Fn 355d5e25-51b8-4da6-9e0f-bed54743381a '$(INTRO_ROOT_DIR)/boost/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+boost/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
 
-  if [ ! -x '$(BOOST_ROOT)/b2' ]; then
-    exit_with_error "\`$(BOOST_ROOT)/b2' is not found"
-  fi
+  ( cd '$(BOOST_ROOT)' && rm -rf bin.v2 )
 
-  echo "`LANG=C date`:COMMAND: ./b2 -d+2 -j$(CONCURRENCY) $(ADDITIONAL_BUILD_OPTS:J= ) $(OPTIONS:J= ) stage" | tee -a '$(LOGFILE)' >> '$(STREAM)'
-  tail --follow --lines=0 --sleep-interval=0.1 '$(LOGFILE)' >> '$(STREAM)' &
-  ( cd '$(BOOST_ROOT)' && ./b2 -d+2 -j$(CONCURRENCY) $(ADDITIONAL_BUILD_OPTS) $(OPTIONS) stage >> '$(LOGFILE)' 2>&1 )
-  result=$?
-  kill -TERM $!
-  if [ $result -ne 0 ]; then
-    exit_with_error 'failed to build'
-  fi
+  cleanup ()
+  {
+    ( cd '$(BOOST_ROOT)' && rm -rf bin.v2 )
+  }
+  trap cleanup ERR HUP INT QUIT TERM
+
+  [ -x '$(BOOST_ROOT)/b2' ]
+
+  ( cd '$(BOOST_ROOT)' && ./b2 -d+2 -j$(CONCURRENCY) $(ADDITIONAL_BUILD_OPTS) $(OPTIONS) stage )
 
   if [ '$(LINK)' = 'shared' ]; then
-    rm '$(FULL_PREFIX)/lib/libboost_test_exec_monitor.a' || exit_with_error "$(FULL_PREFIX)/lib/libboost_test_exec_monitor.a: could not delete"
+    rm '$(FULL_PREFIX)/lib/libboost_test_exec_monitor.a'
   fi
 
   # Because some Boost test cases hang up on some environments, resource for
@@ -364,14 +349,12 @@ $(PROPERTY_DUMP_COMMANDS)
   {
     concurrency=$1
     memory_per_concurrency=$2
-    if [ ! -f '/proc/meminfo' ]; then
-      exit 1
-    fi
-    mem=`grep -Eo '^MemFree:[[:space:]]+[[:digit:]]+[[:space:]]+kB' '/proc/meminfo'`
-    if [ $? -ne 0 ]; then
-      exit 1
-    fi
+    echo "$concurrency" | grep -Eq '^[[:digit:]]+$'
+    echo "$memory_per_concurrency" | grep -Eq '^[[:digit:]]+$'
+    [ -f /proc/meminfo ]
+    mem=`grep -Eo '^MemFree:[[:space:]]+[[:digit:]]+[[:space:]]+kB' /proc/meminfo`
     mem=`echo $mem | grep -Eo '[[:digit:]]+'`
+    echo "$mem" | grep -Eq '^[[:digit:]]+$'
     con=`expr $mem / $memory_per_concurrency`
     if [ $con -lt $concurrency ]; then
       if [ $con -gt 0 ]; then
@@ -385,56 +368,38 @@ $(PROPERTY_DUMP_COMMANDS)
 
   for i in '$(BOOST_ROOT)'/libs/*/test; do
     libname=`echo -n "$i" | sed -e 's@$(BOOST_ROOT)/libs/\([^/]\{1,\}\)/test@\1@'`
-    if [ "$libname" = 'detail' ]; then
+    if [ "$libname" = detail ]; then
       :
-    elif [ '$(LINK)' = 'shared' -a "$libname" = 'exception' ]; then
+    elif [ '$(LINK)' = shared -a "$libname" = exception ]; then
       :
-    elif [ '$(THREADING)' = 'single' -a \( "$libname" = 'locale' -o "$libname" = 'thread' -o "$libname" = 'wave' \) ]; then
+    elif [ '$(THREADING)' = single -a \( "$libname" = locale -o "$libname" = thread -o "$libname" = wave \) ]; then
       :
     else
-      [ -d "$(BOOST_ROOT)/libs/$libname/test" ] || exit_with_error "\`$(BOOST_ROOT)/libs/$libname/test' is not a directory"
       testdir="$(BOOST_ROOT)/libs/$libname/test"
+      [ -d "$testdir" ]
       if [ -f "$testdir/Jamfile.v2" -o -f "$testdir/Jamfile" ]; then
-        if [ -n '$(CONCURRENCY)' ]; then
+        if [ `echo $(CONCURRENCY) `x != x ]; then
           concurrency=$(CONCURRENCY)
         else
           concurrency=1
         fi
-        if [ "$libname" = 'multiprecision' ]; then
+        if [ "$libname" = multiprecision ]; then
           memory_per_concurrency=2097152
-        elif [ "$libname" = 'geometry' -o "$libname" = 'graph_parallel' -o "$libname" = 'intrusive' -o "$libname" = 'msm' -o "$libname" = 'range' -o "$libname" = 'spirit' -o "$libname" = 'xpressive' ]; then
+        elif [ "$libname" = geometry -o "$libname" = graph_parallel -o "$libname" = intrusive -o "$libname" = msm -o "$libname" = range -o "$libname" = spirit -o "$libname" = xpressive ]; then
           memory_per_concurrency=1048576
         else
           memory_per_concurrency=524288
         fi
-        get_clamped_concurrency $concurrency $memory_per_concurrency
-        concurrency=$?
-        logfile="`dirname '$(LOGFILE)'`/boost_$libname.txt"
-        echo "`LANG=C date`:INFO: initiation of tests for \`boost::$libname'" | tee "$logfile" >> '$(STREAM)'
-        echo "`LANG=C date`:INFO: concurrency=$concurrency" | tee -a "$logfile" >> '$(STREAM)'
-        echo "`LANG=C date`:COMMAND: cd \"$testdir\" && ../../../b2 -d+2 -j$concurrency $(OPTIONS:J= )" | tee -a "$logfile" >> '$(STREAM)'
-        tail --follow --lines=0 --sleep-interval=0.1 "$logfile" >> '$(STREAM)' &
-        ( cd "$testdir" && ../../../b2 -d+2 -j$concurrency $(OPTIONS) >> "$logfile" 2>&1 )
-        result=$?
-        kill -TERM $!
-        if [ $result -eq 0 ]; then
-          echo "`LANG=C date`:INFO: successful completion of tests for \`boost::$libname'" | tee -a "$logfile" >> '$(STREAM)'
-        else
-          echo "`LANG=C date`:ERROR: failed to test \`boost::$libname' (Boost $(VERSION), $(COMPILER_DESCRIPTION))" | tee -a "$logfile" >> '$(STREAM)'
-          echo -n "ERROR: failed to test \`boost::$libname' (Boost $(VERSION), $(COMPILER_DESCRIPTION))" | $(AWACS)
-        fi
+        get_clamped_concurrency $concurrency $memory_per_concurrency || concurrency=$?
+        ( cd "$testdir" && ../../../b2 -d+2 -j$concurrency $(OPTIONS) ) || true
       fi
     fi
   done
 
-  # Clean up `bin.v2' directory.
-  ( cd '$(BOOST_ROOT)' && rm -rf 'bin.v2' ) || exit_with_error "failed to clean up \`bin.v2' directory"
+  ( cd '$(BOOST_ROOT)' && rm -rf bin.v2 )
 
-  touch '$(<)' || exit_with_error 'failed to update the build target'
-
-  echo -n "Boost $(VERSION) ($(COMPILER_DESCRIPTION)) was successfully built." | $(AWACS)
-  echo "`LANG=C date`:INFO: successful completion of Boost build process" | tee -a '$(LOGFILE)' >> '$(STREAM)'
-  exit 0
+  touch '$(<)'
+EOS
 }
 
 

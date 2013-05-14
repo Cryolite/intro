@@ -8,7 +8,6 @@ import path ;
 import "$(INTRO_ROOT_DIR)/compilers"
   : is-gcc
     is-clang
-    get-compiler-description
     get-compiler-prefix
     get-default-bindir
     get-default-libdir
@@ -53,38 +52,28 @@ explicit "$(INTRO_ROOT_DIR)/binutils-$(BINUTILS).tar.bz2" ;
 rule download ( targets * : sources * : properties * )
 {
   local version = [ feature.get-values <binutils-hidden> : $(properties) ] ;
-  VERSION on $(targets) = $(version) ;
-  URLS on $(targets) = "'http://ftp.nara.wide.ad.jp/pub/GNU/gnu/binutils/binutils-$(version).tar.bz2' \\
-                        'http://ftp.tsukuba.wide.ad.jp/software/binutils/binutils-$(version).tar.bz2' \\
-                        'http://ftp.jaist.ac.jp/pub/GNU/binutils/binutils-$(version).tar.bz2'         \\
-                        'ftp://sourceware.org/pub/binutils/snapshots/binutils-$(version).tar.bz2'"    ;
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
+  URLS on $(targets)  = "'http://ftp.nara.wide.ad.jp/pub/GNU/gnu/binutils/binutils-$(version).tar.bz2'" ;
+  URLS on $(targets) += "'http://ftp.tsukuba.wide.ad.jp/software/binutils/binutils-$(version).tar.bz2'" ;
+  URLS on $(targets) += "'http://ftp.jaist.ac.jp/pub/GNU/binutils/binutils-$(version).tar.bz2'" ;
+  URLS on $(targets) += "'ftp://sourceware.org/pub/binutils/snapshots/binutils-$(version).tar.bz2'" ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions download
 {
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-
-  rm -rf '$(<)' || exit 1
-
+  LINENO_ADJ=`grep -Fn c3a35fdf-555a-4787-acac-35219af0b4c3 '$(INTRO_ROOT_DIR)/binutils/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+binutils/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
+  rm -rf '$(<)'
+  trap "rm -rf '$(<)'" ERR HUP INT QUIT TERM
   for url in $(URLS) ; do
-    if [ -n '$(STREAM)' ]; then
-      ( cd '$(<:D)' && wget -- "$url" >> '$(STREAM)' 2>&1 )
-    else
-      ( cd '$(<:D)' && wget --quiet -- "$url" )
-    fi
-    if [ $? -eq 0 ]; then
-      break
-    fi
+    ( cd '$(<:D)' && wget -- "$url" ) && break
   done
-
-  if [ ! -f '$(<)' ]; then
-    echo    'ERROR: failed to download Binutils $(VERSION) tarball.' 1>&2
-    echo -n 'ERROR: failed to download Binutils $(VERSION) tarball.' | $(AWACS)
-    rm -rf '$(<)'
-    exit 1
-  fi
-
-  exit 0
+  [ -f '$(<)' ]
+EOS
 }
 
 
@@ -105,34 +94,28 @@ explicit "$(INTRO_ROOT_DIR)/binutils-$(BINUTILS)/README" ;
 
 rule expand ( targets * : sources * : properties * )
 {
-  local version = [ feature.get-values <binutils-hidden> : $(properties) ] ;
-  VERSION on $(targets) = $(version) ;
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions expand
 {
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-
-  rm -rf '$(<:D)' || exit 1
-  [ -f '$(>)' ] || exit 1
-  if [ -n '$(STREAM)' ]; then
-    tar xjvf '$(>)' --directory='$(INTRO_ROOT_DIR)' >> '$(STREAM)' 2>&1
-  else
-    tar xjf '$(>)' --directory='$(INTRO_ROOT_DIR)'
-  fi
-  if [ $? -ne 0 ]; then
-    echo    'ERROR: failed to expand Binutils $(VERSION) tarball.' 1>&2
-    echo -n 'ERROR: failed to expand Binutils $(VERSION) tarball.' | $(AWACS)
-    rm -rf '$(<:D)'
-    exit 1
-  fi
+  LINENO_ADJ=`grep -Fn 3909aa43-2c54-4244-b8c0-61c59512ca57 '$(INTRO_ROOT_DIR)/binutils/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+binutils/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
+  rm -rf '$(<:D)'
+  [ -f '$(>)' ]
+  trap "rm -rf '$(>)' '$(<:D)'" ERR HUP INT QUIT TERM
+  tar xjvf '$(>)' -C '$(INTRO_ROOT_DIR)'
   # If the timestamp of the tarball's contents is restored, the modification
   # time of the source directory could be older than the one of the tarball.
   # Such behavior is not desirable because the decompression always happens.
   # Therefore, `touch' is required.
   touch --no-create '$(<)'
-  [ -f '$(<)' ] || exit 1
-  exit 0
+  [ -f '$(<)' ]
+EOS
 }
 
 
@@ -167,14 +150,8 @@ explicit ld.gold ;
 
 rule make-install ( targets * : sources * : properties * )
 {
-  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
-  local compiler-description = [ get-compiler-description $(compiler) ] ;
-  COMPILER_DESCRIPTION on $(targets) = "$(compiler-description)" ;
-
+  # Sets the path to the source directory.
   local version = [ feature.get-values <binutils> : $(properties) ] ;
-  VERSION on $(targets) = $(version) ;
-
-  # Set the path to the source directory.
   local srcdir = "$(INTRO_ROOT_DIR)/binutils-$(version)" ;
   SRCDIR on $(targets) = [ path.native "$(srcdir)" ] ;
 
@@ -183,7 +160,7 @@ rule make-install ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) = ;
 
-  # Set `--prefix' option for `configure' script.
+  # Sets `--prefix' option for `configure' script.
   local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
   local compiler-prefix-native = [ path.native "$(compiler-prefix)" ] ;
   OPTIONS on $(targets) += "--prefix='$(compiler-prefix-native)'" ;
@@ -200,7 +177,7 @@ rule make-install ( targets * : sources * : properties * )
   local includedir-native = [ path.native "$(includedir)" ] ;
   OPTIONS on $(targets) += "--includedir='$(includedir-native)'" ;
 
-  # Set `--build', `--host' and `--target' options for `configure' script.
+  # Sets `--build', `--host' and `--target' options for `configure' script.
   local triplets = [ get-compiler-triplets $(properties) ] ;
   local build-triplet = "$(triplets[1])" ;
   local host-triplet = "$(triplets[2])" ;
@@ -248,77 +225,54 @@ rule make-install ( targets * : sources * : properties * )
   local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
   ENVIRONMENT_COMMANDS on $(targets) = $(environment-commands) ;
 
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) : "$(STREAM)" : "/dev/null" ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions make-install
 {
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
+$(ENVIRONMENT_COMMANDS)
 $(PROPERTY_DUMP_COMMANDS)
+  LINENO_ADJ=`grep -Fn ab2bc87a-0488-4353-be58-863d528d3ea1 '$(INTRO_ROOT_DIR)/binutils/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+binutils/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
 
-  [ -x '$(SRCDIR)/configure' ] || exit 1
-  [ -x '$(SRCDIR)/config.sub' ] || exit 1
-  [ `'$(SRCDIR)/config.sub' $(BUILD_TRIPLET)` = $(BUILD_TRIPLET) ] || exit 1
-  [ `'$(SRCDIR)/config.sub' $(HOST_TRIPLET)` = $(HOST_TRIPLET) ] || exit 1
-  [ `'$(SRCDIR)/config.sub' $(TARGET_TRIPLET)` = $(TARGET_TRIPLET) ] || exit 1
+  rm -rf '$(OBJDIR)'
 
-  # Clean up objdir `$(OBJDIR)'.
-  { mkdir -p '$(OBJDIR)' && ( cd '$(OBJDIR)' && rm -rf * ); } || exit 1
+  cleanup ()
+  {
+    if [ -d '$(OBJDIR)' ]; then
+      mv -n '$(OBJDIR)' "$(INTRO_ROOT_DIR)/objdir_$$"
+    fi
+  }
+  trap cleanup ERR HUP INT QUIT TERM
 
-  $(ENVIRONMENT_COMMANDS)
+  # Creates `objdir`.
+  ( cd '$(INTRO_ROOT_DIR)' && mkdir objdir )
 
-  if [ -n '$(STREAM)' ]; then
-    ( cd '$(OBJDIR)' && '$(SRCDIR)/configure' $(OPTIONS) >> '$(STREAM)' 2>&1 )
-  else
-    ( cd '$(OBJDIR)' && '$(SRCDIR)/configure' $(OPTIONS) )
-  fi
-  if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`configure' Binutils $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR: failed to \`configure' Binutils $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
-    exit 1
-  fi
+  [ -x '$(SRCDIR)/configure' ]
+  [ -x '$(SRCDIR)/config.sub' ]
+  [ `'$(SRCDIR)/config.sub' $(BUILD_TRIPLET)` = $(BUILD_TRIPLET) ]
+  [ `'$(SRCDIR)/config.sub' $(HOST_TRIPLET)` = $(HOST_TRIPLET) ]
+  [ `'$(SRCDIR)/config.sub' $(TARGET_TRIPLET)` = $(TARGET_TRIPLET) ]
 
-  # Check the creation of `Makefile'.
-  [ -f '$(OBJDIR)/Makefile' ] || exit 1
+  ( cd '$(OBJDIR)' && '$(SRCDIR)/configure' $(OPTIONS) )
 
-  if [ -n '$(STREAM)' ]; then
-    ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) >> '$(STREAM)' 2>&1 )
-  else
-    ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) )
-  fi
-  if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`make' Binutils $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR: failed to \`make' Binutils $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
-    exit 1
-  fi
+  # Checks the creation of `Makefile`.
+  [ -f '$(OBJDIR)/Makefile' ]
 
-  if [ -n '$(STREAM)' ]; then
-    ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) check >> '$(STREAM)' 2>&1 )
-  else
-    ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) check )
-  fi
-  if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`make check' Binutils $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR: failed to \`make check' Binutils $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
-    exit 1
-  fi
+  ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) )
 
-  if [ -n '$(STREAM)' ]; then
-    ( cd '$(OBJDIR)' && make install >> '$(STREAM)' 2>&1 )
-  else
-    ( cd '$(OBJDIR)' && make install )
-  fi
-  if [ $? -ne 0 ]; then
-    echo    "ERROR: failed to \`make install' Binutils $(VERSION) ($(COMPILER_DESCRIPTION))." 1>&2
-    echo -n "ERROR: failed to \`make install' Binutils $(VERSION) ($(COMPILER_DESCRIPTION))." | $(AWACS)
-    exit 1
-  fi
+  ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) check )
 
-  [ -x '$(<)' ] || exit 1
+  ( cd '$(OBJDIR)' && make install )
 
-  # Clean up objdir `$(OBJDIR)'.
-  rm -rf '$(OBJDIR)' || exit 1
+  # Cleans up `objdir`.
+  rm -rf '$(OBJDIR)'
 
-  echo -n 'Binutils $(VERSION) ($(COMPILER_DESCRIPTION)) was successfully built.' | $(AWACS)
-  exit 0
+  [ -x '$(<)' ]
+EOS
 }
 
 
