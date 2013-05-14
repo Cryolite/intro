@@ -3951,6 +3951,7 @@ constant INTRO_COMPILE_PROPERTIES
   : <c++-template-depth>1024
     <exception-handling>off:<cflags>-fno-exceptions
     <rtti>off:<linkflags>-fno-rtti
+    <toolset>gcc,<variant>debug:<cflags>-g3
     <toolset>intel,<variant>debug:<cflags>"-debug full"
     <toolset>intel,<instruction-set>native:<cflags>"-xHost"
     $(INTRO_STD_COMPILE_PROPERTIES)
@@ -3962,6 +3963,7 @@ constant INTRO_COMPILE_PROPERTIES
 constant INTRO_LINK_PROPERTIES
   : <exception-handling>off:<linkflags>-fno-exceptions
     <rtti>off:<linkflags>-fno-rtti
+    <toolset>gcc,<variant>debug:<linkflags>-g3
     <toolset>intel,<variant>debug:<linkflags>"-debug full"
     <variant>debug:<linkflags>-rdynamic
     <variant>profile:<linkflags>-rdynamic
