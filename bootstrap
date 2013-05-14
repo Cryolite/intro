@@ -516,6 +516,7 @@ elif [ -f '/usr/share/sgml/docbook/sgml-dtd-4.2-1.0-51.el6/docbookx.dtd' ]; then
   sed -i 's@^local docbook-dtd-path ;$@local docbook-dtd-path = "/usr/share/sgml/docbook/sgml-dtd-4.2-1.0-51.el6" ;@' "$HOME/user-config.jam"
 fi
 
+install --mode=755 "$intro_root/boost/toolset.sh" "$prefix/bin/get-toolset.sh"
 install --mode=755 "$intro_root/template/x86_64-unknown-linux-gnu/asan2line" "$prefix/bin"
 
 BOOST_ROOT="$prefix/boost/latest"
