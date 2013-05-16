@@ -6,6 +6,7 @@
 /binutils-*.tar.gz
 /binutils-*.tar.bz2
 /binutils-*/
+/lcov-*/
 /gmp-*.tar.gz
 /gmp-*.tar.bz2
 /gmp-*/
