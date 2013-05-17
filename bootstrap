@@ -30,6 +30,7 @@ args=`getopt                    \
       -l 'without-gold'         \
       -l 'with-gcc-check::'     \
       -l 'without-gcc-check'    \
+      -l 'enable-lcov::'        \
       -l 'enable-gmp::'         \
       -l 'enable-mpfr::'        \
       -l 'enable-mpc::'         \
@@ -58,6 +59,7 @@ compilers=
 multitarget=no
 gold=no
 gcc_check=yes
+lcov=
 gmp=
 mpfr=
 mpc=
@@ -123,6 +125,9 @@ for arg in "${args[@]}"; do
       ;;
     --without-gcc-check)
       gcc_check=no
+      ;;
+    --enable-lcov)
+      prev_arg=--enable-lcov
       ;;
     --enable-gmp)
       prev_arg=--enable-gmp
@@ -258,6 +263,13 @@ for arg in "${args[@]}"; do
     --without-gcc-check)
       echo "bootstrap: an internal error" >&2
       exit 1
+      ;;
+    --enable-lcov)
+      if [ -z "$arg" ]; then
+        lcov=latest
+      else
+        lcov="$arg"
+      fi
       ;;
     --enable-gmp)
       if [ -z "$arg" ]; then
@@ -419,6 +431,10 @@ no)
   exit 1
   ;;
 esac
+
+if [ -n "$lcov" ]; then
+  delegated_opts=("${delegated_opts[@]}" --enable-lcov="$lcov")
+fi
 
 if [ -n "$gmp" ]; then
   delegated_opts=("${delegated_opts[@]}" --enable-gmp="$gmp")
