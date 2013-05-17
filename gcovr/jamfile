@@ -1,0 +1,129 @@
+project intro/gcovr ;
+
+import alias ;
+import errors ;
+import feature ;
+import make ;
+import path ;
+import regex ;
+import "$(INTRO_ROOT_DIR)/compilers"
+  : is-gcc
+    is-clang
+    is-icc
+    get-compiler-prefix
+    get-property-dump-commands
+  ;
+
+.here = [ regex.match "Jamfile<(.*)>" : "$(__name__)" : 1 ] ;
+.here = [ path.make "$(.here)" ] ;
+.here-relative = [ path.relative "$(.here)" "$(INTRO_ROOT_DIR)" ] ;
+
+
+rule compiler-dep-req ( properties * )
+{
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
+  local result ;
+  if [ is-gcc "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
+  }
+  else if [ is-clang "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
+  }
+  else if [ is-icc "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+  return $(result) ;
+}
+
+alias compiler-dep : : <conditional>@compiler-dep-req ;
+explicit compiler-dep ;
+
+
+make "$(INTRO_ROOT_DIR)/gcovr-$(GCOVR)/README.txt" : : @export ;
+explicit "$(INTRO_ROOT_DIR)/gcovr-$(GCOVR)/README.txt" ;
+
+rule export ( targets * : sources * : properties * )
+{
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
+  local version = [ feature.get-values <gcovr-hidden> : $(properties) ] ;
+  VERSION on $(targets) = "$(version)" ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+}
+actions export
+{
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
+$(PROPERTY_DUMP_COMMANDS)
+  LINENO_ADJ=`grep -Fn c7201563-8030-48ca-af11-da32a10345d6 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
+  rm -rf '$(<:D)'
+  trap "rm -rf '$(<:D)'" ERR HUP INT QUIT TERM
+  ( cd '$(INTRO_ROOT_DIR)' && svn export https://software.sandia.gov/svn/public/fast/gcovr/tags/$(VERSION) gcovr-$(VERSION) )
+  [ -f '$(<)' ]
+EOS
+}
+
+
+rule srcdir-req ( properties * )
+{
+  local version = [ feature.get-values <gcovr-hidden> : $(properties) ] ;
+  return "<source>$(INTRO_ROOT_DIR)/gcovr-$(version)/README.txt/$(DEFAULT_PROPERTIES)" ;
+}
+
+alias srcdir : : <conditional>@srcdir-req ;
+explicit srcdir ;
+
+
+rule location-conditional ( properties * )
+{
+  local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
+  return "<location>$(compiler-prefix)/bin" ;
+}
+
+make gcovr
+  : compiler-dep
+    srcdir
+  : @make-install
+  : $(USE_GCOVR)
+    <conditional>@location-conditional
+  ;
+explicit gcovr ;
+
+rule make-install ( targets * : sources * : properties * )
+{
+  # Sets the path to the source directory.
+  local version = [ feature.get-values <gcovr> : $(properties) ] ;
+  local srcdir = "$(INTRO_ROOT_DIR)/gcovr-$(version)" ;
+  SRCDIR on $(targets) = [ path.native "$(srcdir)" ] ;
+
+  local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
+  COMPILER_PREFIX on $(targets) = [ path.native "$(compiler-prefix)" ] ;
+
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
+
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+}
+actions make-install
+{
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
+$(PROPERTY_DUMP_COMMANDS)
+  LINENO_ADJ=`grep -Fn 88fae373-a665-4a2e-b5c9-1106996e7396 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
+  install -m 755 '$(SRCDIR)/scripts/gcovr' '$(COMPILER_PREFIX)/bin'
+  [ -f '$(<)' ]
+EOS
+}
+
+
+alias install : "gcovr/$(DEFAULT_PROPERTIES)" ;
+explicit install ;

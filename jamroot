@@ -22,6 +22,7 @@ import "$(INTRO_ROOT_DIR)/compilers"
 
 local .binutils-latest ;
 local .lcov-latest ;
+local .gcovr-latest ;
 local .gmp-latest ;
 local .mpfr-latest ;
 local .mpc-latest ;
@@ -64,6 +65,17 @@ local rule get-lcov-latest-version ( )
     }
   }
   return "$(.lcov-latest)" ;
+}
+
+local rule get-gcovr-latest-version ( )
+{
+  if ! "$(.gcovr-latest)" {
+    .gcovr-latest = [ SHELL "'$(INTRO_ROOT_DIR)/gcovr/latest.sh' || echo -n error" ] ;
+    if "$(.gcovr-latest)" = error {
+      errors.error "failed to extract gcovr latest version." ;
+    }
+  }
+  return "$(.gcovr-latest)" ;
 }
 
 local rule get-gmp-latest-version ( )
@@ -467,6 +479,21 @@ else {
 }
 
 
+local gcovr = [ option.get "enable-gcovr" : : "latest" ] ;
+if "$(gcovr)" = latest {
+  gcovr = [ get-gcovr-latest-version ] ;
+}
+if "$(gcovr)" {
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(gcovr)" : 1 ] {
+    errors.error "an invalid value `$(gcovr)' for `--enable-gcovr'." ;
+  }
+  ECHO "gcovr... $(gcovr)" ;
+}
+else {
+  ECHO "gcovr... N/A" ;
+}
+
+
 local gmp = [ option.get "enable-gmp" : : "latest" ] ;
 if "$(gmp)" = "latest" {
   gmp = [ get-gmp-latest-version ] ;
@@ -860,6 +887,14 @@ else {
   ECHO "LCOV... N/A" ;
 }
 
+if "$(gcovr)" {
+  constant GCOVR : "$(gcovr)" ;
+  ECHO "GCOVR... $(GCOVR)" ;
+}
+else {
+  ECHO "GCOVR... N/A" ;
+}
+
 if $(gmp-versions) {
   constant GMP_VERSIONS : $(gmp-versions) ;
   ECHO GMP_VERSIONS... $(GMP_VERSIONS:J=,) ;
@@ -1054,6 +1089,16 @@ feature lcov-hidden : [ feature.values <lcov> ] : propagated incidental ;
   constant USE_LCOV : $(use-lcov) ;
 }
 
+feature gcovr        : unspecified $(gcovr)       :                       ;
+feature gcovr-hidden : [ feature.values <gcovr> ] : propagated incidental ;
+{
+  local use-gcovr ;
+  for local val in [ feature.values <gcovr> ] {
+    use-gcovr += <gcovr-hidden>$(val):<gcovr>$(val) ;
+  }
+  constant USE_GCOVR : $(use-gcovr) ;
+}
+
 feature gmp        : unspecified $(gmp-versions) :                       ;
 feature gmp-hidden : [ feature.values <gmp> ]    : propagated incidental ;
 {
@@ -1216,6 +1261,9 @@ for local enabled-compiler in $(enabled-compilers) {
   if "$(lcov)" {
     srcs += "lcov//install" ;
   }
+  if "$(gcovr)" {
+    srcs += "gcovr//install" ;
+  }
   if "$(gmp)" {
     srcs += "gmp//install" ;
   }
@@ -1265,6 +1313,7 @@ for local enabled-compiler in $(enabled-compilers) {
         <isl-for-gcc-hidden>$(isl-for-gcc)
         <cloog-for-gcc-hidden>$(cloog-for-gcc)
         <lcov-hidden>$(lcov)
+        <gcovr-hidden>$(gcovr)
         <gmp-hidden>$(gmp)
         <mpfr-hidden>$(mpfr)
         <mpc-hidden>$(mpc)
@@ -1292,6 +1341,7 @@ for local enabled-compiler in $(enabled-compilers) {
             <isl-for-gcc-hidden>$(isl-for-gcc)
             <cloog-for-gcc-hidden>$(cloog-for-gcc)
             <lcov-hidden>$(lcov)
+            <gcovr-hidden>$(gcovr)
             <gmp-hidden>$(gmp)
             <mpfr-hidden>$(mpfr)
             <mpc-hidden>$(mpc)
@@ -1323,6 +1373,7 @@ for local enabled-compiler in $(enabled-compilers) {
         <isl-for-gcc-hidden>$(isl-for-gcc)
         <cloog-for-gcc-hidden>$(cloog-for-gcc)
         <lcov-hidden>$(lcov)
+        <gcovr-hidden>$(gcovr)
         <gmp-hidden>$(gmp)
         <mpfr-hidden>$(mpfr)
         <mpc-hidden>$(mpc)
@@ -1354,6 +1405,7 @@ for local enabled-compiler in $(enabled-compilers) {
         <isl-for-gcc-hidden>$(isl-for-gcc)
         <cloog-for-gcc-hidden>$(cloog-for-gcc)
         <lcov-hidden>$(lcov)
+        <gcovr-hidden>$(gcovr)
         <gmp-hidden>$(gmp)
         <mpfr-hidden>$(mpfr)
         <mpc-hidden>$(mpc)
