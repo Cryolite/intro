@@ -157,9 +157,19 @@ rule install ( targets * : sources * : properties * )
   OPTIONS on $(targets) += "variant=$(variant)" ;
   switch "$(variant)" {
   case "debug" :
-    if [ is-icc "$(compiler)" ] {
+    if [ is-gcc "$(compiler)" ] {
+      OPTIONS on $(targets) += cflags=-g3 ;
+      OPTIONS on $(targets) += linkflags=-g3 ;
+    }
+    else if [ is-clang "$(compiler)" ] {
+      # Do nothing.
+    }
+    else if [ is-icc "$(compiler)" ] {
       OPTIONS on $(targets) += "cflags='-debug full'" ;
       OPTIONS on $(targets) += "linkflags='-debug full'" ;
+    }
+    else {
+      errors.error "an internal error." ;
     }
     OPTIONS on $(targets) += "linkflags=-rdynamic" ;
   case "release" :

@@ -1614,14 +1614,14 @@ rule get-cflags ( properties * )
   local variant = [ feature.get-values <variant> : $(properties) ] ;
   switch "$(variant)" {
   case "debug" :
-    result += "-g" ;
     if [ is-gcc "$(compiler)" ] {
-      # Do nothing.
+      result += -g3 ;
     }
     else if [ is-clang "$(compiler)" ] {
-      # Do nothing.
+      result += -g ;
     }
     else if [ is-icc "$(compiler)" ] {
+      result += -g ;
       result += "-debug full" ;
     }
     else {
