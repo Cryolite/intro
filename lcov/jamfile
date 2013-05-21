@@ -63,14 +63,14 @@ $(PROPERTY_DUMP_COMMANDS)
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
   PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
-  rm -rf '$(<:D)'
+  rm -r '$(<:D)'
   tmpdir=`mktemp -d`
-  trap "rm -rf \"$tmpdir\" '$(<:D)'" ERR HUP INT QUIT TERM
+  trap "rm -r \"$tmpdir\" '$(<:D)'" ERR HUP INT QUIT TERM
   cvs -d :pserver:anonymous:@ltp.cvs.sourceforge.net:/cvsroot/ltp login
   ( cd "$tmpdir" && cvs -z 3 -d :pserver:anonymous@ltp.cvs.sourceforge.net:/cvsroot/ltp export -r '$(TAG)' utils )
   cvs -d :pserver:anonymous@ltp.cvs.sourceforge.net:/cvsroot/ltp logout
   ( cd "$tmpdir/utils/analysis" && mv lcov "$(<:D)" )
-  rm -rf "$tmpdir"
+  rm -r "$tmpdir"
   [ -f '$(<)' ]
 EOS
 }
@@ -96,7 +96,8 @@ make lcov
   : compiler-dep
     srcdir
   : @make-install
-  : $(USE_LCOV)
+  : $(USE_COMPILER)
+    $(USE_LCOV)
     <conditional>@location-conditional
   ;
 explicit lcov ;
@@ -126,15 +127,18 @@ $(PROPERTY_DUMP_COMMANDS)
   PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
   ( cd '$(SRCDIR)' && PREFIX='$(COMPILER_PREFIX)' make install )
-  ( cd '$(COMPILER_PREFIX)' && mkdir -p bin && install -m 755 usr/bin/* bin )
-  ( cd '$(COMPILER_PREFIX)' && rm -rf usr/bin/* )
-  ( cd '$(COMPILER_PREFIX)' && rmdir usr/bin )
-  ( cd '$(COMPILER_PREFIX)' && mkdir -p share/man/man1 && install -m 644 usr/share/man/man1/* share/man/man1 )
-  ( cd '$(COMPILER_PREFIX)' && rm -rf usr/share/man/man1/* )
-  ( cd '$(COMPILER_PREFIX)' && mkdir -p share/man/man5 && install -m 644 usr/share/man/man5/* share/man/man5 )
-  ( cd '$(COMPILER_PREFIX)' && rm -rf usr/share/man/man5/* )
-  ( cd '$(COMPILER_PREFIX)' && rmdir usr/share/man/man{1,5} )
-  ( cd '$(COMPILER_PREFIX)' && rmdir -p usr/share/man )
+  pushd '$(COMPILER_PREFIX)'
+  mkdir -p bin && install -m 755 usr/bin/* bin
+  rm usr/bin/*
+  rmdir usr/bin
+  mkdir -p share/man/man1 && install -m 644 usr/share/man/man1/* share/man/man1
+  rm usr/share/man/man1/*
+  mkdir -p share/man/man5 && install -m 644 usr/share/man/man5/* share/man/man5
+  rm usr/share/man/man5/*
+  rmdir usr/share/man/man{1,5}
+  rmdir -p usr/share/man
+  [ ! -e usr ]
+  popd
   [ -f '$(<)' ]
 EOS
 }
