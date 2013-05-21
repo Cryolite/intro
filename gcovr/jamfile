@@ -62,9 +62,9 @@ $(PROPERTY_DUMP_COMMANDS)
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
   PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
-  rm -rf '$(<:D)'
-  trap "rm -rf '$(<:D)'" ERR HUP INT QUIT TERM
-  ( cd '$(INTRO_ROOT_DIR)' && svn export https://software.sandia.gov/svn/public/fast/gcovr/tags/$(VERSION) gcovr-$(VERSION) )
+  rm -r '$(<:D)'
+  trap "rm -r '$(<:D)'" ERR HUP INT QUIT TERM
+  ( cd '$(INTRO_ROOT_DIR)' && svn export 'https://software.sandia.gov/svn/public/fast/gcovr/tags/$(VERSION)' 'gcovr-$(VERSION)' )
   [ -f '$(<)' ]
 EOS
 }
@@ -90,7 +90,8 @@ make gcovr
   : compiler-dep
     srcdir
   : @make-install
-  : $(USE_GCOVR)
+  : $(USE_COMPILER)
+    $(USE_GCOVR)
     <conditional>@location-conditional
   ;
 explicit gcovr ;
