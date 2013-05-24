@@ -87,7 +87,6 @@ make boost.stage
     $(USE_OPENMPI)
     $(USE_BOOST)
     $(USE_ADDRESS_MODEL)
-    $(USE_INSTRUCTION_SET)
     <conditional>@location-conditional
   ;
 explicit boost.stage ;
@@ -205,12 +204,12 @@ rule install ( targets * : sources * : properties * )
     errors.error "`<intro-address-model>$(address-model)': unknown property" ;
   }
 
-  local instruction-set = [ feature.get-values <intro-instruction-set> : $(properties) ] ;
+  local instruction-set = [ feature.get-values <instruction-set> : $(properties) ] ;
   switch "$(instruction-set)" {
-  case "unspecified" :
-    # Do nothing.
+  case "generic" :
+    OPTIONS on $(targets) += "instruction-set=generic" ;
   case "native" :
-    OPTIONS on $(targets) += "instruction-set=$(instruction-set)" ;
+    OPTIONS on $(targets) += "instruction-set=native" ;
     if [ is-icc "$(compiler)" ] {
       OPTIONS on $(targets) += "cflags=-xHost" ;
       OPTIONS on $(targets) += "linkflags=-xHost" ;

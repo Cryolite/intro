@@ -202,7 +202,6 @@ make valgrind/valgrind.h
     $(USE_OPENMPI)
     $(USE_VALGRIND)
     $(USE_ADDRESS_MODEL)
-    $(USE_INSTRUCTION_SET)
     <conditional>@location-conditional
   ;
 explicit valgrind/valgrind.h ;

@@ -148,7 +148,6 @@ make ppl.hh
     $(USE_GMP)
     $(USE_PPL)
     $(USE_ADDRESS_MODEL)
-    $(USE_INSTRUCTION_SET)
     <conditional>@location-conditional
   ;
 explicit ppl.hh ;

@@ -156,7 +156,6 @@ make mpi.h
     $(USE_MULTITARGET)
     $(USE_OPENMPI)
     $(USE_ADDRESS_MODEL)
-    $(USE_INSTRUCTION_SET)
     <conditional>@location-conditional
   ;
 explicit mpi.h ;

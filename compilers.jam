@@ -330,44 +330,6 @@ rule get-gcc-versions ( compilers * )
   return $(results) ;
 }
 
-rule get-version-deprecated ( compiler )
-{
-  if ! [ is-valid "$(compiler)" ] {
-    errors.error "an internal error." ;
-  }
-  local result ;
-  if $(compiler) in gcc-current gcc-previous gcc-oldest gcc-snapshot gcc-current-snapshot gcc-previous-snapshot gcc-oldest-snapshot {
-    result = [ get-$(compiler)-version ] ;
-  }
-  else if [ is-gcc "$(compiler)" ] {
-    result = [ regex.match "gcc-(.+)" : "$(compiler)" : 1 ] ;
-  }
-  else if [ is-clang "$(compiler)" ] {
-    if "$(compiler)" = "clang-latest" {
-      result = [ get-clang-latest-version ] ;
-    }
-    else if "$(compiler)" = "clang-trunk" {
-      errors.error "this rule cannot be called for Clang trunk." ;
-    }
-    else {
-      result = [ regex.match "^clang-(.+)" : "$(compiler)" : 1 ] ;
-    }
-  }
-  else if [ is-icc "$(compiler)" ] {
-    if [ regex.match "^(icc-system-.+)" : "$(compiler)" : 1 ] {
-      result = [ get-icc-system-version ] ;
-    }
-    else {
-      errors.error "an internal error." ;
-    }
-  }
-  else
-  {
-    errors.error "an internal error." ;
-  }
-  return $(result) ;
-}
-
 rule get-frontend-version ( compiler )
 {
   if ! [ is-valid "$(compiler)" ] {
@@ -608,16 +570,16 @@ rule get-full-prefix ( prefix : properties * )
     errors.error "<intro-address-model>$(address-model): an unknown property" ;
   }
 
-  local instruction-set = [ feature.get-values <intro-instruction-set> : $(properties) ] ;
+  local instruction-set = [ feature.get-values <instruction-set> : $(properties) ] ;
   switch "$(instruction-set)" {
-  case "unspecified" :
-    result = "$(result)/instruction-set-unspecified" ;
+  case "generic" :
+    result = "$(result)/instruction-set-generic" ;
   case "native" :
     result = "$(result)/instruction-set-native" ;
   case "" :
-    errors.error "the value for `<intro-instruction-set>' is empty" ;
+    errors.error "the value for `<instruction-set>' is empty" ;
   case "*" :
-    errors.error "<intro-instruction-set>$(instruction-set): an unknown property" ;
+    errors.error "<instruction-set>$(instruction-set): an unknown property" ;
   }
 
   local std = [ feature.get-values <std> : $(properties) ] ;
@@ -1212,94 +1174,6 @@ rule get-compiler-triplets ( properties * )
   return $(build-triplet) $(host-triplet) $(target-triplet) $(enabled-targets) ;
 }
 
-rule normalize-properties ( properties * )
-{
-  local address-model = [ feature.get-values <intro-address-model> : $(properties) ] ;
-  local instruction-set = [ feature.get-values <intro-instruction-set> : $(properties) ] ;
-  local multitarget = [ feature.get-values <multitarget> : $(properties) ] ;
-  properties = [ property.change $(properties) : <intro-address-model> ] ;
-  if "$(address-model)" {
-    properties = [ property.change $(properties) : <address-model> $(address-model) ] ;
-  }
-  properties = [ property.change $(properties) : <intro-instruction-set> ] ;
-  properties = [ property.change $(properties) : <intro-instruction-set-on-build> ] ;
-  if "$(instruction-set)" != "unspecified" {
-    properties += "<instruction-set>$(instruction-set)" ;
-  }
-  properties = [ property.change $(properties) : <toolset> ] ;
-  properties = [ property.change $(properties) : <location> ] ;
-  properties = [ property.change $(properties) : <conditional> ] ;
-  properties = [ property.change $(properties) : <action> ] ;
-  properties = [ property.change $(properties) : <compiler> ] ;
-  properties = [ property.change $(properties) : <compiler-hidden> ] ;
-  properties = [ property.change $(properties) : <multitarget> ] ;
-  properties = [ property.change $(properties) : <multitarget-hidden> ] ;
-  properties = [ property.change $(properties) : <binutils-hidden> ] ;
-  properties = [ property.change $(properties) : <binutils> ] ;
-  properties = [ property.change $(properties) : <gmp-for-gcc-hidden> ] ;
-  properties = [ property.change $(properties) : <gmp-for-gcc> ] ;
-  properties = [ property.change $(properties) : <mpfr-for-gcc-hidden> ] ;
-  properties = [ property.change $(properties) : <mpfr-for-gcc> ] ;
-  properties = [ property.change $(properties) : <mpc-for-gcc-hidden> ] ;
-  properties = [ property.change $(properties) : <mpc-for-gcc> ] ;
-  properties = [ property.change $(properties) : <isl-for-gcc-hidden> ] ;
-  properties = [ property.change $(properties) : <isl-for-gcc> ] ;
-  properties = [ property.change $(properties) : <cloog-for-gcc-hidden> ] ;
-  properties = [ property.change $(properties) : <cloog-for-gcc> ] ;
-  properties = [ property.change $(properties) : <gmp-hidden> ] ;
-  properties = [ property.change $(properties) : <gmp> ] ;
-  properties = [ property.change $(properties) : <mpfr-hidden> ] ;
-  properties = [ property.change $(properties) : <mpfr> ] ;
-  properties = [ property.change $(properties) : <mpc-hidden> ] ;
-  properties = [ property.change $(properties) : <mpc> ] ;
-  properties = [ property.change $(properties) : <isl-hidden> ] ;
-  properties = [ property.change $(properties) : <isl> ] ;
-  properties = [ property.change $(properties) : <cloog-hidden> ] ;
-  properties = [ property.change $(properties) : <cloog> ] ;
-  properties = [ property.change $(properties) : <ppl-hidden> ] ;
-  properties = [ property.change $(properties) : <ppl> ] ;
-  properties = [ property.change $(properties) : <icu4c-hidden> ] ;
-  properties = [ property.change $(properties) : <icu4c> ] ;
-  properties = [ property.change $(properties) : <openmpi-hidden> ] ;
-  properties = [ property.change $(properties) : <openmpi> ] ;
-  properties = [ property.change $(properties) : <mpi-backend-hidden> ] ;
-  properties = [ property.change $(properties) : <mpi-backend> ] ;
-  properties = [ property.change $(properties) : <boost-hidden> ] ;
-  properties = [ property.change $(properties) : <boost> ] ;
-  properties = [ property.change $(properties) : <clang-hidden> ] ;
-  properties = [ property.change $(properties) : <clang> ] ;
-  properties = [ property.change $(properties) : <valgrind-hidden> ] ;
-  properties = [ property.change $(properties) : <valgrind> ] ;
-  return $(properties) ;
-}
-
-rule get-bindir ( prefix : properties * )
-{
-  local result = [ get-default-bindir "$(prefix)" : $(properties) ] ;
-  properties = [ normalize-properties $(properties) ] ;
-  local property-path = [ property.as-path $(properties) ] ;
-  result = "$(result)/$(property-path)" ;
-  return "$(result)" ;
-}
-
-rule get-libdir ( prefix : properties * )
-{
-  local result = [ get-default-libdir "$(prefix)" : $(properties) ] ;
-  properties = [ normalize-properties $(properties) ] ;
-  local property-path = [ property.as-path $(properties) ] ;
-  result = "$(result)/$(property-path)" ;
-  return "$(result)" ;
-}
-
-rule get-includedir ( prefix : properties * )
-{
-  local result = [ get-default-includedir "$(prefix)" : $(properties) ] ;
-  properties = [ normalize-properties $(properties) ] ;
-  local property-path = [ property.as-path $(properties) ] ;
-  result = "$(result)/$(property-path)" ;
-  return "$(result)" ;
-}
-
 rule get-triplets ( properties * )
 {
   local build-os = [ feature.get-values <host-os> : [ feature.defaults <host-os> ] ] ;
@@ -1669,9 +1543,9 @@ rule get-cflags ( properties * )
     errors.error "<intro-address-model>$(address-model): unknown property" ;
   }
 
-  local instruction-set = [ feature.get-values <intro-instruction-set> : $(properties) ] ;
+  local instruction-set = [ feature.get-values <instruction-set> : $(properties) ] ;
   switch "$(instruction-set)" {
-  case "unspecified" :
+  case "generic" :
     # Do nothing.
   case "native" :
     if [ is-gcc "$(compiler)" ] || [ is-clang "$(compiler)" ] {
@@ -1685,9 +1559,9 @@ rule get-cflags ( properties * )
       errors.error "an internal error." ;
     }
   case "" :
-    errors.error "the value for `<intro-instruction-set>' is empty" ;
+    errors.error "the value for `<instruction-set>' is empty" ;
   case "*" :
-    errors.error "<intro-instruction-set>$(instruction-set): unknown property" ;
+    errors.error "<instruction-set>$(instruction-set): unknown property" ;
   }
 
   local lto = [ feature.get-values <lto> : $(properties) ] ;
@@ -2168,7 +2042,7 @@ rule get-property-dump-commands ( properties * )
                  link
                  threading
                  intro-address-model
-                 intro-instruction-set
+                 instruction-set
                  std
                  lto
                  memory-checker
@@ -2181,9 +2055,6 @@ rule get-property-dump-commands ( properties * )
     }
     else if "$(f)" = "intro-address-model" {
       p = "<address-model>$(v)" ;
-    }
-    else if "$(f)" = "intro-instruction-set" {
-      p = "<instruction-set>$(v)" ;
     }
     else {
       p = "<$(f)>$(v)" ;
@@ -2223,8 +2094,6 @@ rule get-property-dump-commands ( properties * )
                  threading
                  intro-address-model
                  intro-address-model-on-build
-                 intro-instruction-set
-                 intro-instruction-set-on-build
                  std
                  lto
                  correct-call-stack

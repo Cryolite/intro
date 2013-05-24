@@ -1241,20 +1241,10 @@ case "*" :
   errors.error "`<intro-address-model>$(default-bits)': unknown property" ;
 }
 
-feature intro-instruction-set          : unspecified native                         : propagated incidental ;
-feature intro-instruction-set-on-build : [ feature.values <intro-instruction-set> ] :                       ;
-{
-  local use-instruction-set ;
-  for local val in [ feature.values <intro-instruction-set> ] {
-    use-instruction-set += <intro-instruction-set>$(val):<intro-instruction-set-on-build>$(val) ;
-  }
-  constant USE_INSTRUCTION_SET : $(use-instruction-set) ;
-}
-
 local default-host-os = [ feature.get-values "<host-os>" : [ feature.defaults "<host-os>" ] ] ;
-constant DEFAULT_COMPILER_PROPERTIES : "<variant>release/<link>shared/<runtime-link>shared/<runtime-debugging>off/<optimization>speed/<profiling>off/<inlining>full/<threading>multi/<intro-address-model>$(default-bits)/<intro-instruction-set>unspecified/<std>c++03/<lto>off/<correct-call-stack>off/<ssp>off/<memory-checker>off/<libstdc++-debug-mode>off" ;
-constant DEFAULT_PROPERTIES : "<host-os>$(default-host-os)/<target-os>$(default-host-os)/<variant>debug/<std>c++03/<link>shared/<runtime-link>shared/<runtime-debugging>on/<optimization>off/<profiling>off/<inlining>off/<threading>single/<intro-address-model>$(default-bits)/<intro-instruction-set>unspecified/<lto>off/<correct-call-stack>off/<ssp>off/<memory-checker>off/<libstdc++-debug-mode>off" ;
-constant ADDRESS_MODEL_SENSIBLE_DEFAULT_RELEASE_PROPERTIES : "<variant>release/<link>shared/<runtime-link>shared/<threading>multi/<intro-instruction-set>unspecified/<std>c++03/<lto>off/<memory-checker>off/<libstdc++-debug-mode>off" ;
+constant DEFAULT_COMPILER_PROPERTIES : "<variant>release/<link>shared/<runtime-link>shared/<runtime-debugging>off/<optimization>speed/<profiling>off/<inlining>full/<threading>multi/<intro-address-model>$(default-bits)/<instruction-set>generic/<std>c++03/<lto>off/<correct-call-stack>off/<ssp>off/<memory-checker>off/<libstdc++-debug-mode>off" ;
+constant DEFAULT_PROPERTIES : "<host-os>$(default-host-os)/<target-os>$(default-host-os)/<variant>debug/<std>c++03/<link>shared/<runtime-link>shared/<runtime-debugging>on/<optimization>off/<profiling>off/<inlining>off/<threading>single/<intro-address-model>$(default-bits)/<instruction-set>generic/<lto>off/<correct-call-stack>off/<ssp>off/<memory-checker>off/<libstdc++-debug-mode>off" ;
+constant ADDRESS_MODEL_SENSIBLE_DEFAULT_RELEASE_PROPERTIES : "<variant>release/<link>shared/<runtime-link>shared/<threading>multi/<instruction-set>generic/<std>c++03/<lto>off/<memory-checker>off/<libstdc++-debug-mode>off" ;
 
 for local enabled-compiler in $(enabled-compilers) {
   local srcs ;
