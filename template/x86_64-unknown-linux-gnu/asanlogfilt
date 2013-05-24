@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+if [ $# -ne 1 ]; then
+  echo "$0: missing asan logfile" >&2
+  exit 1
+fi
+
+if [ '!' -f "$1" ]; then
+  echo "$0: asan logfile not exist" >&2
+  exit 1
+fi
+
+bindir=`(cd \`dirname "$0"\`; pwd)`
+
+cat "$1" | while IFS= read line; do
+  if echo "$line" | grep -Eq '^[[:space:]]+#[[:digit:]]+[[:space:]]+0x[[:xdigit:]]+[[:space:]]+\(.+\+0x[[:xdigit:]]+\)$'; then
+    indent=`echo "$line" | grep -Eo '^[[:space:]]+#[[:digit:]]+[[:space:]]+'`
+    exeoffset=`echo "$line" | sed -e 's/^[^(]*(\(.*\))$/\1/'`
+    exe=`echo "$exeoffset" | sed -e 's/\(.*\)+0x[[:xdigit:]]\{1,\}$/\1/'`
+    offset=`echo "$exeoffset" | sed -e 's/.*+\(0x[[:xdigit:]]\{1,\}\)$/\1/'`
+    addr2line_output=`"$bindir/addr2line" -e "$exe" -fC $offset`
+    func=`echo "$addr2line_output" | head -n 1`
+    filelineno=`echo "$addr2line_output" | tail -n 1`
+    file=`echo "$filelineno" | sed -e 's/\(.*\):[^:]\{1,\}$/\1/'`
+    lineno=`echo "$filelineno" | sed -e 's/.*:\([^:]\{1,\}\)$/\1/'`
+    [ "$lineno" = 0 ] && lineno='?'
+    if [ "$func" = '??' -a "$file" = '??' -a "$lineno" = '?' ]; then
+      echo "$line"
+    else
+      echo "$indent$func at $file:$lineno"
+    fi
+  else
+    echo "$line"
+  fi
+done

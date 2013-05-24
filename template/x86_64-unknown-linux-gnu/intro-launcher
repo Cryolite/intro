@@ -1,0 +1,53 @@
+#!/usr/bin/env sh
+
+if [ $# -eq 0 ]; then
+  echo "$0: missing program name" >&2
+  exit 1
+fi
+
+if [ -n "$INTRO_LAUNCHER_ENABLE_MEMCHECK" ]; then
+  echo "$0: memcheck currently unavailable" >&2
+  exit 1
+fi
+
+bindir=`(cd \`dirname "$0"\`; pwd)`
+
+prog="$1"
+shift
+
+tmpdir=`mktemp -d` || exit
+memcheck_output="$tmpdir/memcheck_output.%p"
+segv_output="$tmpdir/segv_output"
+asan_output="$tmpdir/asan_output"
+
+(eval '${INTRO_LAUNCHER_PRELOAD:+export LD_PRELOAD="$INTRO_LAUNCHER_PRELOAD${LD_PRELOAD:+ $LD_PRELOAD}"}'
+eval '${INTRO_LAUNCHER_ENABLE_CATCHSEGV:+export LD_PRELOAD="${LD_PRELOAD:+${LD_PRELOAD} }/lib/x86_64-linux-gnu/libSegFault.so"}'
+eval '${INTRO_LAUNCHER_ENABLE_CATCHSEGV:+export SEGFAULT_USE_ALTSTACK=1}'
+eval '${INTRO_LAUNCHER_ENABLE_CATCHSEGV:+export SEGFAULT_OUTPUT_NAME="$segv_output"}'
+eval '${INTRO_LAUNCHER_ENABLE_CATCHSEGV:+export SEGFAULT_SIGNALS="${SEGFAULT_SIGNALS:-all}"}'
+eval '${INTRO_LAUNCHER_ENABLE_ASAN:+export ASAN_OPTIONS="log_path=$asan_output:abort_on_error=1"}'
+# Redirect stderr to avoid termination message from shell.
+exec 3>&2 2>/dev/null \
+${INTRO_LAUNCHER_ENABLE_MEMCHECK:+"$bindir/valgrind" --quiet --log-file="$memcheck_output" --error-exitcode=1 --leak-check=full} \
+"$prog" ${1+"$@"} 2>&3 3>&-)
+exval=$?
+
+for i in "$tmpdir"/memcheck_output.*; do
+  if [ -s "$i" ]; then
+    "$bindir/memchecklogfilt" "$i" >&2
+  fi
+done
+
+for i in "$asan_output".*; do
+  if [ -s "$i" ]; then
+    "$bindir/asanlogfilt" "$i" >&2
+  fi
+done
+
+if [ -s "$segv_output" ]; then
+  "$bindir/catchsegvfilt" "$segv_output" >&2
+fi
+
+rm -r "$tmpdir"
+
+exit $exval

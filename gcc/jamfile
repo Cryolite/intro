@@ -522,7 +522,7 @@ EOF
   ( cd '$(COMPILER_PREFIX)/libexec/gcc/$(HOST_TRIPLET)'/`'$(COMPILER_PREFIX)/bin/gcc' -dumpversion` && ln -sf ../../../../bin/ld ld )
 
   # Installs the modified specfile and wrapper scripts.
-  install --mode=755 '$(INTRO_ROOT_DIR)/template/$(HOST_TRIPLET)'/{vars64.sh,vars64debug.sh,vars32.sh,vars32debug.sh,hack-gcc-specs,gcc-wrapper,g++-wrapper} '$(COMPILER_PREFIX)/bin'
+  install --mode=755 '$(INTRO_ROOT_DIR)/template/$(HOST_TRIPLET)'/{vars64.sh,vars64debug.sh,vars32.sh,vars32debug.sh,hack-gcc-specs,gcc-wrapper,g++-wrapper,intro-launcher,catchsegvfilt,asanlogfilt} '$(COMPILER_PREFIX)/bin'
 
   # Checks the creation of `g++-wrapper`.
   [ -x '$(<)' ]
