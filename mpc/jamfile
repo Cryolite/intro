@@ -157,7 +157,6 @@ make mpc.h
     $(USE_GMP)
     $(USE_MPFR)
     $(USE_MPC)
-    $(USE_ADDRESS_MODEL)
     <conditional>@location-conditional
   ;
 explicit mpc.h ;

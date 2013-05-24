@@ -152,7 +152,6 @@ make mpfr.h
     $(USE_MULTITARGET)
     $(USE_GMP)
     $(USE_MPFR)
-    $(USE_ADDRESS_MODEL)
     <conditional>@location-conditional
   ;
 explicit mpfr.h ;

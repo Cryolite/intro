@@ -337,7 +337,6 @@ make clang-wrapper
   : $(USE_COMPILER)
     $(USE_MULTITARGET)
     $(USE_CLANG)
-    $(USE_ADDRESS_MODEL)
     <conditional>@default-location-conditional
   ;
 explicit clang-wrapper ;
@@ -356,7 +355,6 @@ make clang++-wrapper
   : $(USE_COMPILER)
     $(USE_MULTITARGET)
     $(USE_CLANG)
-    $(USE_ADDRESS_MODEL)
     <conditional>@location-conditional
   ;
 explicit clang++-wrapper ;

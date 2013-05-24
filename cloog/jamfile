@@ -153,7 +153,6 @@ make cloog/cloog.h
     $(USE_GMP)
     $(USE_ISL)
     $(USE_CLOOG)
-    $(USE_ADDRESS_MODEL)
     <conditional>@location-conditional
   ;
 explicit cloog/cloog.h ;
