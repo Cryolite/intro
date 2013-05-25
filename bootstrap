@@ -551,10 +551,8 @@ fi
 install --mode=755 "$intro_root/boost/toolset.sh" "$prefix/bin/get-toolset.sh"
 install --mode=755 "$intro_root/template/x86_64-unknown-linux-gnu/asan2line" "$prefix/bin"
 
-BOOST_ROOT="$prefix/boost/latest"
-export BOOST_ROOT
-BOOST_BUILD_PATH="$BOOST_ROOT/tools/build/v2"
-export BOOST_BUIKD_PATH
+export BOOST_ROOT="$prefix/boost/latest"
+export BOOST_BUILD_PATH="$BOOST_ROOT/tools/build/v2"
 
 tmpdir=`mktemp -d`
 
