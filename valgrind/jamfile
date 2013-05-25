@@ -5,6 +5,7 @@ import errors ;
 import feature ;
 import make ;
 import path ;
+import regex ;
 import "$(INTRO_ROOT_DIR)/compilers"
   : is-gcc
     is-clang
@@ -16,6 +17,10 @@ import "$(INTRO_ROOT_DIR)/compilers"
     get-environment-commands
     get-property-dump-commands
   ;
+
+.here = [ regex.match "Jamfile<(.*)>" : "$(__name__)" : 1 ] ;
+.here = [ path.make "$(.here)" ] ;
+.here-relative = [ path.relative "$(.here)" "$(INTRO_ROOT_DIR)" ] ;
 
 
 rule compiler-dep-req ( properties * )
@@ -43,12 +48,13 @@ alias compiler-dep : : <conditional>@compiler-dep-req ;
 explicit compiler-dep ;
 
 
-
 make "$(INTRO_ROOT_DIR)/valgrind-$(VALGRIND).tar.bz2" : : @download ;
 explicit "$(INTRO_ROOT_DIR)/valgrind-$(VALGRIND).tar.bz2" ;
 
 rule download ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
   local version = [ feature.get-values <valgrind-hidden> : $(properties) ] ;
   URL on $(targets) = http://valgrind.org/downloads/valgrind-$(version).tar.bz2 ;
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
@@ -58,17 +64,16 @@ actions download
   bash -s << 'EOS'
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn 13f39dab-dea3-401a-9cb3-bec2b13b48d7 '$(INTRO_ROOT_DIR)/valgrind/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn 13f39dab-dea3-401a-9cb3-bec2b13b48d7 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+valgrind/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
-  rm -rf '$(<)'
-  trap "rm -rf '$(<)'" ERR HUP INT QUIT TERM
+  rm -f '$(<)'
+  trap "rm -f '$(<)'" ERR HUP INT QUIT TERM
   ( cd '$(<:D)' && wget -- '$(URL)' )
   [ -f '$(<)' ]
 EOS
 }
-
 
 
 if "$(VALGRIND)" != "trunk" {
@@ -89,6 +94,8 @@ if "$(VALGRIND)" != "trunk" {
 
 rule expand ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions expand
@@ -96,9 +103,9 @@ actions expand
   bash -s << 'EOS'
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn a37090d7-4f37-4068-b88f-4db88c6806be '$(INTRO_ROOT_DIR)/valgrind/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn a37090d7-4f37-4068-b88f-4db88c6806be '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+valgrind/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
   rm -rf '$(<:D)'
   [ -f '$(>)' ]
@@ -114,7 +121,6 @@ EOS
 }
 
 
-
 if "$(VALGRIND)" = "trunk" {
   make "$(INTRO_ROOT_DIR)/valgrind-trunk/README"
     : # no source
@@ -126,6 +132,8 @@ if "$(VALGRIND)" = "trunk" {
 
 rule checkout-trunk ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions checkout-trunk
@@ -133,12 +141,12 @@ actions checkout-trunk
   bash -s << 'EOS'
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn 326bcabc-3331-49c6-b4e8-d7c5398b93cc '$(INTRO_ROOT_DIR)/valgrind/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn 326bcabc-3331-49c6-b4e8-d7c5398b93cc '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+valgrind/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
 
-  if [ -d '$(INTRO_ROOT_DIR)/valgrind-trunk' ]; then
+  if [ -f '$(INTRO_ROOT_DIR)/valgrind-trunk/README' ]; then
     ( cd '$(INTRO_ROOT_DIR)/valgrind-trunk' && svn status | grep -E '^?' | cut -c9- | xargs -d '\n' rm -r )
   fi
 
@@ -148,10 +156,15 @@ $(PROPERTY_DUMP_COMMANDS)
   }
   trap cleanup ERR HUP INT QUIT TERM
 
-  if [ ! -d '$(INTRO_ROOT_DIR)/valgrind-trunk' ]; then
+  # Checks whether Valgrind repository has been cloned into
+  # `(INTRO_ROOT_DIR)/valgrind-trunk`. Note that
+  # `[ ! -e '(INTRO_ROOT_DIR)/valgrind-trunk' ]` cannot be used because
+  # `bjam` would automatically create `(INTRO_ROOT_DIR)/valgrind-trunk`
+  # directory.
+  if [ ! -e '$(INTRO_ROOT_DIR)/valgrind-trunk/README' ]; then
     ( cd '$(INTRO_ROOT_DIR)' && svn checkout svn://svn.valgrind.org/valgrind/trunk valgrind-trunk )
   fi
-  [ -d '$(INTRO_ROOT_DIR)/valgrind-trunk' ]
+  [ -f '$(INTRO_ROOT_DIR)/valgrind-trunk/README' ]
 
   ( cd '$(INTRO_ROOT_DIR)/valgrind-trunk' && svn update )
 
@@ -162,7 +175,6 @@ EOS
 }
 
 
-
 rule srcdir-req ( properties * )
 {
   local version = [ feature.get-values <valgrind-hidden> : $(properties) ] ;
@@ -171,7 +183,6 @@ rule srcdir-req ( properties * )
 
 alias srcdir : : <conditional>@srcdir-req ;
 explicit srcdir ;
-
 
 
 rule location-conditional ( properties * )
@@ -198,6 +209,9 @@ explicit valgrind/valgrind.h ;
 
 rule make-install ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
+
   # Sets the path to the source directory.
   local version = [ feature.get-values <valgrind> : $(properties) ] ;
   local srcdir = "$(INTRO_ROOT_DIR)/valgrind-$(version)" ;
@@ -249,9 +263,9 @@ actions make-install
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(ENVIRONMENT_COMMANDS)
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn a3a42b9d-b386-411f-a19b-b86cb8e994c2 '$(INTRO_ROOT_DIR)/valgrind/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn a3a42b9d-b386-411f-a19b-b86cb8e994c2 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+valgrind/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
 
   rm -rf '$(OBJDIR)'
@@ -289,12 +303,11 @@ $(PROPERTY_DUMP_COMMANDS)
   ( cd '$(OBJDIR)' && ulimit -S -t 60 && ulimit -S -m 2097152 && make --jobs=$(CONCURRENCY) regtest ) || true
 
   # Cleans up `objdir`.
-  rm -rf '$(OBJDIR)'
+  rm -r '$(OBJDIR)'
 
   [ -f '$(<)' ]
 EOS
 }
-
 
 
 alias install : "valgrind/valgrind.h/$(DEFAULT_COMPILER_PROPERTIES)" ;
