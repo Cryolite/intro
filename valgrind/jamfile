@@ -146,8 +146,8 @@ $(PROPERTY_DUMP_COMMANDS)
   PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
 
-  if [ -f '$(INTRO_ROOT_DIR)/valgrind-trunk/README' ]; then
-    ( cd '$(INTRO_ROOT_DIR)/valgrind-trunk' && svn status | grep -E '^?' | cut -c9- | xargs -d '\n' rm -r )
+  if [ ! -e '$(INTRO_ROOT_DIR)/valgrind-trunk/README' ]; then
+    rm -rf '$(INTRO_ROOT_DIR)/valgrind-trunk'
   fi
 
   cleanup ()
@@ -156,17 +156,26 @@ $(PROPERTY_DUMP_COMMANDS)
   }
   trap cleanup ERR HUP INT QUIT TERM
 
+  svn_clean ()
+  {
+    [ $# -eq 1 ] || exit 1
+    [ -d "$1" ] || exit 1
+    ( cd "$1" && svn status | grep -E '^?' | cut -c9- | xargs -d '\n' rm -r )
+  }
+
   # Checks whether Valgrind repository has been cloned into
   # `(INTRO_ROOT_DIR)/valgrind-trunk`. Note that
-  # `[ ! -e '(INTRO_ROOT_DIR)/valgrind-trunk' ]` cannot be used because
+  # `[ ! -d '(INTRO_ROOT_DIR)/valgrind-trunk' ]` cannot be used because
   # `bjam` would automatically create `(INTRO_ROOT_DIR)/valgrind-trunk`
   # directory.
   if [ ! -e '$(INTRO_ROOT_DIR)/valgrind-trunk/README' ]; then
-    ( cd '$(INTRO_ROOT_DIR)' && svn checkout svn://svn.valgrind.org/valgrind/trunk valgrind-trunk )
+    ( cd '$(INTRO_ROOT_DIR)' && svn checkout 'svn://svn.valgrind.org/valgrind/trunk' valgrind-trunk )
+    svn_clean '$(INTRO_ROOT_DIR)/valgrind-trunk'
+  else
+    svn_clean '$(INTRO_ROOT_DIR)/valgrind-trunk'
+    ( cd '$(INTRO_ROOT_DIR)/valgrind-trunk' && svn update )
   fi
   [ -f '$(INTRO_ROOT_DIR)/valgrind-trunk/README' ]
-
-  ( cd '$(INTRO_ROOT_DIR)/valgrind-trunk' && svn update )
 
   ( cd '$(INTRO_ROOT_DIR)/valgrind-trunk' && ./autogen.sh )
 

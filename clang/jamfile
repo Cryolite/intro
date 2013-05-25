@@ -222,15 +222,13 @@ EOS
 }
 
 
-for local version in $(CLANG_VERSIONS) {
-  if "$(version)" = "trunk" {
-    make "$(INTRO_ROOT_DIR)/llvm-trunk/README.txt"
-      : # no source
-      : @update-trunk
-      ;
-    explicit "$(INTRO_ROOT_DIR)/llvm-trunk/README.txt" ;
-    #always "$(INTRO_ROOT_DIR)/llvm-trunk/README.txt" ;
-  }
+if trunk in $(CLANG_VERSIONS) {
+  make "$(INTRO_ROOT_DIR)/llvm-trunk/README.txt"
+    : # no source
+    : @update-trunk
+    ;
+  explicit "$(INTRO_ROOT_DIR)/llvm-trunk/README.txt" ;
+  always "$(INTRO_ROOT_DIR)/llvm-trunk/README.txt" ;
 }
 
 rule update-trunk ( targets * : sources * : properties * )
@@ -265,9 +263,7 @@ $(PROPERTY_DUMP_COMMANDS)
   # Checks whether LLVM repository has been cloned into `(LLVM_DIR)`. Note
   # that `[ ! -d '(LLVM_DIR)' ]` cannot be used because `bjam` would
   # automatically create `(LLVM_DIR)` directory.
-  if [ -f '$(LLVM_DIR)/README.txt' ]; then
-    ( cd '$(LLVM_DIR)' && svn status | grep -E '^?' | cut -c9- | xargs -d '\n' rm -r )
-  else
+  if [ ! -e '$(LLVM_DIR)/README.txt' ]; then
     ( cd '$(INTRO_ROOT_DIR)' && rm -rf llvm-trunk )
   fi
 
@@ -277,33 +273,48 @@ $(PROPERTY_DUMP_COMMANDS)
   }
   trap cleanup ERR HUP INT QUIT TERM
 
+  svn_clean ()
+  {
+    [ $# -eq 1 ] || exit 1
+    [ -d "$1" ] || exit 1
+    ( cd "$1" && svn status | grep -E '^?' | cut -c9- | xargs -d '\n' rm -r )
+  }
+
   # Checks whether LLVM repository has been cloned into `(LLVM_DIR)`. Note
   # that `[ ! -d '(LLVM_DIR)' ]` cannot be used because `bjam` would
   # automatically create `(LLVM_DIR)` directory.
   if [ ! -e '$(LLVM_DIR)/README.txt' ]; then
     ( cd '$(INTRO_ROOT_DIR)' && svn checkout 'http://llvm.org/svn/llvm-project/llvm/trunk' llvm-trunk )
+    svn_clean '$(LLVM_DIR)'
+  else
+    svn_clean '$(LLVM_DIR)'
+    ( cd '$(LLVM_DIR)' && svn update )
   fi
   [ -f '$(LLVM_DIR)/README.txt' ]
 
   if [ ! -e '$(CLANG_DIR)' ]; then
     ( cd '$(INTRO_ROOT_DIR)/llvm-trunk/tools' && svn checkout 'http://llvm.org/svn/llvm-project/cfe/trunk' clang )
+  else
+    svn_clean '$(CLANG_DIR)'
+    ( cd '$(CLANG_DIR)' && svn update )
   fi
   [ -d '$(CLANG_DIR)' ]
 
   if [ ! -e '$(EXTRA_CLANG_TOOLS_DIR)' ]; then
     ( cd '$(INTRO_ROOT_DIR)/llvm-trunk/tools/clang/tools' && svn checkout 'http://llvm.org/svn/llvm-project/clang-tools-extra/trunk' extra )
+  else
+    svn_clean '$(EXTRA_CLANG_TOOLS_DIR)'
+    ( cd '$(EXTRA_CLANG_TOOLS_DIR)' && svn update )
   fi
   [ -d '$(EXTRA_CLANG_TOOLS_DIR)' ]
 
   if [ ! -e '$(COMPILER_RT_DIR)' ]; then
     ( cd '$(INTRO_ROOT_DIR)/llvm-trunk/projects' && svn checkout 'http://llvm.org/svn/llvm-project/compiler-rt/trunk' compiler-rt )
+  else
+    svn_clean '$(COMPILER_RT_DIR)'
+    ( cd '$(COMPILER_RT_DIR)' && svn update )
   fi
   [ -d '$(COMPILER_RT_DIR)' ]
-
-  ( cd '$(LLVM_DIR)' && svn update )
-  ( cd '$(CLANG_DIR)' && svn update )
-  ( cd '$(EXTRA_CLANG_TOOLS_DIR)' && svn update )
-  ( cd '$(COMPILER_RT_DIR)' && svn update )
 
   touch --no-create '$(<)'
   [ -f '$(<)' ]
