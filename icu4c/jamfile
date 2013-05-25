@@ -20,6 +20,10 @@ import "$(INTRO_ROOT_DIR)/compilers"
     get-property-dump-commands
   ;
 
+.here = [ regex.match "Jamfile<(.*)>" : "$(__name__)" : 1 ] ;
+.here = [ path.make "$(.here)" ] ;
+.here-relative = [ path.relative "$(.here)" "$(INTRO_ROOT_DIR)" ] ;
+
 
 rule compiler-dep-req ( properties * )
 {
@@ -46,7 +50,6 @@ alias compiler-dep : : <conditional>@compiler-dep-req ;
 explicit compiler-dep ;
 
 
-
 for local version in $(ICU4C_VERSIONS) {
   local version-string = [ regex.replace "$(version)" "\\." "_" ] ;
   make "$(INTRO_ROOT_DIR)/icu4c-$(version-string)-src.tgz" : : @download ;
@@ -55,6 +58,8 @@ for local version in $(ICU4C_VERSIONS) {
 
 rule download ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
   local version = [ feature.get-values <icu4c-hidden> : $(properties) ] ;
   local version-string = [ regex.replace "$(version)" "\\." "_" ] ;
   URL on $(targets) = http://download.icu-project.org/files/icu4c/$(version)/icu4c-$(version-string)-src.tgz ;
@@ -65,17 +70,16 @@ actions download
   bash -s << 'EOS'
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn 0d706101-8e6c-44c4-acdc-3cf3c86562ec '$(INTRO_ROOT_DIR)/icu4c/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn 0d706101-8e6c-44c4-acdc-3cf3c86562ec '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+icu4c/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
-  rm -rf '$(<)'
-  trap "rm -rf '$(<)'" ERR HUP INT QUIT TERM
+  rm -f '$(<)'
+  trap "rm -f '$(<)'" ERR HUP INT QUIT TERM
   ( cd '$(<:D)' && wget -- '$(URL)' )
   [ -f '$(<)' ]
 EOS
 }
-
 
 
 for local version in $(ICU4C_VERSIONS) {
@@ -97,6 +101,8 @@ for local version in $(ICU4C_VERSIONS) {
 
 rule expand ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions expand
@@ -104,9 +110,9 @@ actions expand
   bash -s << 'EOS'
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn c5500518-8f06-4cee-bc41-321c27a38dad '$(INTRO_ROOT_DIR)/icu4c/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn c5500518-8f06-4cee-bc41-321c27a38dad '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+icu4c/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
   rm -rf '$(<:D)'
   rm -rf '$(INTRO_ROOT_DIR)/icu'
@@ -125,7 +131,6 @@ EOS
 }
 
 
-
 rule srcdir-req ( properties * )
 {
   local version = [ feature.get-values <icu4c-hidden> : $(properties) ] ;
@@ -134,7 +139,6 @@ rule srcdir-req ( properties * )
 
 alias srcdir : : <conditional>@srcdir-req ;
 explicit srcdir ;
-
 
 
 rule location-conditional ( properties * )
@@ -159,12 +163,15 @@ explicit unicode/uchar.h ;
 
 rule make-install ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
+
   # Sets the path to the source directory.
   local version = [ feature.get-values <icu4c> : $(properties) ] ;
   local srcdir = "$(INTRO_ROOT_DIR)/icu-$(version)" ;
   SRCDIR on $(targets) = [ path.native "$(srcdir)" ] ;
 
-  # Sets the path to objdir.
+  # Sets the path to `objdir`.
   local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
   local objdir-native = [ path.native "$(objdir)" ] ;
   OBJDIR on $(targets) = "$(objdir-native)" ;
@@ -285,9 +292,9 @@ actions make-install
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(ENVIRONMENT_COMMANDS)
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn dc2fb18a-972a-4f77-806f-47d6bc5e2fa1 '$(INTRO_ROOT_DIR)/icu4c/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn dc2fb18a-972a-4f77-806f-47d6bc5e2fa1 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+icu4c/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
 
   rm -rf '$(OBJDIR)'
@@ -327,13 +334,12 @@ $(PROPERTY_DUMP_COMMANDS)
 
   if [ $total_status -eq 0 ]; then
     # Cleans up `objdir`.
-    rm -rf '$(OBJDIR)'
+    rm -r '$(OBJDIR)'
   fi
 
   [ -f '$(<)' ]
 EOS
 }
-
 
 
 alias install : unicode/uchar.h ;

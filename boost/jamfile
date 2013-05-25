@@ -17,6 +17,10 @@ import "$(INTRO_ROOT_DIR)/compilers"
     get-property-dump-commands
   ;
 
+.here = [ regex.match "Jamfile<(.*)>" : "$(__name__)" : 1 ] ;
+.here = [ path.make "$(.here)" ] ;
+.here-relative = [ path.relative "$(.here)" "$(INTRO_ROOT_DIR)" ] ;
+
 
 rule compiler-dep-req ( properties * )
 {
@@ -43,7 +47,6 @@ alias compiler-dep : : <conditional>@compiler-dep-req ;
 explicit compiler-dep ;
 
 
-
 rule openmpi-conditional ( properties * )
 {
   local mpi-backend = [ feature.get-values <mpi-backend> : $(properties) ] ;
@@ -61,7 +64,6 @@ rule openmpi-conditional ( properties * )
 
 alias openmpi-dep : : <conditional>@openmpi-conditional ;
 explicit openmpi-dep ;
-
 
 
 rule location-conditional ( properties * )
@@ -92,6 +94,9 @@ explicit boost.stage ;
 
 rule install ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
+
   # Set 'BOOST_ROOT'.
   local version = [ feature.get-values <boost> : $(properties) ] ;
   local boost-root = "$(PREFIX)/boost/$(version)" ;
@@ -325,9 +330,9 @@ actions install
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(ENVIRONMENT_COMMANDS)
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn 355d5e25-51b8-4da6-9e0f-bed54743381a '$(INTRO_ROOT_DIR)/boost/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn 355d5e25-51b8-4da6-9e0f-bed54743381a '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+boost/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
 
   ( cd '$(BOOST_ROOT)' && rm -rf bin.v2 )
@@ -343,7 +348,7 @@ $(PROPERTY_DUMP_COMMANDS)
   ( cd '$(BOOST_ROOT)' && ./b2 -d+2 -j$(CONCURRENCY) $(ADDITIONAL_BUILD_OPTS) $(OPTIONS) stage )
 
   if [ '$(LINK)' = 'shared' ]; then
-    rm '$(FULL_PREFIX)/lib/libboost_test_exec_monitor.a'
+    rm -f '$(FULL_PREFIX)/lib/libboost_test_exec_monitor.a'
   fi
 
   # Because some Boost test cases hang up on some environments, resource for
@@ -406,12 +411,11 @@ $(PROPERTY_DUMP_COMMANDS)
     fi
   done
 
-  ( cd '$(BOOST_ROOT)' && rm -rf bin.v2 )
+  ( cd '$(BOOST_ROOT)' && rm -r bin.v2 )
 
   touch '$(<)'
 EOS
 }
-
 
 
 alias install : boost.stage ;
