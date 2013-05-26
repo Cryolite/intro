@@ -115,8 +115,6 @@ make isl/version.h
     $(USE_MULTITARGET)
     $(USE_GMP)
     $(USE_ISL)
-    $(USE_ADDRESS_MODEL)
-    $(USE_INSTRUCTION_SET)
     <conditional>@location-conditional
   ;
 explicit isl/version.h ;

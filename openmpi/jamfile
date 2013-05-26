@@ -133,17 +133,17 @@ explicit srcdir ;
 rule location-conditional ( properties * )
 {
   local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
-  local address-model = [ feature.get-values "<intro-address-model>" : $(properties) ] ;
+  local address-model = [ feature.get-values <address-model> : $(properties) ] ;
   local includedir ;
   switch "$(address-model)" {
-  case "64" :
+  case 64 :
     includedir = "$(compiler-prefix)/address-model-64/include" ;
-  case "32" :
+  case 32 :
     includedir = "$(compiler-prefix)/address-model-32/include" ;
   case "" :
-    errors.error "the value for `<intro-address-model>' is empty" ;
-  case "*" :
-    errors.error "`<intro-address-model>$(address-model)': unknown property" ;
+    errors.error "the value for `<address-model>' is empty" ;
+  case * :
+    errors.error "`<address-model>$(address-model)': unknown property" ;
   }
   return "<location>$(includedir)" ;
 }
@@ -155,8 +155,6 @@ make mpi.h
   : $(USE_COMPILER)
     $(USE_MULTITARGET)
     $(USE_OPENMPI)
-    $(USE_ADDRESS_MODEL)
-    $(USE_INSTRUCTION_SET)
     <conditional>@location-conditional
   ;
 explicit mpi.h ;
@@ -180,7 +178,7 @@ rule make-install ( targets * : sources * : properties * )
 
   local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
 
-  local address-model = [ feature.get-values "<intro-address-model>" : $(properties) ] ;
+  local address-model = [ feature.get-values <address-model> : $(properties) ] ;
 
   local openmpi-prefix = "$(compiler-prefix)/address-model-$(address-model)" ;
   local openmpi-prefix-native = [ path.native "$(openmpi-prefix)" ] ;
@@ -230,18 +228,18 @@ rule make-install ( targets * : sources * : properties * )
   OPTIONS on $(targets) += "CXX='$(cxx-native)'" ;
 
   switch "$(address-model)" {
-  case "64" :
+  case 64 :
     OPTIONS on $(targets) += "CFLAGS='-m64'" ;
     OPTIONS on $(targets) += "CXXFLAGS='-m64'" ;
     OPTIONS on $(targets) += "LDFLAGS='-m64'" ;
-  case "32" :
+  case 32 :
     OPTIONS on $(targets) += "CFLAGS='-m32'" ;
     OPTIONS on $(targets) += "CXXFLAGS='-m32'" ;
     OPTIONS on $(targets) += "LDFLAGS='-m32'" ;
   case "" :
-    errors.error "the value for `<intro-address-model>' is empty" ;
-  case "*" :
-    errors.error "`<intro-address-model>$(address-model)': unknown property" ;
+    errors.error "the value for `<address-model>' is empty" ;
+  case * :
+    errors.error "`<address-model>$(address-model)': unknown property" ;
   }
 
   local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;

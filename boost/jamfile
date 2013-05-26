@@ -86,8 +86,6 @@ make boost.stage
     $(USE_MPI_BACKEND)
     $(USE_OPENMPI)
     $(USE_BOOST)
-    $(USE_ADDRESS_MODEL)
-    $(USE_INSTRUCTION_SET)
     <conditional>@location-conditional
   ;
 explicit boost.stage ;
@@ -193,24 +191,24 @@ rule install ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) += "threading=$(threading)" ;
 
-  local address-model = [ feature.get-values "<intro-address-model>" : $(properties) ] ;
+  local address-model = [ feature.get-values <address-model> : $(properties) ] ;
   switch "$(address-model)" {
-  case "64" :
+  case 64 :
     OPTIONS on $(targets) += "address-model=64" ;
-  case "32" :
+  case 32 :
     OPTIONS on $(targets) += "address-model=32" ;
   case "" :
-    errors.error "the value for `<intro-address-model>' is empty" ;
-  case "*" :
-    errors.error "`<intro-address-model>$(address-model)': unknown property" ;
+    errors.error "the value for `<address-model>' is empty" ;
+  case * :
+    errors.error "`<address-model>$(address-model)': unknown property" ;
   }
 
-  local instruction-set = [ feature.get-values <intro-instruction-set> : $(properties) ] ;
+  local instruction-set = [ feature.get-values <instruction-set> : $(properties) ] ;
   switch "$(instruction-set)" {
-  case "unspecified" :
-    # Do nothing.
+  case "generic" :
+    OPTIONS on $(targets) += "instruction-set=generic" ;
   case "native" :
-    OPTIONS on $(targets) += "instruction-set=$(instruction-set)" ;
+    OPTIONS on $(targets) += "instruction-set=native" ;
     if [ is-icc "$(compiler)" ] {
       OPTIONS on $(targets) += "cflags=-xHost" ;
       OPTIONS on $(targets) += "linkflags=-xHost" ;

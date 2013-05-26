@@ -330,44 +330,6 @@ rule get-gcc-versions ( compilers * )
   return $(results) ;
 }
 
-rule get-version-deprecated ( compiler )
-{
-  if ! [ is-valid "$(compiler)" ] {
-    errors.error "an internal error." ;
-  }
-  local result ;
-  if $(compiler) in gcc-current gcc-previous gcc-oldest gcc-snapshot gcc-current-snapshot gcc-previous-snapshot gcc-oldest-snapshot {
-    result = [ get-$(compiler)-version ] ;
-  }
-  else if [ is-gcc "$(compiler)" ] {
-    result = [ regex.match "gcc-(.+)" : "$(compiler)" : 1 ] ;
-  }
-  else if [ is-clang "$(compiler)" ] {
-    if "$(compiler)" = "clang-latest" {
-      result = [ get-clang-latest-version ] ;
-    }
-    else if "$(compiler)" = "clang-trunk" {
-      errors.error "this rule cannot be called for Clang trunk." ;
-    }
-    else {
-      result = [ regex.match "^clang-(.+)" : "$(compiler)" : 1 ] ;
-    }
-  }
-  else if [ is-icc "$(compiler)" ] {
-    if [ regex.match "^(icc-system-.+)" : "$(compiler)" : 1 ] {
-      result = [ get-icc-system-version ] ;
-    }
-    else {
-      errors.error "an internal error." ;
-    }
-  }
-  else
-  {
-    errors.error "an internal error." ;
-  }
-  return $(result) ;
-}
-
 rule get-frontend-version ( compiler )
 {
   if ! [ is-valid "$(compiler)" ] {
@@ -594,30 +556,28 @@ rule get-full-prefix ( prefix : properties * )
     errors.error "<threading>$(threading): an unknown property" ;
   }
 
-  local address-model = [ feature.get-values <intro-address-model> : $(properties) ] ;
+  local address-model = [ feature.get-values <address-model> : $(properties) ] ;
   switch "$(address-model)" {
-  case "unspecified" :
-    result = "$(result)/address-model-unspecified" ;
   case "64" :
     result = "$(result)/address-model-64" ;
   case "32" :
     result = "$(result)/address-model-32" ;
   case "" :
-    errors.error "the value for `<intro-address-model>' is empty" ;
+    errors.error "the value for `<address-model>' is empty" ;
   case "*" :
-    errors.error "<intro-address-model>$(address-model): an unknown property" ;
+    errors.error "<address-model>$(address-model): an unknown property" ;
   }
 
-  local instruction-set = [ feature.get-values <intro-instruction-set> : $(properties) ] ;
+  local instruction-set = [ feature.get-values <instruction-set> : $(properties) ] ;
   switch "$(instruction-set)" {
-  case "unspecified" :
-    result = "$(result)/instruction-set-unspecified" ;
+  case "generic" :
+    result = "$(result)/instruction-set-generic" ;
   case "native" :
     result = "$(result)/instruction-set-native" ;
   case "" :
-    errors.error "the value for `<intro-instruction-set>' is empty" ;
+    errors.error "the value for `<instruction-set>' is empty" ;
   case "*" :
-    errors.error "<intro-instruction-set>$(instruction-set): an unknown property" ;
+    errors.error "<instruction-set>$(instruction-set): an unknown property" ;
   }
 
   local std = [ feature.get-values <std> : $(properties) ] ;
@@ -752,48 +712,11 @@ rule get-default-bindir ( prefix : properties * )
 
 rule get-default-libdir ( prefix : properties * )
 {
-  local build-os = [ feature.get-values <host-os> : [ feature.defaults <host-os> ] ] ;
-  local system-bits = [ get-default-bits ] ;
-  local host-os = [ feature.get-values <host-os> : $(properties) ] ;
-  local target-os = [ feature.get-values <target-os> : $(properties) ] ;
-  local multitarget = [ feature.get-values <multitarget-hidden> : $(properties) ] ;
-  local address-model = [ feature.get-values <intro-address-model> : $(properties) ] ;
-  local result ;
-  if "$(multitarget)" = "yes" {
-    if "$(build-os)" != "linux" {
-      errors.error "an internal error." ;
-    }
-    if "$(system-bits)" != "64" {
-      errors.error "an internal error." ;
-    }
-    if "$(host-os)" != "linux" {
-      errors.error "an internal error." ;
-    }
-    if "$(target-os)" != "linux" {
-      errors.error "an internal error." ;
-    }
-    if "$(address-model)" = "unspecified" {
-      result = "lib64" ;
-    }
-    else if "$(address-model)" = "32" {
-      result = "lib" ;
-    }
-    else {
-      errors.error "an internal error." ;
-    }
-  }
-  else {
-    result = "lib" ;
-  }
-  local compiler-prefix = [ get-compiler-prefix "$(prefix)" : $(properties) ] ;
-  result = "$(compiler-prefix)/$(result)" ;
-  return "$(result)" ;
-}
-
-rule get-default-debug-libdir ( prefix : properties * )
-{
-  local default-libdir = [ get-default-libdir "$(prefix)" : $(properties) ] ;
-  return "$(default-libdir)/debug" ;
+  errors.error "Sorry, unimplemented. To implement this rule, we should"
+               " check whether `lib` or `lib64` is the correct location"
+               " where 64-bit libraries are installed. However, it is"
+               " annoying because the location varies from Linux"
+               " distribution to distribution." ;
 }
 
 rule get-default-includedir ( prefix : properties * )
@@ -809,7 +732,7 @@ rule get-compiler-triplets ( properties * )
   local host-os = [ feature.get-values <host-os> : $(properties) ] ;
   local target-os = [ feature.get-values <target-os> : $(properties) ] ;
   local multitarget = [ feature.get-values <multitarget> : $(properties) ] ;
-  local address-model = [ feature.get-values <intro-address-model> : $(properties) ] ;
+  local address-model = [ feature.get-values <address-model> : $(properties) ] ;
   local build-triplet ;
   local host-triplet ;
   local target-triplet ;
@@ -833,19 +756,19 @@ rule get-compiler-triplets ( properties * )
             case "32" : # `$(address-model)' is `32'.
               errors.error "`<multitarget>$(multitarget)' and `<address-model>32' are not compatible" ;
             case "" :
-              errors.error "The value for `<intro-address-model>' feature is empty." ;
+              errors.error "The value for `<address-model>' feature is empty." ;
             case "*" : # `$(address-model)' is other than `unspecified', `64' or `32'.
-              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
+              errors.error "`<address-model>$(address-model)' is an unknown property." ;
             }
           case "no" : # `$(multitarget)' is `no'.
             switch "$(address-model)" {
-            case "64" : # `<intro-address-model>64'
+            case "64" : # `<address-model>64'
               target-triplet = "x86_64-unknown-linux-gnu" ;
               enabled-targets = "x86_64-unknown-linux-gnu" ;
             case "" :
-              errors.error "The value for `<intro-address-model>' feature is empty." ;
+              errors.error "The value for `<address-model>' feature is empty." ;
             case "*" :
-              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
+              errors.error "`<address-model>$(address-model)' is an unknown property." ;
             }
           case "" :
             errors.error "The value for `<multitarget>' feature is empty." ;
@@ -856,16 +779,16 @@ rule get-compiler-triplets ( properties * )
           switch "$(multitarget)" {
           case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "64" : # `<intro-address-model>64'
+            case "64" : # `<address-model>64'
               target-triplet = "x86_64-w64-mingw32" ;
               enabled-targets = "x86_64-w64-mingw32" ;
-            case "32" : # `<intro-address-model>32'
+            case "32" : # `<address-model>32'
               target-triplet = "i686-w64-mingw32" ;
               enabled-targets = "i686-w64-mingw32" ;
             case "" :
-              errors.error "The value for `<intro-address-model>' feature is empty." ;
-            case "*" : # The value for `<intro-address-model>' feature is neither `64' nor `32'.
-              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
+              errors.error "The value for `<address-model>' feature is empty." ;
+            case "*" : # The value for `<address-model>' feature is neither `64' nor `32'.
+              errors.error "`<address-model>$(address-model)' is an unknown property." ;
             }
           case "" :
             errors.error "The value for `<multitarget>' feature is empty." ;
@@ -876,13 +799,13 @@ rule get-compiler-triplets ( properties * )
           switch "$(multitarget)" {
           case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "32" : # `<intro-address-model>32'
+            case "32" : # `<address-model>32'
               target-triplet = "i686-pc-cygwin" ;
               enabled-targets = "i686-pc-cygwin" ;
             case "" :
-              errors.error "The value for `<intro-address-model>' is empty." ;
-            case "*" : # The value for `<intro-address-model>' feature is other than `32'.
-              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
+              errors.error "The value for `<address-model>' is empty." ;
+            case "*" : # The value for `<address-model>' feature is other than `32'.
+              errors.error "`<address-model>$(address-model)' is an unknown property." ;
             }
           case "" :
             errors.error "The value for `<multitarget>' is empty." ;
@@ -928,13 +851,13 @@ rule get-compiler-triplets ( properties * )
           switch "$(multitarget)" {
           case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "32" : # `<intro-address-model>32'
+            case "32" : # `<address-model>32'
               target-triplet = "i686-pc-cygwin" ;
               enabled-targets = "i686-pc-cygwin" ;
             case "" :
-              errors.error "The value for `<intro-address-model>' feature is empty." ;
-            case "*" : # The value for `<intro-address-model>' feature is other than `32'.
-              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
+              errors.error "The value for `<address-model>' feature is empty." ;
+            case "*" : # The value for `<address-model>' feature is other than `32'.
+              errors.error "`<address-model>$(address-model)' is an unknown property." ;
             }
           case "" :
             errors.error "The value for `<multitarget>' feature is empty." ;
@@ -961,13 +884,13 @@ rule get-compiler-triplets ( properties * )
           switch "$(multitarget)" {
           case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "32" : # `<intro-address-model>32'
+            case "32" : # `<address-model>32'
               target-triplet = "i686-pc-linux-gnu" ;
               enabled-targets = "i686-pc-linux-gnu" ;
             case "" :
-              errors.error "The value for `<intro-address-model>' feature is empty." ;
-            case "*" : # The value for `<intro-address-model>' feature is other than `unspecified'.
-              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
+              errors.error "The value for `<address-model>' feature is empty." ;
+            case "*" : # The value for `<address-model>' feature is other than `unspecified'.
+              errors.error "`<address-model>$(address-model)' is an unknown property." ;
             }
           case "" :
             errors.error "The value for `<multitarget>' feature is empty." ;
@@ -978,16 +901,16 @@ rule get-compiler-triplets ( properties * )
           switch "$(multitarget)" {
           case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "32" : # `<intro-address-model>32'
+            case "32" : # `<address-model>32'
               target-triplet = "i686-w64-mingw32" ;
               enabled-targets = "i686-w64-mingw32" ;
-            case "64" : # `<intro-address-model>64'
+            case "64" : # `<address-model>64'
               target-triplet = "x86_64-w64-mingw32" ;
               enabled-targets = "x86_64-w64-mingw32" ;
             case "" :
-              errors.error "The value for `<intro-address-model>' feature is empty." ;
-            case "*" : # The value for `<intro-address-model>' feature is neither `32' nor `64'.
-              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
+              errors.error "The value for `<address-model>' feature is empty." ;
+            case "*" : # The value for `<address-model>' feature is neither `32' nor `64'.
+              errors.error "`<address-model>$(address-model)' is an unknown property." ;
             }
           case "" :
             errors.error "The value for `<multitarget>' feature is empty." ;
@@ -1020,18 +943,18 @@ rule get-compiler-triplets ( properties * )
           switch "$(multitarget)" {
           case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "32" : # `<intro-address-model>32'
+            case "32" : # `<address-model>32'
               host-triplet = "i686-w64-mingw32" ;
               target-triplet = "i686-w64-mingw32" ;
               enabled-targets = "i686-w64-mingw32" ;
-            case "64" : # `<intro-address-model>64'
+            case "64" : # `<address-model>64'
               host-triplet = "x86_64-w64-mingw32" ;
               target-triplet = "x86_64-w64-mingw32" ;
               enabled-targets = "x86_64-w64-mingw32" ;
             case "" :
-              errors.error "The value for `<intro-address-model>' feature is empty." ;
-            case "*" : # The value for `<intro-address-model>' feature is neither `32' nor `64'.
-              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
+              errors.error "The value for `<address-model>' feature is empty." ;
+            case "*" : # The value for `<address-model>' feature is neither `32' nor `64'.
+              errors.error "`<address-model>$(address-model)' is an unknown property." ;
             }
           case "" :
             errors.error "The value for `<multitarget>' feature is empty." ;
@@ -1050,13 +973,13 @@ rule get-compiler-triplets ( properties * )
           switch "$(multitarget)" {
           case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "32" : # `<intro-address-model>32'
+            case "32" : # `<address-model>32'
               target-triplet = "i686-pc-cygwin" ;
               enabled-targets = "i686-pc-cygwin" ;
             case "" :
-              errors.error "The value for `<intro-address-model>' feature is empty." ;
-            case "*" : # The value for `<intro-address-model>' feature is other than `32'.
-              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
+              errors.error "The value for `<address-model>' feature is empty." ;
+            case "*" : # The value for `<address-model>' feature is other than `32'.
+              errors.error "`<address-model>$(address-model)' is an unknown property." ;
             }
           case "" :
             errors.error "The value for `<multitarget>' feature is empty." ;
@@ -1090,13 +1013,13 @@ rule get-compiler-triplets ( properties * )
           switch "$(multitarget)" {
           case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "64" : # `<intro-address-model>64'
+            case "64" : # `<address-model>64'
               target-triplet = "x86_64-w64-mingw32" ;
               enabled-targets = "x86_64-w64-mingw32" ;
             case "" :
-              errors.error "The value for `<intro-address-model>' feature is empty." ;
-            case "*" : # The value for `<intro-address-model>' feature is other than `64'.
-              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
+              errors.error "The value for `<address-model>' feature is empty." ;
+            case "*" : # The value for `<address-model>' feature is other than `64'.
+              errors.error "`<address-model>$(address-model)' is an unknown property." ;
             }
           case "" :
             errors.error "The value for `<multitarget>' feature is empty." ;
@@ -1123,13 +1046,13 @@ rule get-compiler-triplets ( properties * )
           switch "$(multitarget)" {
           case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "32" : # `<intro-address-model>32'
+            case "32" : # `<address-model>32'
               target-triplet = "i686-w64-mingw32" ;
               enabled-targets = "i686-w64-mingw32" ;
             case "" :
-              errors.error "The value for `<intro-address-model>' feature is empty." ;
-            case "*" : # The value for `<intro-address-model>' feature is other than `32'.
-              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
+              errors.error "The value for `<address-model>' feature is empty." ;
+            case "*" : # The value for `<address-model>' feature is other than `32'.
+              errors.error "`<address-model>$(address-model)' is an unknown property." ;
             }
           case "" :
             errors.error "The value for `<multitarget>' feature is empty." ;
@@ -1212,94 +1135,6 @@ rule get-compiler-triplets ( properties * )
   return $(build-triplet) $(host-triplet) $(target-triplet) $(enabled-targets) ;
 }
 
-rule normalize-properties ( properties * )
-{
-  local address-model = [ feature.get-values <intro-address-model> : $(properties) ] ;
-  local instruction-set = [ feature.get-values <intro-instruction-set> : $(properties) ] ;
-  local multitarget = [ feature.get-values <multitarget> : $(properties) ] ;
-  properties = [ property.change $(properties) : <intro-address-model> ] ;
-  if "$(address-model)" {
-    properties = [ property.change $(properties) : <address-model> $(address-model) ] ;
-  }
-  properties = [ property.change $(properties) : <intro-instruction-set> ] ;
-  properties = [ property.change $(properties) : <intro-instruction-set-on-build> ] ;
-  if "$(instruction-set)" != "unspecified" {
-    properties += "<instruction-set>$(instruction-set)" ;
-  }
-  properties = [ property.change $(properties) : <toolset> ] ;
-  properties = [ property.change $(properties) : <location> ] ;
-  properties = [ property.change $(properties) : <conditional> ] ;
-  properties = [ property.change $(properties) : <action> ] ;
-  properties = [ property.change $(properties) : <compiler> ] ;
-  properties = [ property.change $(properties) : <compiler-hidden> ] ;
-  properties = [ property.change $(properties) : <multitarget> ] ;
-  properties = [ property.change $(properties) : <multitarget-hidden> ] ;
-  properties = [ property.change $(properties) : <binutils-hidden> ] ;
-  properties = [ property.change $(properties) : <binutils> ] ;
-  properties = [ property.change $(properties) : <gmp-for-gcc-hidden> ] ;
-  properties = [ property.change $(properties) : <gmp-for-gcc> ] ;
-  properties = [ property.change $(properties) : <mpfr-for-gcc-hidden> ] ;
-  properties = [ property.change $(properties) : <mpfr-for-gcc> ] ;
-  properties = [ property.change $(properties) : <mpc-for-gcc-hidden> ] ;
-  properties = [ property.change $(properties) : <mpc-for-gcc> ] ;
-  properties = [ property.change $(properties) : <isl-for-gcc-hidden> ] ;
-  properties = [ property.change $(properties) : <isl-for-gcc> ] ;
-  properties = [ property.change $(properties) : <cloog-for-gcc-hidden> ] ;
-  properties = [ property.change $(properties) : <cloog-for-gcc> ] ;
-  properties = [ property.change $(properties) : <gmp-hidden> ] ;
-  properties = [ property.change $(properties) : <gmp> ] ;
-  properties = [ property.change $(properties) : <mpfr-hidden> ] ;
-  properties = [ property.change $(properties) : <mpfr> ] ;
-  properties = [ property.change $(properties) : <mpc-hidden> ] ;
-  properties = [ property.change $(properties) : <mpc> ] ;
-  properties = [ property.change $(properties) : <isl-hidden> ] ;
-  properties = [ property.change $(properties) : <isl> ] ;
-  properties = [ property.change $(properties) : <cloog-hidden> ] ;
-  properties = [ property.change $(properties) : <cloog> ] ;
-  properties = [ property.change $(properties) : <ppl-hidden> ] ;
-  properties = [ property.change $(properties) : <ppl> ] ;
-  properties = [ property.change $(properties) : <icu4c-hidden> ] ;
-  properties = [ property.change $(properties) : <icu4c> ] ;
-  properties = [ property.change $(properties) : <openmpi-hidden> ] ;
-  properties = [ property.change $(properties) : <openmpi> ] ;
-  properties = [ property.change $(properties) : <mpi-backend-hidden> ] ;
-  properties = [ property.change $(properties) : <mpi-backend> ] ;
-  properties = [ property.change $(properties) : <boost-hidden> ] ;
-  properties = [ property.change $(properties) : <boost> ] ;
-  properties = [ property.change $(properties) : <clang-hidden> ] ;
-  properties = [ property.change $(properties) : <clang> ] ;
-  properties = [ property.change $(properties) : <valgrind-hidden> ] ;
-  properties = [ property.change $(properties) : <valgrind> ] ;
-  return $(properties) ;
-}
-
-rule get-bindir ( prefix : properties * )
-{
-  local result = [ get-default-bindir "$(prefix)" : $(properties) ] ;
-  properties = [ normalize-properties $(properties) ] ;
-  local property-path = [ property.as-path $(properties) ] ;
-  result = "$(result)/$(property-path)" ;
-  return "$(result)" ;
-}
-
-rule get-libdir ( prefix : properties * )
-{
-  local result = [ get-default-libdir "$(prefix)" : $(properties) ] ;
-  properties = [ normalize-properties $(properties) ] ;
-  local property-path = [ property.as-path $(properties) ] ;
-  result = "$(result)/$(property-path)" ;
-  return "$(result)" ;
-}
-
-rule get-includedir ( prefix : properties * )
-{
-  local result = [ get-default-includedir "$(prefix)" : $(properties) ] ;
-  properties = [ normalize-properties $(properties) ] ;
-  local property-path = [ property.as-path $(properties) ] ;
-  result = "$(result)/$(property-path)" ;
-  return "$(result)" ;
-}
-
 rule get-triplets ( properties * )
 {
   local build-os = [ feature.get-values <host-os> : [ feature.defaults <host-os> ] ] ;
@@ -1307,7 +1142,7 @@ rule get-triplets ( properties * )
   local host-os = [ feature.get-values <host-os> : $(properties) ] ;
   local target-os = [ feature.get-values <target-os> : $(properties) ] ;
   local multitarget = [ feature.get-values <multitarget> : $(properties) ] ;
-  local address-model = [ feature.get-values <intro-address-model> : $(properties) ] ;
+  local address-model = [ feature.get-values <address-model> : $(properties) ] ;
   local build-triplet ;
   local host-triplet ;
   switch "$(build-os)" {
@@ -1322,23 +1157,23 @@ rule get-triplets ( properties * )
           switch "$(multitarget)" {
           case "yes" : # `<multitarget>yes'
             switch "$(address-model)" {
-            case "64" : # `<intro-address-model>64'
+            case "64" : # `<address-model>64'
               host-triplet = "x86_64-unknown-linux-gnu" ;
-            case "32" : # `<intro-address-model>32'
+            case "32" : # `<address-model>32'
               host-triplet = "i686-pc-linux-gnu" ;
             case "" :
-              errors.error "The value for `<intro-address-model>' feature is empty." ;
-            case "*" : # The value for `<intro-address-model>' feature is neither `64' nor `32'.
-              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
+              errors.error "The value for `<address-model>' feature is empty." ;
+            case "*" : # The value for `<address-model>' feature is neither `64' nor `32'.
+              errors.error "`<address-model>$(address-model)' is an unknown property." ;
             }
           case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "64" : # `<intro-address-model>64'
+            case "64" : # `<address-model>64'
               host-triplet = "x86_64-unknown-linux-gnu" ;
             case "" :
-              errors.error "The value for `<intro-address-model>' feature is empty." ;
-            case "*" : # The value for `<intro-address-model>' feature is other than `64'.
-              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
+              errors.error "The value for `<address-model>' feature is empty." ;
+            case "*" : # The value for `<address-model>' feature is other than `64'.
+              errors.error "`<address-model>$(address-model)' is an unknown property." ;
             }
           case "" :
             errors.error "The value for `<multitarget>' feature is empty." ;
@@ -1349,14 +1184,14 @@ rule get-triplets ( properties * )
           switch "$(multitarget)" {
           case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "64" : # `<intro-address-model>64'
+            case "64" : # `<address-model>64'
               host-triplet = "x86_64-w64-mingw32" ;
-            case "32" : # `<intro-address-model>32'
+            case "32" : # `<address-model>32'
               host-triplet = "i686-w64-mingw32" ;
             case "" :
-              errors.error "The value for `<intro-address-model>' feature is empty." ;
-            case "*" : # The value for `<intro-address-model>' feature is neither `64' nor `32'.
-              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
+              errors.error "The value for `<address-model>' feature is empty." ;
+            case "*" : # The value for `<address-model>' feature is neither `64' nor `32'.
+              errors.error "`<address-model>$(address-model)' is an unknown property." ;
             }
           case "" :
             errors.error "The value for `<multitarget>' feature is empty." ;
@@ -1367,12 +1202,12 @@ rule get-triplets ( properties * )
           switch "$(multitarget)" {
           case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "32" : # `<intro-address-model>32'
+            case "32" : # `<address-model>32'
               host-triplet = "i686-pc-cygwin" ;
             case "" :
-              errors.error "The value for `<intro-address-model>' feature is empty." ;
-            case "*" : # The value for `<intro-address-model>' is other than `32'.
-              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
+              errors.error "The value for `<address-model>' feature is empty." ;
+            case "*" : # The value for `<address-model>' is other than `32'.
+              errors.error "`<address-model>$(address-model)' is an unknown property." ;
             }
           case "" :
             errors.error "The value for `<multitarget>' feature is empty." ;
@@ -1398,12 +1233,12 @@ rule get-triplets ( properties * )
           switch "$(multitarget)" {
           case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "32" : # `<intro-address-model>32'
+            case "32" : # `<address-model>32'
               host-triplet = "i686-pc-linux-gnu" ;
             case "" :
-              errors.error "The value for `<intro-address-model>' feature is empty." ;
-            case "*" : # The value for `<intro-address-model>' feature is other than `32'.
-              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
+              errors.error "The value for `<address-model>' feature is empty." ;
+            case "*" : # The value for `<address-model>' feature is other than `32'.
+              errors.error "`<address-model>$(address-model)' is an unknown property." ;
             }
           case "" :
             errors.error "The value for `<multitarget>' feature is empty." ;
@@ -1414,14 +1249,14 @@ rule get-triplets ( properties * )
           switch "$(multitarget)" {
           case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "32" : # `<intro-address-model>32'
+            case "32" : # `<address-model>32'
               host-triplet = "i686-w64-mingw32" ;
-            case "64" : # `<intro-address-model>64'
+            case "64" : # `<address-model>64'
               host-triplet = "x86_64-w64-mingw32" ;
             case "" :
-              errors.error "The value for `<intro-address-model>' feature is empty." ;
-            case "*" : # The value for `<intro-address-model>' feature is neither `32' nor `64'.
-              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
+              errors.error "The value for `<address-model>' feature is empty." ;
+            case "*" : # The value for `<address-model>' feature is neither `32' nor `64'.
+              errors.error "`<address-model>$(address-model)' is an unknown property." ;
             }
           case "" :
             errors.error "The value for `<multitarget>' feature is empty." ;
@@ -1432,12 +1267,12 @@ rule get-triplets ( properties * )
           switch "$(multitarget)" {
           case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "32" : # `<intro-address-model>32'
+            case "32" : # `<address-model>32'
               host-triplet = "i686-pc-cygwin" ;
             case "" :
-              errors.error "The value for `<intro-address-model>' feature is empty." ;
-            case "*" : # The value for `<intro-address-model>' feature is other than `32'.
-              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
+              errors.error "The value for `<address-model>' feature is empty." ;
+            case "*" : # The value for `<address-model>' feature is other than `32'.
+              errors.error "`<address-model>$(address-model)' is an unknown property." ;
             }
           case "" :
             errors.error "The value for `<multitarget>' feature is empty." ;
@@ -1470,12 +1305,12 @@ rule get-triplets ( properties * )
           switch "$(multitarget)" {
           case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "64" : # `<intro-address-model>64'
+            case "64" : # `<address-model>64'
               host-triplet = "x86_64-w64-mingw32" ;
             case "" :
-              errors.error "The value for `<intro-address-model>' feature is empty." ;
-            case "*" : # The value for `<intro-address-model>' feature is other than `64'.
-              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
+              errors.error "The value for `<address-model>' feature is empty." ;
+            case "*" : # The value for `<address-model>' feature is other than `64'.
+              errors.error "`<address-model>$(address-model)' is an unknown property." ;
             }
           case "" :
             errors.error "The value for `<multitarget>' feature is empty." ;
@@ -1501,12 +1336,12 @@ rule get-triplets ( properties * )
           switch "$(multitarget)" {
           case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "32" : # `<intro-address-model>32'
+            case "32" : # `<address-model>32'
               host-triplet = "i686-w64-mingw32" ;
             case "" :
-              errors.error "The value for `<intro-address-model>' feature is empty." ;
-            case "*" : # The value for `<intro-address-model>' feature is other than `32'.
-              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
+              errors.error "The value for `<address-model>' feature is empty." ;
+            case "*" : # The value for `<address-model>' feature is other than `32'.
+              errors.error "`<address-model>$(address-model)' is an unknown property." ;
             }
           case "" :
             errors.error "The value for `<multitarget>' feature is empty." ;
@@ -1539,12 +1374,12 @@ rule get-triplets ( properties * )
           switch "$(multitarget)" {
           case "no" : # `<multitarget>no'
             switch "$(address-model)" {
-            case "32" : # `<intro-address-model>32'
+            case "32" : # `<address-model>32'
               host-triplet = "i686-pc-cygwin" ;
             case "" :
-              errors.error "The value for `<intro-address-model>' feature is empty." ;
-            case "*" : # The value for `<intro-address-model>' feature is other than `32'.
-              errors.error "`<intro-address-model>$(address-model)' is an unknown property." ;
+              errors.error "The value for `<address-model>' feature is empty." ;
+            case "*" : # The value for `<address-model>' feature is other than `32'.
+              errors.error "`<address-model>$(address-model)' is an unknown property." ;
             }
           case "" :
             errors.error "The value for `<multitarget>' feature is empty." ;
@@ -1655,23 +1490,21 @@ rule get-cflags ( properties * )
     errors.error "<variant>$(variant): unknown property" ;
   }
 
-  local address-model = [ feature.get-values <intro-address-model> : $(properties) ] ;
+  local address-model = [ feature.get-values <address-model> : $(properties) ] ;
   switch "$(address-model)" {
-  case "unspecified" :
-    # Do nothing.
   case "64" :
     result += "-m64" ;
   case "32" :
     result += "-m32" ;
   case "" :
-    errors.error "the value for `<intro-address-model>' is empty" ;
+    errors.error "the value for `<address-model>' is empty" ;
   case "*" :
-    errors.error "<intro-address-model>$(address-model): unknown property" ;
+    errors.error "<address-model>$(address-model): unknown property" ;
   }
 
-  local instruction-set = [ feature.get-values <intro-instruction-set> : $(properties) ] ;
+  local instruction-set = [ feature.get-values <instruction-set> : $(properties) ] ;
   switch "$(instruction-set)" {
-  case "unspecified" :
+  case "generic" :
     # Do nothing.
   case "native" :
     if [ is-gcc "$(compiler)" ] || [ is-clang "$(compiler)" ] {
@@ -1685,9 +1518,9 @@ rule get-cflags ( properties * )
       errors.error "an internal error." ;
     }
   case "" :
-    errors.error "the value for `<intro-instruction-set>' is empty" ;
+    errors.error "the value for `<instruction-set>' is empty" ;
   case "*" :
-    errors.error "<intro-instruction-set>$(instruction-set): unknown property" ;
+    errors.error "<instruction-set>$(instruction-set): unknown property" ;
   }
 
   local lto = [ feature.get-values <lto> : $(properties) ] ;
@@ -1867,7 +1700,7 @@ rule get-environment-commands ( prefix : properties * )
   local compiler-prefix-native = [ path.native "$(compiler-prefix)" ] ;
   local full-prefix = [ get-full-prefix "$(prefix)" : $(properties) ] ;
 
-  local address-model = [ feature.get-values "<intro-address-model>" : $(properties) ] ;
+  local address-model = [ feature.get-values <address-model> : $(properties) ] ;
 
   # Set `PATH' environment variable.
   local default-bindir-native = [ path.native "$(compiler-prefix)/bin" ] ;
@@ -2167,8 +2000,8 @@ rule get-property-dump-commands ( properties * )
   for local f in variant
                  link
                  threading
-                 intro-address-model
-                 intro-instruction-set
+                 address-model
+                 instruction-set
                  std
                  lto
                  memory-checker
@@ -2178,12 +2011,6 @@ rule get-property-dump-commands ( properties * )
     local p ;
     if ! "$(v)" {
       p = "<$(f)>" ;
-    }
-    else if "$(f)" = "intro-address-model" {
-      p = "<address-model>$(v)" ;
-    }
-    else if "$(f)" = "intro-instruction-set" {
-      p = "<instruction-set>$(v)" ;
     }
     else {
       p = "<$(f)>$(v)" ;
@@ -2221,10 +2048,6 @@ rule get-property-dump-commands ( properties * )
                  link
                  runtime-link
                  threading
-                 intro-address-model
-                 intro-address-model-on-build
-                 intro-instruction-set
-                 intro-instruction-set-on-build
                  std
                  lto
                  correct-call-stack
