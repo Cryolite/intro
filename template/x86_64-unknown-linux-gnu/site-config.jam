@@ -1040,17 +1040,23 @@ local rule get-address-model ( properties * )
 local rule get-lib-instruction-set ( lib : properties * )
 {
   local instruction-set = [ feature.get-values <instruction-set> : $(properties) ] ;
+  if ! "$(instruction-set)" {
+    instruction-set = generic ;
+  }
+  if ! "$(instruction-set)" in generic native {
+    errors.error "an internal error." ;
+  }
   local lib-instruction-set = [ feature.get-values "<$(lib)-instruction-set>" : $(properties) ] ;
   if ! "$(lib-instruction-set)" {
     lib-instruction-set = "$(instruction-set)" ;
   }
-  if ! "$(lib-instruction-set)" in "" native {
+  if ! "$(lib-instruction-set)" in generic native {
     errors.error "an internal error." ;
   }
   if ! [ is-lib-configurable "$(lib)" : $(properties) ] && "$(lib-instruction-set)" != "$(instruction-set)" {
     errors.error "`<$(lib)-instruction-set>$(lib-instruction-set)' is specified but not configurable." ;
   }
-  return "$(lib-instruction-set:E=unspecified)" ;
+  return "$(lib-instruction-set)" ;
 }
 
 local rule get-lib-lto ( lib : properties * )
@@ -1158,7 +1164,7 @@ feature.feature gmp-threading
   : propagated optional
   ;
 feature.feature gmp-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature gmp-lto
@@ -1215,7 +1221,7 @@ feature.feature mpfr-threading
   : propagated optional
   ;
 feature.feature mpfr-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature mpfr-lto
@@ -1273,7 +1279,7 @@ feature.feature icudt-threading
   : propagated optional
   ;
 feature.feature icudt-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature icudt-lto
@@ -1330,7 +1336,7 @@ feature.feature icuuc-threading
   : propagated optional
   ;
 feature.feature icuuc-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature icuuc-lto
@@ -1388,7 +1394,7 @@ feature.feature icuin-threading
   : propagated optional
   ;
 feature.feature icuin-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature icuin-lto
@@ -1448,7 +1454,7 @@ feature.feature icuio-threading
   : propagated optional
   ;
 feature.feature icuio-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature icuio-lto
@@ -1510,7 +1516,7 @@ feature.feature icule-threading
   : propagated optional
   ;
 feature.feature icule-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature icule-lto
@@ -1570,7 +1576,7 @@ feature.feature iculx-threading
   : propagated optional
   ;
 feature.feature iculx-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature iculx-lto
@@ -1632,7 +1638,7 @@ feature.feature icutu-threading
   : propagated optional
   ;
 feature.feature icutu-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature icutu-lto
@@ -1694,7 +1700,7 @@ feature.feature boost-chrono-threading
   : propagated optional
   ;
 feature.feature boost-chrono-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-chrono-lto
@@ -1762,7 +1768,7 @@ feature.feature boost-date-time-threading
   : propagated optional
   ;
 feature.feature boost-date-time-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-date-time-lto
@@ -1829,7 +1835,7 @@ feature.feature boost-exception-threading
   : propagated optional
   ;
 feature.feature boost-exception-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-exception-lto
@@ -1909,7 +1915,7 @@ feature.feature boost-filesystem-threading
   : propagated optional
   ;
 feature.feature boost-filesystem-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-filesystem-lto
@@ -1978,7 +1984,7 @@ feature.feature boost-graph-threading
   : propagated optional
   ;
 feature.feature boost-graph-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-graph-lto
@@ -2046,7 +2052,7 @@ feature.feature boost-graph-parallel-threading
   : propagated optional
   ;
 feature.feature boost-graph-parallel-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-graph-parallel-lto
@@ -2116,7 +2122,7 @@ feature.feature boost-iostreams-threading
   : propagated optional
   ;
 feature.feature boost-iostreams-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-iostreams-lto
@@ -2184,7 +2190,7 @@ feature.feature boost-locale-link
 #  : propagated optional
 #  ;
 feature.feature boost-locale-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-locale-lto
@@ -2298,7 +2304,7 @@ feature.feature boost-math-c99-threading
   : propagated optional
   ;
 feature.feature boost-math-c99-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-math-c99-lto
@@ -2365,7 +2371,7 @@ feature.feature boost-math-c99f-threading
   : propagated optional
   ;
 feature.feature boost-math-c99f-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-math-c99f-lto
@@ -2432,7 +2438,7 @@ feature.feature boost-math-c99l-threading
   : propagated optional
   ;
 feature.feature boost-math-c99l-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-math-c99l-lto
@@ -2499,7 +2505,7 @@ feature.feature boost-math-tr1-threading
   : propagated optional
   ;
 feature.feature boost-math-tr1-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-math-tr1-lto
@@ -2566,7 +2572,7 @@ feature.feature boost-math-tr1f-threading
   : propagated optional
   ;
 feature.feature boost-math-tr1f-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-math-tr1f-lto
@@ -2633,7 +2639,7 @@ feature.feature boost-math-tr1l-threading
   : propagated optional
   ;
 feature.feature boost-math-tr1l-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-math-tr1l-lto
@@ -2700,7 +2706,7 @@ feature.feature boost-mpi-threading
   : propagated optional
   ;
 feature.feature boost-mpi-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-mpi-lto
@@ -2769,7 +2775,7 @@ feature.feature boost-prg-exec-monitor-threading
   : propagated optional
   ;
 feature.feature boost-prg-exec-monitor-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-prg-exec-monitor-lto
@@ -2836,7 +2842,7 @@ feature.feature boost-program-options-threading
   : propagated optional
   ;
 feature.feature boost-program-options-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-program-options-lto
@@ -2903,7 +2909,7 @@ feature.feature boost-python-threading
   : propagated optional
   ;
 feature.feature boost-python-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-python-lto
@@ -2970,7 +2976,7 @@ feature.feature boost-random-threading
   : propagated optional
   ;
 feature.feature boost-random-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-random-lto
@@ -3037,7 +3043,7 @@ feature.feature boost-regex-threading
   : propagated optional
   ;
 feature.feature boost-regex-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-regex-lto
@@ -3109,7 +3115,7 @@ feature.feature boost-serialization-threading
   : propagated optional
   ;
 feature.feature boost-serialization-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-serialization-lto
@@ -3176,7 +3182,7 @@ feature.feature boost-signals-threading
   : propagated optional
   ;
 feature.feature boost-signals-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-signals-lto
@@ -3243,7 +3249,7 @@ feature.feature boost-system-threading
   : propagated optional
   ;
 feature.feature boost-system-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-system-lto
@@ -3311,7 +3317,7 @@ feature.feature boost-test-exec-monitor-threading
   : propagated optional
   ;
 feature.feature boost-test-exec-monitor-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-test-exec-monitor-lto
@@ -3391,7 +3397,7 @@ feature.feature boost-thread-link
 #  : propagated optional
 #  ;
 feature.feature boost-thread-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-thread-lto
@@ -3501,7 +3507,7 @@ feature.feature boost-timer-threading
   : propagated optional
   ;
 feature.feature boost-timer-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-timer-lto
@@ -3571,7 +3577,7 @@ feature.feature boost-unit-test-framework-threading
   : propagated optional
   ;
 feature.feature boost-unit-test-framework-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-unit-test-framework-lto
@@ -3638,7 +3644,7 @@ feature.feature boost-wave-link
 #  : propagated optional
 #  ;
 feature.feature boost-wave-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-wave-lto
@@ -3754,7 +3760,7 @@ feature.feature boost-wserialization-threading
   : propagated optional
   ;
 feature.feature boost-wserialization-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-wserialization-lto
