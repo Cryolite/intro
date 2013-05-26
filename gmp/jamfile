@@ -155,8 +155,6 @@ make gmp.h
   : $(USE_COMPILER)
     $(USE_MULTITARGET)
     $(USE_GMP)
-    $(USE_ADDRESS_MODEL)
-    $(USE_INSTRUCTION_SET)
     <conditional>@location-conditional
   ;
 explicit gmp.h ;

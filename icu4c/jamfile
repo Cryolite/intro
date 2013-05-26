@@ -155,8 +155,6 @@ make unicode/uchar.h
   : $(USE_COMPILER)
     $(USE_MULTITARGET)
     $(USE_ICU4C)
-    $(USE_ADDRESS_MODEL)
-    $(USE_INSTRUCTION_SET)
     <conditional>@location-conditional
   ;
 explicit unicode/uchar.h ;

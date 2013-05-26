@@ -485,6 +485,10 @@ if $(icc-latest-paths) {
 
 
 
+feature.extend instruction-set
+  : generic
+  ;
+
 feature.feature std
   : c++03 c++11
   : propagated

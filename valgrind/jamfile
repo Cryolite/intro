@@ -201,8 +201,6 @@ make valgrind/valgrind.h
     $(USE_MPI_BACKEND)
     $(USE_OPENMPI)
     $(USE_VALGRIND)
-    $(USE_ADDRESS_MODEL)
-    $(USE_INSTRUCTION_SET)
     <conditional>@location-conditional
   ;
 explicit valgrind/valgrind.h ;
@@ -241,7 +239,7 @@ rule make-install ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) += "--enable-tls" ;
 
-  local address-model = [ feature.get-values "<intro-address-model>" : $(properties) ] ;
+  local address-model = [ feature.get-values <address-model> : $(properties) ] ;
   OPTIONS on $(targets) += "--with-mpicc='$(compiler-prefix-native)/address-model-$(address-model)/bin/mpicc'" ;
 
   local cc = [ get-cc "$(PREFIX)" : $(properties) ] ;
