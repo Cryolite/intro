@@ -18,6 +18,10 @@ import "$(INTRO_ROOT_DIR)/compilers"
     get-property-dump-commands
   ;
 
+.here = [ regex.match "Jamfile<(.*)>" : "$(__name__)" : 1 ] ;
+.here = [ path.make "$(.here)" ] ;
+.here-relative = [ path.relative "$(.here)" "$(INTRO_ROOT_DIR)" ] ;
+
 
 rule compiler-dep-req ( properties * )
 {
@@ -44,12 +48,13 @@ alias compiler-dep : : <conditional>@compiler-dep-req ;
 explicit compiler-dep ;
 
 
-
 make "$(INTRO_ROOT_DIR)/openmpi-$(OPENMPI).tar.bz2" : : @download ;
 explicit "$(INTRO_ROOT_DIR)/openmpi-$(OPENMPI).tar.bz2" ;
 
 rule download ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
   local version = [ feature.get-values <openmpi-hidden> : $(properties) ] ;
   local minor = [ regex.match "^([0-9]+\\.[0-9]+)(\\.[0-9]+)?$" : "$(version)" : 1 ] ;
   URL on $(targets) = http://www.open-mpi.org/software/ompi/v$(minor)/downloads/openmpi-$(version).tar.bz2 ;
@@ -60,17 +65,16 @@ actions download
   bash -s << 'EOS'
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn 4b8bc89f-b60e-4909-9aa8-2ef462ee22a0 '$(INTRO_ROOT_DIR)/openmpi/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn 4b8bc89f-b60e-4909-9aa8-2ef462ee22a0 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+openmpi/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
-  rm -rf '$(<)'
-  trap "rm -rf '$(<)'" ERR HUP INT QUIT TERM
+  rm -f '$(<)'
+  trap "rm -f '$(<)'" ERR HUP INT QUIT TERM
   ( cd '$(<:D)' && wget -- '$(URL)' )
   [ -f '$(<)' ]
 EOS
 }
-
 
 
 # Use `README' file as a target representing the completion of
@@ -89,6 +93,8 @@ explicit "$(INTRO_ROOT_DIR)/openmpi-$(OPENMPI)/README" ;
 
 rule expand ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions expand
@@ -96,9 +102,9 @@ actions expand
   bash -s << 'EOS'
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn 587aae9c-bacc-4b03-b73c-e4bea53019dc '$(INTRO_ROOT_DIR)/openmpi/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn 587aae9c-bacc-4b03-b73c-e4bea53019dc '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+openmpi/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
   rm -rf '$(<:D)'
   [ -f '$(>)' ]
@@ -114,7 +120,6 @@ EOS
 }
 
 
-
 rule srcdir-req ( properties * )
 {
   local version = [ feature.get-values <openmpi-hidden> : $(properties) ] ;
@@ -125,21 +130,20 @@ alias srcdir : : <conditional>@srcdir-req ;
 explicit srcdir ;
 
 
-
 rule location-conditional ( properties * )
 {
   local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
-  local address-model = [ feature.get-values "<intro-address-model>" : $(properties) ] ;
+  local address-model = [ feature.get-values <address-model> : $(properties) ] ;
   local includedir ;
   switch "$(address-model)" {
-  case "64" :
+  case 64 :
     includedir = "$(compiler-prefix)/address-model-64/include" ;
-  case "32" :
+  case 32 :
     includedir = "$(compiler-prefix)/address-model-32/include" ;
   case "" :
-    errors.error "the value for `<intro-address-model>' is empty" ;
-  case "*" :
-    errors.error "`<intro-address-model>$(address-model)': unknown property" ;
+    errors.error "the value for `<address-model>' is empty" ;
+  case * :
+    errors.error "`<address-model>$(address-model)': unknown property" ;
   }
   return "<location>$(includedir)" ;
 }
@@ -151,20 +155,21 @@ make mpi.h
   : $(USE_COMPILER)
     $(USE_MULTITARGET)
     $(USE_OPENMPI)
-    $(USE_ADDRESS_MODEL)
-    $(USE_INSTRUCTION_SET)
     <conditional>@location-conditional
   ;
 explicit mpi.h ;
 
 rule make-install ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
+
   # Sets the path to the source directory.
   local version = [ feature.get-values <openmpi> : $(properties) ] ;
   local srcdir = "$(INTRO_ROOT_DIR)/openmpi-$(version)" ;
   SRCDIR on $(targets) = [ path.native "$(srcdir)" ] ;
 
-  # Sets the path to objdir.
+  # Sets the path to `objdir`.
   local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
   local objdir-native = [ path.native "$(objdir)" ] ;
   OBJDIR on $(targets) = "$(objdir-native)" ;
@@ -173,7 +178,7 @@ rule make-install ( targets * : sources * : properties * )
 
   local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
 
-  local address-model = [ feature.get-values "<intro-address-model>" : $(properties) ] ;
+  local address-model = [ feature.get-values <address-model> : $(properties) ] ;
 
   local openmpi-prefix = "$(compiler-prefix)/address-model-$(address-model)" ;
   local openmpi-prefix-native = [ path.native "$(openmpi-prefix)" ] ;
@@ -223,18 +228,18 @@ rule make-install ( targets * : sources * : properties * )
   OPTIONS on $(targets) += "CXX='$(cxx-native)'" ;
 
   switch "$(address-model)" {
-  case "64" :
+  case 64 :
     OPTIONS on $(targets) += "CFLAGS='-m64'" ;
     OPTIONS on $(targets) += "CXXFLAGS='-m64'" ;
     OPTIONS on $(targets) += "LDFLAGS='-m64'" ;
-  case "32" :
+  case 32 :
     OPTIONS on $(targets) += "CFLAGS='-m32'" ;
     OPTIONS on $(targets) += "CXXFLAGS='-m32'" ;
     OPTIONS on $(targets) += "LDFLAGS='-m32'" ;
   case "" :
-    errors.error "the value for `<intro-address-model>' is empty" ;
-  case "*" :
-    errors.error "`<intro-address-model>$(address-model)': unknown property" ;
+    errors.error "the value for `<address-model>' is empty" ;
+  case * :
+    errors.error "`<address-model>$(address-model)': unknown property" ;
   }
 
   local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
@@ -248,9 +253,9 @@ actions make-install
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(ENVIRONMENT_COMMANDS)
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn 3f03e12b-1c78-4b79-a56c-e450c13d8190 '$(INTRO_ROOT_DIR)/openmpi/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn 3f03e12b-1c78-4b79-a56c-e450c13d8190 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+openmpi/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
 
   rm -rf '$(OBJDIR)'
@@ -283,12 +288,11 @@ $(PROPERTY_DUMP_COMMANDS)
   ( cd '$(OBJDIR)' && make install )
 
   # Cleans up `objdir`.
-  rm -rf '$(OBJDIR)'
+  rm -r '$(OBJDIR)'
 
   [ -f '$(<)' ]
 EOS
 }
-
 
 
 alias install : "mpi.h/$(ADDRESS_MODEL_SENSIBLE_DEFAULT_RELEASE_PROPERTIES)" ;

@@ -5,6 +5,7 @@ import errors ;
 import feature ;
 import make ;
 import path ;
+import regex ;
 import "$(INTRO_ROOT_DIR)/compilers"
   : is-gcc
     is-clang
@@ -18,6 +19,10 @@ import "$(INTRO_ROOT_DIR)/compilers"
     get-environment-commands
     get-property-dump-commands
   ;
+
+.here = [ regex.match "Jamfile<(.*)>" : "$(__name__)" : 1 ] ;
+.here = [ path.make "$(.here)" ] ;
+.here-relative = [ path.relative "$(.here)" "$(INTRO_ROOT_DIR)" ] ;
 
 
 rule compiler-dep-req ( properties * )
@@ -45,7 +50,6 @@ alias compiler-dep : : <conditional>@compiler-dep-req ;
 explicit compiler-dep ;
 
 
-
 for local version in $(ISL_VERSIONS) {
   # Use `ChangeLog' file as a target representing the completion of export
   # action. It is suitable for the purpose because of the following reasons;
@@ -60,6 +64,8 @@ for local version in $(ISL_VERSIONS) {
 
 rule export ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
   local version = [ feature.get-values <isl-hidden> : $(properties) ] ;
   VERSION on $(targets) = "$(version)" ;
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
@@ -69,18 +75,18 @@ actions export
   bash -s << 'EOS'
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn 0599d4aa-4350-442d-b91a-af455453fc27 '$(INTRO_ROOT_DIR)/isl/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn 0599d4aa-4350-442d-b91a-af455453fc27 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+isl/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
   rm -rf '$(<:D)'
   trap "rm -rf '$(<:D)'" ERR HUP INT QUIT TERM
+  [ -f '$(INTRO_ROOT_DIR)/isl-trunk/ChangeLog' ]
   ( cd '$(INTRO_ROOT_DIR)/isl-trunk' && git archive --prefix='isl-$(VERSION)/' 'isl-$(VERSION)' | tar -xv -C '$(INTRO_ROOT_DIR)' )
   ( cd '$(INTRO_ROOT_DIR)/isl-$(VERSION)' && ./autogen.sh )
   [ -f '$(<)' ]
 EOS
 }
-
 
 
 rule srcdir-req ( properties * )
@@ -91,7 +97,6 @@ rule srcdir-req ( properties * )
 
 alias srcdir : : <conditional>@srcdir-req ;
 explicit srcdir ;
-
 
 
 rule location-conditional ( properties * )
@@ -110,20 +115,21 @@ make isl/version.h
     $(USE_MULTITARGET)
     $(USE_GMP)
     $(USE_ISL)
-    $(USE_ADDRESS_MODEL)
-    $(USE_INSTRUCTION_SET)
     <conditional>@location-conditional
   ;
 explicit isl/version.h ;
 
 rule make-install ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
+
   # Sets the path to the source directory.
   local version = [ feature.get-values <isl> : $(properties) ] ;
   local srcdir = "$(INTRO_ROOT_DIR)/isl-$(version)" ;
   SRCDIR on $(targets) = [ path.native "$(srcdir)" ] ;
 
-  # Sets the path to objdir.
+  # Sets the path to `objdir`.
   local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
   local objdir-native = [ path.native "$(objdir)" ] ;
   OBJDIR on $(targets) = "$(objdir-native)" ;
@@ -243,9 +249,9 @@ actions make-install
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(ENVIRONMENT_COMMANDS)
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn 44015029-3712-4015-8d75-6d2da2b20c74 '$(INTRO_ROOT_DIR)/isl/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn 44015029-3712-4015-8d75-6d2da2b20c74 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+isl/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
 
   rm -rf '$(OBJDIR)'
@@ -284,12 +290,11 @@ $(PROPERTY_DUMP_COMMANDS)
   ( cd '$(OBJDIR)' && make install )
 
   # Cleans up `objdir`.
-  rm -rf '$(OBJDIR)'
+  rm -r '$(OBJDIR)'
 
   [ -f '$(<)' ]
 EOS
 }
-
 
 
 alias install : isl/version.h ;

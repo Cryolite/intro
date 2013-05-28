@@ -5,6 +5,7 @@ import errors ;
 import feature ;
 import make ;
 import path ;
+import regex ;
 import "$(INTRO_ROOT_DIR)/compilers"
   : is-gcc
     is-clang
@@ -18,6 +19,10 @@ import "$(INTRO_ROOT_DIR)/compilers"
     get-environment-commands
     get-property-dump-commands
   ;
+
+.here = [ regex.match "Jamfile<(.*)>" : "$(__name__)" : 1 ] ;
+.here = [ path.make "$(.here)" ] ;
+.here-relative = [ path.relative "$(.here)" "$(INTRO_ROOT_DIR)" ] ;
 
 
 rule compiler-dep-req ( properties * )
@@ -45,7 +50,6 @@ alias compiler-dep : : <conditional>@compiler-dep-req ;
 explicit compiler-dep ;
 
 
-
 for local version in $(GMP_VERSIONS) {
   make "$(INTRO_ROOT_DIR)/gmp-$(version).tar.bz2" : : @download ;
   explicit "$(INTRO_ROOT_DIR)/gmp-$(version).tar.bz2" ;
@@ -53,9 +57,14 @@ for local version in $(GMP_VERSIONS) {
 
 rule download ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
   local version = [ feature.get-values <gmp-hidden> : $(properties) ] ;
-  URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/gmp/gmp-$(version).tar.bz2 ;
-  #URL on $(targets) = http://core.ring.gr.jp/pub/GNU/gmp/gmp-$(version).tar.bz2 ;
+  URLS on $(targets)  = http://ftp.jaist.ac.jp/pub/GNU/gmp/gmp-$(version).tar.bz2 ;
+  URLS on $(targets) += http://ftp.tsukuba.wide.ad.jp/software/gmp/gmp-$(version).tar.bz2 ;
+  URLS on $(targets) += http://ftp.nara.wide.ad.jp/pub/GNU/gnu/gmp/gmp-$(version).tar.bz2 ;
+  URLS on $(targets) += http://www.ring.gr.jp/archives/GNU/gmp/gmp-$(version).tar.bz2 ;
+  URLS on $(targets) += ftp://ftp.gnu.org/gnu/gmp/gmp-$(version).tar.bz2 ;
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions download
@@ -63,17 +72,18 @@ actions download
   bash -s << 'EOS'
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn 9abd0cb7-7098-466c-89a8-b0ba19085605 '$(INTRO_ROOT_DIR)/gmp/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn 9abd0cb7-7098-466c-89a8-b0ba19085605 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+gmp/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
-  rm -rf '$(<)'
-  trap "rm -rf '$(<)'" ERR HUP INT QUIT TERM
-  ( cd '$(<:D)' && wget -- '$(URL)' )
+  rm -f '$(<)'
+  trap "rm -f '$(<)'" ERR HUP INT QUIT TERM
+  for url in $(URLS) ; do
+    ( cd '$(<:D)' && wget -- "$url" ) && break
+  done
   [ -f '$(<)' ]
 EOS
 }
-
 
 
 for local version in $(GMP_VERSIONS) {
@@ -94,6 +104,8 @@ for local version in $(GMP_VERSIONS) {
 
 rule expand ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions expand
@@ -101,9 +113,9 @@ actions expand
   bash -s << 'EOS'
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn eb3fcdff-c481-4bd3-b0a0-e28a0f9ae51e '$(INTRO_ROOT_DIR)/gmp/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn eb3fcdff-c481-4bd3-b0a0-e28a0f9ae51e '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+gmp/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
   rm -rf '$(<:D)'
   [ -f '$(>)' ]
@@ -119,7 +131,6 @@ EOS
 }
 
 
-
 rule srcdir-req ( properties * )
 {
   local version = [ feature.get-values <gmp-hidden> : $(properties) ] ;
@@ -128,7 +139,6 @@ rule srcdir-req ( properties * )
 
 alias srcdir : : <conditional>@srcdir-req ;
 explicit srcdir ;
-
 
 
 rule location-conditional ( properties * )
@@ -145,14 +155,15 @@ make gmp.h
   : $(USE_COMPILER)
     $(USE_MULTITARGET)
     $(USE_GMP)
-    $(USE_ADDRESS_MODEL)
-    $(USE_INSTRUCTION_SET)
     <conditional>@location-conditional
   ;
 explicit gmp.h ;
 
 rule make-install ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
+
   # Sets the path to the source directory.
   local version = [ feature.get-values <gmp> : $(properties) ] ;
   local srcdir = "$(INTRO_ROOT_DIR)/gmp-$(version)" ;
@@ -244,9 +255,9 @@ actions make-install
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(ENVIRONMENT_COMMANDS)
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn 10695e72-ed0e-42b7-8180-f13e9e93e476 '$(INTRO_ROOT_DIR)/gmp/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn 10695e72-ed0e-42b7-8180-f13e9e93e476 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+gmp/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
 
   rm -rf '$(OBJDIR)'
@@ -285,12 +296,11 @@ $(PROPERTY_DUMP_COMMANDS)
   ( cd '$(OBJDIR)' && make install )
 
   # Cleans up `objdir`.
-  rm -rf '$(OBJDIR)'
+  rm -r '$(OBJDIR)'
 
   [ -f '$(<)' ]
 EOS
 }
-
 
 
 alias install : gmp.h ;

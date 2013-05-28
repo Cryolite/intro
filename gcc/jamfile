@@ -5,6 +5,7 @@ import errors ;
 import feature ;
 import make ;
 import path ;
+import regex ;
 import "$(INTRO_ROOT_DIR)/compilers"
   : is-gcc
     is-gcc-release
@@ -20,6 +21,10 @@ import "$(INTRO_ROOT_DIR)/compilers"
     get-property-dump-commands
   ;
 
+.here = [ regex.match "Jamfile<(.*)>" : "$(__name__)" : 1 ] ;
+.here = [ path.make "$(.here)" ] ;
+.here-relative = [ path.relative "$(.here)" "$(INTRO_ROOT_DIR)" ] ;
+
 
 for local version in [ get-gcc-versions $(COMPILERS) ] {
   make "$(INTRO_ROOT_DIR)/gcc-$(version).tar.bz2" : : @download ;
@@ -28,6 +33,9 @@ for local version in [ get-gcc-versions $(COMPILERS) ] {
 
 rule download ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
+
   local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
   if [ is-gcc "$(compiler)" ] {
     # Do nothing.
@@ -59,19 +67,18 @@ actions download
   bash -s << 'EOS'
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn 73f66309-1b4e-4509-95e7-0d497563bfde '$(INTRO_ROOT_DIR)/gcc/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn 73f66309-1b4e-4509-95e7-0d497563bfde '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+gcc/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
-  rm -rf '$(<)'
-  trap "rm -rf '$(<)'" ERR HUP INT QUIT TERM
+  rm -f '$(<)'
+  trap "rm -f '$(<)'" ERR HUP INT QUIT TERM
   for url in $(URLS) ; do
     ( cd '$(<:D)' && wget -- "$url" ) && break
   done
   [ -f '$(<)' ]
 EOS
 }
-
 
 
 for local version in [ get-gcc-versions $(COMPILERS) ] {
@@ -92,6 +99,8 @@ for local version in [ get-gcc-versions $(COMPILERS) ] {
 
 rule expand ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions expand
@@ -99,9 +108,9 @@ actions expand
   bash -s << 'EOS'
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn aff7efdc-c590-40fa-af74-e417dfe54658 '$(INTRO_ROOT_DIR)/gcc/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn aff7efdc-c590-40fa-af74-e417dfe54658 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+gcc/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
   rm -rf '$(<:D)'
   [ -f '$(>)' ]
@@ -115,7 +124,6 @@ $(PROPERTY_DUMP_COMMANDS)
   [ -f '$(<)' ]
 EOS
 }
-
 
 
 rule srcdir-req ( properties * )
@@ -136,7 +144,6 @@ rule srcdir-req ( properties * )
 
 alias srcdir : : <conditional>@srcdir-req ;
 explicit srcdir ;
-
 
 
 rule gxx-wrapper-conditional ( properties * )
@@ -190,6 +197,9 @@ explicit g++-wrapper ;
 
 rule make-install ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
+
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local version ;
   if [ is-gcc "$(compiler)" ] {
@@ -386,9 +396,9 @@ actions make-install
   bash -s << 'EOS'
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn 5b21d7be-6009-4ae7-a9bc-2b245392e71f '$(INTRO_ROOT_DIR)/gcc/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn 5b21d7be-6009-4ae7-a9bc-2b245392e71f '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+gcc/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
 
   cleanup ()
@@ -511,7 +521,7 @@ EOF
 
   # Cleans up the `objdir`, restores the hacked configure scripts and
   # removes symlinks in GCC source tree.
-  rm -rf '$(OBJDIR)'
+  rm -r '$(OBJDIR)'
   cleanup
 
   # A workaround. Creates a symlink to `ld` in the directory where the
@@ -522,13 +532,12 @@ EOF
   ( cd '$(COMPILER_PREFIX)/libexec/gcc/$(HOST_TRIPLET)'/`'$(COMPILER_PREFIX)/bin/gcc' -dumpversion` && ln -sf ../../../../bin/ld ld )
 
   # Installs the modified specfile and wrapper scripts.
-  install --mode=755 '$(INTRO_ROOT_DIR)/template/$(HOST_TRIPLET)'/{vars64.sh,vars64debug.sh,vars32.sh,vars32debug.sh,hack-gcc-specs,gcc-wrapper,g++-wrapper} '$(COMPILER_PREFIX)/bin'
+  install --mode=755 '$(INTRO_ROOT_DIR)/template/$(HOST_TRIPLET)'/{vars64.sh,vars64debug.sh,vars32.sh,vars32debug.sh,hack-gcc-specs,gcc-wrapper,g++-wrapper,intro-launcher,catchsegvfilt,asanlogfilt} '$(COMPILER_PREFIX)/bin'
 
   # Checks the creation of `g++-wrapper`.
   [ -x '$(<)' ]
 EOS
 }
-
 
 
 alias install : "g++-wrapper/$(DEFAULT_COMPILER_PROPERTIES)" ;

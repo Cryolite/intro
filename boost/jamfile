@@ -17,6 +17,10 @@ import "$(INTRO_ROOT_DIR)/compilers"
     get-property-dump-commands
   ;
 
+.here = [ regex.match "Jamfile<(.*)>" : "$(__name__)" : 1 ] ;
+.here = [ path.make "$(.here)" ] ;
+.here-relative = [ path.relative "$(.here)" "$(INTRO_ROOT_DIR)" ] ;
+
 
 rule compiler-dep-req ( properties * )
 {
@@ -43,7 +47,6 @@ alias compiler-dep : : <conditional>@compiler-dep-req ;
 explicit compiler-dep ;
 
 
-
 rule openmpi-conditional ( properties * )
 {
   local mpi-backend = [ feature.get-values <mpi-backend> : $(properties) ] ;
@@ -61,7 +64,6 @@ rule openmpi-conditional ( properties * )
 
 alias openmpi-dep : : <conditional>@openmpi-conditional ;
 explicit openmpi-dep ;
-
 
 
 rule location-conditional ( properties * )
@@ -84,14 +86,15 @@ make boost.stage
     $(USE_MPI_BACKEND)
     $(USE_OPENMPI)
     $(USE_BOOST)
-    $(USE_ADDRESS_MODEL)
-    $(USE_INSTRUCTION_SET)
     <conditional>@location-conditional
   ;
 explicit boost.stage ;
 
 rule install ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
+
   # Set 'BOOST_ROOT'.
   local version = [ feature.get-values <boost> : $(properties) ] ;
   local boost-root = "$(PREFIX)/boost/$(version)" ;
@@ -157,9 +160,19 @@ rule install ( targets * : sources * : properties * )
   OPTIONS on $(targets) += "variant=$(variant)" ;
   switch "$(variant)" {
   case "debug" :
-    if [ is-icc "$(compiler)" ] {
+    if [ is-gcc "$(compiler)" ] {
+      OPTIONS on $(targets) += cflags=-g3 ;
+      OPTIONS on $(targets) += linkflags=-g3 ;
+    }
+    else if [ is-clang "$(compiler)" ] {
+      # Do nothing.
+    }
+    else if [ is-icc "$(compiler)" ] {
       OPTIONS on $(targets) += "cflags='-debug full'" ;
       OPTIONS on $(targets) += "linkflags='-debug full'" ;
+    }
+    else {
+      errors.error "an internal error." ;
     }
     OPTIONS on $(targets) += "linkflags=-rdynamic" ;
   case "release" :
@@ -178,24 +191,24 @@ rule install ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) += "threading=$(threading)" ;
 
-  local address-model = [ feature.get-values "<intro-address-model>" : $(properties) ] ;
+  local address-model = [ feature.get-values <address-model> : $(properties) ] ;
   switch "$(address-model)" {
-  case "64" :
+  case 64 :
     OPTIONS on $(targets) += "address-model=64" ;
-  case "32" :
+  case 32 :
     OPTIONS on $(targets) += "address-model=32" ;
   case "" :
-    errors.error "the value for `<intro-address-model>' is empty" ;
-  case "*" :
-    errors.error "`<intro-address-model>$(address-model)': unknown property" ;
+    errors.error "the value for `<address-model>' is empty" ;
+  case * :
+    errors.error "`<address-model>$(address-model)': unknown property" ;
   }
 
-  local instruction-set = [ feature.get-values <intro-instruction-set> : $(properties) ] ;
+  local instruction-set = [ feature.get-values <instruction-set> : $(properties) ] ;
   switch "$(instruction-set)" {
-  case "unspecified" :
-    # Do nothing.
+  case "generic" :
+    OPTIONS on $(targets) += "instruction-set=generic" ;
   case "native" :
-    OPTIONS on $(targets) += "instruction-set=$(instruction-set)" ;
+    OPTIONS on $(targets) += "instruction-set=native" ;
     if [ is-icc "$(compiler)" ] {
       OPTIONS on $(targets) += "cflags=-xHost" ;
       OPTIONS on $(targets) += "linkflags=-xHost" ;
@@ -315,9 +328,9 @@ actions install
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(ENVIRONMENT_COMMANDS)
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn 355d5e25-51b8-4da6-9e0f-bed54743381a '$(INTRO_ROOT_DIR)/boost/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn 355d5e25-51b8-4da6-9e0f-bed54743381a '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+boost/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
 
   ( cd '$(BOOST_ROOT)' && rm -rf bin.v2 )
@@ -333,7 +346,7 @@ $(PROPERTY_DUMP_COMMANDS)
   ( cd '$(BOOST_ROOT)' && ./b2 -d+2 -j$(CONCURRENCY) $(ADDITIONAL_BUILD_OPTS) $(OPTIONS) stage )
 
   if [ '$(LINK)' = 'shared' ]; then
-    rm '$(FULL_PREFIX)/lib/libboost_test_exec_monitor.a'
+    rm -f '$(FULL_PREFIX)/lib/libboost_test_exec_monitor.a'
   fi
 
   # Because some Boost test cases hang up on some environments, resource for
@@ -396,12 +409,11 @@ $(PROPERTY_DUMP_COMMANDS)
     fi
   done
 
-  ( cd '$(BOOST_ROOT)' && rm -rf bin.v2 )
+  ( cd '$(BOOST_ROOT)' && rm -r bin.v2 )
 
   touch '$(<)'
 EOS
 }
-
 
 
 alias install : boost.stage ;

@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+
+if test $# -eq 0; then
+  echo "$0: missing program name" >&2
+  echo "Try \`$0 --help' for more information." >&2
+  exit 1
+fi
+
+prog="$1"
+shift
+
+asan_output="${TMPDIR:-/tmp}/asan_output"
+pid_output=`mktemp ${TMPDIR:-/tmp}/pid_output.XXXXXX` || exit
+
+(echo -n $BASHPID > "$pid_output"
+# Redirect stderr to avoid termination message from shell.
+ASAN_OPTIONS="log_path=$asan_output" exec 3>&2 2>/dev/null "$prog" ${1+"$@"} 2>&3 3>&-)
+exval=$?
+
+pid=`cat "$pid_output"`
+rm -f "$pid_output"
+asan_output="$asan_output.$pid"
+
+if test -s "$asan_output"; then
+  cat "$asan_output" |
+  (while IFS=$'\n' read line; do
+     if echo -n "$line" | grep -Eq '^[[:space:]]*#[[:digit:]]+[[:space:]]*0x[[:xdigit:]]+[[:space:]]*\(.+\+0x[[:xdigit:]]+\)$'; then
+       indent=`echo -n "$line" | grep -Eo '^[[:space:]]*#[[:digit:]]+[[:space:]]*'`
+       tmp=`echo -n "$line" | sed -e 's/^[[:space:]]*#[[:digit:]]*[[:space:]]*0x[[:xdigit:]]*[[:space:]]*(\(.*\))$/\1/'`
+       exe=`echo -n "$tmp" | sed -e 's/^\(.*\)+0x[[:xdigit:]]*$/\1/'`
+       addr=`echo -n "$tmp" | sed -e 's/^.*+\(0x[[:xdigit:]]*\)$/\1/'`
+       addr2line_output=`addr2line --exe="$exe" -fCp $addr | sed -e 's/ (discriminator [[:digit:]]\{1,\})$//'`
+       file=`echo "$addr2line_output" | grep -Eo ' at .+:[[:digit:]]+$' | sed -e 's/ at \(.\{1,\}\):[[:digit:]]\{1,\}$/\1/'`
+       if test ! -e "$file"; then
+         addr2line_output="$addr2line_output (file does not exist)"
+       fi
+       if test `echo "$addr2line_output" | wc -l` -eq 1; then
+         echo "$indent$addr2line_output"
+       else
+         echo "$indent(function name, file name or line number can not be determined)"
+       fi
+     else
+       echo "$line"
+     fi
+   done)
+fi
+rm -f "$asan_output"
+
+exit $exval

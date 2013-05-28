@@ -480,6 +480,222 @@ if $(icc-latest-paths) {
 #errors.error "****************************************" ;
 
 
+
+#############################################################################
+
+
+
+feature.extend instruction-set
+  : generic
+  ;
+
+feature.feature std
+  : c++03 c++11
+  : propagated
+  ;
+constant INTRO_STD_COMPILE_PROPERTIES
+  : <toolset>gcc,<std>c++03:<cxxflags>-std=c++03
+    <toolset>gcc,<std>c++11:<cxxflags>-std=c++0x
+    <toolset>clang,<std>c++03:<cxxflags>-std=c++03
+    <toolset>clang,<std>c++11:<cxxflags>-std=c++11
+    <toolset>intel,<std>c++03:<cxxflags>"-strict-ansi -fno-math-errno"
+    <toolset>intel,<std>c++11:<cxxflags>-std=c++11
+  ;
+
+feature.feature lto
+  : off on
+  : propagated
+  ;
+constant INTRO_LTO_COMPILE_PROPERTIES
+  : <toolset>gcc,<lto>on:<cflags>-flto
+    <toolset>clang,<lto>on:<cflags>-flto
+    <toolset>intel,<lto>on:<cflags>-ipo
+  ;
+constant INTRO_LTO_LINK_PROPERTIES
+  : <toolset>gcc,<lto>on:<linkflags>-flto
+    <toolset>gcc,<lto>on,<link>shared:<linkflags>-fPIC
+    <toolset>gcc,<lto>on,<optimization>speed:<linkflags>-O3
+    <toolset>gcc,<lto>on,<optimization>space:<linkflags>-Os
+    <toolset>gcc,<lto>on,<inlining>off:<linkflags>-fno-inline
+    <toolset>gcc,<lto>on,<inlining>on:<linkflags>-Wno-inline
+    <toolset>gcc,<lto>on,<inlining>full:<linkflags>"-finline-functions -Wno-inline"
+    <toolset>clang,<lto>on:<linkflags>-flto
+    <toolset>clang,<lto>on,<link>shared:<linkflags>-fPIC
+    <toolset>clang,<lto>on,<optimization>speed:<linkflags>-O3
+    <toolset>clang,<lto>on,<optimization>space:<linkflags>-Os
+    <toolset>clang,<lto>on,<inlining>off:<linkflags>-fno-inline
+    <toolset>clang,<lto>on,<inlining>on:<linkflags>-Wno-inline
+    <toolset>clang,<lto>on,<inlining>full:<linkflags>"-finline-functions -Wno-inline"
+    <toolset>intel,<lto>on:<linkflags>-ipo
+    <toolset>intel,<lto>on,<link>shared:<linkflags>-fPIC
+    <toolset>intel,<lto>on,<optimization>speed:<linkflags>-O3
+    <toolset>intel,<lto>on,<optimization>space:<linkflags>-Os
+    <toolset>intel,<lto>on,<inlining>off:<linkflags>-inline-level=0
+    <toolset>intel,<lto>on,<inlining>on:<linkflags>"-inline-level=1 -Wno-inline"
+    <toolset>intel,<lto>on,<inlining>full:<linkflags>"-inline-level=2 -Wno-inline"
+  ;
+
+feature.feature correct-call-stack
+  : off on
+  : propagated composite
+  ;
+feature.compose <correct-call-stack>on
+  : <cflags>"-fno-omit-frame-pointer -fno-optimize-sibling-calls"
+    <linkflags>"-fno-omit-frame-pointer -fno-optimize-sibling-calls"
+  ;
+
+feature.feature ssp
+  : off on all
+  : propagated composite
+  ;
+feature.compose <ssp>on
+  : <cflags>-fstack-protector
+    <linkflags>-fstack-protector
+  ;
+feature.compose <ssp>all
+  : <cflags>-fstack-protector-all
+    <linkflags>-fstack-protector-all
+  ;
+constant INTRO_SSP_COMPILE_PROPERTIES
+  : <toolset>intel,<ssp>on:<cflags>-fstack-security-check
+    <toolset>intel,<ssp>all:<cflags>-fstack-security-check
+  ;
+constant INTRO_SSP_LINK_PROPERTIES
+  : <toolset>intel,<ssp>on:<linkflags>-fstack-security-check
+    <toolset>intel,<ssp>all:<linkflags>-fstack-security-check
+  ;
+
+feature.feature memory-checker
+  : off on
+  : propagated
+  ;
+constant INTRO_MEMORY_CHECKER_COMPILE_PROPERTIES
+  : <toolset>gcc,<memory-checker>on:<cflags>"-fsanitize=address"
+    <toolset>clang,<memory-checker>on:<cflags>"-fsanitize=address"
+    <toolset>intel,<memory-checker>on:<cflags>"-fp-speculation safe -ftrapuv -check-pointers=rw -check-pointers-dangling=all -check-pointers-undimensioned"
+  ;
+constant INTRO_MEMORY_CHECKER_LINK_PROPERTIES
+  : <toolset>gcc,<memory-checker>on:<linkflags>"-fsanitize=address"
+    <toolset>clang,<memory-checker>on:<linkflags>"-fsanitize=address"
+    <toolset>intel,<memory-checker>on:<linkflags>"-fp-speculation safe -ftrapuv -check-pointers=rw -check-pointers-dangling=all -check-pointers-undimensioned"
+  ;
+
+feature.feature libstdc++-debug-mode
+  : off on
+  : propagated composite
+  ;
+feature.compose <libstdc++-debug-mode>on
+  : <define>_GLIBCXX_DEBUG
+    <define>_GLIBCXX_DEBUG_PEDANTIC
+  ;
+
+feature.feature memcheck
+  : off on
+  : propagated incidental
+  ;
+feature.feature memcheck-run
+  : off on
+  ;
+
+feature.feature catchsegv
+  : off on
+  : propagated incidental
+  ;
+feature.feature catchsegv-run
+  : off on
+  ;
+
+constant INTRO_COMPILE_PROPERTIES
+  : <exception-handling>off:<cflags>-fno-exceptions
+    <rtti>off:<linkflags>-fno-rtti
+    <toolset>gcc,<variant>debug:<cflags>-g3
+    <toolset>intel,<variant>debug:<cflags>"-debug full"
+    <toolset>intel,<instruction-set>native:<cflags>"-xHost"
+    $(INTRO_STD_COMPILE_PROPERTIES)
+    $(INTRO_LTO_COMPILE_PROPERTIES)
+    $(INTRO_SSP_COMPILE_PROPERTIES)
+    $(INTRO_MEMORY_CHECKER_COMPILE_PROPERTIES)
+  ;
+
+constant INTRO_LINK_PROPERTIES
+  : <exception-handling>off:<linkflags>-fno-exceptions
+    <rtti>off:<linkflags>-fno-rtti
+    <toolset>gcc,<variant>debug:<linkflags>-g3
+    <toolset>intel,<variant>debug:<linkflags>"-debug full"
+    <variant>debug:<linkflags>-rdynamic
+    <variant>profile:<linkflags>-rdynamic
+    <toolset>intel,<instruction-set>native:<linkflags>"-xHost"
+    $(INTRO_LTO_LINK_PROPERTIES)
+    $(INTRO_SSP_LINK_PROPERTIES)
+    $(INTRO_MEMORY_CHECKER_LINK_PROPERTIES)
+  ;
+
+rule launcher-conditional ( properties * )
+{
+  local launcher ;
+
+  local runtime-debugging = [ feature.get-values <runtime-debugging> : $(properties) ] ;
+  switch "$(runtime-debugging)" {
+  case off :
+    # Do nothing.
+  case "on" :
+    local default-libdir = [ get-default-libdir $(properties) ] ;
+    local debug-libdir = "$(default-libdir)/debug" ;
+    local debug-libdir-native = [ path.native "$(debug-libdir)" ] ;
+    launcher += "INTRO_LAUNCHER_PRELOAD=\"$(debug-libdir-native)/libstdc++.so\"" ;
+  case * :
+    errors.error "an internal error." ;
+  }
+
+  local memcheck-run = [ feature.get-values <memcheck-run> : $(properties) ] ;
+  switch "$(memcheck-run)" {
+  case off :
+    # Do nothing.
+  case "on" :
+    launcher += "INTRO_LAUNCHER_ENABLE_MEMCHECK=1" ;
+  case * :
+    errors.error "an internal error." ;
+  }
+
+  local catchsegv-run = [ feature.get-values <catchsegv-run> : $(properties) ] ;
+  switch "$(catchsegv-run)" {
+  case off :
+    # Do nothing.
+  case "on" :
+    launcher += "INTRO_LAUNCHER_ENABLE_CATCHSEGV=1" ;
+  case * :
+    errors.error "an internal error." ;
+  }
+
+  local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
+  switch "$(memory-checker)" {
+  case off :
+    # Do nothing.
+  case "on" :
+    launcher += "INTRO_LAUNCHER_ENABLE_ASAN=1" ;
+  case * :
+    errors.error "an internal error." ;
+  }
+
+  local default-bindir = [ get-default-bindir $(properties) ] ;
+  local default-bindir-native = [ path.native "$(default-bindir)" ] ;
+  launcher += "\"$(default-bindir-native)/intro-launcher\"" ;
+
+  return <testing.launcher>"$(launcher:J= )" ;
+}
+
+constant INTRO_RUN_PROPERTIES
+  : <memcheck>on:<memcheck-run>on
+    <catchsegv>on:<catchsegv-run>on
+    <conditional>@site-config.launcher-conditional
+  ;
+
+
+
+#############################################################################
+
+
+
 {
   local mpi-options ;
   for local path-ver in $(INTRO_GCC_PATHS) $(INTRO_GCC_LATEST_PATHS) $(INTRO_CLANG_PATHS) $(INTRO_CLANG_LATEST_PATHS) {
@@ -589,7 +805,7 @@ rule get-compiler-path ( properties * )
 {
   local toolset = [ feature.get-values <toolset> : $(properties) ] ;
   local result ;
-  if "$(toolset)" = "gcc" {
+  if "$(toolset)" = gcc {
     local ver = [ feature.get-values <toolset-gcc:version> : $(properties) ] ;
     if ! "$(ver)" {
       errors.error "an internal error." ;
@@ -605,10 +821,10 @@ rule get-compiler-path ( properties * )
       }
     }
   }
-  else if "$(toolset)" = "clang" {
+  else if "$(toolset)" = clang {
     errors.error "TODO: unimplemented." ;
   }
-  else if "$(toolset)" = "intel" {
+  else if "$(toolset)" = intel {
     errors.error "TODO: unimplemented." ;
   }
   else {
@@ -622,11 +838,17 @@ rule get-compiler-prefix ( properties * )
   local compiler-path = [ get-compiler-path $(properties) ] ;
   local compiler-prefix = [ path.parent "$(compiler-path)" ] ;
   if ! "$(compiler-prefix)" {
-    errors.error "an internal error" ;
+    errors.error "an internal error." ;
+  }
+  if ! [ path.exists "$(compiler-prefix)" ] {
+    errors.error "an internal error." ;
   }
   compiler-prefix = [ path.parent "$(compiler-prefix)" ] ;
   if ! "$(compiler-prefix)" {
-    errors.error "an internal error" ;
+    errors.error "an internal error." ;
+  }
+  if ! [ path.exists "$(compiler-prefix)" ] {
+    errors.error "an internal error." ;
   }
   return "$(compiler-prefix)" ;
 }
@@ -638,128 +860,158 @@ rule get-default-bindir ( properties * )
   if ! "$(result)" {
     errors.error "an internal error." ;
   }
+  if ! [ path.exists "$(result)" ] {
+    errors.error "an internal error." ;
+  }
   return "$(result)" ;
 }
 
 rule get-default-libdir ( properties * )
 {
   local address-model = [ feature.get-values <address-model> : $(properties) ] ;
-  local result ;
-  if "$(address-model)" = "64" {
-    result = "lib64" ;
+  local normalized-address-model ;
+  if "$(address-model)" {
+    normalized-address-model = "$(address-model)" ;
   }
-  else if "$(address-model)" = "32" {
-    result = "lib32" ;
-  }
-  else if ! "$(address-model)" {
+  else {
     local system-bits = [ get-system-bits ] ;
-    if "$(system-bits)" = "64" {
-      result = "lib64" ;
-    }
-    else if "$(system-bits)" = "32" {
-      result = "lib32" ;
-    }
-    else {
+    switch "$(system-bits)" {
+    case 64 :
+      normalized-address-model = 64 ;
+    case 32 :
+      normalized-address-model = 32 ;
+    case * :
       errors.error "an internal error." ;
     }
   }
-  else {
+
+  local result ;
+  switch "$(normalized-address-model)" {
+  case 64 :
+    result = lib64 ;
+  case 32 :
+    result = lib32 ;
+  case * :
     errors.error "an internal error." ;
   }
-  local default-bindir = [ get-default-bindir $(properties) ] ;
-  local compiler-prefix = [ path.parent "$(default-bindir)" ] ;
+
+  local compiler-prefix = [ get-compiler-prefix $(properties) ] ;
   result = "$(compiler-prefix)/$(result)" ;
   if ! "$(result)" {
     errors.error "an internal error." ;
   }
-  return "$(result)" ;
-}
-
-local rule has-dll-injection ( properties * )
-{
-  local host-os = [ feature.get-values "<host-os>" : $(properties) ] ;
-  local target-os = [ feature.get-values "<target-os>" : $(properties) ] ;
-  local result ;
-  if "$(host-os)" = "linux" && "$(target-os)" = "linux" {
-    result = "true" ;
+  if ! [ path.exists "$(result)" ] {
+    errors.error "an internal error." ;
   }
   return "$(result)" ;
 }
 
 local rule is-lib-configurable ( lib : properties * )
 {
+  local link = [ feature.get-values <link> : $(properties) ] ;
+  if ! "$(link)" in shared static {
+    errors.error "an internal error." ;
+  }
   local lib-link = [ feature.get-values "<$(lib)-link>" : $(properties) ] ;
+  if ! "$(lib-link)" {
+    lib-link = "$(link)" ;
+  }
+  if ! "$(lib-link)" in shared static {
+    errors.error "an internal error." ;
+  }
   local result ;
-  if [ has-dll-injection $(properties) ] || "$(lib-link)" = "static" {
-    result = "true" ;
+  if "$(lib-link)" = static {
+    result = true ;
   }
   return "$(result)" ;
 }
 
 local rule get-lib-variant ( lib : properties * )
 {
+  local variant = [ feature.get-values <variant> : $(properties) ] ;
   local lib-variant = [ feature.get-values "<$(lib)-variant>" : $(properties) ] ;
-  if ! [ is-lib-configurable "$(lib)" : $(properties) ] && "$(lib-variant)" != "release" {
-    errors.error "`<$(lib)-variant>$(lib-variant)' is specified but not configurable" ;
+  if ! "$(lib-variant)" {
+    lib-variant = "$(variant)" ;
+  }
+  if ! "$(lib-variant)" in [ feature.values <variant> ] {
+    errors.error "an internal error." ;
+  }
+  if ! [ is-lib-configurable "$(lib)" : $(properties) ] && "$(lib-variant)" != "$(variant)" {
+    errors.error "`<$(lib)-variant>$(lib-variant)' is specified but not configurable." ;
   }
   return "$(lib-variant)" ;
 }
 
 local rule get-lib-link ( lib : dep-libs * : properties * )
 {
-  local link = [ feature.get-values "<link>" : $(properties) ] ;
-  if ! "$(link)" in "shared" "static" {
-    errors.error "an internal error" ;
+  local link = [ feature.get-values <link> : $(properties) ] ;
+  if ! "$(link)" in shared static {
+    errors.error "an internal error." ;
   }
   local lib-link = [ feature.get-values "<$(lib)-link>" : $(properties) ] ;
-  if ! "$(lib-link)" in "shared" "static" {
-    errors.error "an internal error" ;
+  if ! "$(lib-link)" {
+    lib-link = "$(link)" ;
   }
-  if "$(link)" = "shared" && "$(lib-link)" = "static" {
-    errors.error "`<link>shared' and `<$(lib)-link>static' are not compatible" ;
+  if ! "$(lib-link)" in shared static {
+    errors.error "an internal error." ;
+  }
+  if ! [ is-lib-configurable "$(lib)" : $(properties) ] && "$(lib-link)" != "$(link)" {
+    errors.error "`<$(lib)-link>$(lib-link)' is specified but not configurable." ;
+  }
+  if "$(link)" = shared && "$(lib-link)" = static {
+    errors.error "`<link>shared' and `<$(lib)-link>static' are not compatible." ;
   }
   for local dep-lib in $(dep-libs) {
     local dep-lib-link = [ feature.get-values "<$(dep-lib)-link>" : $(properties) ] ;
-    if ! "$(dep-lib-link)" in "shared" "static" {
-      errors.error "an internal error" ;
+    if ! "$(dep-lib-link)" {
+      dep-lib-link = "$(link)" ;
     }
-    if "$(dep-lib-link)" = "static" && "$(lib-link)" = "shared" {
-      errors.error "`<$(dep-lib)-link>static' and `<$(lib)-link>shared' are not compatible" ;
+    if ! "$(dep-lib-link)" in shared static {
+      errors.error "an internal error." ;
+    }
+    if "$(dep-lib-link)" = static && "$(lib-link)" = shared {
+      errors.error "`<$(dep-lib)-link>static' and `<$(lib)-link>shared' are not compatible." ;
     }
   }
-  local runtime-link = [ feature.get-values "<runtime-link>" : $(properties) ] ;
-  if ! "$(runtime-link)" in "shared" "static" {
-    errors.error "an internal error" ;
+  local runtime-link = [ feature.get-values <runtime-link> : $(properties) ] ;
+  if ! "$(runtime-link)" in shared static {
+    errors.error "an internal error." ;
   }
-  if "$(runtime-link)" = "static" && "$(lib-link)" = "shared" {
-    errors.error "`<runtime-link>static' and `<$(lib)-link>shared' are not compatible" ;
+  if "$(runtime-link)" = static && "$(lib-link)" = shared {
+    errors.error "`<runtime-link>static' and `<$(lib)-link>shared' are not compatible." ;
   }
   return "$(lib-link)" ;
 }
 
 local rule get-lib-threading ( lib : dep-libs * : properties * )
 {
-  local threading = [ feature.get-values "<threading>" : $(properties) ] ;
-  if ! "$(threading)" in "single" "multi" {
-    errors.error "an internal error" ;
+  local threading = [ feature.get-values <threading> : $(properties) ] ;
+  if ! "$(threading)" in single multi {
+    errors.error "an internal error." ;
   }
   local lib-threading = [ feature.get-values "<$(lib)-threading>" : $(properties) ] ;
-  if ! "$(lib-threading)" in "single" "multi" {
-    errors.error "an internal error" ;
+  if ! "$(lib-threading)" {
+    lib-threading = "$(threading)" ;
   }
-  if ! [ is-lib-configurable "$(lib)" : $(properties) ] && "$(lib-threading)" != "multi" {
-    errors.error "`<$(lib)-threading>$(lib-threading)' is specified but not configurable" ;
+  if ! "$(lib-threading)" in single multi {
+    errors.error "an internal error." ;
   }
-  if "$(threading)" = "multi" && "$(lib-threading)" = "single" {
-    errors.error "`<threading>multi' and `<$(lib)-threading>single' are not compatible" ;
+  if ! [ is-lib-configurable "$(lib)" : $(properties) ] && "$(lib-threading)" != "$(threading)" {
+    errors.error "`<$(lib)-threading>$(lib-threading)' is specified but not configurable." ;
+  }
+  if "$(threading)" = multi && "$(lib-threading)" = single {
+    errors.error "`<threading>multi' and `<$(lib)-threading>single' are not compatible." ;
   }
   for local dep-lib in $(dep-libs) {
     local dep-lib-threading = [ feature.get-values "<$(dep-lib)-threading>" : $(properties) ] ;
-    if ! "$(dep-lib-threading)" in "single" "multi" {
-      errors.error "an internal error" ;
+    if ! "$(dep-lib-threading)" {
+      dep-lib-threading = "$(threading)" ;
     }
-    if "$(dep-lib-threading)" = "single" && "$(lib-threading)" = "multi" {
-      errors.user-error "`<$(dep-lib)-threading>single' and `<$(lib)-threading>multi' are not compatible" ;
+    if ! "$(dep-lib-threading)" in single multi {
+      errors.error "an internal error." ;
+    }
+    if "$(dep-lib-threading)" = single && "$(lib-threading)" = multi {
+      errors.user-error "`<$(dep-lib)-threading>single' and `<$(lib)-threading>multi' are not compatible." ;
     }
   }
   return "$(lib-threading)" ;
@@ -767,56 +1019,74 @@ local rule get-lib-threading ( lib : dep-libs * : properties * )
 
 local rule get-address-model ( properties * )
 {
-  local address-model = [ feature.get-values "<address-model>" : $(properties) ] ;
+  local address-model = [ feature.get-values <address-model> : $(properties) ] ;
   if ! "$(address-model)" {
     local bits = [ get-system-bits ] ;
     switch "$(bits)" {
-    case "64" :
-      address-model = "64" ;
-    case "32" :
-      address-model = "32" ;
-    case "*" :
-      errors.error "an internal error" ;
+    case 64 :
+      address-model = 64 ;
+    case 32 :
+      address-model = 32 ;
+    case * :
+      errors.error "an internal error." ;
     }
   }
-  if ! "$(address-model)" in "64" "32" {
-    errors.error "an internal error" ;
+  if ! "$(address-model)" in 64 32 {
+    errors.error "an internal error." ;
   }
   return "$(address-model)" ;
 }
 
 local rule get-lib-instruction-set ( lib : properties * )
 {
+  local instruction-set = [ feature.get-values <instruction-set> : $(properties) ] ;
+  if ! "$(instruction-set)" {
+    instruction-set = generic ;
+  }
+  if ! "$(instruction-set)" in generic native {
+    errors.error "an internal error." ;
+  }
   local lib-instruction-set = [ feature.get-values "<$(lib)-instruction-set>" : $(properties) ] ;
-  if ! "$(lib-instruction-set)" in "" "native" {
-    errors.error "an internal error" ;
+  if ! "$(lib-instruction-set)" {
+    lib-instruction-set = "$(instruction-set)" ;
   }
-  if ! [ is-lib-configurable "$(lib)" : $(properties) ] && "$(lib-instruction-set)" {
-    errors.error "`<$(lib)-instruction-set>$(lib-instruction-set)' is specified but not configurable" ;
+  if ! "$(lib-instruction-set)" in generic native {
+    errors.error "an internal error." ;
   }
-  return "$(lib-instruction-set:E=unspecified)" ;
+  if ! [ is-lib-configurable "$(lib)" : $(properties) ] && "$(lib-instruction-set)" != "$(instruction-set)" {
+    errors.error "`<$(lib)-instruction-set>$(lib-instruction-set)' is specified but not configurable." ;
+  }
+  return "$(lib-instruction-set)" ;
 }
 
 local rule get-lib-lto ( lib : properties * )
 {
+  local lto = [ feature.get-values <lto> : $(properties) ] ;
   local lib-lto = [ feature.get-values "<$(lib)-lto>" : $(properties) ] ;
-  if ! "$(lib-lto)" in "off" "on" {
-    errors.error "an internal error" ;
+  if ! "$(lib-lto)" {
+    lib-lto = "$(lto)" ;
   }
-  if ! [ is-lib-configurable "$(lib)" : $(properties) ] && "$(lib-lto)" != "off" {
-    errors.error "`<$(lib)-lto>$(lib-lto)' is specified but not configurable" ;
+  if ! "$(lib-lto)" in off "on" {
+    errors.error "an internal error." ;
+  }
+  if ! [ is-lib-configurable "$(lib)" : $(properties) ] && "$(lib-lto)" != "$(lto)" {
+    errors.error "`<$(lib)-lto>$(lib-lto)' is specified but not configurable." ;
   }
   return "$(lib-lto)" ;
 }
 
 local rule get-lib-memory-checker ( lib : properties * )
 {
+  local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
   local lib-memory-checker = [ feature.get-values "<$(lib)-memory-checker>" : $(properties) ] ;
-  if ! "$(lib-memory-checker)" in "off" "on" {
-    errors.error "an internal error" ;
+  if ! "$(lib-memory-checker)" {
+    lib-memory-checker = "$(memory-checker)" ;
   }
-  if ! [ is-lib-configurable "$(lib)" : $(properties) ] && "$(lib-memory-checker)" != "off" {
-    errors.error "`<$(lib)-memory-checker>$(lib-memory-checker)' is specified but not configurable" ;
+  if ! "$(lib-memory-checker)" in off "on" {
+    errors.error "an internal error." ;
+  }
+  if ! [ is-lib-configurable "$(lib)" : $(properties) ] && "$(lib-memory-checker)" != "$(memory-checker)" {
+    errors.error "`<$(lib)-memory-checker>$(lib-memory-checker)' is specified but not configurable." ;
   }
   return "$(lib-memory-checker)" ;
 }
@@ -828,10 +1098,10 @@ local rule get-lib-full-prefix ( lib : dep-libs * : properties * )
   local lib-threading = [ get-lib-threading "$(lib)" : "$(dep-libs)" : $(properties) ] ;
   local address-model = [ get-address-model $(properties) ] ;
   local lib-instruction-set = [ get-lib-instruction-set "$(lib)" : $(properties) ] ;
-  local std = [ feature.get-values "<std>" : $(properties) ] ;
+  local std = [ feature.get-values <std> : $(properties) ] ;
   local lib-lto = [ get-lib-lto "$(lib)" : $(properties) ] ;
   local lib-memory-checker = [ get-lib-memory-checker "$(lib)" : $(properties) ] ;
-  local libstdcxx-debug-mode = [ feature.get-values "<libstdc++-debug-mode>" : $(properties) ] ;
+  local libstdcxx-debug-mode = [ feature.get-values <libstdc++-debug-mode> : $(properties) ] ;
 
   local ph = [ get-compiler-prefix $(properties) ] ;
   ph = "$(ph)/$(lib-variant)" ;
@@ -857,38 +1127,18 @@ local rule lib-lib-conditional ( lib : basename : dep-libs * : properties * )
   local ph = [ get-lib-full-prefix "$(lib)" : $(dep-libs) : $(properties) ] ;
   local result ;
   switch [ get-lib-link "$(lib)" : $(dep-libs) : $(properties) ] {
-  case "shared" :
+  case shared :
     if ! [ path.exists "$(ph)/lib/lib$(basename).so" ] {
-      errors.user-error "`$(ph)/lib/lib$(basename).so' does not exist" ;
+      errors.user-error "`$(ph)/lib/lib$(basename).so' does not exist." ;
     }
     result = "<file>$(ph)/lib/lib$(basename).so" ;
-  case "static" :
+  case static :
     if ! [ path.exists "$(ph)/lib/lib$(basename).a" ] {
-      errors.user-error "`$(ph)/lib/lib$(basename).a' does not exist" ;
+      errors.user-error "`$(ph)/lib/lib$(basename).a' does not exist." ;
     }
     result = "<file>$(ph)/lib/lib$(basename).a" ;
-  case "*" :
-    errors.error "an internal error" ;
-  }
-  return $(result) ;
-}
-
-rule lib-link-conditional ( lib : basename : dep-libs * : properties * )
-{
-  local ph = [ get-lib-full-prefix "$(lib)" : $(dep-libs) : $(properties) ] ;
-  local result ;
-  switch [ get-lib-link "$(lib)" : $(dep-libs) : $(properties) ] {
-  case "shared" :
-    local shlib-path = "$(ph)/lib/lib$(basename).so" ;
-    if ! [ path.exists "$(shlib-path)" ] {
-      errors.user-error "`$(shlib-path)' does not exist" ;
-    }
-    local shlib-path-native = [ path.native "$(shlib-path)" ] ;
-    result = "<testing.launcher>LD_PRELOAD=\"$(shlib-path-native)${LD_PRELOAD:+ $LD_PRELOAD}\"" ;
-  case "static" :
-    # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -902,33 +1152,33 @@ lib bz2.lib : : <name>bz2 ;
 #############################################################################
 
 feature.feature gmp-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature gmp-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature gmp-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature gmp-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature gmp-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature gmp-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule gmp-compile-conditional ( properties * )
 {
-  return [ lib-compile-conditional "gmp" : : $(properties) ] ;
+  return [ lib-compile-conditional gmp : : $(properties) ] ;
 }
 
 alias gmp_compile
@@ -940,7 +1190,7 @@ alias gmp_compile
 
 rule gmp-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "gmp" : "gmp" : : $(properties) ] ;
+  return [ lib-lib-conditional gmp : gmp : : $(properties) ] ;
 }
 
 lib gmp.lib
@@ -948,50 +1198,44 @@ lib gmp.lib
   : <conditional>@gmp-lib-conditional
   ;
 
-rule gmp-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "gmp" : "gmp" : : $(properties) ] ;
-}
-
 alias gmp_link
   : # No source.
   : # No requirement.
   : # No default-build.
   : <library>gmp.lib
-    <conditional>@gmp-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature mpfr-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature mpfr-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature mpfr-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature mpfr-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature mpfr-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature mpfr-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule mpfr-compile-conditional ( properties * )
 {
-  return [ lib-compile-conditional "mpfr" : "gmp" : $(properties) ] ;
+  return [ lib-compile-conditional mpfr : gmp : $(properties) ] ;
 }
 
 alias mpfr_compile
@@ -1003,7 +1247,7 @@ alias mpfr_compile
 
 rule mpfr-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "mpfr" : "mpfr" : "gmp" : $(properties) ] ;
+  return [ lib-lib-conditional mpfr : mpfr : gmp : $(properties) ] ;
 }
 
 lib mpfr.lib
@@ -1011,51 +1255,45 @@ lib mpfr.lib
   : <conditional>@mpfr-lib-conditional
   ;
 
-rule mpfr-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "mpfr" : "mpfr" : "gmp" : $(properties) ] ;
-}
-
 alias mpfr_link
   : # No source.
   : # No requirement.
   : # No default-build.
   : <library>gmp_link
     <library>mpfr.lib
-    <conditional>@mpfr-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature icudt-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature icudt-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature icudt-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature icudt-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature icudt-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature icudt-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule icudt-compile-conditional ( properties * )
 {
-  return [ lib-compile-conditional "icudt" : : $(properties) ] ;
+  return [ lib-compile-conditional icudt : : $(properties) ] ;
 }
 
 alias icudt_compile
@@ -1067,7 +1305,7 @@ alias icudt_compile
 
 rule icudt-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "icudt" : "icudata" : : $(properties) ] ;
+  return [ lib-lib-conditional icudt : icudata : : $(properties) ] ;
 }
 
 lib icudt.lib
@@ -1075,50 +1313,44 @@ lib icudt.lib
   : <conditional>@icudt-lib-conditional
   ;
 
-rule icudt-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "icudt" : "icudata" : : $(properties) ] ;
-}
-
 alias icudt_link
   : # No source.
   : # No requirement.
   : # No default-build.
   : <library>icudt.lib
-    <conditional>@icudt-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature icuuc-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature icuuc-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature icuuc-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature icuuc-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature icuuc-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature icuuc-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule icuuc-compile-conditional ( properties * )
 {
-  return [ lib-compile-conditional "icuuc" : "icudt" : $(properties) ] ;
+  return [ lib-compile-conditional icuuc : icudt : $(properties) ] ;
 }
 
 alias icuuc_compile
@@ -1130,7 +1362,7 @@ alias icuuc_compile
 
 rule icuuc-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "icuuc" : "icuuc" : "icudt" : $(properties) ] ;
+  return [ lib-lib-conditional icuuc : icuuc : icudt : $(properties) ] ;
 }
 
 lib icuuc.lib
@@ -1138,51 +1370,45 @@ lib icuuc.lib
   : <conditional>@icuuc-lib-conditional
   ;
 
-rule icuuc-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "icuuc" : "icuuc" : "icudt" : $(properties) ] ;
-}
-
 alias icuuc_link
   : # No source.
   : # No requirement.
   : # No default-build.
   : <library>icudt_link
     <library>icuuc.lib
-    <conditional>@icuuc-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature icuin-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature icuin-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature icuin-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature icuin-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature icuin-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature icuin-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule icuin-compile-conditional ( properties * )
 {
-  return [ lib-compile-conditional "icuin" : "icudt" "icuuc" : $(properties) ] ;
+  return [ lib-compile-conditional icuin : icudt icuuc : $(properties) ] ;
 }
 
 alias icuin_compile
@@ -1194,7 +1420,7 @@ alias icuin_compile
 
 rule icuin-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "icuin" : "icui18n" : "icudt" "icuuc" : $(properties) ] ;
+  return [ lib-lib-conditional icuin : icui18n : icudt icuuc : $(properties) ] ;
 }
 
 lib icuin.lib
@@ -1203,11 +1429,6 @@ lib icuin.lib
   : <conditional>@icuin-lib-conditional
   ;
 
-rule icuin-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "icuin" : "icui18n" : "icudt" "icuuc" : $(properties) ] ;
-}
-
 alias icuin_link
   : # No source.
   : # No requirement.
@@ -1215,40 +1436,39 @@ alias icuin_link
   : <library>icudt_link
     <library>icuuc_link
     <library>icuin.lib
-    <conditional>@icuin-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature icuio-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature icuio-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature icuio-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature icuio-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature icuio-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature icuio-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule icuio-compile-conditional ( properties * )
 {
-  return [ lib-compile-conditional "icuio" : "icudt" "icuuc" "icuin" : $(properties) ] ;
+  return [ lib-compile-conditional icuio : icudt icuuc icuin : $(properties) ] ;
 }
 
 alias icuio_compile
@@ -1260,7 +1480,7 @@ alias icuio_compile
 
 rule icuio-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "icuio" : "icuio" : "icudt" "icuuc" "icuin" : $(properties) ] ;
+  return [ lib-lib-conditional icuio : icuio : icudt icuuc icuin : $(properties) ] ;
 }
 
 lib icuio.lib
@@ -1270,11 +1490,6 @@ lib icuio.lib
   : <conditional>@icuio-lib-conditional
   ;
 
-rule icuio-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "icuio" : "icuio" : "icudt" "icuuc" "icuin" : $(properties) ] ;
-}
-
 alias icuio_link
   : # No source.
   : # No requirement.
@@ -1283,40 +1498,39 @@ alias icuio_link
     <library>icuuc_link
     <library>icuin_link
     <library>icuio.lib
-    <conditional>@icuio-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature icule-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature icule-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature icule-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature icule-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature icule-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature icule-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule icule-compile-conditional ( properties * )
 {
-  return [ lib-compile-conditional "icule" : "icudt" "icuuc" : $(properties) ] ;
+  return [ lib-compile-conditional icule : icudt icuuc : $(properties) ] ;
 }
 
 alias icule_compile
@@ -1328,7 +1542,7 @@ alias icule_compile
 
 rule icule-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "icule" : "icule" : "icudt" "icuuc" : $(properties) ] ;
+  return [ lib-lib-conditional icule : icule : icudt icuuc : $(properties) ] ;
 }
 
 lib icule.lib
@@ -1337,11 +1551,6 @@ lib icule.lib
   : <conditional>@icule-lib-conditional
   ;
 
-rule icule-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "icule" : "icule" : "icudt" "icuuc" : $(properties) ] ;
-}
-
 alias icule_link
   : # No source.
   : # No requirement.
@@ -1349,40 +1558,39 @@ alias icule_link
   : <library>icudt_link
     <library>icuuc_link
     <library>icule.lib
-    <conditional>@icule-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature iculx-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature iculx-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature iculx-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature iculx-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature iculx-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature iculx-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule iculx-compile-conditional ( properties * )
 {
-  return [ lib-compile-conditional "iculx" : "icudt" "icuuc" "icule" : $(properties) ] ;
+  return [ lib-compile-conditional iculx : icudt icuuc icule : $(properties) ] ;
 }
 
 alias iculx_compile
@@ -1394,7 +1602,7 @@ alias iculx_compile
 
 rule iculx-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "iculx" : "iculx" : "icudt" "icuuc" "icule" : $(properties) ] ;
+  return [ lib-lib-conditional iculx : iculx : icudt icuuc icule : $(properties) ] ;
 }
 
 lib iculx.lib
@@ -1404,11 +1612,6 @@ lib iculx.lib
   : <conditional>@iculx-lib-conditional
   ;
 
-rule iculx-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "iculx" : "iculx" : "icudt" "icuuc" "icule" : $(properties) ] ;
-}
-
 alias iculx_link
   : # No source.
   : # No requirement.
@@ -1417,40 +1620,39 @@ alias iculx_link
     <library>icuuc_link
     <library>icule_link
     <library>iculx.lib
-    <conditional>@iculx-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature icutu-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature icutu-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature icutu-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature icutu-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature icutu-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature icutu-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule icutu-compile-conditional ( properties * )
 {
-  return [ lib-compile-conditional "icutu" : "icudt" "icuuc" "icuin" : $(properties) ] ;
+  return [ lib-compile-conditional icutu : icudt icuuc icuin : $(properties) ] ;
 }
 
 alias icutu_compile
@@ -1462,7 +1664,7 @@ alias icutu_compile
 
 rule icutu-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "icutu" : "icutu" : "icudt" "icuuc" "icuin" : $(properties) ] ;
+  return [ lib-lib-conditional icutu : icutu : icudt icuuc icuin : $(properties) ] ;
 }
 
 lib icutu.lib
@@ -1472,11 +1674,6 @@ lib icutu.lib
   : <conditional>@icutu-lib-conditional
   ;
 
-rule icutu-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "icutu" : "icutu" : "icudt" "icuuc" "icuin" : $(properties) ] ;
-}
-
 alias icutu_link
   : # No source.
   : # No requirement.
@@ -1485,47 +1682,46 @@ alias icutu_link
     <library>icuuc_link
     <library>icuin_link
     <library>icutu.lib
-    <conditional>@icutu-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-chrono-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-chrono-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature boost-chrono-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-chrono-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-chrono-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-chrono-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-chrono-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-chrono" : "boost-system" : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_CHRONO_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-chrono : boost-system : $(properties) ] {
+  case shared :
+    result = <define>BOOST_CHRONO_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -1540,7 +1736,7 @@ alias boost_chrono_compile
 
 rule boost-chrono-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "boost-chrono" : "boost_chrono" : "boost-system" : $(properties) ] ;
+  return [ lib-lib-conditional boost-chrono : boost_chrono : boost-system : $(properties) ] ;
 }
 
 lib boost_chrono.lib
@@ -1548,58 +1744,52 @@ lib boost_chrono.lib
   : <conditional>@boost-chrono-lib-conditional
   ;
 
-rule boost-chrono-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "boost-chrono" : "boost_chrono" : "boost-system" : $(properties) ] ;
-}
-
 alias boost_chrono_link
   : # No source.
   : # No requirement.
   : # No default-build.
   : <library>boost_system_link
     <library>boost_chrono.lib
-    <conditional>@boost-chrono-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-date-time-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-date-time-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature boost-date-time-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-date-time-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-date-time-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-date-time-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-date-time-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-date-time" : : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_DATE_TIME_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-date-time : : $(properties) ] {
+  case shared :
+    result = <define>BOOST_DATE_TIME_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -1614,7 +1804,7 @@ alias boost_date_time_compile
 
 rule boost-date-time-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "boost-date-time" : "boost_date_time" : : $(properties) ] ;
+  return [ lib-lib-conditional boost-date-time : boost_date_time : : $(properties) ] ;
 }
 
 lib boost_date_time.lib
@@ -1622,45 +1812,39 @@ lib boost_date_time.lib
   : <conditional>@boost-date-time-lib-conditional
   ;
 
-rule boost-date-time-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "boost-date-time" : "boost_date_time" : : $(properties) ] ;
-}
-
 alias boost_date_time_link
   : # No source.
   : # No requirement.
   : # No default-build.
   : <library>boost_date_time.lib
-    <conditional>@boost-date-time-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-exception-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 #feature.feature boost-exception-link
-#  : shared static
-#  : propagated
+#  : [ feature.values <link> ]
+#  : propagated optional
 #  ;
 feature.feature boost-exception-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-exception-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-exception-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-exception-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 alias boost_exception_compile
@@ -1672,14 +1856,14 @@ alias boost_exception_compile
 
 local rule get-boost-exception-full-prefix ( properties * )
 {
-  local variant = [ get-lib-variant "boost-exception" : $(properties) ] ;
-  local threading = [ get-lib-threading "boost-exception" : : $(properties) ] ;
+  local variant = [ get-lib-variant boost-exception : $(properties) ] ;
+  local threading = [ get-lib-threading boost-exception : : $(properties) ] ;
   local address-model = [ get-address-model $(properties) ] ;
-  local instruction-set = [ get-lib-instruction-set "boost-exception" : $(properties) ] ;
-  local std = [ feature.get-values "<std>" : $(properties) ] ;
-  local lto = [ get-lib-lto "boost-exception" : $(properties) ] ;
-  local memory-checker = [ get-lib-memory-checker "boost-exception" : $(properties) ] ;
-  local libstdcxx-debug-mode = [ feature.get-values "<libstdc++-debug-mode>" : $(properties) ] ;
+  local instruction-set = [ get-lib-instruction-set boost-exception : $(properties) ] ;
+  local std = [ feature.get-values <std> : $(properties) ] ;
+  local lto = [ get-lib-lto boost-exception : $(properties) ] ;
+  local memory-checker = [ get-lib-memory-checker boost-exception : $(properties) ] ;
+  local libstdcxx-debug-mode = [ feature.get-values <libstdc++-debug-mode> : $(properties) ] ;
 
   local ph = [ get-compiler-prefix $(properties) ] ;
   ph = "$(ph)/$(variant)" ;
@@ -1698,7 +1882,7 @@ rule boost-exception-lib-conditional ( properties * )
 {
   local full-prefix = [ get-boost-exception-full-prefix $(properties) ] ;
   if ! [ path.exists "$(full-prefix)/lib/libboost_exception.a" ] {
-    errors.user-error "`$(full-prefix)/lib/libboost_exception.a' does not exist" ;
+    errors.user-error "`$(full-prefix)/lib/libboost_exception.a' does not exist." ;
   }
   return "<file>$(full-prefix)/lib/libboost_exception.a" ;
 }
@@ -1719,40 +1903,40 @@ alias boost_exception_link
 #############################################################################
 
 feature.feature boost-filesystem-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-filesystem-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature boost-filesystem-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-filesystem-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-filesystem-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-filesystem-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-filesystem-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-filesystem" : "boost-system" : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_FILESYSTEM_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-filesystem : boost-system : $(properties) ] {
+  case shared :
+    result = <define>BOOST_FILESYSTEM_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -1768,7 +1952,7 @@ alias boost_filesystem_compile
 
 rule boost-filesystem-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "boost-filesystem" : "boost_filesystem" : "boost-system" : $(properties) ] ;
+  return [ lib-lib-conditional boost-filesystem : boost_filesystem : boost-system : $(properties) ] ;
 }
 
 lib boost_filesystem.lib
@@ -1776,58 +1960,52 @@ lib boost_filesystem.lib
   : <conditional>@boost-filesystem-lib-conditional
   ;
 
-rule boost-filesystem-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "boost-filesystem" : "boost_filesystem" : "boost-system" : $(properties) ] ;
-}
-
 alias boost_filesystem_link
   : # No source.
   : # No requirement.
   : # No default-build.
   : <library>boost_system_link
     <library>boost_filesystem.lib
-    <conditional>@boost-filesystem-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-graph-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-graph-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature boost-graph-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-graph-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-graph-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-graph-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-graph-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-graph" : "boost-regex" : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_GRAPH_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-graph : boost-regex : $(properties) ] {
+  case shared :
+    result = <define>BOOST_GRAPH_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -1842,7 +2020,7 @@ alias boost_graph_compile
 
 rule boost-graph-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "boost-graph" : "boost_graph" : "boost-regex" : $(properties) ] ;
+  return [ lib-lib-conditional boost-graph : boost_graph : boost-regex : $(properties) ] ;
 }
 
 lib boost_graph.lib
@@ -1850,58 +2028,52 @@ lib boost_graph.lib
   : <conditional>@boost-graph-lib-conditional
   ;
 
-rule boost-graph-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "boost-graph" : "boost_graph" : "boost-regex" : $(properties) ] ;
-}
-
 alias boost_graph_link
   : # No source.
   : # No requirement.
   : # No default-build.
   : <library>boost_regex_link
     <library>boost_graph.lib
-    <conditional>@boost-graph-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-graph-parallel-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-graph-parallel-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature boost-graph-parallel-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-graph-parallel-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-graph-parallel-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-graph-parallel-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-graph-parallel-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-graph-parallel" : "boost-serialization" "boost-mpi" : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_GRAPH_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-graph-parallel : boost-serialization boost-mpi : $(properties) ] {
+  case shared :
+    result = <define>BOOST_GRAPH_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -1916,7 +2088,7 @@ alias boost_graph_parallel_compile
 
 rule boost-graph-parallel-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "boost-graph-parallel" : "boost_graph_parallel" : "boost-serialization" "boost-mpi" : $(properties) ] ;
+  return [ lib-lib-conditional boost-graph-parallel : boost_graph_parallel : boost-serialization boost-mpi : $(properties) ] ;
 }
 
 lib boost_graph_parallel.lib
@@ -1925,11 +2097,6 @@ lib boost_graph_parallel.lib
   : <conditional>@boost-graph-parallel-lib-conditional
   ;
 
-rule boost-graph-parallel-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "boost-graph-parallel" : "boost_graph_parallel" : "boost-serialization" "boost-mpi" : $(properties) ] ;
-}
-
 alias boost_graph_parallel_link
   : # No source.
   : # No requirement.
@@ -1937,47 +2104,46 @@ alias boost_graph_parallel_link
   : <library>boost_serialization_link
     <library>boost_mpi_link
     <library>boost_graph_parallel.lib
-    <conditional>@boost-graph-parallel-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-iostreams-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-iostreams-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature boost-iostreams-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-iostreams-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-iostreams-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-iostreams-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-iostreams-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-iostreams" : : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_IOSTREAMS_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-iostreams : : $(properties) ] {
+  case shared :
+    result = <define>BOOST_IOSTREAMS_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -1992,7 +2158,7 @@ alias boost_iostreams_compile
 
 rule boost-iostreams-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "boost-iostreams" : "boost_iostreams" : : $(properties) ] ;
+  return [ lib-lib-conditional boost-iostreams : boost_iostreams : : $(properties) ] ;
 }
 
 lib boost_iostreams.lib
@@ -2001,57 +2167,51 @@ lib boost_iostreams.lib
   : <conditional>@boost-iostreams-lib-conditional
   ;
 
-rule boost-iostreams-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "boost-iostreams" : "boost_iostreams" : : $(properties) ] ;
-}
-
 alias boost_iostreams_link
   : # No source.
   : # No requirement.
   : # No default-build.
   : <library>boost_iostreams.lib
-    <conditional>@boost-iostreams-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-locale-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-locale-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 #feature.feature boost-locale-threading
-#  : multi single
-#  : propagated
+#  : [ feature.values <threading> ]
+#  : propagated optional
 #  ;
 feature.feature boost-locale-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-locale-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-locale-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-locale-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-locale" : "icudt" "icuuc" "icuin" "boost-thread" : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_LOCALE_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-locale : icudt icuuc icuin boost-thread : $(properties) ] {
+  case shared :
+    result = <define>BOOST_LOCALE_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -2066,14 +2226,14 @@ alias boost_locale_compile
 
 local rule get-boost-locale-full-prefix ( properties * )
 {
-  local variant = [ get-lib-variant "boost-locale" : $(properties) ] ;
-  local link = [ get-lib-link "boost-locale" : "icudt" "icuuc" "icuin" "boost-thread" : $(properties) ] ;
+  local variant = [ get-lib-variant boost-locale : $(properties) ] ;
+  local link = [ get-lib-link boost-locale : icudt icuuc icuin boost-thread : $(properties) ] ;
   local address-model = [ get-address-model $(properties) ] ;
-  local instruction-set = [ get-lib-instruction-set "boost-locale" : $(properties) ] ;
-  local std = [ feature.get-values "<std>" : $(properties) ] ;
-  local lto = [ get-lib-lto "boost-locale" : $(properties) ] ;
-  local memory-checker = [ get-lib-memory-checker "boost-locale" : $(properties) ] ;
-  local libstdcxx-debug-mode = [ feature.get-values "<libstdc++-debug-mode>" : $(properties) ] ;
+  local instruction-set = [ get-lib-instruction-set boost-locale : $(properties) ] ;
+  local std = [ feature.get-values <std> : $(properties) ] ;
+  local lto = [ get-lib-lto boost-locale : $(properties) ] ;
+  local memory-checker = [ get-lib-memory-checker boost-locale : $(properties) ] ;
+  local libstdcxx-debug-mode = [ feature.get-values <libstdc++-debug-mode> : $(properties) ] ;
 
   local ph = [ get-compiler-prefix $(properties) ] ;
   ph = "$(ph)/$(variant)" ;
@@ -2092,19 +2252,19 @@ rule boost-locale-lib-conditional ( properties * )
 {
   local ph = [ get-boost-locale-full-prefix $(properties) ] ;
   local result ;
-  switch [ get-lib-link "boost-locale" : "icudt" "icuuc" "icuin" "boost-thread" : $(properties) ] {
-  case "shared" :
+  switch [ get-lib-link boost-locale : icudt icuuc icuin boost-thread : $(properties) ] {
+  case shared :
     if ! [ path.exists "$(ph)/lib/libboost_locale.so" ] {
-      errors.user-error "`$(ph)/lib/libboost_locale.so' does not exist" ;
+      errors.user-error "`$(ph)/lib/libboost_locale.so' does not exist." ;
     }
     result = "<file>$(ph)/lib/libboost_locale.so" ;
-  case "static" :
+  case static :
     if ! [ path.exists "$(ph)/lib/libboost_locale.a" ] {
-      errors.user-error "`$(ph)/lib/libboost_locale.a' does not exist" ;
+      errors.user-error "`$(ph)/lib/libboost_locale.a' does not exist." ;
     }
     result = "<file>$(ph)/lib/libboost_locale.a" ;
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -2117,26 +2277,6 @@ lib boost_locale.lib
   : <conditional>@boost-locale-lib-conditional
   ;
 
-rule boost-locale-link-conditional ( properties * )
-{
-  local ph = [ get-boost-locale-full-prefix $(properties) ] ;
-  local result ;
-  switch [ get-lib-link "boost-locale" : "icudt" "icuuc" "icuin" "boost-thread" : $(properties) ] {
-  case "shared" :
-    local shlib-path = "$(ph)/lib/libboost_locale.so" ;
-    if ! [ path.exists "$(shlib-path)" ] {
-      errors.user-error "`$(shlib-path)' does not exist" ;
-    }
-    local shlib-path-native = [ path.native "$(shlib-path)" ] ;
-    result = "<testing.launcher>LD_PRELOAD=\"$(shlib-path-native)${LD_PRELOAD:+ $LD_PRELOAD}\"" ;
-  case "static" :
-    # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
-  }
-  return $(result) ;
-}
-
 alias boost_locale_link
   : # No source.
   : # No requirement.
@@ -2146,47 +2286,46 @@ alias boost_locale_link
     <library>icuin_link
     <library>boost_thread_link
     <library>boost_locale.lib
-    <conditional>@boost-locale-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-math-c99-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-math-c99-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature boost-math-c99-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-math-c99-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-math-c99-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-math-c99-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-math-c99-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-math-c99" : : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_MATH_TR1_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-math-c99 : : $(properties) ] {
+  case shared :
+    result = <define>BOOST_MATH_TR1_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -2201,7 +2340,7 @@ alias boost_math_c99_compile
 
 rule boost-math-c99-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "boost-math-c99" : "boost_math_c99" : : $(properties) ] ;
+  return [ lib-lib-conditional boost-math-c99 : boost_math_c99 : : $(properties) ] ;
 }
 
 lib boost_math_c99.lib
@@ -2209,57 +2348,51 @@ lib boost_math_c99.lib
   : <conditional>@boost-math-c99-lib-conditional
   ;
 
-rule boost-math-c99-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "boost-math-c99" : "boost_math_c99" : : $(properties) ] ;
-}
-
 alias boost_math_c99_link
   : # No source.
   : # No requirement.
   : # No default-build.
   : <library>boost_math_c99.lib
-    <conditional>@boost-math-c99-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-math-c99f-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-math-c99f-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature boost-math-c99f-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-math-c99f-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-math-c99f-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-math-c99f-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-math-c99f-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-math-c99f" : : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_MATH_TR1_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-math-c99f : : $(properties) ] {
+  case shared :
+    result = <define>BOOST_MATH_TR1_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -2274,7 +2407,7 @@ alias boost_math_c99f_compile
 
 rule boost-math-c99f-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "boost-math-c99f" : "boost_math_c99f" : : $(properties) ] ;
+  return [ lib-lib-conditional boost-math-c99f : boost_math_c99f : : $(properties) ] ;
 }
 
 lib boost_math_c99f.lib
@@ -2282,57 +2415,51 @@ lib boost_math_c99f.lib
   : <conditional>@boost-math-c99f-lib-conditional
   ;
 
-rule boost-math-c99f-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "boost-math-c99f" : "boost_math_c99f" : : $(properties) ] ;
-}
-
 alias boost_math_c99f_link
   : # No source.
   : # No requirement.
   : # No default-build.
   : <library>boost_math_c99f.lib
-    <conditional>@boost-math-c99f-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-math-c99l-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-math-c99l-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature boost-math-c99l-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-math-c99l-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-math-c99l-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-math-c99l-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-math-c99l-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-math-c99l" : : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_MATH_TR1_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-math-c99l : : $(properties) ] {
+  case shared :
+    result = <define>BOOST_MATH_TR1_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -2347,7 +2474,7 @@ alias boost_math_c99l_compile
 
 rule boost-math-c99l-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "boost-math-c99l" : "boost_math_c99l" : : $(properties) ] ;
+  return [ lib-lib-conditional boost-math-c99l : boost_math_c99l : : $(properties) ] ;
 }
 
 lib boost_math_c99l.lib
@@ -2355,57 +2482,51 @@ lib boost_math_c99l.lib
   : <conditional>@boost-math-c99l-lib-conditional
   ;
 
-rule boost-math-c99l-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "boost-math-c99l" : "boost_math_c99l" : : $(properties) ] ;
-}
-
 alias boost_math_c99l_link
   : # No source.
   : # No requirement.
   : # No default-build.
   : <library>boost_math_c99l.lib
-    <conditional>@boost-math-c99l-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-math-tr1-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-math-tr1-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature boost-math-tr1-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-math-tr1-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-math-tr1-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-math-tr1-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-math-tr1-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-math-tr1" : : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_MATH_TR1_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-math-tr1 : : $(properties) ] {
+  case shared :
+    result = <define>BOOST_MATH_TR1_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -2420,7 +2541,7 @@ alias boost_math_tr1_compile
 
 rule boost-math-tr1-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "boost-math-tr1" : "boost_math_tr1" : : $(properties) ] ;
+  return [ lib-lib-conditional boost-math-tr1 : boost_math_tr1 : : $(properties) ] ;
 }
 
 lib boost_math_tr1.lib
@@ -2428,57 +2549,51 @@ lib boost_math_tr1.lib
   : <conditional>@boost-math-tr1-lib-conditional
   ;
 
-rule boost-math-tr1-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "boost-math-tr1" : "boost_math_tr1" : : $(properties) ] ;
-}
-
 alias boost_math_tr1_link
   : # No source.
   : # No requirement.
   : # No default-build.
   : <library>boost_math_tr1.lib
-    <conditional>@boost-math-tr1-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-math-tr1f-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-math-tr1f-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature boost-math-tr1f-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-math-tr1f-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-math-tr1f-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-math-tr1f-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-math-tr1f-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-math-tr1f" : : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_MATH_TR1_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-math-tr1f : : $(properties) ] {
+  case shared :
+    result = <define>BOOST_MATH_TR1_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -2493,7 +2608,7 @@ alias boost_math_tr1f_compile
 
 rule boost-math-tr1f-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "boost-math-tr1f" : "boost_math_tr1f" : : $(properties) ] ;
+  return [ lib-lib-conditional boost-math-tr1f : boost_math_tr1f : : $(properties) ] ;
 }
 
 lib boost_math_tr1f.lib
@@ -2501,57 +2616,51 @@ lib boost_math_tr1f.lib
   : <conditional>@boost-math-tr1f-lib-conditional
   ;
 
-rule boost-math-tr1f-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "boost-math-tr1f" : "boost_math_tr1f" : : $(properties) ] ;
-}
-
 alias boost_math_tr1f_link
   : # No source.
   : # No requirement.
   : # No default-build.
   : <library>boost_math_tr1f.lib
-    <conditional>@boost-math-tr1f-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-math-tr1l-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-math-tr1l-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature boost-math-tr1l-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-math-tr1l-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-math-tr1l-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-math-tr1l-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-math-tr1l-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-math-tr1l" : : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_MATH_TR1_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-math-tr1l : : $(properties) ] {
+  case shared :
+    result = <define>BOOST_MATH_TR1_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -2566,7 +2675,7 @@ alias boost_math_tr1l_compile
 
 rule boost-math-tr1l-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "boost-math-tr1l" : "boost_math_tr1l" : : $(properties) ] ;
+  return [ lib-lib-conditional boost-math-tr1l : boost_math_tr1l : : $(properties) ] ;
 }
 
 lib boost_math_tr1l.lib
@@ -2574,57 +2683,51 @@ lib boost_math_tr1l.lib
   : <conditional>@boost-math-tr1l-lib-conditional
   ;
 
-rule boost-math-tr1l-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "boost-math-tr1l" : "boost_math_tr1l" : : $(properties) ] ;
-}
-
 alias boost_math_tr1l_link
   : # No source.
   : # No requirement.
   : # No default-build.
   : <library>boost_math_tr1l.lib
-    <conditional>@boost-math-tr1l-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-mpi-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-mpi-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature boost-mpi-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-mpi-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-mpi-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-mpi-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-mpi-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-mpi" : "boost-serialization" : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_MPI_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-mpi : boost-serialization : $(properties) ] {
+  case shared :
+    result = <define>BOOST_MPI_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -2639,18 +2742,13 @@ alias boost_mpi_compile
 
 rule boost-mpi-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "boost-mpi" : "boost_mpi" : "boost-serialization" : $(properties) ] ;
+  return [ lib-lib-conditional boost-mpi : boost_mpi : boost-serialization : $(properties) ] ;
 }
 
 lib boost_mpi.lib
   : boost_serialization.lib
   : <conditional>@boost-mpi-lib-conditional
   ;
-
-rule boost-mpi-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "boost-mpi" : "boost_mpi" : "boost-serialization" : $(properties) ] ;
-}
 
 alias boost_mpi_link
   : # No source.
@@ -2659,47 +2757,46 @@ alias boost_mpi_link
   : <library>/mpi//mpi
     <library>boost_serialization_link
     <library>boost_mpi.lib
-    <conditional>@boost-mpi-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-prg-exec-monitor-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-prg-exec-monitor-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature boost-prg-exec-monitor-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-prg-exec-monitor-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-prg-exec-monitor-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-prg-exec-monitor-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-prg-exec-monitor-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-prg-exec-monitor" : : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_TEST_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-prg-exec-monitor : : $(properties) ] {
+  case shared :
+    result = <define>BOOST_TEST_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -2714,7 +2811,7 @@ alias boost_prg_exec_monitor_compile
 
 rule boost-prg-exec-monitor-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "boost-prg-exec-monitor" : "boost_prg_exec_monitor" : : $(properties) ] ;
+  return [ lib-lib-conditional boost-prg-exec-monitor : boost_prg_exec_monitor : : $(properties) ] ;
 }
 
 lib boost_prg_exec_monitor.lib
@@ -2722,57 +2819,51 @@ lib boost_prg_exec_monitor.lib
   : <conditional>@boost-prg-exec-monitor-lib-conditional
   ;
 
-rule boost-prg-exec-monitor-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "boost-prg-exec-monitor" : "boost_prg_exec_monitor" : : $(properties) ] ;
-}
-
 alias boost_prg_exec_monitor_link
   : # No source.
   : # No requirement.
   : # No default-build.
   : <library>boost_prg_exec_monitor.lib
-    <conditional>@boost-prg-exec-monitor-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-program-options-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-program-options-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature boost-program-options-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-program-options-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-program-options-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-program-options-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-program-options-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-program-options" : : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_PROGRAM_OPTIONS_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-program-options : : $(properties) ] {
+  case shared :
+    result = <define>BOOST_PROGRAM_OPTIONS_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -2787,7 +2878,7 @@ alias boost_program_options_compile
 
 rule boost-program-options-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "boost-program-options" : "boost_program_options" : : $(properties) ] ;
+  return [ lib-lib-conditional boost-program-options : boost_program_options : : $(properties) ] ;
 }
 
 lib boost_program_options.lib
@@ -2795,57 +2886,51 @@ lib boost_program_options.lib
   : <conditional>@boost-program-options-lib-conditional
   ;
 
-rule boost-program-options-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "boost-program-options" : "boost_program_options" : : $(properties) ] ;
-}
-
 alias boost_program_options_link
   : # No source.
   : # No requirement.
   : # No default-build.
   : <library>boost_program_options.lib
-    <conditional>@boost-program-options-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-python-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-python-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature boost-python-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-python-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-python-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-python-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-python-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-python" : : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_PYTHON_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-python : : $(properties) ] {
+  case shared :
+    result = <define>BOOST_PYTHON_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -2860,7 +2945,7 @@ alias boost_python_compile
 
 rule boost-python-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "boost-python" : "boost_python" : : $(properties) ] ;
+  return [ lib-lib-conditional boost-python : boost_python : : $(properties) ] ;
 }
 
 lib boost_python.lib
@@ -2868,57 +2953,51 @@ lib boost_python.lib
   : <conditional>@boost-python-lib-conditional
   ;
 
-rule boost-python-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "boost-python" : "boost_python" : : $(properties) ] ;
-}
-
 alias boost_python_link
   : # No source.
   : # No requirement.
   : # No default-build.
   : <library>boost_python.lib
-    <conditional>@boost-python-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-random-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-random-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature boost-random-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-random-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-random-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-random-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-random-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-random" : : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_RANDOM_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-random : : $(properties) ] {
+  case shared :
+    result = <define>BOOST_RANDOM_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -2933,7 +3012,7 @@ alias boost_random_compile
 
 rule boost-random-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "boost-random" : "boost_random" : : $(properties) ] ;
+  return [ lib-lib-conditional boost-random : boost_random : : $(properties) ] ;
 }
 
 lib boost_random.lib
@@ -2941,57 +3020,51 @@ lib boost_random.lib
   : <conditional>@boost-random-lib-conditional
   ;
 
-rule boost-random-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "boost-random" : "boost_random" : : $(properties) ] ;
-}
-
 alias boost_random_link
   : # No source.
   : # No requirement.
   : # No default-build.
   : <library>boost_random.lib
-    <conditional>@boost-random-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-regex-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-regex-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature boost-regex-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-regex-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-regex-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-regex-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-regex-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-regex" : "icudt" "icuuc" "icuin" : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_REGEX_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-regex : icudt icuuc icuin : $(properties) ] {
+  case shared :
+    result = <define>BOOST_REGEX_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -3006,7 +3079,7 @@ alias boost_regex_compile
 
 rule boost-regex-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "boost-regex" : "boost_regex" : "icudt" "icuuc" "icuin" : $(properties) ] ;
+  return [ lib-lib-conditional boost-regex : boost_regex : icudt icuuc icuin : $(properties) ] ;
 }
 
 lib boost_regex.lib
@@ -3016,11 +3089,6 @@ lib boost_regex.lib
   : <conditional>@boost-regex-lib-conditional
   ;
 
-rule boost-regex-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "boost-regex" : "boost_regex" : "icudt" "icuuc" "icuin" : $(properties) ] ;
-}
-
 alias boost_regex_link
   : # No source.
   : # No requirement.
@@ -3029,47 +3097,46 @@ alias boost_regex_link
     <library>icuuc_link
     <library>icuin_link
     <library>boost_regex.lib
-    <conditional>@boost-regex-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-serialization-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-serialization-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature boost-serialization-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-serialization-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-serialization-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-serialization-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-serialization-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-serialization" : : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_SERIALIZATION_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-serialization : : $(properties) ] {
+  case shared :
+    result = <define>BOOST_SERIALIZATION_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -3084,7 +3151,7 @@ alias boost_serialization_compile
 
 rule boost-serialization-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "boost-serialization" : "boost_serialization" : : $(properties) ] ;
+  return [ lib-lib-conditional boost-serialization : boost_serialization : : $(properties) ] ;
 }
 
 lib boost_serialization.lib
@@ -3092,57 +3159,51 @@ lib boost_serialization.lib
   : <conditional>@boost-serialization-lib-conditional
   ;
 
-rule boost-serialization-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "boost-serialization" : "boost_serialization" : : $(properties) ] ;
-}
-
 alias boost_serialization_link
   : # No source.
   : # No requirement.
   : # No default-build.
   : <library>boost_serialization.lib
-    <conditional>@boost-serialization-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-signals-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-signals-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature boost-signals-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-signals-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-signals-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-signals-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-signals-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-signals" : : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_SIGNALS_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-signals : : $(properties) ] {
+  case shared :
+    result = <define>BOOST_SIGNALS_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -3157,7 +3218,7 @@ alias boost_signals_compile
 
 rule boost-signals-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "boost-signals" : "boost_signals" : : $(properties) ] ;
+  return [ lib-lib-conditional boost-signals : boost_signals : : $(properties) ] ;
 }
 
 lib boost_signals.lib
@@ -3165,57 +3226,51 @@ lib boost_signals.lib
   : <conditional>@boost-signals-lib-conditional
   ;
 
-rule boost-signals-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "boost-signals" : "boost_signals" : : $(properties) ] ;
-}
-
 alias boost_signals_link
   : # No source.
   : # No requirement.
   : # No default-build.
   : <library>boost_signals.lib
-    <conditional>@boost-signals-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-system-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-system-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature boost-system-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-system-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-system-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-system-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-system-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-system" : : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_SYSTEM_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-system : : $(properties) ] {
+  case shared :
+    result = <define>BOOST_SYSTEM_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -3231,7 +3286,7 @@ alias boost_system_compile
 
 rule boost-system-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "boost-system" : "boost_system" : : $(properties) ] ;
+  return [ lib-lib-conditional boost-system : boost_system : : $(properties) ] ;
 }
 
 lib boost_system.lib
@@ -3239,45 +3294,39 @@ lib boost_system.lib
   : <conditional>@boost-system-lib-conditional
   ;
 
-rule boost-system-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "boost-system" : "boost_system" : : $(properties) ] ;
-}
-
 alias boost_system_link
   : # No source.
   : # No requirement.
   : # No default-build.
   : <library>boost_system.lib
-    <conditional>@boost-system-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-test-exec-monitor-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 #feature.feature boost-test-exec-monitor-link
-#  : shared static
-#  : propagated
+#  : [ feature.values <link> ]
+#  : propagated optional
 #  ;
 feature.feature boost-test-exec-monitor-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-test-exec-monitor-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-test-exec-monitor-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-test-exec-monitor-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 alias boost_test_exec_monitor_compile
@@ -3289,14 +3338,14 @@ alias boost_test_exec_monitor_compile
 
 local rule get-boost-test-exec-monitor-full-prefix ( properties * )
 {
-  local variant = [ get-lib-variant "boost-test-exec-monitor" : $(properties) ] ;
-  local threading = [ get-lib-threading "boost-test-exec-monitor" : : $(properties) ] ;
+  local variant = [ get-lib-variant boost-test-exec-monitor : $(properties) ] ;
+  local threading = [ get-lib-threading boost-test-exec-monitor : : $(properties) ] ;
   local address-model = [ get-address-model $(properties) ] ;
-  local instruction-set = [ get-lib-instruction-set "boost-test-exec-monitor" : $(properties) ] ;
-  local std = [ feature.get-values "<std>" : $(properties) ] ;
-  local lto = [ get-lib-lto "boost-test-exec-monitor" : $(properties) ] ;
-  local memory-checker = [ get-lib-memory-checker "boost-test-exec-monitor" : $(properties) ] ;
-  local libstdcxx-debug-mode = [ feature.get-values "<libstdc++-debug-mode>" : $(properties) ] ;
+  local instruction-set = [ get-lib-instruction-set boost-test-exec-monitor : $(properties) ] ;
+  local std = [ feature.get-values <std> : $(properties) ] ;
+  local lto = [ get-lib-lto boost-test-exec-monitor : $(properties) ] ;
+  local memory-checker = [ get-lib-memory-checker boost-test-exec-monitor : $(properties) ] ;
+  local libstdcxx-debug-mode = [ feature.get-values <libstdc++-debug-mode> : $(properties) ] ;
 
   local ph = [ get-compiler-prefix $(properties) ] ;
   ph = "$(ph)/$(variant)" ;
@@ -3315,7 +3364,7 @@ rule boost-test-exec-monitor-lib-conditional ( properties * )
 {
   local full-prefix = [ get-boost-test-exec-monitor-full-prefix $(properties) ] ;
   if ! [ path.exists "$(full-prefix)/lib/libboost_test_exec_monitor.a" ] {
-    errors.user-error "`$(full-prefix)/lib/libboost_test_exec_monitor.a' does not exist" ;
+    errors.user-error "`$(full-prefix)/lib/libboost_test_exec_monitor.a' does not exist." ;
   }
   return "<file>$(full-prefix)/lib/libboost_test_exec_monitor.a" ;
 }
@@ -3336,40 +3385,40 @@ alias boost_test_exec_monitor_link
 #############################################################################
 
 feature.feature boost-thread-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-thread-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 #feature.feature boost-thread-threading
-#  : multi single
-#  : propagated
+#  : [ feature.values <threading> ]
+#  : propagated optional
 #  ;
 feature.feature boost-thread-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-thread-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-thread-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-thread-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-thread" : "boost-system" "boost-chrono" : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_THREAD_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-thread : boost-system boost-chrono : $(properties) ] {
+  case shared :
+    result = <define>BOOST_THREAD_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -3384,14 +3433,14 @@ alias boost_thread_compile
 
 local rule get-boost-thread-full-prefix ( properties * )
 {
-  local variant = [ get-lib-variant "boost-thread" : $(properties) ] ;
-  local link = [ get-lib-link "boost-thread" : "boost-system" "boost-chrono" : $(properties) ] ;
+  local variant = [ get-lib-variant boost-thread : $(properties) ] ;
+  local link = [ get-lib-link boost-thread : boost-system boost-chrono : $(properties) ] ;
   local address-model = [ get-address-model $(properties) ] ;
-  local instruction-set = [ get-lib-instruction-set "boost-thread" : $(properties) ] ;
-  local std = [ feature.get-values "<std>" : $(properties) ] ;
-  local lto = [ get-lib-lto "boost-thread" : $(properties) ] ;
-  local memory-checker = [ get-lib-memory-checker "boost-thread" : $(properties) ] ;
-  local libstdcxx-debug-mode = [ feature.get-values "<libstdc++-debug-mode>" : $(properties) ] ;
+  local instruction-set = [ get-lib-instruction-set boost-thread : $(properties) ] ;
+  local std = [ feature.get-values <std> : $(properties) ] ;
+  local lto = [ get-lib-lto boost-thread : $(properties) ] ;
+  local memory-checker = [ get-lib-memory-checker boost-thread : $(properties) ] ;
+  local libstdcxx-debug-mode = [ feature.get-values <libstdc++-debug-mode> : $(properties) ] ;
 
   local ph = [ get-compiler-prefix $(properties) ] ;
   ph = "$(ph)/$(variant)" ;
@@ -3410,19 +3459,19 @@ rule boost-thread-lib-conditional ( properties * )
 {
   local ph = [ get-boost-thread-full-prefix $(properties) ] ;
   local result ;
-  switch [ get-lib-link "boost-thread" : "boost-system" "boost-chrono" : $(properties) ] {
-  case "shared" :
+  switch [ get-lib-link boost-thread : boost-system boost-chrono : $(properties) ] {
+  case shared :
     if ! [ path.exists "$(ph)/lib/libboost_thread.so" ] {
-      errors.user-error "`$(ph)/lib/libboost_thread.so' does not exist" ;
+      errors.user-error "`$(ph)/lib/libboost_thread.so' does not exist." ;
     }
     result = "<file>$(ph)/lib/libboost_thread.so" ;
-  case "static" :
+  case static :
     if ! [ path.exists "$(ph)/lib/libboost_thread.a" ] {
-      errors.user-error "`$(ph)/lib/libboost_thread.a' does not exist" ;
+      errors.user-error "`$(ph)/lib/libboost_thread.a' does not exist." ;
     }
     result = "<file>$(ph)/lib/libboost_thread.a" ;
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -3433,26 +3482,6 @@ lib boost_thread.lib
   : <conditional>@boost-thread-lib-conditional
   ;
 
-rule boost-thread-link-conditional ( properties * )
-{
-  local ph = [ get-boost-thread-full-prefix $(properties) ] ;
-  local result ;
-  switch [ get-lib-link "boost-thread" : "boost-system" "boost-chrono" : $(properties) ] {
-  case "shared" :
-    local shlib-path = "$(ph)/lib/libboost_thread.so" ;
-    if ! [ path.exists "$(shlib-path)" ] {
-      errors.user-error "`$(shlib-path)' does not exist" ;
-    }
-    local shlib-path-native = [ path.native "$(shlib-path)" ] ;
-    result = "<testing.launcher>LD_PRELOAD=\"$(shlib-path-native)${LD_PRELOAD:+ $LD_PRELOAD}\"" ;
-  case "static" :
-    # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
-  }
-  return $(result) ;
-}
-
 alias boost_thread_link
   : # No source.
   : # No requirement.
@@ -3460,47 +3489,46 @@ alias boost_thread_link
   : <library>boost_system_link
     <library>boost_chrono_link
     <library>boost_thread.lib
-    <conditional>@boost-thread-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-timer-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-timer-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature boost-timer-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-timer-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-timer-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-timer-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-timer-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-timer" : "boost-system" "boost-chrono" : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_TIMER_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-timer : boost-system boost-chrono : $(properties) ] {
+  case shared :
+    result = <define>BOOST_TIMER_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -3515,7 +3543,7 @@ alias boost_timer_compile
 
 rule boost-timer-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "boost-timer" : "boost_timer" : "boost-system" "boost-chrono" : $(properties) ] ;
+  return [ lib-lib-conditional boost-timer : boost_timer : boost-system boost-chrono : $(properties) ] ;
 }
 
 lib boost_timer.lib
@@ -3524,11 +3552,6 @@ lib boost_timer.lib
   : <conditional>@boost-timer-lib-conditional
   ;
 
-rule boost-timer-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "boost-timer" : "boost_timer" : "boost-system" "boost-chrono" : $(properties) ] ;
-}
-
 alias boost_timer_link
   : # No source.
   : # No requirement.
@@ -3536,47 +3559,46 @@ alias boost_timer_link
   : <library>boost_system_link
     <library>boost_chrono_link
     <library>boost_timer.lib
-    <conditional>@boost-timer-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-unit-test-framework-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-unit-test-framework-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature boost-unit-test-framework-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-unit-test-framework-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-unit-test-framework-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-unit-test-framework-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-unit-test-framework-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-unit-test-framework" : : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_TEST_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-unit-test-framework : : $(properties) ] {
+  case shared :
+    result = <define>BOOST_TEST_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -3591,7 +3613,7 @@ alias boost_unit_test_framework_compile
 
 rule boost-unit-test-framework-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "boost-unit-test-framework" : "boost_unit_test_framework" : : $(properties) ] ;
+  return [ lib-lib-conditional boost-unit-test-framework : boost_unit_test_framework : : $(properties) ] ;
 }
 
 lib boost_unit_test_framework.lib
@@ -3599,57 +3621,51 @@ lib boost_unit_test_framework.lib
   : <conditional>@boost-unit-test-framework-lib-conditional
   ;
 
-rule boost-unit-test-framework-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "boost-unit-test-framework" : "boost_unit_test_framework" : : $(properties) ] ;
-}
-
 alias boost_unit_test_framework_link
   : # No source.
   : # No requirement.
   : # No default-build.
   : <library>boost_unit_test_framework.lib
-    <conditional>@boost-unit-test-framework-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-wave-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-wave-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 #feature.feature boost-wave-threading
-#  : multi single
-#  : propagated
+#  : [ feature.values <threading> ]
+#  : propagated optional
 #  ;
 feature.feature boost-wave-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-wave-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-wave-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-wave-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-wave" : "boost-system" "boost-chrono" "boost-date-time" "boost-filesystem" "boost-thread" : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_WAVE_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-wave : boost-system boost-chrono boost-date-time boost-filesystem boost-thread : $(properties) ] {
+  case shared :
+    result = <define>BOOST_WAVE_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -3664,14 +3680,14 @@ alias boost_wave_compile
 
 local rule get-boost-wave-full-prefix ( properties * )
 {
-  local variant = [ get-lib-variant "boost-wave" : $(properties) ] ;
-  local link = [ get-lib-link "boost-wave" : "boost-system" "boost-chrono" "boost-date-time" "boost-filesystem" "boost-thread" : $(properties) ] ;
+  local variant = [ get-lib-variant boost-wave : $(properties) ] ;
+  local link = [ get-lib-link boost-wave : boost-system boost-chrono boost-date-time boost-filesystem boost-thread : $(properties) ] ;
   local address-model = [ get-address-model $(properties) ] ;
-  local instruction-set = [ get-lib-instruction-set "boost-wave" : $(properties) ] ;
-  local std = [ feature.get-values "<std>" : $(properties) ] ;
-  local lto = [ get-lib-lto "boost-wave" : $(properties) ] ;
-  local memory-checker = [ get-lib-memory-checker "boost-wave" : $(properties) ] ;
-  local libstdcxx-debug-mode = [ feature.get-values "<libstdc++-debug-mode>" : $(properties) ] ;
+  local instruction-set = [ get-lib-instruction-set boost-wave : $(properties) ] ;
+  local std = [ feature.get-values <std> : $(properties) ] ;
+  local lto = [ get-lib-lto boost-wave : $(properties) ] ;
+  local memory-checker = [ get-lib-memory-checker boost-wave : $(properties) ] ;
+  local libstdcxx-debug-mode = [ feature.get-values <libstdc++-debug-mode> : $(properties) ] ;
 
   local ph = [ get-compiler-prefix $(properties) ] ;
   ph = "$(ph)/$(variant)" ;
@@ -3690,19 +3706,19 @@ rule boost-wave-lib-conditional ( properties * )
 {
   local ph = [ get-boost-wave-full-prefix $(properties) ] ;
   local result ;
-  switch [ get-lib-link "boost-wave" : "boost-system" "boost-chrono" "boost-date-time" "boost-filesystem" "boost-thread" : $(properties) ] {
-  case "shared" :
+  switch [ get-lib-link boost-wave : boost-system boost-chrono boost-date-time boost-filesystem boost-thread : $(properties) ] {
+  case shared :
     if ! [ path.exists "$(ph)/lib/libboost_wave.so" ] {
-      errors.user-error "`$(ph)/lib/libboost_wave.so' does not exist" ;
+      errors.user-error "`$(ph)/lib/libboost_wave.so' does not exist." ;
     }
     result = "<file>$(ph)/lib/libboost_wave.so" ;
-  case "static" :
+  case static :
     if ! [ path.exists "$(ph)/lib/libboost_wave.a" ] {
-      errors.user-error "`$(ph)/lib/libboost_wave.a' does not exist" ;
+      errors.user-error "`$(ph)/lib/libboost_wave.a' does not exist." ;
     }
     result = "<file>$(ph)/lib/libboost_wave.a" ;
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -3716,26 +3732,6 @@ lib boost_wave.lib
   : <conditional>@boost-wave-lib-conditional
   ;
 
-rule boost-wave-link-conditional ( properties * )
-{
-  local ph = [ get-boost-wave-full-prefix $(properties) ] ;
-  local result ;
-  switch [ get-lib-link "boost-wave" : "boost-system" "boost-chrono" "boost-date-time" "boost-filesystem" "boost-thread" : $(properties) ] {
-  case "shared" :
-    local shlib-path = "$(ph)/lib/libboost_wave.so" ;
-    if ! [ path.exists "$(shlib-path)" ] {
-      errors.user-error "`$(shlib-path)' does not exist" ;
-    }
-    local shlib-path-native = [ path.native "$(shlib-path)" ] ;
-    result = "<testing.launcher>LD_PRELOAD=\"$(shlib-path-native)${LD_PRELOAD:+ $LD_PRELOAD}\"" ;
-  case "static" :
-    # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
-  }
-  return $(result) ;
-}
-
 alias boost_wave_link
   : # No source.
   : # No requirement.
@@ -3746,47 +3742,46 @@ alias boost_wave_link
     <library>boost_filesystem_link
     <library>boost_thread_link
     <library>boost_wave.lib
-    <conditional>@boost-wave-link-conditional
   ;
 
 
 #############################################################################
 
 feature.feature boost-wserialization-variant
-  : release debug profile
-  : propagated
+  : [ feature.values <variant> ]
+  : propagated optional
   ;
 feature.feature boost-wserialization-link
-  : shared static
-  : propagated
+  : [ feature.values <link> ]
+  : propagated optional
   ;
 feature.feature boost-wserialization-threading
-  : multi single
-  : propagated
+  : [ feature.values <threading> ]
+  : propagated optional
   ;
 feature.feature boost-wserialization-instruction-set
-  : native
+  : generic native
   : propagated optional
   ;
 feature.feature boost-wserialization-lto
-  : off on
-  : propagated
+  : [ feature.values <lto> ]
+  : propagated optional
   ;
 feature.feature boost-wserialization-memory-checker
-  : off on
-  : propagated
+  : [ feature.values <memory-checker> ]
+  : propagated optional
   ;
 
 rule boost-wserialization-compile-conditional ( properties * )
 {
   local result ;
-  switch [ get-lib-link "boost-wserialization" : "boost-serialization" : $(properties) ] {
-  case "shared" :
-    result = "<define>BOOST_SERIALIZATION_DYN_LINK" ;
-  case "static" :
+  switch [ get-lib-link boost-wserialization : boost-serialization : $(properties) ] {
+  case shared :
+    result = <define>BOOST_SERIALIZATION_DYN_LINK ;
+  case static :
     # Do nothing.
-  case "*" :
-    errors.error "an internal error" ;
+  case * :
+    errors.error "an internal error." ;
   }
   return $(result) ;
 }
@@ -3801,7 +3796,7 @@ alias boost_wserialization_compile
 
 rule boost-wserialization-lib-conditional ( properties * )
 {
-  return [ lib-lib-conditional "boost-wserialization" : "boost_wserialization" : "boost-serialization" : $(properties) ] ;
+  return [ lib-lib-conditional boost-wserialization : boost_wserialization : boost-serialization : $(properties) ] ;
 }
 
 lib boost_wserialization.lib
@@ -3809,18 +3804,12 @@ lib boost_wserialization.lib
   : <conditional>@boost-wserialization-lib-conditional
   ;
 
-rule boost-wserialization-link-conditional ( properties * )
-{
-  return [ lib-link-conditional "boost-wserialization" : "boost_wserialization" : "boost-serialization" : $(properties) ] ;
-}
-
 alias boost_wserialization_link
   : # No source.
   : # No requirement.
   : # No default-build.
   : <library>boost_serialization_link
     <library>boost_wserialization.lib
-    <conditional>@boost-wserialization-link-conditional
   ;
 
 
@@ -3832,182 +3821,3 @@ alias boost_wserialization_link
 #BOOST_EX_CHRONO_DYN_LINK
 #BOOST_IOSTREAMS_DETAIL_CONFIG_DYN_LINK
 #BOOST_MPI_PYTHON_DYN_LINK
-
-
-feature.feature std
-  : c++03 c++11
-  : propagated composite
-  ;
-constant INTRO_STD_COMPILE_PROPERTIES
-  : <toolset>gcc,<std>c++03:<cxxflags>-std=c++03
-    <toolset>gcc,<std>c++11:<cxxflags>-std=c++0x
-    <toolset>clang,<std>c++03:<cxxflags>-std=c++03
-    <toolset>clang,<std>c++11:<cxxflags>-std=c++11
-    <toolset>intel,<std>c++03:<cxxflags>"-strict-ansi -fno-math-errno"
-    <toolset>intel,<std>c++11:<cxxflags>-std=c++11
-  ;
-
-feature.feature lto
-  : off on
-  : propagated composite
-  ;
-constant INTRO_LTO_COMPILE_PROPERTIES
-  : <toolset>gcc,<lto>on:<cflags>-flto
-    <toolset>clang,<lto>on:<cflags>-flto
-    <toolset>intel,<lto>on:<cflags>-ipo
-  ;
-constant INTRO_LTO_LINK_PROPERTIES
-  : <toolset>gcc,<lto>on:<linkflags>-flto
-    <toolset>gcc,<lto>on,<link>shared:<linkflags>-fPIC
-    <toolset>gcc,<lto>on,<optimization>speed:<linkflags>-O3
-    <toolset>gcc,<lto>on,<optimization>space:<linkflags>-Os
-    <toolset>gcc,<lto>on,<inlining>off:<linkflags>-fno-inline
-    <toolset>gcc,<lto>on,<inlining>on:<linkflags>-Wno-inline
-    <toolset>gcc,<lto>on,<inlining>full:<linkflags>"-finline-functions -Wno-inline"
-    <toolset>clang,<lto>on:<linkflags>-flto
-    <toolset>clang,<lto>on,<link>shared:<linkflags>-fPIC
-    <toolset>clang,<lto>on,<optimization>speed:<linkflags>-O3
-    <toolset>clang,<lto>on,<optimization>space:<linkflags>-Os
-    <toolset>clang,<lto>on,<inlining>off:<linkflags>-fno-inline
-    <toolset>clang,<lto>on,<inlining>on:<linkflags>-Wno-inline
-    <toolset>clang,<lto>on,<inlining>full:<linkflags>"-finline-functions -Wno-inline"
-    <toolset>intel,<lto>on:<linkflags>-ipo
-    <toolset>intel,<lto>on,<link>shared:<linkflags>-fPIC
-    <toolset>intel,<lto>on,<optimization>speed:<linkflags>-O3
-    <toolset>intel,<lto>on,<optimization>space:<linkflags>-Os
-    <toolset>intel,<lto>on,<inlining>off:<linkflags>-inline-level=0
-    <toolset>intel,<lto>on,<inlining>on:<linkflags>"-inline-level=1 -Wno-inline"
-    <toolset>intel,<lto>on,<inlining>full:<linkflags>"-inline-level=2 -Wno-inline"
-  ;
-
-feature.feature correct-call-stack
-  : off on
-  : propagated composite
-  ;
-feature.compose <correct-call-stack>on
-  : <cflags>"-fno-omit-frame-pointer -fno-optimize-sibling-calls"
-    <linkflags>"-fno-omit-frame-pointer -fno-optimize-sibling-calls"
-  ;
-
-feature.feature ssp
-  : off on all
-  : propagated composite
-  ;
-feature.compose <ssp>on
-  : <cflags>-fstack-protector
-    <linkflags>-fstack-protector
-  ;
-feature.compose <ssp>all
-  : <cflags>-fstack-protector-all
-    <linkflags>-fstack-protector-all
-  ;
-constant INTRO_SSP_COMPILE_PROPERTIES
-  : <toolset>intel,<ssp>on:<cflags>-fstack-security-check
-    <toolset>intel,<ssp>all:<cflags>-fstack-security-check
-  ;
-constant INTRO_SSP_LINK_PROPERTIES
-  : <toolset>intel,<ssp>on:<linkflags>-fstack-security-check
-    <toolset>intel,<ssp>all:<linkflags>-fstack-security-check
-  ;
-
-feature.feature memory-checker
-  : off on
-  : propagated
-  ;
-constant INTRO_MEMORY_CHECKER_COMPILE_PROPERTIES
-  : <toolset>gcc,<memory-checker>on:<cflags>"-fsanitize=address"
-    <toolset>clang,<memory-checker>on:<cflags>"-fsanitize=address"
-    <toolset>intel,<memory-checker>on:<cflags>"-fp-speculation safe -ftrapuv -check-pointers=rw -check-pointers-dangling=all -check-pointers-undimensioned"
-  ;
-constant INTRO_MEMORY_CHECKER_LINK_PROPERTIES
-  : <toolset>gcc,<memory-checker>on:<linkflags>"-fsanitize=address"
-    <toolset>clang,<memory-checker>on:<linkflags>"-fsanitize=address"
-    <toolset>intel,<memory-checker>on:<linkflags>"-fp-speculation safe -ftrapuv -check-pointers=rw -check-pointers-dangling=all -check-pointers-undimensioned"
-  ;
-
-feature.feature libstdc++-debug-mode
-  : off on
-  : propagated composite
-  ;
-feature.compose <libstdc++-debug-mode>on
-  : <define>_GLIBCXX_DEBUG
-    <define>_GLIBCXX_DEBUG_PEDANTIC
-  ;
-
-feature.feature memcheck
-  : off on
-  : propagated incidental
-  ;
-feature.feature memcheck-run
-  : off on
-  ;
-
-feature.feature catchsegv
-  : off on
-  : propagated incidental
-  ;
-
-constant INTRO_COMPILE_PROPERTIES
-  : <c++-template-depth>1024
-    <exception-handling>off:<cflags>-fno-exceptions
-    <rtti>off:<linkflags>-fno-rtti
-    <toolset>intel,<variant>debug:<cflags>"-debug full"
-    <toolset>intel,<instruction-set>native:<cflags>"-xHost"
-    $(INTRO_STD_COMPILE_PROPERTIES)
-    $(INTRO_LTO_COMPILE_PROPERTIES)
-    $(INTRO_SSP_COMPILE_PROPERTIES)
-    $(INTRO_MEMORY_CHECKER_COMPILE_PROPERTIES)
-  ;
-
-constant INTRO_LINK_PROPERTIES
-  : <exception-handling>off:<linkflags>-fno-exceptions
-    <rtti>off:<linkflags>-fno-rtti
-    <toolset>intel,<variant>debug:<linkflags>"-debug full"
-    <variant>debug:<linkflags>-rdynamic
-    <variant>profile:<linkflags>-rdynamic
-    <toolset>intel,<instruction-set>native:<linkflags>"-xHost"
-    $(INTRO_LTO_LINK_PROPERTIES)
-    $(INTRO_SSP_LINK_PROPERTIES)
-    $(INTRO_MEMORY_CHECKER_LINK_PROPERTIES)
-  ;
-
-rule launcher-conditional ( properties * )
-{
-  local launchers ;
-
-  local runtime-debugging = [ feature.get-values "<runtime-debugging>" : $(properties) ] ;
-  if "$(runtime-debugging)" = "on" {
-    local default-libdir = [ get-default-libdir $(properties) ] ;
-    local debug-libdir = "$(default-libdir)/debug" ;
-    local debug-libdir-native = [ path.native "$(debug-libdir)" ] ;
-    launchers += "LD_PRELOAD=\"$(debug-libdir-native)/libstdc++.so${LD_PRELOAD:+ ${LD_PRELOAD}}\"" ;
-  }
-
-  local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
-  if "$(memory-checker)" = "on" {
-    launchers += "asan2line" ;
-  }
-
-  local catchsegv = [ feature.get-values <catchsegv> : $(properties) ] ;
-  if "$(catchsegv)" = "on" {
-    launchers += "SEGFAULT_SIGNALS=all" ;
-  }
-
-  if "$(catchsegv)" = "on" {
-    launchers += "catchsegv" ;
-  }
-
-  local memcheck-run = [ feature.get-values <memcheck-run> : $(properties) ] ;
-  if "$(memcheck-run)" = "on" {
-    local default-bindir = [ get-default-bindir $(properties) ] ;
-    launchers += "'$(default-bindir)/valgrind' --quiet --error-exitcode=1 --leak-check=full" ;
-  }
-
-  local result = <testing.launcher>$(launchers) ;
-  return $(result) ;
-}
-
-constant INTRO_RUN_PROPERTIES
-  : <memcheck>on:<memcheck-run>on
-    <conditional>@site-config.launcher-conditional
-  ;

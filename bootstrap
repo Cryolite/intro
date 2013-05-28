@@ -30,6 +30,8 @@ args=`getopt                    \
       -l 'without-gold'         \
       -l 'with-gcc-check::'     \
       -l 'without-gcc-check'    \
+      -l 'enable-lcov::'        \
+      -l 'enable-gcovr::'       \
       -l 'enable-gmp::'         \
       -l 'enable-mpfr::'        \
       -l 'enable-mpc::'         \
@@ -58,6 +60,8 @@ compilers=
 multitarget=no
 gold=no
 gcc_check=yes
+lcov=
+gcovr=
 gmp=
 mpfr=
 mpc=
@@ -123,6 +127,12 @@ for arg in "${args[@]}"; do
       ;;
     --without-gcc-check)
       gcc_check=no
+      ;;
+    --enable-lcov)
+      prev_arg=--enable-lcov
+      ;;
+    --enable-gcovr)
+      prev_arg=--enable-gcovr
       ;;
     --enable-gmp)
       prev_arg=--enable-gmp
@@ -258,6 +268,20 @@ for arg in "${args[@]}"; do
     --without-gcc-check)
       echo "bootstrap: an internal error" >&2
       exit 1
+      ;;
+    --enable-lcov)
+      if [ -z "$arg" ]; then
+        lcov=latest
+      else
+        lcov="$arg"
+      fi
+      ;;
+    --enable-gcovr)
+      if [ -z "$arg" ]; then
+        gcovr=latest
+      else
+        gcovr="$arg"
+      fi
       ;;
     --enable-gmp)
       if [ -z "$arg" ]; then
@@ -420,6 +444,14 @@ no)
   ;;
 esac
 
+if [ -n "$lcov" ]; then
+  delegated_opts=("${delegated_opts[@]}" --enable-lcov="$lcov")
+fi
+
+if [ -n "$gcovr" ]; then
+  delegated_opts=("${delegated_opts[@]}" --enable-gcovr="$gcovr")
+fi
+
 if [ -n "$gmp" ]; then
   delegated_opts=("${delegated_opts[@]}" --enable-gmp="$gmp")
 fi
@@ -516,10 +548,11 @@ elif [ -f '/usr/share/sgml/docbook/sgml-dtd-4.2-1.0-51.el6/docbookx.dtd' ]; then
   sed -i 's@^local docbook-dtd-path ;$@local docbook-dtd-path = "/usr/share/sgml/docbook/sgml-dtd-4.2-1.0-51.el6" ;@' "$HOME/user-config.jam"
 fi
 
-BOOST_ROOT="$prefix/boost/latest"
-export BOOST_ROOT
-BOOST_BUILD_PATH="$BOOST_ROOT/tools/build/v2"
-export BOOST_BUIKD_PATH
+install --mode=755 "$intro_root/boost/toolset.sh" "$prefix/bin/get-toolset.sh"
+install --mode=755 "$intro_root/template/x86_64-unknown-linux-gnu/asan2line" "$prefix/bin"
+
+export BOOST_ROOT="$prefix/boost/latest"
+export BOOST_BUILD_PATH="$BOOST_ROOT/tools/build/v2"
 
 tmpdir=`mktemp -d`
 

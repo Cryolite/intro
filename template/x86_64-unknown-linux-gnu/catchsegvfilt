@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+
+if [ $# -ne 1 ]; then
+  echo "$0: missing catchsegv logfile" >&2
+  exit 1
+fi
+
+if [ '!' -f "$1" ]; then
+  echo "$0: catchsegv logfile not exist" >&2
+  exit 1
+fi
+
+bindir=`(cd \`dirname "$0"\`; pwd)`
+
+tmpfile=`mktemp`
+sed '1,/^Memory map:$/d' "$1" >"$tmpfile"
+while IFS= read line; do
+  if echo "$line" | grep -Eq '^[[:xdigit:]]+-[[:xdigit:]]+ [r-][w-]x[p-] [[:xdigit:]]+ [[:digit:]]{2}:[[:digit:]]{2} [[:digit:]]+[[:space:]]+.*'; then
+    addrrange=`echo "$line" | cut -d ' ' -f 1`
+    firstaddr=0x`echo "$addrrange" | cut -d '-' -f 1`
+    lastaddr=0x`echo "$addrrange" | cut -d '-' -f 2`
+    exe=`echo "$line" | cut -d ' ' -f 6- | sed -e 's/^[[:space:]]\{1,\}//'`
+    mmap[${#mmap[@]}]="$firstaddr:$lastaddr:$exe"
+  fi
+done <"$tmpfile"
+rm "$tmpfile"
+
+sed '/^Backtrace:$/q' "$1"
+
+sed '1,/^Backtrace:$/d' "$1" | sed '/^Memory map:$/q' |
+while IFS= read line; do
+  if echo "$line" | grep -Eq '\[0x[[:xdigit:]]+\]$'; then
+    addr=`echo "$line" | sed -e 's/.*\[\(0x[[:xdigit:]]\{1,\}\)\]$/\1/'`
+    unset exe
+    unset offset
+    for m in "${mmap[@]}"; do
+      firstaddr=`echo "$m" | cut -d ':' -f 1`
+      lastaddr=`echo "$m" | cut -d ':' -f 2`
+      if [[ $firstaddr -le $addr && $addr -le $lastaddr ]]; then
+        exe=`echo "$m" | cut -d ':' -f 3-`
+        offset=$(($addr - $firstaddr))
+        offset=`printf '%x' $offset`
+        break
+      fi
+    done
+    if [ -z "$exe" -o -z "$offset" ]; then
+      echo "$line"
+      continue
+    fi
+    addr2line_output=`"$bindir/addr2line" -e "$exe" -fC $addr`
+    func=`echo "$addr2line_output" | head -n 1`
+    filelineno=`echo "$addr2line_output" | tail -n 1`
+    file=`echo "$filelineno" | sed -e 's/\(.*\):[^:]\{1,\}$/\1/'`
+    lineno=`echo "$filelineno" | sed -e 's/.*:\([^:]\{1,\}\)$/\1/'`
+    [ "$lineno" = 0 ] && lineno='?'
+    if [ "$func" = '??' -a "$file" = '??' -a "$lineno" = '?' ]; then
+      addr2line_output=`"$bindir/addr2line" -e "$exe" -fC $offset`
+      func=`echo "$addr2line_output" | head -n 1`
+      filelineno=`echo "$addr2line_output" | tail -n 1`
+      file=`echo "$filelineno" | sed -e 's/\(.*\):[^:]\{1,\}$/\1/'`
+      lineno=`echo "$filelineno" | sed -e 's/.*:\([^:]\{1,\}\)$/\1/'`
+      [ "$lineno" = 0 ] && lineno='?'
+    fi
+    if [ "$func" = '??' -a "$file" = '??' -a "$lineno" = '?' ]; then
+      echo "$line"
+    else
+      echo "$func at $file:$lineno"
+    fi
+  else
+    echo "$line"
+  fi
+done
+
+sed '1,/^Memory map:$/d' "$1"

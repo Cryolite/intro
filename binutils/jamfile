@@ -5,6 +5,7 @@ import errors ;
 import feature ;
 import make ;
 import path ;
+import regex ;
 import "$(INTRO_ROOT_DIR)/compilers"
   : is-gcc
     is-clang
@@ -20,6 +21,10 @@ import "$(INTRO_ROOT_DIR)/compilers"
     get-environment-commands
     get-property-dump-commands
   ;
+
+.here = [ regex.match "Jamfile<(.*)>" : "$(__name__)" : 1 ] ;
+.here = [ path.make "$(.here)" ] ;
+.here-relative = [ path.relative "$(.here)" "$(INTRO_ROOT_DIR)" ] ;
 
 
 rule compiler-dep-req ( properties * )
@@ -45,12 +50,13 @@ alias compiler-dep : : <conditional>@compiler-dep-req ;
 explicit compiler-dep ;
 
 
-
 make "$(INTRO_ROOT_DIR)/binutils-$(BINUTILS).tar.bz2" : : @download ;
 explicit "$(INTRO_ROOT_DIR)/binutils-$(BINUTILS).tar.bz2" ;
 
 rule download ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
   local version = [ feature.get-values <binutils-hidden> : $(properties) ] ;
   URLS on $(targets)  = "'http://ftp.nara.wide.ad.jp/pub/GNU/gnu/binutils/binutils-$(version).tar.bz2'" ;
   URLS on $(targets) += "'http://ftp.tsukuba.wide.ad.jp/software/binutils/binutils-$(version).tar.bz2'" ;
@@ -63,19 +69,18 @@ actions download
   bash -s << 'EOS'
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn c3a35fdf-555a-4787-acac-35219af0b4c3 '$(INTRO_ROOT_DIR)/binutils/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn c3a35fdf-555a-4787-acac-35219af0b4c3 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+binutils/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
-  rm -rf '$(<)'
-  trap "rm -rf '$(<)'" ERR HUP INT QUIT TERM
+  rm -f '$(<)'
+  trap "rm -f '$(<)'" ERR HUP INT QUIT TERM
   for url in $(URLS) ; do
     ( cd '$(<:D)' && wget -- "$url" ) && break
   done
   [ -f '$(<)' ]
 EOS
 }
-
 
 
 # Use `README' file as a target representing the completion of
@@ -94,6 +99,8 @@ explicit "$(INTRO_ROOT_DIR)/binutils-$(BINUTILS)/README" ;
 
 rule expand ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions expand
@@ -101,9 +108,9 @@ actions expand
   bash -s << 'EOS'
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn 3909aa43-2c54-4244-b8c0-61c59512ca57 '$(INTRO_ROOT_DIR)/binutils/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn 3909aa43-2c54-4244-b8c0-61c59512ca57 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+binutils/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
   rm -rf '$(<:D)'
   [ -f '$(>)' ]
@@ -117,7 +124,6 @@ $(PROPERTY_DUMP_COMMANDS)
   [ -f '$(<)' ]
 EOS
 }
-
 
 
 rule srcdir-req ( properties * )
@@ -150,6 +156,9 @@ explicit ld.gold ;
 
 rule make-install ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
+
   # Sets the path to the source directory.
   local version = [ feature.get-values <binutils> : $(properties) ] ;
   local srcdir = "$(INTRO_ROOT_DIR)/binutils-$(version)" ;
@@ -233,9 +242,9 @@ actions make-install
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(ENVIRONMENT_COMMANDS)
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn ab2bc87a-0488-4353-be58-863d528d3ea1 '$(INTRO_ROOT_DIR)/binutils/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn ab2bc87a-0488-4353-be58-863d528d3ea1 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+binutils/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
 
   rm -rf '$(OBJDIR)'
@@ -269,12 +278,11 @@ $(PROPERTY_DUMP_COMMANDS)
   ( cd '$(OBJDIR)' && make install )
 
   # Cleans up `objdir`.
-  rm -rf '$(OBJDIR)'
+  rm -r '$(OBJDIR)'
 
   [ -x '$(<)' ]
 EOS
 }
-
 
 
 alias install : "ld.gold/$(DEFAULT_COMPILER_PROPERTIES)" ;

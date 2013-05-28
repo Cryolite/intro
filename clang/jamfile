@@ -25,6 +25,10 @@ import "$(INTRO_ROOT_DIR)/compilers"
     get-property-dump-commands
   ;
 
+.here = [ regex.match "Jamfile<(.*)>" : "$(__name__)" : 1 ] ;
+.here = [ path.make "$(.here)" ] ;
+.here-relative = [ path.relative "$(.here)" "$(INTRO_ROOT_DIR)" ] ;
+
 
 rule compiler-dep-req ( properties * )
 {
@@ -48,7 +52,6 @@ rule compiler-dep-req ( properties * )
 
 alias compiler-dep : : <conditional>@compiler-dep-req ;
 explicit compiler-dep ;
-
 
 
 local rule get-version-impl ( properties * )
@@ -84,7 +87,6 @@ local rule get-version-impl ( properties * )
 }
 
 
-
 for local version in $(CLANG_VERSIONS) {
   if $(version) != trunk {
     make "$(INTRO_ROOT_DIR)/llvm-$(version).src.tar.gz" : : @download ;
@@ -94,6 +96,8 @@ for local version in $(CLANG_VERSIONS) {
 
 rule download ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
   local version = [ get-version-impl $(properties) ] ;
   VERSION on $(targets) = $(version) ;
   LLVM_SRC_URL on $(targets) = "http://llvm.org/releases/$(version)/llvm-$(version).src.tar.gz" ;
@@ -106,16 +110,16 @@ actions download
   bash -s << 'EOS'
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn 3723c162-c03f-4494-865e-9a71e372a15a '$(INTRO_ROOT_DIR)/clang/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn 3723c162-c03f-4494-865e-9a71e372a15a '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+clang/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
 
   cleanup ()
   {
-    ( cd '$(INTRO_ROOT_DIR)' && rm -rf 'llvm-$(VERSION).src.tar.gz' )
-    ( cd '$(INTRO_ROOT_DIR)' && rm -rf 'clang-$(VERSION).src.tar.gz' )
-    ( cd '$(INTRO_ROOT_DIR)' && rm -rf 'compiler-rt-$(VERSION).src.tar.gz' )
+    ( cd '$(INTRO_ROOT_DIR)' && rm -f 'llvm-$(VERSION).src.tar.gz' )
+    ( cd '$(INTRO_ROOT_DIR)' && rm -f 'clang-$(VERSION).src.tar.gz' )
+    ( cd '$(INTRO_ROOT_DIR)' && rm -f 'compiler-rt-$(VERSION).src.tar.gz' )
   }
   cleanup
   trap cleanup ERR HUP INT QUIT TERM
@@ -132,7 +136,6 @@ $(PROPERTY_DUMP_COMMANDS)
   [ -f '$(<)' ]
 EOS
 }
-
 
 
 for local version in $(CLANG_VERSIONS) {
@@ -155,6 +158,8 @@ for local version in $(CLANG_VERSIONS) {
 
 rule expand ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
   local version = [ get-version-impl $(properties) ] ;
   VERSION on $(targets) = "$(version)" ;
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
@@ -164,9 +169,9 @@ actions expand
   bash -s << 'EOS'
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn ce7dbfa8-684f-48d1-b4d4-da77e1fc5353 '$(INTRO_ROOT_DIR)/clang/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn ce7dbfa8-684f-48d1-b4d4-da77e1fc5353 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+clang/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
 
   rm -rf '$(<:D)'
@@ -179,9 +184,9 @@ $(PROPERTY_DUMP_COMMANDS)
 
   cleanup ()
   {
-    ( cd '$(INTRO_ROOT_DIR)' && rm -rf 'llvm-$(VERSION).src.tar.gz' )
-    ( cd '$(INTRO_ROOT_DIR)' && rm -rf 'clang-$(VERSION).src.tar.gz' )
-    ( cd '$(INTRO_ROOT_DIR)' && rm -rf 'compiler-rt-$(VERSION).src.tar.gz' )
+    ( cd '$(INTRO_ROOT_DIR)' && rm 'llvm-$(VERSION).src.tar.gz' )
+    ( cd '$(INTRO_ROOT_DIR)' && rm 'clang-$(VERSION).src.tar.gz' )
+    ( cd '$(INTRO_ROOT_DIR)' && rm 'compiler-rt-$(VERSION).src.tar.gz' )
     ( cd '$(INTRO_ROOT_DIR)' && rm -rf '$(INTRO_ROOT_DIR)/llvm-$(VERSION).src' )
     ( cd '$(INTRO_ROOT_DIR)' && rm -rf '$(INTRO_ROOT_DIR)/clang-$(VERSION).src' )
     ( cd '$(INTRO_ROOT_DIR)' && rm -rf '$(INTRO_ROOT_DIR)/compiler-rt-$(VERSION).src' )
@@ -217,7 +222,6 @@ EOS
 }
 
 
-
 for local version in $(CLANG_VERSIONS) {
   if "$(version)" = "trunk" {
     make "$(INTRO_ROOT_DIR)/llvm-trunk/README.txt"
@@ -231,6 +235,9 @@ for local version in $(CLANG_VERSIONS) {
 
 rule update-trunk ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
+
   local llvm-dir = "$(INTRO_ROOT_DIR)/llvm-trunk" ;
   LLVM_DIR on $(targets) = [ path.native "$(llvm-dir)" ] ;
 
@@ -250,13 +257,18 @@ actions update-trunk
   bash -s << 'EOS'
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn d5a34566-cfff-4b1a-b470-34896dc3865e '$(INTRO_ROOT_DIR)/clang/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn d5a34566-cfff-4b1a-b470-34896dc3865e '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+clang/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
 
-  if [ -d '$(LLVM_DIR)' ]; then
+  # Checks whether LLVM repository has been cloned into `(LLVM_DIR)`. Note
+  # that `[ ! -d '(LLVM_DIR)' ]` cannot be used because `bjam` would
+  # automatically create `(LLVM_DIR)` directory.
+  if [ -f '$(LLVM_DIR)/README.txt' ]; then
     ( cd '$(LLVM_DIR)' && svn status | grep -E '^?' | cut -c9- | xargs -d '\n' rm -r )
+  else
+    ( cd '$(INTRO_ROOT_DIR)' && rm -rf llvm-trunk )
   fi
 
   cleanup ()
@@ -265,10 +277,13 @@ $(PROPERTY_DUMP_COMMANDS)
   }
   trap cleanup ERR HUP INT QUIT TERM
 
-  if [ ! -e '$(LLVM_DIR)' ]; then
+  # Checks whether LLVM repository has been cloned into `(LLVM_DIR)`. Note
+  # that `[ ! -d '(LLVM_DIR)' ]` cannot be used because `bjam` would
+  # automatically create `(LLVM_DIR)` directory.
+  if [ ! -e '$(LLVM_DIR)/README.txt' ]; then
     ( cd '$(INTRO_ROOT_DIR)' && svn checkout 'http://llvm.org/svn/llvm-project/llvm/trunk' llvm-trunk )
   fi
-  [ -d '$(LLVM_DIR)' ]
+  [ -f '$(LLVM_DIR)/README.txt' ]
 
   if [ ! -e '$(CLANG_DIR)' ]; then
     ( cd '$(INTRO_ROOT_DIR)/llvm-trunk/tools' && svn checkout 'http://llvm.org/svn/llvm-project/cfe/trunk' clang )
@@ -285,13 +300,15 @@ $(PROPERTY_DUMP_COMMANDS)
   fi
   [ -d '$(COMPILER_RT_DIR)' ]
 
-  ( cd '$(LLVM_DIR)' && make update )
+  ( cd '$(LLVM_DIR)' && svn update )
+  ( cd '$(CLANG_DIR)' && svn update )
+  ( cd '$(EXTRA_CLANG_TOOLS_DIR)' && svn update )
+  ( cd '$(COMPILER_RT_DIR)' && svn update )
 
   touch --no-create '$(<)'
   [ -f '$(<)' ]
 EOS
 }
-
 
 
 rule srcdir-req ( properties * )
@@ -307,7 +324,6 @@ alias srcdir
 explicit srcdir ;
 
 
-
 rule default-location-conditional ( properties * )
 {
   local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
@@ -321,8 +337,6 @@ make clang-wrapper
   : $(USE_COMPILER)
     $(USE_MULTITARGET)
     $(USE_CLANG)
-    $(USE_ADDRESS_MODEL)
-    $(USE_INSTRUCTION_SET)
     <conditional>@default-location-conditional
   ;
 explicit clang-wrapper ;
@@ -341,14 +355,15 @@ make clang++-wrapper
   : $(USE_COMPILER)
     $(USE_MULTITARGET)
     $(USE_CLANG)
-    $(USE_ADDRESS_MODEL)
-    $(USE_INSTRUCTION_SET)
     <conditional>@location-conditional
   ;
 explicit clang++-wrapper ;
 
 rule make-install ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
+
   local is-default ;
   if [ regex.match "(clang-wrapper)" : "$(targets[1])" : 1 ] {
     is-default = "yes" ;
@@ -538,9 +553,9 @@ actions make-install
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(ENVIRONMENT_COMMANDS)
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn f310f062-232d-40d0-a0d0-6cf942b9a272 '$(INTRO_ROOT_DIR)/clang/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn f310f062-232d-40d0-a0d0-6cf942b9a272 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+clang/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
 
   rm -rf '$(OBJDIR)'
@@ -587,7 +602,7 @@ $(PROPERTY_DUMP_COMMANDS)
   ( cd '$(OBJDIR)' && make install )
 
   # Cleans up `objdir`.
-  rm -rf '$(OBJDIR)'
+  rm -r '$(OBJDIR)'
 
   if [ $(IS_DEFAULT) -ne 0 ]; then
     # LLVM plugin for binutils tools (`ar' and `nm'). See http://llvm.org/docs/GoldPlugin.html.
@@ -601,7 +616,6 @@ $(PROPERTY_DUMP_COMMANDS)
   [ -x '$(<)' ]
 EOS
 }
-
 
 
 #rule install-conditional ( properties * )

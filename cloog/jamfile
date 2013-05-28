@@ -5,6 +5,7 @@ import errors ;
 import feature ;
 import make ;
 import path ;
+import regex ;
 import "$(INTRO_ROOT_DIR)/compilers"
   : is-gcc
     is-clang
@@ -18,6 +19,10 @@ import "$(INTRO_ROOT_DIR)/compilers"
     get-environment-commands
     get-property-dump-commands
   ;
+
+.here = [ regex.match "Jamfile<(.*)>" : "$(__name__)" : 1 ] ;
+.here = [ path.make "$(.here)" ] ;
+.here-relative = [ path.relative "$(.here)" "$(INTRO_ROOT_DIR)" ] ;
 
 
 rule compiler-dep-req ( properties * )
@@ -45,7 +50,6 @@ alias compiler-dep : : <conditional>@compiler-dep-req ;
 explicit compiler-dep ;
 
 
-
 for local version in $(CLOOG_VERSIONS) {
   if "$(version)" != "trunk" {
     make "$(INTRO_ROOT_DIR)/cloog-$(version).tar.gz" : : @download ;
@@ -55,6 +59,8 @@ for local version in $(CLOOG_VERSIONS) {
 
 rule download ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
   local version = [ feature.get-values <cloog-hidden> : $(properties) ] ;
   URL on $(targets) = http://www.bastoul.net/cloog/pages/download/cloog-$(version).tar.gz ;
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
@@ -64,17 +70,16 @@ actions download
   bash -s << 'EOS'
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn 2609a965-dda2-4351-837e-b59aa3d579ff '$(INTRO_ROOT_DIR)/cloog/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn 2609a965-dda2-4351-837e-b59aa3d579ff '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+cloog/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
-  rm -rf '$(<)'
-  trap "rm -rf '$(<)'" ERR HUP INT QUIT TERM
+  rm -f '$(<)'
+  trap "rm -f '$(<)'" ERR HUP INT QUIT TERM
   ( cd '$(<:D)' && wget -- '$(URL)' )
   [ -f '$(<)' ]
 EOS
 }
-
 
 
 for local version in $(CLOOG_VERSIONS) {
@@ -97,6 +102,8 @@ for local version in $(CLOOG_VERSIONS) {
 
 rule expand ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions expand
@@ -104,9 +111,9 @@ actions expand
   bash -s << 'EOS'
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn cbe1ceb0-c51f-4bcb-ab5b-eec76f282c74 '$(INTRO_ROOT_DIR)/cloog/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn cbe1ceb0-c51f-4bcb-ab5b-eec76f282c74 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+cloog/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
   rm -rf '$(<:D)'
   [ -f '$(>)' ]
@@ -120,7 +127,6 @@ $(PROPERTY_DUMP_COMMANDS)
   [ -f '$(<)' ]
 EOS
 }
-
 
 
 if trunk in $(CLOOG_VERSIONS) {
@@ -165,7 +171,6 @@ EOS
 }
 
 
-
 rule srcdir-req ( properties * )
 {
   local version = [ feature.get-values <cloog-hidden> : $(properties) ] ;
@@ -174,7 +179,6 @@ rule srcdir-req ( properties * )
 
 alias srcdir : : <conditional>@srcdir-req ;
 explicit srcdir ;
-
 
 
 rule location-conditional ( properties * )
@@ -195,20 +199,21 @@ make cloog/cloog.h
     $(USE_GMP)
     $(USE_ISL)
     $(USE_CLOOG)
-    $(USE_ADDRESS_MODEL)
-    $(USE_INSTRUCTION_SET)
     <conditional>@location-conditional
   ;
 explicit cloog/cloog.h ;
 
 rule make-install ( targets * : sources * : properties * )
 {
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
+
   # Sets the path to the source directory.
   local version = [ feature.get-values <cloog> : $(properties) ] ;
   local srcdir = "$(INTRO_ROOT_DIR)/cloog-$(version)" ;
   SRCDIR on $(targets) = [ path.native "$(srcdir)" ] ;
 
-  # Sets the path to objdir.
+  # Sets the path to `objdir`.
   local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
   local objdir-native = [ path.native "$(objdir)" ] ;
   OBJDIR on $(targets) = "$(objdir-native)" ;
@@ -334,9 +339,9 @@ actions make-install
   exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
 $(ENVIRONMENT_COMMANDS)
 $(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn 60f767d4-dfc9-4ed6-9538-bb1ef34cfa6a '$(INTRO_ROOT_DIR)/cloog/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`grep -Fn 60f767d4-dfc9-4ed6-9538-bb1ef34cfa6a '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
   LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+cloog/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
 
   rm -rf '$(OBJDIR)'
@@ -372,12 +377,11 @@ $(PROPERTY_DUMP_COMMANDS)
   ( cd '$(OBJDIR)' && make install )
 
   # Cleans up `objdir`.
-  rm -rf '$(OBJDIR)'
+  rm -r '$(OBJDIR)'
 
   [ -f '$(<)' ]
 EOS
 }
-
 
 
 alias install : cloog/cloog.h ;

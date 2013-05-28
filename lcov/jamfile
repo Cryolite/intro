@@ -1,0 +1,148 @@
+project intro/lcov ;
+
+import alias ;
+import errors ;
+import feature ;
+import make ;
+import path ;
+import regex ;
+import "$(INTRO_ROOT_DIR)/compilers"
+  : is-gcc
+    is-clang
+    is-icc
+    get-compiler-prefix
+    get-property-dump-commands
+  ;
+
+.here = [ regex.match "Jamfile<(.*)>" : "$(__name__)" : 1 ] ;
+.here = [ path.make "$(.here)" ] ;
+.here-relative = [ path.relative "$(.here)" "$(INTRO_ROOT_DIR)" ] ;
+
+
+rule compiler-dep-req ( properties * )
+{
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
+  local result ;
+  if [ is-gcc "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
+  }
+  else if [ is-clang "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
+  }
+  else if [ is-icc "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+  return $(result) ;
+}
+
+alias compiler-dep : : <conditional>@compiler-dep-req ;
+explicit compiler-dep ;
+
+
+make "$(INTRO_ROOT_DIR)/lcov-$(LCOV)/README" : : @export ;
+explicit "$(INTRO_ROOT_DIR)/lcov-$(LCOV)/README" ;
+
+rule export ( targets * : sources * : properties * )
+{
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
+  local version = [ feature.get-values <lcov-hidden> : $(properties) ] ;
+  local tag = [ regex.replace "$(version)" "\\." "_" ] ;
+  TAG on $(targets) = "LCOV_$(tag)" ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+}
+actions export
+{
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
+$(PROPERTY_DUMP_COMMANDS)
+  LINENO_ADJ=`grep -Fn 17543a48-8ec8-4f65-82b1-5cbd00e86bec '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
+  rm -r '$(<:D)'
+  tmpdir=`mktemp -d`
+  trap "rm -r \"$tmpdir\" '$(<:D)'" ERR HUP INT QUIT TERM
+  cvs -d :pserver:anonymous:@ltp.cvs.sourceforge.net:/cvsroot/ltp login
+  ( cd "$tmpdir" && cvs -z 3 -d :pserver:anonymous@ltp.cvs.sourceforge.net:/cvsroot/ltp export -r '$(TAG)' utils )
+  cvs -d :pserver:anonymous@ltp.cvs.sourceforge.net:/cvsroot/ltp logout
+  ( cd "$tmpdir/utils/analysis" && mv lcov "$(<:D)" )
+  rm -r "$tmpdir"
+  [ -f '$(<)' ]
+EOS
+}
+
+
+rule srcdir-req ( properties * )
+{
+  local version = [ feature.get-values <lcov-hidden> : $(properties) ] ;
+  return "<source>$(INTRO_ROOT_DIR)/lcov-$(version)/README/$(DEFAULT_PROPERTIES)" ;
+}
+
+alias srcdir : : <conditional>@srcdir-req ;
+explicit srcdir ;
+
+
+rule location-conditional ( properties * )
+{
+  local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
+  return "<location>$(compiler-prefix)/bin" ;
+}
+
+make lcov
+  : compiler-dep
+    srcdir
+  : @make-install
+  : $(USE_COMPILER)
+    $(USE_LCOV)
+    <conditional>@location-conditional
+  ;
+explicit lcov ;
+
+rule make-install ( targets * : sources * : properties * )
+{
+  # Sets the path to the source directory.
+  local version = [ feature.get-values <lcov> : $(properties) ] ;
+  local srcdir = "$(INTRO_ROOT_DIR)/lcov-$(version)" ;
+  SRCDIR on $(targets) = [ path.native "$(srcdir)" ] ;
+
+  local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
+  COMPILER_PREFIX on $(targets) = [ path.native "$(compiler-prefix)" ] ;
+
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
+
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+}
+actions make-install
+{
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
+$(PROPERTY_DUMP_COMMANDS)
+  LINENO_ADJ=`grep -Fn 7405239e-5d2a-4ee9-a76d-fbed2e756d1c '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
+  ( cd '$(SRCDIR)' && PREFIX='$(COMPILER_PREFIX)' make install )
+  pushd '$(COMPILER_PREFIX)'
+  mkdir -p bin && install -m 755 usr/bin/* bin
+  rm usr/bin/*
+  rmdir usr/bin
+  mkdir -p share/man/man1 && install -m 644 usr/share/man/man1/* share/man/man1
+  rm usr/share/man/man1/*
+  mkdir -p share/man/man5 && install -m 644 usr/share/man/man5/* share/man/man5
+  rm usr/share/man/man5/*
+  rmdir usr/share/man/man{1,5}
+  rmdir -p usr/share/man
+  [ ! -e usr ]
+  popd
+  [ -f '$(<)' ]
+EOS
+}
+
+
+alias install : "lcov/$(DEFAULT_PROPERTIES)" ;
+explicit install ;

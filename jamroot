@@ -21,6 +21,8 @@ import "$(INTRO_ROOT_DIR)/compilers"
 
 
 local .binutils-latest ;
+local .lcov-latest ;
+local .gcovr-latest ;
 local .gmp-latest ;
 local .mpfr-latest ;
 local .mpc-latest ;
@@ -52,6 +54,28 @@ local rule get-binutils-latest-version ( )
     }
   }
   return "$(.binutils-latest)" ;
+}
+
+local rule get-lcov-latest-version ( )
+{
+  if ! "$(.lcov-latest)" {
+    .lcov-latest = [ SHELL "'$(INTRO_ROOT_DIR)/lcov/latest.sh' || echo -n error" ] ;
+    if "$(.lcov-latest)" = error {
+      errors.error "failed to extract LCOV latest version." ;
+    }
+  }
+  return "$(.lcov-latest)" ;
+}
+
+local rule get-gcovr-latest-version ( )
+{
+  if ! "$(.gcovr-latest)" {
+    .gcovr-latest = [ SHELL "'$(INTRO_ROOT_DIR)/gcovr/latest.sh' || echo -n error" ] ;
+    if "$(.gcovr-latest)" = error {
+      errors.error "failed to extract gcovr latest version." ;
+    }
+  }
+  return "$(.gcovr-latest)" ;
 }
 
 local rule get-gmp-latest-version ( )
@@ -438,6 +462,36 @@ case "*" :
   errors.error "an invalid value `$(gcc-check)' is specified for `--with-gcc-check'." ;
 }
 ECHO gcc-check... $(gcc-check) ;
+
+
+local lcov = [ option.get "enable-lcov" : : "latest" ] ;
+if "$(lcov)" = latest {
+  lcov = [ get-lcov-latest-version ] ;
+}
+if "$(lcov)" {
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+)?)$" : "$(lcov)" : 1 ] {
+    errors.error "an invalid value `$(lcov)' for `--enable-lcov'." ;
+  }
+  ECHO "lcov... $(lcov)" ;
+}
+else {
+  ECHO "lcov... N/A" ;
+}
+
+
+local gcovr = [ option.get "enable-gcovr" : : "latest" ] ;
+if "$(gcovr)" = latest {
+  gcovr = [ get-gcovr-latest-version ] ;
+}
+if "$(gcovr)" {
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(gcovr)" : 1 ] {
+    errors.error "an invalid value `$(gcovr)' for `--enable-gcovr'." ;
+  }
+  ECHO "gcovr... $(gcovr)" ;
+}
+else {
+  ECHO "gcovr... N/A" ;
+}
 
 
 local gmp = [ option.get "enable-gmp" : : "latest" ] ;
@@ -831,6 +885,22 @@ ECHO WITH_GOLD... $(WITH_GOLD) ;
 constant GCC_CHECK : "$(gcc-check)" ;
 ECHO GCC_CHECK... $(GCC_CHECK) ;
 
+if "$(lcov)" {
+  constant LCOV : "$(lcov)" ;
+  ECHO "LCOV... $(LCOV)" ;
+}
+else {
+  ECHO "LCOV... N/A" ;
+}
+
+if "$(gcovr)" {
+  constant GCOVR : "$(gcovr)" ;
+  ECHO "GCOVR... $(GCOVR)" ;
+}
+else {
+  ECHO "GCOVR... N/A" ;
+}
+
 if $(gmp-versions) {
   constant GMP_VERSIONS : $(gmp-versions) ;
   ECHO GMP_VERSIONS... $(GMP_VERSIONS:J=,) ;
@@ -1015,6 +1085,26 @@ feature cloog-for-gcc-hidden : [ feature.values <cloog-for-gcc> ] : propagated i
   constant USE_CLOOG_FOR_GCC : $(use-cloog-for-gcc) ;
 }
 
+feature lcov        : unspecified $(lcov)       :                       ;
+feature lcov-hidden : [ feature.values <lcov> ] : propagated incidental ;
+{
+  local use-lcov ;
+  for local val in [ feature.values <lcov> ] {
+    use-lcov += <lcov-hidden>$(val):<lcov>$(val) ;
+  }
+  constant USE_LCOV : $(use-lcov) ;
+}
+
+feature gcovr        : unspecified $(gcovr)       :                       ;
+feature gcovr-hidden : [ feature.values <gcovr> ] : propagated incidental ;
+{
+  local use-gcovr ;
+  for local val in [ feature.values <gcovr> ] {
+    use-gcovr += <gcovr-hidden>$(val):<gcovr>$(val) ;
+  }
+  constant USE_GCOVR : $(use-gcovr) ;
+}
+
 feature gmp        : unspecified $(gmp-versions) :                       ;
 feature gmp-hidden : [ feature.values <gmp> ]    : propagated incidental ;
 {
@@ -1135,45 +1225,21 @@ feature valgrind-hidden : [ feature.values <valgrind> ] : propagated incidental 
   constant USE_VALGRIND : $(use-valgrind) ;
 }
 
-feature intro-address-model          : 64 32                                    : propagated incidental ;
-feature intro-address-model-on-build : [ feature.values <intro-address-model> ] :                       ;
-{
-  local use-address-model ;
-  for local val in [ feature.values <intro-address-model> ] {
-    use-address-model += <intro-address-model>$(val):<intro-address-model-on-build>$(val) ;
-  }
-  constant USE_ADDRESS_MODEL : $(use-address-model) ;
-}
-
 local default-bits = [ get-default-bits ] ;
-switch "$(default-bits)" {
-case "64" :
-  feature.set-default "intro-address-model" : "64" ;
-case "32" :
-  feature.set-default "intro-address-model" : "32" ;
-case "" :
-  errors.error "the value for `<intro-address-model>' feature is empty" ;
-case "*" :
-  errors.error "`<intro-address-model>$(default-bits)': unknown property" ;
-}
-
-feature intro-instruction-set          : unspecified native                         : propagated incidental ;
-feature intro-instruction-set-on-build : [ feature.values <intro-instruction-set> ] :                       ;
-{
-  local use-instruction-set ;
-  for local val in [ feature.values <intro-instruction-set> ] {
-    use-instruction-set += <intro-instruction-set>$(val):<intro-instruction-set-on-build>$(val) ;
-  }
-  constant USE_INSTRUCTION_SET : $(use-instruction-set) ;
-}
 
 local default-host-os = [ feature.get-values "<host-os>" : [ feature.defaults "<host-os>" ] ] ;
-constant DEFAULT_COMPILER_PROPERTIES : "<variant>release/<link>shared/<runtime-link>shared/<runtime-debugging>off/<optimization>speed/<profiling>off/<inlining>full/<threading>multi/<intro-address-model>$(default-bits)/<intro-instruction-set>unspecified/<std>c++03/<lto>off/<correct-call-stack>off/<ssp>off/<memory-checker>off/<libstdc++-debug-mode>off" ;
-constant DEFAULT_PROPERTIES : "<host-os>$(default-host-os)/<target-os>$(default-host-os)/<variant>debug/<std>c++03/<link>shared/<runtime-link>shared/<runtime-debugging>on/<optimization>off/<profiling>off/<inlining>off/<threading>single/<intro-address-model>$(default-bits)/<intro-instruction-set>unspecified/<lto>off/<correct-call-stack>off/<ssp>off/<memory-checker>off/<libstdc++-debug-mode>off" ;
-constant ADDRESS_MODEL_SENSIBLE_DEFAULT_RELEASE_PROPERTIES : "<variant>release/<link>shared/<runtime-link>shared/<threading>multi/<intro-instruction-set>unspecified/<std>c++03/<lto>off/<memory-checker>off/<libstdc++-debug-mode>off" ;
+constant DEFAULT_COMPILER_PROPERTIES : "<variant>release/<link>shared/<runtime-link>shared/<runtime-debugging>off/<optimization>speed/<profiling>off/<inlining>full/<threading>multi/<address-model>$(default-bits)/<instruction-set>generic/<std>c++03/<lto>off/<correct-call-stack>off/<ssp>off/<memory-checker>off/<libstdc++-debug-mode>off" ;
+constant DEFAULT_PROPERTIES : "<host-os>$(default-host-os)/<target-os>$(default-host-os)/<variant>debug/<std>c++03/<link>shared/<runtime-link>shared/<runtime-debugging>on/<optimization>off/<profiling>off/<inlining>off/<threading>single/<address-model>$(default-bits)/<instruction-set>generic/<lto>off/<correct-call-stack>off/<ssp>off/<memory-checker>off/<libstdc++-debug-mode>off" ;
+constant ADDRESS_MODEL_SENSIBLE_DEFAULT_RELEASE_PROPERTIES : "<variant>release/<link>shared/<runtime-link>shared/<threading>multi/<instruction-set>generic/<std>c++03/<lto>off/<memory-checker>off/<libstdc++-debug-mode>off" ;
 
 for local enabled-compiler in $(enabled-compilers) {
   local srcs ;
+  if "$(lcov)" {
+    srcs += "lcov//install" ;
+  }
+  if "$(gcovr)" {
+    srcs += "gcovr//install" ;
+  }
   if "$(gmp)" {
     srcs += "gmp//install" ;
   }
@@ -1222,6 +1288,8 @@ for local enabled-compiler in $(enabled-compilers) {
         <mpc-for-gcc-hidden>$(mpc-for-gcc)
         <isl-for-gcc-hidden>$(isl-for-gcc)
         <cloog-for-gcc-hidden>$(cloog-for-gcc)
+        <lcov-hidden>$(lcov)
+        <gcovr-hidden>$(gcovr)
         <gmp-hidden>$(gmp)
         <mpfr-hidden>$(mpfr)
         <mpc-hidden>$(mpc)
@@ -1248,6 +1316,8 @@ for local enabled-compiler in $(enabled-compilers) {
             <mpc-for-gcc-hidden>$(mpc-for-gcc)
             <isl-for-gcc-hidden>$(isl-for-gcc)
             <cloog-for-gcc-hidden>$(cloog-for-gcc)
+            <lcov-hidden>$(lcov)
+            <gcovr-hidden>$(gcovr)
             <gmp-hidden>$(gmp)
             <mpfr-hidden>$(mpfr)
             <mpc-hidden>$(mpc)
@@ -1278,6 +1348,8 @@ for local enabled-compiler in $(enabled-compilers) {
         <mpc-for-gcc-hidden>$(mpc-for-gcc)
         <isl-for-gcc-hidden>$(isl-for-gcc)
         <cloog-for-gcc-hidden>$(cloog-for-gcc)
+        <lcov-hidden>$(lcov)
+        <gcovr-hidden>$(gcovr)
         <gmp-hidden>$(gmp)
         <mpfr-hidden>$(mpfr)
         <mpc-hidden>$(mpc)
@@ -1308,6 +1380,8 @@ for local enabled-compiler in $(enabled-compilers) {
         <mpc-for-gcc-hidden>$(mpc-for-gcc)
         <isl-for-gcc-hidden>$(isl-for-gcc)
         <cloog-for-gcc-hidden>$(cloog-for-gcc)
+        <lcov-hidden>$(lcov)
+        <gcovr-hidden>$(gcovr)
         <gmp-hidden>$(gmp)
         <mpfr-hidden>$(mpfr)
         <mpc-hidden>$(mpc)
