@@ -165,7 +165,9 @@ $(PROPERTY_DUMP_COMMANDS)
   {
     [ $# -eq 1 ] || exit 1
     [ -d "$1" ] || exit 1
-    ( cd "$1" && svn status | grep -E '^?' | cut -c9- | xargs -d '\n' rm -r )
+    if cd "$1" && svn status | grep -E '^?'; then
+      ( cd "$1" && svn status | grep -E '^?' | cut -c9- | xargs -d '\n' rm -r )
+    fi
   }
 
   # Checks whether Valgrind repository has been cloned into
