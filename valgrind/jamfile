@@ -146,6 +146,11 @@ $(PROPERTY_DUMP_COMMANDS)
   PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
   set -ex
 
+  # Checks whether Valgrind repository has been cloned into
+  # `(INTRO_ROOT_DIR)/valgrind-trunk`. Note that
+  # `[ ! -d '(INTRO_ROOT_DIR)/valgrind-trunk' ]` cannot be used because
+  # `bjam` might automatically create `(INTRO_ROOT_DIR)/valgrind-trunk`
+  # directory.
   if [ ! -e '$(INTRO_ROOT_DIR)/valgrind-trunk/README' ]; then
     rm -rf '$(INTRO_ROOT_DIR)/valgrind-trunk'
   fi
@@ -166,7 +171,7 @@ $(PROPERTY_DUMP_COMMANDS)
   # Checks whether Valgrind repository has been cloned into
   # `(INTRO_ROOT_DIR)/valgrind-trunk`. Note that
   # `[ ! -d '(INTRO_ROOT_DIR)/valgrind-trunk' ]` cannot be used because
-  # `bjam` would automatically create `(INTRO_ROOT_DIR)/valgrind-trunk`
+  # `bjam` might automatically create `(INTRO_ROOT_DIR)/valgrind-trunk`
   # directory.
   if [ ! -e '$(INTRO_ROOT_DIR)/valgrind-trunk/README' ]; then
     ( cd '$(INTRO_ROOT_DIR)' && svn checkout 'svn://svn.valgrind.org/valgrind/trunk' valgrind-trunk )
