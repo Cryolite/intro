@@ -124,8 +124,15 @@ rule install ( targets * : sources * : properties * )
 
   local link = [ feature.get-values <link> : $(properties) ] ;
   LINK on $(targets) = "$(link)" ;
-  if "$(link)" = "shared" {
-    ADDITIONAL_BUILD_OPTS on $(targets) += "--without-exception" ;
+  switch "$(link)" {
+  case shared :
+    ADDITIONAL_BUILD_OPTS on $(targets) += --without-exception ;
+  case static :
+    ADDITIONAL_BUILD_OPTS on $(targets) += --without-mpi ;
+  case "" :
+    errors.error "the value for `<link>' is empty" ;
+  case * :
+    errors.error "<link>$(link): unknown property" ;
   }
 
   local threading = [ feature.get-values <threading> : $(properties) ] ;
