@@ -349,65 +349,67 @@ $(PROPERTY_DUMP_COMMANDS)
     rm -f '$(FULL_PREFIX)/lib/libboost_test_exec_monitor.a'
   fi
 
-  # Because some Boost test cases hang up on some environments, resource for
-  # processes shoud be limited in order for the processes to terminate in a
-  # reasonable length of time.
-  ulimit -St 1200
-  ulimit -Sm 2097152
-  # Because many Boost test cases crash, core files should be prevented from
-  # occupying large portion of disk space.
-  ulimit -Sc 0
+  if [ $(BOOST_CHECK) = yes ]; then
+    # Because some Boost test cases hang up on some environments, resource
+    # for processes shoud be limited in order for the processes to terminate
+    # in a reasonable length of time.
+    ulimit -St 1200
+    ulimit -Sm 2097152
+    # Because many Boost test cases crash, core files should be prevented
+    # from occupying large portion of disk space.
+    ulimit -Sc 0
 
-  get_clamped_concurrency ()
-  {
-    concurrency=$1
-    memory_per_concurrency=$2
-    echo "$concurrency" | grep -Eq '^[[:digit:]]+$'
-    echo "$memory_per_concurrency" | grep -Eq '^[[:digit:]]+$'
-    [ -f /proc/meminfo ]
-    mem=`grep -Eo '^MemFree:[[:space:]]+[[:digit:]]+[[:space:]]+kB' /proc/meminfo`
-    mem=`echo $mem | grep -Eo '[[:digit:]]+'`
-    echo "$mem" | grep -Eq '^[[:digit:]]+$'
-    con=`expr $mem / $memory_per_concurrency`
-    if [ $con -lt $concurrency ]; then
-      if [ $con -gt 0 ]; then
-        concurrency=$con
-      else
-        concurrency=1
-      fi
-    fi
-    return $concurrency
-  }
-
-  for i in '$(BOOST_ROOT)'/libs/*/test; do
-    libname=`echo -n "$i" | sed -e 's@$(BOOST_ROOT)/libs/\([^/]\{1,\}\)/test@\1@'`
-    if [ "$libname" = detail ]; then
-      :
-    elif [ '$(LINK)' = shared -a "$libname" = exception ]; then
-      :
-    elif [ '$(THREADING)' = single -a \( "$libname" = locale -o "$libname" = thread -o "$libname" = wave \) ]; then
-      :
-    else
-      testdir="$(BOOST_ROOT)/libs/$libname/test"
-      [ -d "$testdir" ]
-      if [ -f "$testdir/Jamfile.v2" -o -f "$testdir/Jamfile" ]; then
-        if [ `echo $(CONCURRENCY) `x != x ]; then
-          concurrency=$(CONCURRENCY)
+    get_clamped_concurrency ()
+    {
+      concurrency=$1
+      memory_per_concurrency=$2
+      echo "$concurrency" | grep -Eq '^[[:digit:]]+$'
+      echo "$memory_per_concurrency" | grep -Eq '^[[:digit:]]+$'
+      [ -f /proc/meminfo ]
+      mem=`grep -Eo '^MemFree:[[:space:]]+[[:digit:]]+[[:space:]]+kB' /proc/meminfo`
+      mem=`echo $mem | grep -Eo '[[:digit:]]+'`
+      echo "$mem" | grep -Eq '^[[:digit:]]+$'
+      con=`expr $mem / $memory_per_concurrency`
+      if [ $con -lt $concurrency ]; then
+        if [ $con -gt 0 ]; then
+          concurrency=$con
         else
           concurrency=1
         fi
-        if [ "$libname" = multiprecision ]; then
-          memory_per_concurrency=2097152
-        elif [ "$libname" = geometry -o "$libname" = graph_parallel -o "$libname" = intrusive -o "$libname" = msm -o "$libname" = range -o "$libname" = spirit -o "$libname" = xpressive ]; then
-          memory_per_concurrency=1048576
-        else
-          memory_per_concurrency=524288
-        fi
-        get_clamped_concurrency $concurrency $memory_per_concurrency || concurrency=$?
-        ( cd "$testdir" && ../../../b2 -d+2 -j$concurrency $(OPTIONS) ) || true
       fi
-    fi
-  done
+      return $concurrency
+    }
+
+    for i in '$(BOOST_ROOT)'/libs/*/test; do
+      libname=`echo -n "$i" | sed -e 's@$(BOOST_ROOT)/libs/\([^/]\{1,\}\)/test@\1@'`
+      if [ "$libname" = detail ]; then
+        :
+      elif [ '$(LINK)' = shared -a "$libname" = exception ]; then
+        :
+      elif [ '$(THREADING)' = single -a \( "$libname" = locale -o "$libname" = thread -o "$libname" = wave \) ]; then
+        :
+      else
+        testdir="$(BOOST_ROOT)/libs/$libname/test"
+        [ -d "$testdir" ]
+        if [ -f "$testdir/Jamfile.v2" -o -f "$testdir/Jamfile" ]; then
+          if [ `echo $(CONCURRENCY) `x != x ]; then
+            concurrency=$(CONCURRENCY)
+          else
+            concurrency=1
+          fi
+          if [ "$libname" = multiprecision ]; then
+            memory_per_concurrency=2097152
+          elif [ "$libname" = geometry -o "$libname" = graph_parallel -o "$libname" = intrusive -o "$libname" = msm -o "$libname" = range -o "$libname" = spirit -o "$libname" = xpressive ]; then
+            memory_per_concurrency=1048576
+          else
+            memory_per_concurrency=524288
+          fi
+          get_clamped_concurrency $concurrency $memory_per_concurrency || concurrency=$?
+          ( cd "$testdir" && ../../../b2 -d+2 -j$concurrency $(OPTIONS) ) || true
+        fi
+      fi
+    done
+  fi
 
   ( cd '$(BOOST_ROOT)' && rm -r bin.v2 )
 
