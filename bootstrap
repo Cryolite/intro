@@ -42,6 +42,8 @@ args=`getopt                    \
       -l 'enable-openmpi::'     \
       -l 'with-mpi-backend:'    \
       -l 'enable-boost::'       \
+      -l 'with-boost-check::'   \
+      -l 'without-boost-check'  \
       -l 'enable-clang::'       \
       -l 'enable-valgrind::'    \
       -l 'concurrency:'         \
@@ -72,6 +74,7 @@ icu4c=
 openmpi=
 mpi_backend=
 boost=
+boost_check=yes
 clang=
 valgrind=
 concurrency=1
@@ -163,6 +166,12 @@ for arg in "${args[@]}"; do
       ;;
     --enable-boost)
       prev_arg=--enable-boost
+      ;;
+    --with-boost-check)
+      prev_arg=--with-boost-check
+      ;;
+    --without-boost-check)
+      boost_check=no
       ;;
     --enable-clang)
       prev_arg=--enable-clang
@@ -353,6 +362,27 @@ for arg in "${args[@]}"; do
         boost="$arg"
       fi
       ;;
+    --with-boost-check)
+      case "$arg" in
+      '')
+        boost_check=yes
+        ;;
+      yes)
+        boost_check=yes
+        ;;
+      no)
+        boost_check=no
+        ;;
+      *)
+        echo "bootstrap: option \`--with-boost-check' doesn't allow argument \`$arg'" >&2
+        exit 1
+        ;;
+      esac
+      ;;
+    --without-boost-check)
+      echo "bootstrap: an internal error" >&2
+      exit 1
+      ;;
     --enable-clang)
       if [ -z "$arg" ]; then
         clang=latest
@@ -491,6 +521,19 @@ fi
 if [ -n "$boost" ]; then
   delegated_opts=("${delegated_opts[@]}" --enable-boost="$boost")
 fi
+
+case "$boost_check" in
+yes)
+  delegated_opts=("${delegated_opts[@]}" --with-boost-check)
+  ;;
+no)
+  delegated_opts=("${delegated_opts[@]}" --without-boost-check)
+  ;;
+*)
+  echo "bootstrap: an internal error" >&2
+  exit 1
+  ;;
+esac
 
 if [ -n "$clang" ]; then
   delegated_opts=("${delegated_opts[@]}" --enable-clang="$clang")

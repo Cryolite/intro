@@ -705,6 +705,56 @@ else {
 }
 
 
+local boost-check = [ option.get with-boost-check : UNSPECIFIED : IMPLIED ] ;
+switch "$(boost-check)" {
+case UNSPECIFIED :
+  boost-check = [ option.get without-boost-check : UNSPECIFIED : IMPLIED ] ;
+  switch "$(boost-check)" {
+  case UNSPECIFIED :
+    boost-check = yes ;
+  case IMPLIED :
+    boost-check = no ;
+  case * :
+    errors.error "`--without-boost-check' cannot have any value." ;
+  }
+case IMPLIED :
+  boost-check = [ option.get without-boost-check : UNSPECIFIED : IMPLIED ] ;
+  switch "$(boost-check)" {
+  case UNSPECIFIED :
+    boost-check = yes ;
+  case IMPLIED :
+    errors.error "`--with-boost-check' and `--without-boost-check' cannot be specified simultaneously." ;
+  case * :
+    errors.error "`--without-boost-check' cannot have any value." ;
+  }
+case yes :
+  boost-check = [ option.get without-boost-check : UNSPECIFIED : IMPLIED ] ;
+  switch "$(boost-check)" {
+  case UNSPECIFIED :
+    boost-check = yes ;
+  case IMPLIED :
+    errors.error "`--with-boost-check' and `--without-boost-check' cannot be specified simultaneously." ;
+  case * :
+    errors.error "`--without-boost-check' cannot have any value." ;
+  }
+case no :
+  boost-check = [ option.get without-boost-check : UNSPECIFIED : IMPLIED ] ;
+  switch "$(boost-check)" {
+  case UNSPECIFIED :
+    boost-check = no ;
+  case IMPLIED :
+    errors.error "`--with-boost-check' and `--without-boost-check' cannot be specified simultaneously." ;
+  case * :
+    errors.error "`--without-boost-check' cannot have any value." ;
+  }
+case "" :
+  errors.error "the value for `--with-boost-check' is an empty string." ;
+case * :
+  errors.error "an invalid value `$(boost-check)' is specified for `--with-boost-check'." ;
+}
+ECHO boost-check... $(boost-check) ;
+
+
 local clang = [ option.get "enable-clang" : : "latest" ] ;
 if "$(clang)" = "latest" {
   clang = [ get-clang-latest-version ] ;
@@ -960,6 +1010,9 @@ if $(boost-versions) {
   constant BOOST_VERSIONS : $(boost-versions) ;
   ECHO BOOST_VERSIONS... $(BOOST_VERSIONS:J=,) ;
 }
+
+constant BOOST_CHECK : "$(boost-check)" ;
+ECHO BOOST_CHECK... $(BOOST_CHECK) ;
 
 if "$(clang)" {
   constant CLANG : "$(clang)" ;
