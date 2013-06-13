@@ -8,6 +8,7 @@
 /binutils-*/
 /lcov-*/
 /gcovr-*/
+/gdb-*/
 /gmp-*.tar.gz
 /gmp-*.tar.bz2
 /gmp-*/

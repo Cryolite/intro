@@ -1,0 +1,217 @@
+project intro/gdb ;
+
+import alias ;
+import errors ;
+import feature ;
+import make ;
+import path ;
+import regex ;
+import "$(INTRO_ROOT_DIR)/compilers"
+  : is-gcc
+    is-clang
+    is-icc
+    get-compiler-prefix
+    get-compiler-triplets
+    get-cc
+    get-cxx
+    get-environment-commands
+    get-property-dump-commands
+  ;
+
+.here = [ regex.match "Jamfile<(.*)>" : "$(__name__)" : 1 ] ;
+.here = [ path.make "$(.here)" ] ;
+.here-relative = [ path.relative "$(.here)" "$(INTRO_ROOT_DIR)" ] ;
+
+
+rule compiler-dep-req ( properties * )
+{
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
+  local result ;
+  if [ is-gcc "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
+  }
+  else if [ is-clang "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
+    result += "<source>../clang//install" ;
+  }
+  else if [ is-icc "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
+    result += "<source>../icc//install" ;
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+  return $(result) ;
+}
+
+alias compiler-dep : : <conditional>@compiler-dep-req ;
+explicit compiler-dep ;
+
+
+rule expand-location-conditional ( properties * )
+{
+  local version = [ feature.get-values <gdb-hidden> : $(properties) ] ;
+  return "<location>$(INTRO_ROOT_DIR)/gdb-$(version)" ;
+}
+
+make README : : @expand : <conditional>@expand-location-conditional ;
+explicit README ;
+
+rule expand ( targets * : sources * : properties * )
+{
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
+  local version = [ feature.get-values <gdb-hidden> : $(properties) ] ;
+  VERSION on $(targets) = "$(version)" ;
+  URLS on $(targets)  = http://ftp.jaist.ac.jp/pub/GNU/gdb/gdb-$(version).tar.bz2 ;
+  URLS on $(targets) += http://ftp.nara.wide.ad.jp/pub/GNU/gnu/gdb/gdb-$(version).tar.bz2 ;
+  URLS on $(targets) += http://www.ring.gr.jp/archives/GNU/gdb/gdb-$(version).tar.bz2 ;
+  URLS on $(targets) += ftp://ftp.gnu.org/gnu/gdb/gdb-$(version).tar.bz2 ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+}
+actions expand
+{
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
+$(PROPERTY_DUMP_COMMANDS)
+  LINENO_ADJ=`grep -Fn b7ba40a6-bc5b-4d1c-8fb4-96babf537dbd '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
+  rm -rf '$(INTRO_ROOT_DIR)/gdb-$(VERSION)'
+  tmpdir=`mktemp -d`
+  trap "rm -rf '$(INTRO_ROOT_DIR)/gdb-$(VERSION)'; rm -r '$tmpdir'" ERR HUP INT QUIT TERM
+  for url in $(URLS) ; do
+    ( cd "$tmpdir" && wget -- "$url" ) && break
+  done
+  tar xjvf "$tmpdir"'/gdb-$(VERSION).tar.bz2' -C '$(INTRO_ROOT_DIR)'
+  rm -r "$tmpdir"
+EOS
+}
+
+
+rule srcdir-req ( properties * )
+{
+  local version = [ feature.get-values <gdb-hidden> : $(properties) ] ;
+  return "<source>README/$(DEFAULT_PROPERTIES)" ;
+}
+
+alias srcdir : : <conditional>@srcdir-req ;
+explicit srcdir ;
+
+
+rule location-conditional ( properties * )
+{
+  local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
+  return "<location>$(compiler-prefix)/bin" ;
+}
+
+make gdb
+  : compiler-dep
+    srcdir
+  : @make-install
+  : $(USE_COMPILER)
+    $(USE_MULTITARGET)
+    $(USE_GDB)
+    <conditional>@location-conditional
+  ;
+explicit gdb ;
+
+rule make-install ( targets * : sources * : properties * )
+{
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
+
+  # Sets the path to the source directory.
+  local version = [ feature.get-values <gdb> : $(properties) ] ;
+  local srcdir = "$(INTRO_ROOT_DIR)/gdb-$(version)" ;
+  SRCDIR on $(targets) = [ path.native "$(srcdir)" ] ;
+
+  # Sets the path to `objdir`.
+  local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
+  local objdir-native = [ path.native "$(objdir)" ] ;
+  OBJDIR on $(targets) = "$(objdir-native)" ;
+
+  OPTIONS on $(targets) = ;
+
+  # Sets `--prefix' option for `configure' script.
+  local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
+  local compiler-prefix-native = [ path.native "$(compiler-prefix)" ] ;
+  OPTIONS on $(targets) += "--prefix='$(compiler-prefix-native)'" ;
+
+  # Sets `--build', `--host' and `--target' options for `configure' script.
+  local triplets = [ get-compiler-triplets $(properties) ] ;
+  local build-triplet = "$(triplets[1])" ;
+  local host-triplet = "$(triplets[2])" ;
+  local target-triplet = "$(triplets[3])" ;
+  BUILD_TRIPLET on $(targets) = "$(build-triplet)" ;
+  HOST_TRIPLET on $(targets) = "$(host-triplet)" ;
+  TARGET_TRIPLET on $(targets) = "$(target-triplet)" ;
+  OPTIONS on $(targets) += "--build=$(build-triplet)" ;
+  OPTIONS on $(targets) += "--host=$(host-triplet)" ;
+  OPTIONS on $(targets) += "--target=$(target-triplet)" ;
+
+  local cc = [ get-cc "$(PREFIX)" : $(properties) ] ;
+  local cc-native = [ path.native "$(cc)" ] ;
+  OPTIONS on $(targets) += "CC='$(cc-native)'" ;
+
+  local cxx = [ get-cxx "$(PREFIX)" : $(properties) ] ;
+  local cxx-native = [ path.native "$(cxx)" ] ;
+  OPTIONS on $(targets) += "CXX='$(cxx-native)'" ;
+
+  local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
+  ENVIRONMENT_COMMANDS on $(targets) = "$(environment-commands)" ;
+
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+}
+actions make-install
+{
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
+$(ENVIRONMENT_COMMANDS)
+$(PROPERTY_DUMP_COMMANDS)
+  LINENO_ADJ=`grep -Fn 2e13f7ca-3ebc-4a81-aa68-bfce2d74ef87 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
+
+  rm -rf '$(OBJDIR)'
+
+  cleanup ()
+  {
+    if [ -d '$(OBJDIR)' ]; then
+      mv -n '$(OBJDIR)' "$(INTRO_ROOT_DIR)/objdir_$$"
+    fi
+  }
+  trap cleanup ERR HUP INT QUIT TERM
+
+  # Creates `objdir`.
+  ( cd '$(INTRO_ROOT_DIR)' && mkdir objdir )
+
+  [ -x '$(SRCDIR)/configure' ]
+  [ -x '$(SRCDIR)/config.sub' ]
+  [ `'$(SRCDIR)/config.sub' $(BUILD_TRIPLET)` = $(BUILD_TRIPLET) ]
+  [ `'$(SRCDIR)/config.sub' $(HOST_TRIPLET)` = $(HOST_TRIPLET) ]
+  [ `'$(SRCDIR)/config.sub' $(TARGET_TRIPLET)` = $(TARGET_TRIPLET) ]
+
+  ( cd '$(OBJDIR)' && '$(SRCDIR)/configure' $(OPTIONS) )
+
+  # Checks the creation of `Makefile`.
+  [ -f '$(OBJDIR)/Makefile' ]
+
+  ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) )
+
+  ( cd '$(OBJDIR)' && make check )
+
+  ( cd '$(OBJDIR)' && make install )
+
+  # Cleans up `objdir`.
+  rm -r '$(OBJDIR)'
+
+  [ -f '$(<)' ]
+EOS
+}
+
+
+alias install : "gdb/$(DEFAULT_COMPILER_PROPERTIES)" ;
+explicit install ;

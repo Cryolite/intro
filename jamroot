@@ -23,6 +23,7 @@ import "$(INTRO_ROOT_DIR)/compilers"
 local .binutils-latest ;
 local .lcov-latest ;
 local .gcovr-latest ;
+local .gdb-latest ;
 local .gmp-latest ;
 local .mpfr-latest ;
 local .mpc-latest ;
@@ -76,6 +77,17 @@ local rule get-gcovr-latest-version ( )
     }
   }
   return "$(.gcovr-latest)" ;
+}
+
+local rule get-gdb-latest-version ( )
+{
+  if ! "$(.gdb-latest)" {
+    .gdb-latest = [ SHELL "'$(INTRO_ROOT_DIR)/gdb/latest.sh' || echo -n error" ] ;
+    if "$(.gdb-latest)" = "error" {
+      errors.error "failed to extract GDB latest version." ;
+    }
+  }
+  return "$(.gdb-latest)" ;
 }
 
 local rule get-gmp-latest-version ( )
@@ -491,6 +503,18 @@ if "$(gcovr)" {
 }
 else {
   ECHO "gcovr... N/A" ;
+}
+
+
+local gdb = [ option.get enable-gdb : : latest ] ;
+if "$(gdb)" = latest {
+  gdb = [ get-gdb-latest-version ] ;
+}
+if "$(gdb)" {
+  if ! [ regex.match "^([0-9]+\\.[0-9]+(\\.[0-9]+)?)$" : "$(gdb)" : 1 ] {
+    errors.error "an invalid value `$(gdb)' for `--enable-gdb'." ;
+  }
+  ECHO gdb... $(gdb) ;
 }
 
 
@@ -1152,6 +1176,16 @@ feature gcovr-hidden : [ feature.values <gcovr> ] : propagated incidental ;
   constant USE_GCOVR : $(use-gcovr) ;
 }
 
+feature gdb        : unspecified $(gdb)       :                       ;
+feature gdb-hidden : [ feature.values <gdb> ] : propagated incidental ;
+{
+  local use-gdb ;
+  for local val in [ feature.values <gdb> ] {
+    use-gdb += <gdb-hidden>$(val):<gdb>$(val) ;
+  }
+  constant USE_GDB : $(use-gdb) ;
+}
+
 feature gmp        : unspecified $(gmp-versions) :                       ;
 feature gmp-hidden : [ feature.values <gmp> ]    : propagated incidental ;
 {
@@ -1287,6 +1321,9 @@ for local enabled-compiler in $(enabled-compilers) {
   if "$(gcovr)" {
     srcs += "gcovr//install" ;
   }
+  if "$(gdb)" {
+    srcs += gdb//install ;
+  }
   if "$(gmp)" {
     srcs += "gmp//install" ;
   }
@@ -1337,6 +1374,7 @@ for local enabled-compiler in $(enabled-compilers) {
         <cloog-for-gcc-hidden>$(cloog-for-gcc)
         <lcov-hidden>$(lcov)
         <gcovr-hidden>$(gcovr)
+        <gdb-hidden>$(gdb)
         <gmp-hidden>$(gmp)
         <mpfr-hidden>$(mpfr)
         <mpc-hidden>$(mpc)
@@ -1365,6 +1403,7 @@ for local enabled-compiler in $(enabled-compilers) {
             <cloog-for-gcc-hidden>$(cloog-for-gcc)
             <lcov-hidden>$(lcov)
             <gcovr-hidden>$(gcovr)
+            <gdb-hidden>$(gdb)
             <gmp-hidden>$(gmp)
             <mpfr-hidden>$(mpfr)
             <mpc-hidden>$(mpc)
@@ -1397,6 +1436,7 @@ for local enabled-compiler in $(enabled-compilers) {
         <cloog-for-gcc-hidden>$(cloog-for-gcc)
         <lcov-hidden>$(lcov)
         <gcovr-hidden>$(gcovr)
+        <gdb-hidden>$(gdb)
         <gmp-hidden>$(gmp)
         <mpfr-hidden>$(mpfr)
         <mpc-hidden>$(mpc)
@@ -1429,6 +1469,7 @@ for local enabled-compiler in $(enabled-compilers) {
         <cloog-for-gcc-hidden>$(cloog-for-gcc)
         <lcov-hidden>$(lcov)
         <gcovr-hidden>$(gcovr)
+        <gdb-hidden>$(gdb)
         <gmp-hidden>$(gmp)
         <mpfr-hidden>$(mpfr)
         <mpc-hidden>$(mpc)
