@@ -38,7 +38,8 @@
 /boost_*.tar.gz
 /boost_*.tar.bz2
 /llvm-*.src.tar.gz
-/clang-*.src.tar.gz
+/cfe-*.src.tar.gz
+/clang-tools-extra-*.src.tar.gz
 /compiler-rt-*.src.tar.gz
 /llvm-*/
 /valgrind-*.tar.bz2
