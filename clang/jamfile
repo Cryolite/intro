@@ -101,7 +101,8 @@ rule download ( targets * : sources * : properties * )
   local version = [ get-version-impl $(properties) ] ;
   VERSION on $(targets) = $(version) ;
   LLVM_SRC_URL on $(targets) = "http://llvm.org/releases/$(version)/llvm-$(version).src.tar.gz" ;
-  CLANG_SRC_URL on $(targets) = "http://llvm.org/releases/$(version)/clang-$(version).src.tar.gz" ;
+  CLANG_SRC_URL on $(targets) = "http://llvm.org/releases/$(version)/cfe-$(version).src.tar.gz" ;
+  CLANG_TOOLS_EXTRA_SRC_URL on $(targets) = "http://llvm.org/releases/$(version)/clang-tools-extra-$(version).src.tar.gz" ;
   COMPILER_RT_SRC_URL on $(targets) = "http://llvm.org/releases/$(version)/compiler-rt-$(version).src.tar.gz" ;
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
@@ -118,7 +119,8 @@ $(PROPERTY_DUMP_COMMANDS)
   cleanup ()
   {
     ( cd '$(INTRO_ROOT_DIR)' && rm -f 'llvm-$(VERSION).src.tar.gz' )
-    ( cd '$(INTRO_ROOT_DIR)' && rm -f 'clang-$(VERSION).src.tar.gz' )
+    ( cd '$(INTRO_ROOT_DIR)' && rm -f 'cfe-$(VERSION).src.tar.gz' )
+    #( cd '$(INTRO_ROOT_DIR)' && rm -f 'clang-tools-extra-$(VERSION).src.tar.gz' )
     ( cd '$(INTRO_ROOT_DIR)' && rm -f 'compiler-rt-$(VERSION).src.tar.gz' )
   }
   cleanup
@@ -128,7 +130,10 @@ $(PROPERTY_DUMP_COMMANDS)
   [ -f '$(INTRO_ROOT_DIR)/llvm-$(VERSION).src.tar.gz' ]
 
   ( cd '$(<:D)' && wget -- '$(CLANG_SRC_URL)' )
-  [ -f '$(INTRO_ROOT_DIR)/clang-$(VERSION).src.tar.gz' ]
+  [ -f '$(INTRO_ROOT_DIR)/cfe-$(VERSION).src.tar.gz' ]
+
+  #( cd '$(<:D)' && wget -- '$(CLANG_TOOLS_EXTRA_SRC_URL)' )
+  #[ -f '$(INTRO_ROOT_DIR)/clang-tools-extra-$(VERSION).src.tar.gz' ]
 
   ( cd '$(<:D)' && wget -- '$(COMPILER_RT_SRC_URL)' )
   [ -f '$(INTRO_ROOT_DIR)/compiler-rt-$(VERSION).src.tar.gz' ]
@@ -176,39 +181,49 @@ $(PROPERTY_DUMP_COMMANDS)
 
   rm -rf '$(<:D)'
   rm -rf '$(INTRO_ROOT_DIR)/llvm-$(VERSION).src'
-  rm -rf '$(INTRO_ROOT_DIR)/clang-$(VERSION).src'
+  rm -rf '$(INTRO_ROOT_DIR)/cfe-$(VERSION).src'
+  #rm -rf '$(INTRO_ROOT_DIR)/clang-tools-extra-$(VERSION).src'
   rm -rf '$(INTRO_ROOT_DIR)/compiler-rt-$(VERSION).src'
   [ -f '$(INTRO_ROOT_DIR)/llvm-$(VERSION).src.tar.gz' ]
-  [ -f '$(INTRO_ROOT_DIR)/clang-$(VERSION).src.tar.gz' ]
+  [ -f '$(INTRO_ROOT_DIR)/cfe-$(VERSION).src.tar.gz' ]
+  #[ -f '$(INTRO_ROOT_DIR)/clang-tools-extra-$(VERSION).src.tar.gz' ]
   [ -f '$(INTRO_ROOT_DIR)/compiler-rt-$(VERSION).src.tar.gz' ]
 
   cleanup ()
   {
     ( cd '$(INTRO_ROOT_DIR)' && rm 'llvm-$(VERSION).src.tar.gz' )
-    ( cd '$(INTRO_ROOT_DIR)' && rm 'clang-$(VERSION).src.tar.gz' )
+    ( cd '$(INTRO_ROOT_DIR)' && rm 'cfe-$(VERSION).src.tar.gz' )
+    #( cd '$(INTRO_ROOT_DIR)' && rm 'clang-tools-extra-$(VERSION).src.tar.gz' )
     ( cd '$(INTRO_ROOT_DIR)' && rm 'compiler-rt-$(VERSION).src.tar.gz' )
-    ( cd '$(INTRO_ROOT_DIR)' && rm -rf '$(INTRO_ROOT_DIR)/llvm-$(VERSION).src' )
-    ( cd '$(INTRO_ROOT_DIR)' && rm -rf '$(INTRO_ROOT_DIR)/clang-$(VERSION).src' )
-    ( cd '$(INTRO_ROOT_DIR)' && rm -rf '$(INTRO_ROOT_DIR)/compiler-rt-$(VERSION).src' )
+    rm -rf '$(INTRO_ROOT_DIR)/llvm-$(VERSION).src'
+    rm -rf '$(INTRO_ROOT_DIR)/cfe-$(VERSION).src'
+    #rm -rf '$(INTRO_ROOT_DIR)/clang-tools-extra-$(VERSION).src'
+    rm -rf '$(INTRO_ROOT_DIR)/compiler-rt-$(VERSION).src'
     rm -rf '$(<:D)'
   }
   trap cleanup ERR HUP INT QUIT TERM
 
   tar xzvf '$(INTRO_ROOT_DIR)/llvm-$(VERSION).src.tar.gz' -C '$(INTRO_ROOT_DIR)'
   [ -d '$(INTRO_ROOT_DIR)/llvm-$(VERSION).src' ]
-  ( cd '$(INTRO_ROOT_DIR)' && mv -nT llvm-$(VERSION).src llvm-$(VERSION) )
+  ( cd '$(INTRO_ROOT_DIR)' && mv -nT 'llvm-$(VERSION).src' 'llvm-$(VERSION)' )
   [ -d '$(INTRO_ROOT_DIR)/llvm-$(VERSION)' ]
   [ ! -e '$(INTRO_ROOT_DIR)/llvm-$(VERSION).src' ]
 
-  tar xzvf '$(INTRO_ROOT_DIR)/clang-$(VERSION).src.tar.gz' -C '$(INTRO_ROOT_DIR)'
-  [ -d '$(INTRO_ROOT_DIR)/clang-$(VERSION).src' ]
-  ( cd '$(INTRO_ROOT_DIR)' && mv -nT clang-$(VERSION).src llvm-$(VERSION)/tools/clang )
+  tar xzvf '$(INTRO_ROOT_DIR)/cfe-$(VERSION).src.tar.gz' -C '$(INTRO_ROOT_DIR)'
+  [ -d '$(INTRO_ROOT_DIR)/cfe-$(VERSION).src' ]
+  ( cd '$(INTRO_ROOT_DIR)' && mv -nT 'cfe-$(VERSION).src' 'llvm-$(VERSION)/tools/clang' )
   [ -d '$(INTRO_ROOT_DIR)/llvm-$(VERSION)/tools/clang' ]
-  [ ! -e '$(INTRO_ROOT_DIR)/clang-$(VERSION).src' ]
+  [ ! -e '$(INTRO_ROOT_DIR)/cfe-$(VERSION).src' ]
+
+  #tar xzvf '$(INTRO_ROOT_DIR)/clang-tools-extra-$(VERSION).src.tar.gz' -C '$(INTRO_ROOT_DIR)'
+  #[ -d '$(INTRO_ROOT_DIR)/clang-tools-extra-$(VERSION).src' ]
+  #( cd '$(INTRO_ROOT_DIR)' && mv -nT 'clang-tools-extra-$(VERSION).src' 'llvm-$(VERSION)/tools/clang/tools/extra' )
+  #[ -d '$(INTRO_ROOT_DIR)/llvm-$(VERSION)/tools/clang/tools/extra' ]
+  #[ ! -e '$(INTRO_ROOT_DIR)/clang-tools-extra-$(VERSION).src' ]
 
   tar xzvf '$(INTRO_ROOT_DIR)/compiler-rt-$(VERSION).src.tar.gz' -C '$(INTRO_ROOT_DIR)'
   [ -d '$(INTRO_ROOT_DIR)/compiler-rt-$(VERSION).src' ]
-  ( cd '$(INTRO_ROOT_DIR)' && mv -nT compiler-rt-$(VERSION).src llvm-$(VERSION)/projects/compiler-rt )
+  ( cd '$(INTRO_ROOT_DIR)' && mv -nT 'compiler-rt-$(VERSION).src' 'llvm-$(VERSION)/projects/compiler-rt' )
   [ -d '$(INTRO_ROOT_DIR)/llvm-$(VERSION)/projects/compiler-rt' ]
   [ ! -e '$(INTRO_ROOT_DIR)/compiler-rt-$(VERSION).src' ]
 
