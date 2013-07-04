@@ -116,19 +116,23 @@ rule install ( targets * : sources * : properties * )
 
   ADDITIONAL_BUILD_OPTS on $(targets) += "--build-type=minimal" ;
   ADDITIONAL_BUILD_OPTS on $(targets) += "--layout=system" ;
-  ADDITIONAL_BUILD_OPTS on $(targets) += "--without-locale" ;
+
+  WITHOUT_BUILD_OPTS on $(targets) = ;
+
+  WITHOUT_BUILD_OPTS on $(targets) += "--without-locale" ;
+  WITHOUT_BUILD_OPTS on $(targets) += "--without-log" ;
   if "$(build-triplet)" = "x86_64-unknown-linux-gnu" && "$(host-triplet)" = "i686-pc-linux-gnu" {
-    ADDITIONAL_BUILD_OPTS on $(targets) += "--without-mpi" ;
-    ADDITIONAL_BUILD_OPTS on $(targets) += "--without-python" ;
+    WITHOUT_BUILD_OPTS on $(targets) += "--without-mpi" ;
+    WITHOUT_BUILD_OPTS on $(targets) += "--without-python" ;
   }
 
   local link = [ feature.get-values <link> : $(properties) ] ;
   LINK on $(targets) = "$(link)" ;
   switch "$(link)" {
   case shared :
-    ADDITIONAL_BUILD_OPTS on $(targets) += --without-exception ;
+    WITHOUT_BUILD_OPTS on $(targets) += --without-exception ;
   case static :
-    ADDITIONAL_BUILD_OPTS on $(targets) += --without-mpi ;
+    WITHOUT_BUILD_OPTS on $(targets) += --without-mpi ;
   case "" :
     errors.error "the value for `<link>' is empty" ;
   case * :
@@ -138,9 +142,9 @@ rule install ( targets * : sources * : properties * )
   local threading = [ feature.get-values <threading> : $(properties) ] ;
   THREADING on $(targets) = "$(threading)" ;
   if "$(threading)" = "single" {
-    ADDITIONAL_BUILD_OPTS on $(targets) += "--without-locale" ;
-    ADDITIONAL_BUILD_OPTS on $(targets) += "--without-thread" ;
-    ADDITIONAL_BUILD_OPTS on $(targets) += "--without-wave" ;
+    WITHOUT_BUILD_OPTS on $(targets) += "--without-locale" ;
+    WITHOUT_BUILD_OPTS on $(targets) += "--without-thread" ;
+    WITHOUT_BUILD_OPTS on $(targets) += "--without-wave" ;
   }
 
   OPTIONS on $(targets) = ;
@@ -350,7 +354,9 @@ $(PROPERTY_DUMP_COMMANDS)
 
   [ -x '$(BOOST_ROOT)/b2' ]
 
-  ( cd '$(BOOST_ROOT)' && ./b2 -d+2 -j$(CONCURRENCY) $(ADDITIONAL_BUILD_OPTS) $(OPTIONS) stage )
+  # Concurrent build for `Boost.Log` is disabled because the compile of some source files is a memory hog.
+  ( cd '$(BOOST_ROOT)' && ./b2 -d+2 -j$(CONCURRENCY) $(ADDITIONAL_BUILD_OPTS) $(WITHOUT_BUILD_OPTS) $(OPTIONS) stage )
+  ( cd '$(BOOST_ROOT)' && ./b2 -d+2                  $(ADDITIONAL_BUILD_OPTS) --with-log            $(OPTIONS) stage )
 
   if [ '$(LINK)' = 'shared' ]; then
     rm -f '$(FULL_PREFIX)/lib/libboost_test_exec_monitor.a'
