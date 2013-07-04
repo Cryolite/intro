@@ -204,7 +204,13 @@ rule make-install ( targets * : sources * : properties * )
     errors.error "<variant>$(variant): an unknown property" ;
   }
 
-  OPTIONS on $(targets) += "--enable-cxx" ;
+  # C++ support for GMP is disabled because it
+  #   - results in build errors with GCC 4.9,
+  #   - results in an error during `make check` with GCC and LTO, and
+  #   - can be replaced by `Boost.Multiprecision`, which adopts more modern
+  #     C++ programming styles.
+  #OPTIONS on $(targets) += "--enable-cxx" ;
+  OPTIONS on $(targets) += "--disable-cxx" ;
 
   # Sets the link variants for `configure' script.
   local link = [ feature.get-values <link> : $(properties) ] ;
