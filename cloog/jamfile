@@ -51,8 +51,10 @@ explicit compiler-dep ;
 
 
 for local version in $(CLOOG_VERSIONS) {
-  make "$(INTRO_ROOT_DIR)/cloog-$(version).tar.gz" : : @download ;
-  explicit "$(INTRO_ROOT_DIR)/cloog-$(version).tar.gz" ;
+  if "$(version)" != "trunk" {
+    make "$(INTRO_ROOT_DIR)/cloog-$(version).tar.gz" : : @download ;
+    explicit "$(INTRO_ROOT_DIR)/cloog-$(version).tar.gz" ;
+  }
 }
 
 rule download ( targets * : sources * : properties * )
@@ -81,19 +83,21 @@ EOS
 
 
 for local version in $(CLOOG_VERSIONS) {
-  # Use `README' file as a target representing the completion of
-  # decompression action. It is suitable for the purpose because of the
-  # following reasons;
-  #
-  #   - The name of this file is considered stable even if the version
-  #     changes.
-  #   - This file won't be modified during the build procedure.
-  #
-  make "$(INTRO_ROOT_DIR)/cloog-$(version)/README"
-    : "$(INTRO_ROOT_DIR)/cloog-$(version).tar.gz"
-    : @expand
-    ;
-  explicit "$(INTRO_ROOT_DIR)/cloog-$(version)/README" ;
+  if "$(version)" != "trunk" {
+    # Use `README' file as a target representing the completion of
+    # decompression action. It is suitable for the purpose because of the
+    # following reasons;
+    #
+    #   - The name of this file is considered stable even if the version
+    #     changes.
+    #   - This file won't be modified during the build procedure.
+    #
+    make "$(INTRO_ROOT_DIR)/cloog-$(version)/README"
+      : "$(INTRO_ROOT_DIR)/cloog-$(version).tar.gz"
+      : @expand
+      ;
+    explicit "$(INTRO_ROOT_DIR)/cloog-$(version)/README" ;
+  }
 }
 
 rule expand ( targets * : sources * : properties * )
@@ -119,6 +123,48 @@ $(PROPERTY_DUMP_COMMANDS)
   # time of the source directory could be older than the one of the tarball.
   # Such behavior is not desirable because the decompression always happens.
   # Therefore, `touch' is required.
+  touch --no-create '$(<)'
+  [ -f '$(<)' ]
+EOS
+}
+
+
+if trunk in $(CLOOG_VERSIONS) {
+  make "$(INTRO_ROOT_DIR)/cloog-trunk/README"
+    : # no source
+    : @update-trunk
+    ;
+  explicit "$(INTRO_ROOT_DIR)/cloog-trunk/README" ;
+  always "$(INTRO_ROOT_DIR)/cloog-trunk/README" ;
+}
+
+rule update-trunk ( targets * : sources * : properties * )
+{
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+}
+actions update-trunk
+{
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
+$(PROPERTY_DUMP_COMMANDS)
+  LINENO_ADJ=`grep -Fn 189848b9-2424-45d1-910b-459a00e36516 '$(INTRO_ROOT_DIR)/cloog/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+cloog/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
+
+  if [ -f '$(<)' ]; then
+    ( cd '$(INTRO_ROOT_DIR)/cloog-trunk' && git clean -ffdx )
+  fi
+
+  trap "rm -rf '$(INTRO_ROOT_DIR)/cloog-trunk'" ERR HUP INT QUIT TERM
+
+  if [ ! -f '$(<)' ]; then
+    ( cd '$(INTRO_ROOT_DIR)' && git clone 'git://repo.or.cz/cloog.git' cloog-trunk )
+  fi
+  [ -f '$(<)' ]
+  ( cd '$(INTRO_ROOT_DIR)/cloog-trunk' && git pull --ff-only )
+  #( cd '$(INTRO_ROOT_DIR)/cloog-trunk' && ./get_submodules.sh )
+  ( cd '$(INTRO_ROOT_DIR)/cloog-trunk' && ./autogen.sh )
   touch --no-create '$(<)'
   [ -f '$(<)' ]
 EOS
