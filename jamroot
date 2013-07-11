@@ -632,7 +632,13 @@ if $(cloog) = latest
 }
 if $(cloog)
 {
-  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(cloog)" : 1 ] {
+  if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(cloog)" : 1 ] {
+    # Do nothing.
+  }
+  else if "$(cloog)" = "trunk" {
+    # Do nothing.
+  }
+  else {
     errors.error "an invalid value `$(cloog)' for `--enable-cloog'." ;
   }
   if ! "$(cloog)" in $(cloog-versions) {
