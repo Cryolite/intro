@@ -32,6 +32,7 @@ args=`getopt                    \
       -l 'without-gcc-check'    \
       -l 'enable-lcov::'        \
       -l 'enable-gcovr::'       \
+      -l 'enable-gdb::'         \
       -l 'enable-gmp::'         \
       -l 'enable-mpfr::'        \
       -l 'enable-mpc::'         \
@@ -64,6 +65,7 @@ gold=no
 gcc_check=yes
 lcov=
 gcovr=
+gdb=
 gmp=
 mpfr=
 mpc=
@@ -136,6 +138,9 @@ for arg in "${args[@]}"; do
       ;;
     --enable-gcovr)
       prev_arg=--enable-gcovr
+      ;;
+    --enable-gdb)
+      prev_arg=--enable-gdb
       ;;
     --enable-gmp)
       prev_arg=--enable-gmp
@@ -290,6 +295,13 @@ for arg in "${args[@]}"; do
         gcovr=latest
       else
         gcovr="$arg"
+      fi
+      ;;
+    --enable-gdb)
+      if [ -z "$arg" ]; then
+        gdb=latest
+      else
+        gdb="$arg"
       fi
       ;;
     --enable-gmp)
@@ -480,6 +492,10 @@ fi
 
 if [ -n "$gcovr" ]; then
   delegated_opts=("${delegated_opts[@]}" --enable-gcovr="$gcovr")
+fi
+
+if [ -n "$gdb" ]; then
+  delegated_opts=("${delegated_opts[@]}" --enable-gdb="$gdb")
 fi
 
 if [ -n "$gmp" ]; then
