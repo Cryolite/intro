@@ -49,12 +49,11 @@ explicit compiler-dep ;
 
 rule openmpi-conditional ( properties * )
 {
-  local mpi-backend = [ feature.get-values <mpi-backend> : $(properties) ] ;
+  local mpi-backend = [ feature.get-values <mpi-backend-hidden> : $(properties) ] ;
   local results ;
-  if "$(mpi-backend)" = "openmpi" {
+  if "$(mpi-backend)" = openmpi {
     local openmpi = [ feature.get-values <openmpi-hidden> : $(properties) ] ;
-    if "$(openmpi)" = "unspecified"
-    {
+    if "$(openmpi)" = unspecified {
       errors.error "an internal error." ;
     }
     results += "<source>../openmpi//install" ;
