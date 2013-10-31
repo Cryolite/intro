@@ -1,0 +1,279 @@
+project intro/opencv ;
+
+import alias ;
+import errors ;
+import feature ;
+import make ;
+import path ;
+import regex ;
+import "$(INTRO_ROOT_DIR)/compilers"
+  : is-gcc
+    is-clang
+    is-icc
+    get-full-prefix
+    get-cc
+    get-cflags
+    get-cxx
+    get-cxxflags
+    get-environment-commands
+    get-property-dump-commands
+  ;
+
+.here = [ regex.match "Jamfile<(.*)>" : "$(__name__)" : 1 ] ;
+.here = [ path.make "$(.here)" ] ;
+.here-relative = [ path.relative "$(.here)" "$(INTRO_ROOT_DIR)" ] ;
+
+
+rule compiler-dep-req ( properties * )
+{
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
+  local result ;
+  if [ is-gcc "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
+  }
+  else if [ is-clang "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
+    result += "<source>../clang//install" ;
+  }
+  else if [ is-icc "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
+    result += "<source>../icc//install" ;
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+  return $(result) ;
+}
+
+alias compiler-dep : : <conditional>@compiler-dep-req ;
+explicit compiler-dep ;
+
+
+for local version in $(OPENCV_VERSIONS) {
+  make "$(INTRO_ROOT_DIR)/opencv-$(version).tar.gz" : : @download ;
+  explicit "$(INTRO_ROOT_DIR)/opencv-$(version).tar.gz" ;
+}
+
+rule download ( targets * : sources * : properties * )
+{
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
+  local version = [ feature.get-values <opencv-hidden> : $(properties) ] ;
+  URLS on $(targets)  = http://downloads.sourceforge.net/project/opencvlibrary/opencv-unix/$(version)/opencv-$(version).tar.gz ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+}
+actions download
+{
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
+$(PROPERTY_DUMP_COMMANDS)
+  LINENO_ADJ=`grep -Fn 0de2af48-3edb-4680-8d70-9ba8b1c9840c '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
+  rm -f '$(<)'
+  trap "rm -f '$(<)'" ERR HUP INT QUIT TERM
+  for url in $(URLS) ; do
+    ( cd '$(<:D)' && wget -- "$url" ) && break
+  done
+  [ -f '$(<)' ]
+EOS
+}
+
+
+for local version in $(OPENCV_VERSIONS) {
+  # Use `README' file as a target representing the completion of
+  # decompression action. It is suitable for the purpose because of the
+  # following reasons;
+  #
+  #   - The name of this file is considered stable even if the version
+  #     changes.
+  #   - This file won't be modified during the build procedure.
+  #
+  make "$(INTRO_ROOT_DIR)/opencv-$(version)/README"
+    : "$(INTRO_ROOT_DIR)/opencv-$(version).tar.gz"
+    : @expand
+    ;
+  explicit "$(INTRO_ROOT_DIR)/opencv-$(version)/README" ;
+}
+
+rule expand ( targets * : sources * : properties * )
+{
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+}
+actions expand
+{
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
+$(PROPERTY_DUMP_COMMANDS)
+  LINENO_ADJ=`grep -Fn 9a196cbf-4372-4163-8f70-ac9951952722 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
+  rm -rf '$(<:D)'
+  [ -f '$(>)' ]
+  trap "rm -rf '$(>)' '$(<:D)'" ERR HUP INT QUIT TERM
+  tar xzvf '$(>)' -C '$(INTRO_ROOT_DIR)'
+  # If the timestamp of the tarball's contents is restored, the modification
+  # time of the source directory could be older than the one of the tarball.
+  # Such behavior is not desirable because the decompression always happens.
+  # Therefore, `touch' is required.
+  touch --no-create '$(<)'
+  [ -f '$(<)' ]
+EOS
+}
+
+
+rule srcdir-req ( properties * )
+{
+  local version = [ feature.get-values <opencv-hidden> : $(properties) ] ;
+  return "<source>$(INTRO_ROOT_DIR)/opencv-$(version)/README/$(DEFAULT_PROPERTIES)" ;
+}
+
+alias srcdir : : <conditional>@srcdir-req ;
+explicit srcdir ;
+
+
+rule location-conditional ( properties * )
+{
+  local full-prefix = [ get-full-prefix "$(PREFIX)" : $(properties) ] ;
+  local includedir = "$(full-prefix)/include" ;
+  return "<location>$(includedir)" ;
+}
+
+make opencv2/core/core.hpp
+  : compiler-dep
+    srcdir
+  : @make-install
+  : $(USE_COMPILER)
+    $(USE_MULTITARGET)
+    $(USE_OPENCV)
+    <conditional>@location-conditional
+  ;
+explicit opencv2/core/core.hpp ;
+
+rule make-install ( targets * : sources * : properties * )
+{
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
+
+  # Sets the path to the source directory.
+  local version = [ feature.get-values <opencv> : $(properties) ] ;
+  local srcdir = "$(INTRO_ROOT_DIR)/opencv-$(version)" ;
+  SRCDIR on $(targets) = [ path.native "$(srcdir)" ] ;
+
+  # Sets the path to `objdir`.
+  local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
+  local objdir-native = [ path.native "$(objdir)" ] ;
+  OBJDIR on $(targets) = "$(objdir-native)" ;
+
+  OPTIONS on $(targets) = ;
+
+  # Sets `CMAKE_INSTALL_PREFIX' option for `cmake'.
+  local full-prefix = [ get-full-prefix "$(PREFIX)" : $(properties) ] ;
+  local full-prefix-native = [ path.native "$(full-prefix)" ] ;
+  OPTIONS on $(targets) += "-D CMAKE_INSTALL_PREFIX='$(full-prefix-native)'" ;
+
+  local variant = [ feature.get-values <variant> : $(properties) ] ;
+  switch "$(variant)" {
+  case "debug" :
+    OPTIONS on $(targets) += "-D CMAKE_BUILD_TYPE=DEBUG" ;
+  case "release" :
+    OPTIONS on $(targets) += "-D CMAKE_BUILD_TYPE=RELEASE" ;
+  case "profile" :
+    OPTIONS on $(targets) += "-D CMAKE_BUILD_TYPE=RELEASE" ;
+  case "" :
+    errors.error "the value for `<variant>' is empty" ;
+  case "*" :
+    errors.error "<variant>$(variant): an unknown property" ;
+  }
+
+  # Sets the link variants for `configure' script.
+  local link = [ feature.get-values <link> : $(properties) ] ;
+  switch "$(link)" {
+  case "shared" :
+    OPTIONS on $(targets) += "-D BUILD_SHARED_LIBS=ON" ;
+  case "static" :
+    OPTIONS on $(targets) += "-D BUILD_SHARED_LIBS=OFF" ;
+  case "" :
+    errors.error "the value for `<link>' is empty" ;
+  case "*" :
+    errors.error "<link>$(link): an unknown property" ;
+  }
+
+  local cc = [ get-cc "$(PREFIX)" : $(properties) ] ;
+  local cc-native = [ path.native "$(cc)" ] ;
+  OPTIONS on $(targets) += "-D CMAKE_C_COMPILER='$(cc-native)'" ;
+
+  local cflags = [ get-cflags $(properties) ] ;
+  if "$(cflags)" {
+    CFLAGS on $(targets) = "$(cflags)" ;
+    OPTIONS on $(targets) += "-D CMAKE_C_FLAGS='@$(objdir-native)/cflags'" ;
+  }
+
+  local cxx = [ get-cxx "$(PREFIX)" : $(properties) ] ;
+  local cxx-native = [ path.native "$(cxx)" ] ;
+  OPTIONS on $(targets) += "-D CMAKE_CXX_COMPILER='$(cxx-native)'" ;
+
+  local cxxflags = [ get-cxxflags $(properties) ] ;
+  if "$(cxxflags)" {
+    CXXFLAGS on $(targets) = "$(cxxflags)" ;
+    OPTIONS on $(targets) += "-D CMAKE_CXX_FLAGS='@$(objdir-native)/cxxflags'" ;
+  }
+
+  local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
+  ENVIRONMENT_COMMANDS on $(targets) = "$(environment-commands)" ;
+
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+}
+actions make-install
+{
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
+$(ENVIRONMENT_COMMANDS)
+$(PROPERTY_DUMP_COMMANDS)
+  LINENO_ADJ=`grep -Fn 537d2268-fdcb-4819-b4ad-7396a395da30 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
+
+  rm -rf '$(OBJDIR)'
+
+  cleanup ()
+  {
+    if [ -d '$(OBJDIR)' ]; then
+      mv -n '$(OBJDIR)' "$(INTRO_ROOT_DIR)/objdir_opencv_$$"
+    fi
+  }
+  trap cleanup ERR HUP INT QUIT TERM
+
+  # Creates `objdir`.
+  ( cd '$(INTRO_ROOT_DIR)' && mkdir objdir )
+
+  ( cd '$(OBJDIR)' && echo -n '$(CFLAGS)' > cflags )
+  ( cd '$(OBJDIR)' && echo -n '$(CXXFLAGS)' > cxxflags )
+
+  ( cd '$(OBJDIR)' && 'cmake' $(OPTIONS) '$(SRCDIR)' )
+
+  # Checks the creation of `Makefile`.
+  [ -f '$(OBJDIR)/Makefile' ]
+
+  ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) )
+
+  ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) opencv_tests )
+
+  ( cd '$(OBJDIR)' && make install )
+
+  # Cleans up `objdir`.
+  rm -r '$(OBJDIR)'
+
+  [ -f '$(<)' ]
+  touch --no-create '$(<)'
+EOS
+}
+
+
+alias install : opencv2/core/core.hpp ;
+explicit install ;

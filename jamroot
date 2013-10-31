@@ -24,6 +24,7 @@ local .binutils-latest ;
 local .lcov-latest ;
 local .gcovr-latest ;
 local .gdb-latest ;
+local .opencv-latest ;
 local .gmp-latest ;
 local .mpfr-latest ;
 local .mpc-latest ;
@@ -88,6 +89,17 @@ local rule get-gdb-latest-version ( )
     }
   }
   return "$(.gdb-latest)" ;
+}
+
+local rule get-opencv-latest-version ( )
+{
+  if ! "$(.opencv-latest)" {
+    .opencv-latest = [ SHELL "'$(INTRO_ROOT_DIR)/opencv/latest.sh' || echo -n error" ] ;
+    if "$(.opencv-latest)" = "error" {
+      errors.error "failed to extract OpenCV latest version." ;
+    }
+  }
+  return "$(.opencv-latest)" ;
 }
 
 local rule get-gmp-latest-version ( )
@@ -193,6 +205,7 @@ local rule get-valgrind-latest-version ( )
 
 local binutils ;
 local compilers ;
+local opencv-versions ;
 local gmp-versions ;
 local mpfr-versions ;
 local mpc-versions ;
@@ -515,6 +528,21 @@ if "$(gdb)" {
     errors.error "an invalid value `$(gdb)' for `--enable-gdb'." ;
   }
   ECHO gdb... $(gdb) ;
+}
+
+
+local opencv = [ option.get "enable-opencv" : : "latest" ] ;
+if "$(opencv)" = "latest" {
+  opencv = [ get-opencv-latest-version ] ;
+}
+if "$(opencv)" {
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)?)$" : "$(opencv)" : 1 ] {
+    errors.error "an invalid value `$(opencv)' for `--enable-opencv'." ;
+  }
+  if ! "$(opencv)" in $(opencv-versions) {
+    opencv-versions += "$(opencv)" ;
+  }
+  ECHO opencv... $(opencv) ;
 }
 
 
@@ -975,6 +1003,11 @@ else {
   ECHO "GCOVR... N/A" ;
 }
 
+if $(opencv-versions) {
+  constant OPENCV_VERSIONS : $(opencv-versions) ;
+  ECHO OPENCV_VERSIONS... $(OPENCV_VERSIONS:J=,) ;
+}
+
 if $(gmp-versions) {
   constant GMP_VERSIONS : $(gmp-versions) ;
   ECHO GMP_VERSIONS... $(GMP_VERSIONS:J=,) ;
@@ -1192,6 +1225,16 @@ feature gdb-hidden : [ feature.values <gdb> ] : propagated incidental ;
   constant USE_GDB : $(use-gdb) ;
 }
 
+feature opencv        : unspecified $(opencv-versions) :                       ;
+feature opencv-hidden : [ feature.values <opencv> ]    : propagated incidental ;
+{
+  local use-opencv ;
+  for local val in [ feature.values <opencv> ] {
+    use-opencv += <opencv-hidden>$(val):<opencv>$(val) ;
+  }
+  constant USE_OPENCV : $(use-opencv) ;
+}
+
 feature gmp        : unspecified $(gmp-versions) :                       ;
 feature gmp-hidden : [ feature.values <gmp> ]    : propagated incidental ;
 {
@@ -1330,6 +1373,9 @@ for local enabled-compiler in $(enabled-compilers) {
   if "$(gdb)" {
     srcs += gdb//install ;
   }
+  if "$(opencv)" {
+    srcs += "opencv//install" ;
+  }
   if "$(gmp)" {
     srcs += "gmp//install" ;
   }
@@ -1381,6 +1427,7 @@ for local enabled-compiler in $(enabled-compilers) {
         <lcov-hidden>$(lcov)
         <gcovr-hidden>$(gcovr)
         <gdb-hidden>$(gdb)
+        <opencv-hidden>$(opencv)
         <gmp-hidden>$(gmp)
         <mpfr-hidden>$(mpfr)
         <mpc-hidden>$(mpc)
@@ -1410,6 +1457,7 @@ for local enabled-compiler in $(enabled-compilers) {
             <lcov-hidden>$(lcov)
             <gcovr-hidden>$(gcovr)
             <gdb-hidden>$(gdb)
+            <opencv-hidden>$(opencv)
             <gmp-hidden>$(gmp)
             <mpfr-hidden>$(mpfr)
             <mpc-hidden>$(mpc)
@@ -1443,6 +1491,7 @@ for local enabled-compiler in $(enabled-compilers) {
         <lcov-hidden>$(lcov)
         <gcovr-hidden>$(gcovr)
         <gdb-hidden>$(gdb)
+        <opencv-hidden>$(opencv)
         <gmp-hidden>$(gmp)
         <mpfr-hidden>$(mpfr)
         <mpc-hidden>$(mpc)
@@ -1476,6 +1525,7 @@ for local enabled-compiler in $(enabled-compilers) {
         <lcov-hidden>$(lcov)
         <gcovr-hidden>$(gcovr)
         <gdb-hidden>$(gdb)
+        <opencv-hidden>$(opencv)
         <gmp-hidden>$(gmp)
         <mpfr-hidden>$(mpfr)
         <mpc-hidden>$(mpc)

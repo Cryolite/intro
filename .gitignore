@@ -9,6 +9,9 @@
 /lcov-*/
 /gcovr-*/
 /gdb-*/
+/opencv-*.tar.gz
+/opencv-*.tar.bz2
+/opencv-*/
 /gmp-*.tar.gz
 /gmp-*.tar.bz2
 /gmp-*/

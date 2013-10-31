@@ -33,6 +33,7 @@ args=`getopt                    \
       -l 'enable-lcov::'        \
       -l 'enable-gcovr::'       \
       -l 'enable-gdb::'         \
+      -l 'enable-opencv::'      \
       -l 'enable-gmp::'         \
       -l 'enable-mpfr::'        \
       -l 'enable-mpc::'         \
@@ -66,6 +67,7 @@ gcc_check=yes
 lcov=
 gcovr=
 gdb=
+opencv=
 gmp=
 mpfr=
 mpc=
@@ -141,6 +143,9 @@ for arg in "${args[@]}"; do
       ;;
     --enable-gdb)
       prev_arg=--enable-gdb
+      ;;
+    --enable-opencv)
+      prev_arg=--enable-opencv
       ;;
     --enable-gmp)
       prev_arg=--enable-gmp
@@ -302,6 +307,13 @@ for arg in "${args[@]}"; do
         gdb=latest
       else
         gdb="$arg"
+      fi
+      ;;
+    --enable-opencv)
+      if [ -z "$arg" ]; then
+        opencv=latest
+      else
+        opencv="$arg"
       fi
       ;;
     --enable-gmp)
@@ -496,6 +508,10 @@ fi
 
 if [ -n "$gdb" ]; then
   delegated_opts=("${delegated_opts[@]}" --enable-gdb="$gdb")
+fi
+
+if [ -n "$opencv" ]; then
+  delegated_opts=("${delegated_opts[@]}" --enable-opencv="$opencv")
 fi
 
 if [ -n "$gmp" ]; then
