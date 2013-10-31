@@ -60,8 +60,12 @@ rule download ( targets * : sources * : properties * )
   HERE on $(targets) = [ path.native "$(.here)" ] ;
   HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
   local version = [ feature.get-values <mpfr-hidden> : $(properties) ] ;
-  URL on $(targets) = http://ftp.tsukuba.wide.ad.jp/software/mpfr/mpfr-$(version).tar.bz2 ;
-  #URL on $(targets) = http://core.ring.gr.jp/pub/GNU/mpfr/mpfr-$(version).tar.bz2 ;
+  URLS on $(targets)  = http://core.ring.gr.jp/pub/GNU/mpfr/mpfr-$(version).tar.bz2 ;
+  #URLS on $(targets) += http://ftp.tsukuba.wide.ad.jp/software/mpfr/mpfr-$(version).tar.bz2 ;
+  URLS on $(targets) += http://ftp.jaist.ac.jp/pub/GNU/mpfr/mpfr-$(version).tar.bz2 ;
+  URLS on $(targets) += http://ftp.nara.wide.ad.jp/pub/GNU/gnu/mpfr/mpfr-$(version).tar.bz2 ;
+  URLS on $(targets) += http://www.ring.gr.jp/archives/GNU/mpfr/mpfr-$(version).tar.bz2 ;
+  URLS on $(targets) += ftp://ftp.gnu.org/gnu/mpfr/mpfr-$(version).tar.bz2 ;
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions download
@@ -75,7 +79,9 @@ $(PROPERTY_DUMP_COMMANDS)
   set -ex
   rm -f '$(<)'
   trap "rm -f '$(<)'" ERR HUP INT QUIT TERM
-  ( cd '$(<:D)' && wget -- '$(URL)' )
+  for url in $(URLS) ; do
+    ( cd '$(<:D)' && wget -- "$url" ) && break
+  done
   [ -f '$(<)' ]
 EOS
 }
