@@ -67,7 +67,7 @@ $(PROPERTY_DUMP_COMMANDS)
   # `gcovr` script includes `$Date$` keyword, and `svn export` will replace
   # it with local time. However, in some locales (e.g. `ja_JP.UTF-8`) it
   # makes trouble because of non-ASCII characters.
-  ( cd '$(INTRO_ROOT_DIR)' && LANG=C LC_ALL=C LC_TIME=C svn export 'https://software.sandia.gov/svn/public/fast/gcovr/tags/$(VERSION)' 'gcovr-$(VERSION)' )
+  ( cd '$(INTRO_ROOT_DIR)' && LANG=C LC_ALL=C LC_TIME=C svn export --non-interactive --trust-server-cert 'https://software.sandia.gov/svn/public/fast/gcovr/tags/$(VERSION)' 'gcovr-$(VERSION)' )
   [ -f '$(<)' ]
 EOS
 }

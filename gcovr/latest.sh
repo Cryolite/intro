@@ -6,7 +6,7 @@ intro_root_dir=`(cd \`dirname "$0"\`; cd ..; pwd)`
 grep -Fq 020a9f0b-6a09-47f4-9137-4941a7374ef2 "$intro_root_dir/gcovr/latest.sh"
 
 # `--non-interactive' option disables interactive prompting in case of failure to validate server certificate.
-versions=`svn ls --trust-server-cert --non-interactive https://software.sandia.gov/svn/public/fast/gcovr/tags 2>/dev/null || true`
+versions=`svn ls --non-interactive --trust-server-cert https://software.sandia.gov/svn/public/fast/gcovr/tags 2>/dev/null || true`
 if echo "$versions" | grep -Eq '^[[:digit:]]+(\.[[:digit:]]+){0,2}/'; then
   versions=`echo "$versions" | grep -Eo '^[[:digit:]]+(\.[[:digit:]]+){0,2}/'`
   versions=`echo "$versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,2}'`
