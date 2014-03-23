@@ -582,6 +582,19 @@ fi
 
 intro_root=`(cd \`dirname "$0"\`; pwd)`
 
+if [ "$binutils" = latest ]; then
+  "$intro_root/binutils/download.sh" latest
+elif echo "$binutils" | grep -Eq '^[[:digit:]]+(\.[[:digit:]]+(\.[[:digit:]]+)?)?$'; then
+  "$intro_root/binutils/download.sh" "$binutils"
+elif [ "$binutils" = trunk ]; then
+  "$intro_root/binutils/checkout.sh"
+elif [ "$binutils" != system ]; then
+  :
+else
+  echo "error: an invalid value \`$binutils' for \`--with-binutils'." >&2
+  exit 1
+fi
+
 boost_latest=`"$intro_root/boost/latest.sh"`
 
 if [ ! -d "$prefix/boost/$boost_latest" ]; then
