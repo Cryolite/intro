@@ -50,93 +50,6 @@ alias compiler-dep : : <conditional>@compiler-dep-req ;
 explicit compiler-dep ;
 
 
-make "$(INTRO_ROOT_DIR)/binutils-$(BINUTILS).tar.bz2" : : @download ;
-explicit "$(INTRO_ROOT_DIR)/binutils-$(BINUTILS).tar.bz2" ;
-
-rule download ( targets * : sources * : properties * )
-{
-  HERE on $(targets) = [ path.native "$(.here)" ] ;
-  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
-  local version = [ feature.get-values <binutils-hidden> : $(properties) ] ;
-  URLS on $(targets)  = "'http://ftp.nara.wide.ad.jp/pub/GNU/gnu/binutils/binutils-$(version).tar.bz2'" ;
-  URLS on $(targets) += "'http://ftp.tsukuba.wide.ad.jp/software/binutils/binutils-$(version).tar.bz2'" ;
-  URLS on $(targets) += "'http://ftp.jaist.ac.jp/pub/GNU/binutils/binutils-$(version).tar.bz2'" ;
-  URLS on $(targets) += "'ftp://sourceware.org/pub/binutils/snapshots/binutils-$(version).tar.bz2'" ;
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
-}
-actions download
-{
-  bash -s << 'EOS'
-  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
-$(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn c3a35fdf-555a-4787-acac-35219af0b4c3 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
-  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
-  set -ex
-  rm -f '$(<)'
-  trap "rm -f '$(<)'" ERR HUP INT QUIT TERM
-  for url in $(URLS) ; do
-    ( cd '$(<:D)' && wget -- "$url" ) && break
-  done
-  [ -f '$(<)' ]
-EOS
-}
-
-
-# Use `README' file as a target representing the completion of
-# decompression action. It is suitable for the purpose because of the
-# following reasons;
-#
-#   - The name of this file is considered stable even if the version
-#     changes.
-#   - This file won't be modified during the build procedure.
-#
-make "$(INTRO_ROOT_DIR)/binutils-$(BINUTILS)/README"
-  : "$(INTRO_ROOT_DIR)/binutils-$(BINUTILS).tar.bz2"
-  : @expand
-  ;
-explicit "$(INTRO_ROOT_DIR)/binutils-$(BINUTILS)/README" ;
-
-rule expand ( targets * : sources * : properties * )
-{
-  HERE on $(targets) = [ path.native "$(.here)" ] ;
-  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
-}
-actions expand
-{
-  bash -s << 'EOS'
-  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
-$(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn 3909aa43-2c54-4244-b8c0-61c59512ca57 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
-  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
-  set -ex
-  rm -rf '$(<:D)'
-  [ -f '$(>)' ]
-  trap "rm -rf '$(>)' '$(<:D)'" ERR HUP INT QUIT TERM
-  tar xjvf '$(>)' -C '$(INTRO_ROOT_DIR)'
-  # If the timestamp of the tarball's contents is restored, the modification
-  # time of the source directory could be older than the one of the tarball.
-  # Such behavior is not desirable because the decompression always happens.
-  # Therefore, `touch' is required.
-  touch --no-create '$(<)'
-  [ -f '$(<)' ]
-EOS
-}
-
-
-rule srcdir-req ( properties * )
-{
-  local version = [ feature.get-values <binutils-hidden> : $(properties) ] ;
-  return "<source>$(INTRO_ROOT_DIR)/binutils-$(version)/README/$(DEFAULT_PROPERTIES)" ;
-}
-
-alias srcdir : : <conditional>@srcdir-req ;
-explicit srcdir ;
-
-
-
 rule location-conditional ( properties * )
 {
   local bindir = [ get-default-bindir "$(PREFIX)" : $(properties) ] ;
@@ -145,7 +58,7 @@ rule location-conditional ( properties * )
 
 make ld.gold
   : compiler-dep
-    srcdir
+    "$(INTRO_ROOT_DIR)/binutils-$(BINUTILS)/cd9de9b7-e312-49f1-b2a5-24cd4f322ed5"
   : @make-install
   : <conditional>@location-conditional
     $(USE_COMPILER)

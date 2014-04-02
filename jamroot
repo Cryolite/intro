@@ -223,14 +223,23 @@ if ! "$(prefix)" {
 ECHO prefix... $(prefix) ;
 
 
-binutils = [ option.get "with-binutils" : "system" : "IMPLIED" ] ;
-if "$(binutils)" = "IMPLIED" {
+binutils = [ option.get with-binutils : system : IMPLIED ] ;
+if "$(binutils)" = IMPLIED {
   errors.error "no value specified for `--with-binutils'." ;
 }
-if "$(binutils)" = "latest" {
+if "$(binutils)" = latest {
   binutils = [ get-binutils-latest-version ] ;
 }
-if "$(binutils)" != "system" && ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(binutils)" : 1 ] {
+if "$(binutils)" = system {
+  # Do nothing.
+}
+else if "$(binutils)" = trunk {
+  # Do nothing.
+}
+else if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(binutils)" : 1 ] {
+  # Do nothing.
+}
+else {
   errors.error "an invalid value `$(binutils)' for `--with-binutils'." ;
 }
 ECHO binutils... $(binutils) ;
@@ -818,8 +827,7 @@ if "$(clang)" {
   else if "$(clang)" = "trunk" {
     # Do nothing.
   }
-  else
-  {
+  else {
     errors.error "an invalid value `$(clang)' for `--enable-clang' option.\n" ;
   }
   ECHO clang... $(clang) ;
