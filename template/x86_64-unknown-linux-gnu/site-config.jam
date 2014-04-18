@@ -778,9 +778,8 @@ feature.feature boost-build-id : : free ;
 
 for local ver in $(boost-vers) {
   alias boost_headers_compile : : <boost-version>$(ver) : : <include>"$(prefix)/boost/$(ver)" ;
-  alias boost_headers_link ;
-  alias boost_headers_libs ;
 }
+alias boost_headers_link ;
 
 #ECHO boost-vers: $(boost-vers:J=,) ;
 #ECHO "" ;
