@@ -20,7 +20,6 @@ import "$(INTRO_ROOT_DIR)/compilers"
 "$(INTRO_ROOT_DIR)/compilers.init" "$(INTRO_ROOT_DIR)" ;
 
 
-local .binutils-latest ;
 local .lcov-latest ;
 local .gcovr-latest ;
 local .gdb-latest ;
@@ -45,17 +44,6 @@ local rule get-boost-latest-version ( )
     }
   }
   return "$(.boost-latest)" ;
-}
-
-local rule get-binutils-latest-version ( )
-{
-  if ! "$(.binutils-latest)" {
-    .binutils-latest = [ SHELL "'$(INTRO_ROOT_DIR)/binutils/latest.sh' || echo -n error" ] ;
-    if "$(.binutils-latest)" = "error" {
-      errors.error "failed to extract binutils latest version." ;
-    }
-  }
-  return "$(.binutils-latest)" ;
 }
 
 local rule get-lcov-latest-version ( )
@@ -226,9 +214,6 @@ ECHO prefix... $(prefix) ;
 binutils = [ option.get with-binutils : system : IMPLIED ] ;
 if "$(binutils)" = IMPLIED {
   errors.error "no value specified for `--with-binutils'." ;
-}
-if "$(binutils)" = latest {
-  binutils = [ get-binutils-latest-version ] ;
 }
 if "$(binutils)" = system {
   # Do nothing.
