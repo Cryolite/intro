@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-set -e
+intro_root=`(cd \`dirname "$0"\`; cd ..; pwd)`
+grep -Fq 50d5b8e7-3976-4386-9158-da16b8b0d5fb "$intro_root/clang/versions.sh"
 
-intro_root_dir=`(cd \`dirname "$0"\`; cd ..; pwd)`
-grep -Fq 50d5b8e7-3976-4386-9158-da16b8b0d5fb "$intro_root_dir/clang/versions.sh"
+set -e
 
 urls=('http://llvm.org/releases/download.html')
 timeout=30
@@ -23,7 +23,7 @@ if echo "$versions" | grep -Eq 'Download LLVM [[:digit:]]+\.[[:digit:]]+'; then
   versions=`echo "$versions" | grep -Eo '[[:digit:]]+\.[[:digit:]]+'`
 fi
 
-local_versions=`cd "$intro_root_dir" && ls -1 llvm-*/README.txt 2>/dev/null || true`
+local_versions=`cd "$intro_root" && ls -1 llvm-*/README.txt 2>/dev/null || true`
 if echo "$local_versions" | grep -Eq '^llvm-[[:digit:]]+\.[[:digit:]]+/README.txt$'; then
   local_versions=`echo "$local_versions" | grep -Eo '[[:digit:]]+\.[[:digit:]]+'`
   versions=`echo -e ${versions:+"$versions"'\n'}"$local_versions"`

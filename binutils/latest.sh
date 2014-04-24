@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-set -e
+intro_root=`(cd \`dirname "$0"\`; cd ..; pwd)`
+grep -Fq b0d8a1f6-cbc3-4e9e-859a-b5bb9f59028f "$intro_root/binutils/latest.sh"
 
-intro_root_dir=`(cd \`dirname "$0"\`; cd ..; pwd)`
-grep -Fq b0d8a1f6-cbc3-4e9e-859a-b5bb9f59028f "$intro_root_dir/binutils/latest.sh"
+set -e
 
 urls=('http://ftp.jaist.ac.jp/pub/GNU/binutils/'
       'http://ftp.nara.wide.ad.jp/pub/GNU/gnu/binutils/'
@@ -27,7 +27,7 @@ if echo "$versions" | grep -Eq 'binutils-[[:digit:]]+(\.[[:digit:]]+){0,2}\.tar\
   versions=`echo "$versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,2}'`
 fi
 
-local_versions=`cd "$intro_root_dir" && ls -1 binutils-*/README 2>/dev/null || true`
+local_versions=`cd "$intro_root" && ls -1 binutils-*/README 2>/dev/null || true`
 if echo "$local_versions" | grep -Eq '^binutils-[[:digit:]]+(\.[[:digit:]]+){0,2}/README$'; then
   local_versions=`echo "$local_versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,2}'`
   versions=`echo -e ${versions:+"$versions"'\n'}"$local_versions"`

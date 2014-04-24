@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+intro_root=`(cd \`dirname "$0"\`; cd ..; pwd)`
+grep -Fq fc2dbd90-33e2-4684-b0f9-15fcf98c5918 "$intro_root/boost/latest.sh"
+
 set -e
 
 urls=('http://www.boost.org/users/history/')

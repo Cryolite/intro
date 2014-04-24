@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-set -e
+intro_root=`(cd \`dirname "$0"\`; cd ..; pwd)`
+grep -Fq 5fa94497-1c30-4bdf-a2d6-43ade94e55db "$intro_root/opencv/latest.sh"
 
-intro_root_dir=`(cd \`dirname "$0"\`; cd ..; pwd)`
-grep -Fq 5fa94497-1c30-4bdf-a2d6-43ade94e55db "$intro_root_dir/opencv/latest.sh"
+set -e
 
 urls=('http://sourceforge.net/projects/opencvlibrary/files/opencv-unix/')
 timeout=30
@@ -23,7 +23,7 @@ if echo "$versions" | grep -Eq '/projects/opencvlibrary/files/opencv-unix/[[:dig
   versions=`echo "$versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,3}'`
 fi
 
-local_versions=`cd "$intro_root_dir" && ls -1 opencv-*/README 2>/dev/null || true`
+local_versions=`cd "$intro_root" && ls -1 opencv-*/README 2>/dev/null || true`
 if echo "$local_versions" | grep -Eq '^opencv-[[:digit:]]+(\.[[:digit:]]+){0,3}/README$'; then
   local_versions=`echo "$local_versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,3}'`
   versions=`echo -e ${versions:+"$versions"'\n'}"$local_versions"`

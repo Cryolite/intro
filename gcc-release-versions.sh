@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-set -e
+intro_root=`(cd \`dirname "$0"\`; pwd)`
+grep -Fq c20aed5f-b2d1-4ea8-af24-37acb51a17ec "$intro_root/gcc-release-versions.sh"
 
-intro_root_dir=`(cd \`dirname "$0"\`; pwd)`
-grep -Fq c20aed5f-b2d1-4ea8-af24-37acb51a17ec "$intro_root_dir/gcc-release-versions.sh"
+set -e
 
 urls=(http://{core.ring.gr.jp/pub/lang/egcs,ftp.dti.ad.jp/pub/lang/gcc,ftp.tsukuba.wide.ad.jp/software/gcc}/{releases,snapshots}/)
 timeout=30
@@ -23,7 +23,7 @@ if echo "$versions" | grep -Eq '(gcc-[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+)|(
   versions=`echo "$versions" | grep -Eo '[[:digit:]]+\.[[:digit:]]+((\.[[:digit:]]+)|((\.0-RC)?-[[:digit:]]{8}))'`
 fi
 
-local_versions=`cd "$intro_root_dir" && ls -1 gcc-*/README 2>/dev/null || true`
+local_versions=`cd "$intro_root" && ls -1 gcc-*/README 2>/dev/null || true`
 if echo "$local_versions" | grep -Eq '^gcc-[[:digit:]]+\.[[:digit:]]+((\.[[:digit:]]+)|((\.0-RC)?-[[:digit:]]{8}))/README$'; then
   local_versions=`echo "$local_versions" | grep -Eo '[[:digit:]]+\.[[:digit:]]+((\.[[:digit:]]+)|((\.0-RC)?-[[:digit:]]{8}))'`
   versions=`echo -e ${versions:+"$versions"'\n'}"$local_versions"`

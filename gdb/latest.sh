@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-set -e
+intro_root=`(cd \`dirname "$0"\`; cd ..; pwd)`
+grep -Fq 70b0f28a-6a33-46ca-9d33-50fc26299347 "$intro_root/gdb/latest.sh"
 
-intro_root_dir=`(cd \`dirname "$0"\`; cd ..; pwd)`
-grep -Fq 70b0f28a-6a33-46ca-9d33-50fc26299347 "$intro_root_dir/gdb/latest.sh"
+set -e
 
 urls=('http://ftp.jaist.ac.jp/pub/GNU/gdb/'
       'http://ftp.nara.wide.ad.jp/pub/GNU/gnu/gdb/'
@@ -26,7 +26,7 @@ if echo "$versions" | grep -Eq 'gdb-[[:digit:]]+(\.[[:digit:]]+){1,2}\.tar\.((gz
   versions=`echo "$versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){1,2}'`
 fi
 
-local_versions=`cd "$intro_root_dir" && ls -1 gdb-*/README 2>/dev/null || true`
+local_versions=`cd "$intro_root" && ls -1 gdb-*/README 2>/dev/null || true`
 if echo "$local_versions" | grep -Eq '^gdb-[[:digit:]]+(\.[[:digit:]]+){1,2}/README$'; then
   local_versions=`echo "$local_versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){1,2}'`
   versions=`echo -e ${versions:+"$versions"'\n'}"$local_versions"`
