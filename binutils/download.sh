@@ -9,9 +9,6 @@ grep -Fq 36c08c27-a111-466d-858d-848c134305a4 "$intro_root_dir/binutils/download
 [ $# -eq 1 ]
 
 version="$1"
-if [ "$version" = latest ]; then
-  version=`"$intro_root_dir/binutils/latest.sh"`
-fi
 if echo "$version" | grep -Eq '^[[:digit:]]+(\.[[:digit:]]+(\.[[:digit:]]+)?)?$'; then
   :
 else

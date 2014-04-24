@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+intro_root=`(cd \`dirname "$0"\`; pwd)`
+grep -Fq 434daa2b-b9b0-498c-bd86-18404f1c3464 "$intro_root/jamroot"
+
 # Test if `optget' is an enhanced version or an old version.
 if getopt --test 2>&1 | grep -Fq -- '--'; then
   echo "bootstrap: requires and enhanced version of \`getopt'" >&2
@@ -438,8 +441,22 @@ for arg in "${args[@]}"; do
   fi
 done
 
+
 delegated_opts=("${delegated_opts[@]}" --prefix="$prefix")
 
+if [ "$binutils" = latest ]; then
+  binutils=`"$intro_root/binutils/latest.sh"`
+fi
+if echo "$binutils" | grep -Eq '^[[:digit:]]+(\.[[:digit:]]+(\.[[:digit:]]+)?)?$'; then
+  "$intro_root/binutils/download.sh" "$binutils"
+elif [ "$binutils" = trunk ]; then
+  "$intro_root/binutils/checkout.sh"
+elif [ "$binutils" = system ]; then
+  :
+else
+  echo "error: an invalid value \`$binutils' for \`--with-binutils'." >&2
+  exit 1
+fi
 delegated_opts=("${delegated_opts[@]}" --with-binutils="$binutils")
 
 delegated_opts=("${delegated_opts[@]}" --with-gmp-for-gcc="$gmp_for_gcc")
@@ -579,21 +596,6 @@ if [ -n "$concurrency" ]; then
   delegated_opts=("${delegated_opts[@]}" --concurrency=$concurrency)
 fi
 
-
-intro_root=`(cd \`dirname "$0"\`; pwd)`
-
-if [ "$binutils" = latest ]; then
-  "$intro_root/binutils/download.sh" latest
-elif echo "$binutils" | grep -Eq '^[[:digit:]]+(\.[[:digit:]]+(\.[[:digit:]]+)?)?$'; then
-  "$intro_root/binutils/download.sh" "$binutils"
-elif [ "$binutils" = trunk ]; then
-  "$intro_root/binutils/checkout.sh"
-elif [ "$binutils" != system ]; then
-  :
-else
-  echo "error: an invalid value \`$binutils' for \`--with-binutils'." >&2
-  exit 1
-fi
 
 boost_latest=`"$intro_root/boost/latest.sh"`
 
