@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-set -e
+intro_root=`(cd \`dirname "$0"\`; cd ..; pwd)`
+grep -Fq f4ba5b1e-7039-4aac-a553-a739f6a20b49 "$intro_root/cloog/latest.sh"
 
-intro_root_dir=`(cd \`dirname "$0"\`; cd ..; pwd)`
-grep -Fq f4ba5b1e-7039-4aac-a553-a739f6a20b49 "$intro_root_dir/cloog/latest.sh"
+set -e
 
 urls=('http://www.bastoul.net/cloog/pages/download/')
 timeout=30
@@ -24,7 +24,7 @@ if echo "$versions" | grep -Eq 'cloog-[[:digit:]]+(\.[[:digit:]]+){0,2}\.tar\.((
   versions=`echo "$versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,2}'`
 fi
 
-local_versions=`cd "$intro_root_dir" && ls -1 cloog-*/README 2>/dev/null || true`
+local_versions=`cd "$intro_root" && ls -1 cloog-*/README 2>/dev/null || true`
 if echo "$local_versions" | grep -Eq '^cloog-[[:digit:]]+(\.[[:digit:]]+){0,2}/README$'; then
   local_versions=`echo "$local_versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,2}'`
   versions=`echo -e ${versions:+"$versions"'\n'}"$local_versions"`

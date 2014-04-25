@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-set -e
+intro_root=`(cd \`dirname "$0"\`; cd ..; pwd)`
+grep -Fq b25d5fb0-c3dc-4380-ad46-63ebb625480c "$intro_root/valgrind/latest.sh"
 
-intro_root_dir=`(cd \`dirname "$0"\`; cd ..; pwd)`
-grep -Fq b25d5fb0-c3dc-4380-ad46-63ebb625480c "$intro_root_dir/valgrind/latest.sh"
+set -e
 
 urls=('http://valgrind.org/downloads/current.html')
 timeout=30
@@ -24,7 +24,7 @@ if echo "$versions" | grep -Eq 'valgrind-[[:digit:]]+(\.[[:digit:]]+){0,2}\.tar\
   versions=`echo "$versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,2}'`
 fi
 
-local_versions=`cd "$intro_root_dir" && ls -1 valgrind-*/README 2>/dev/null || true`
+local_versions=`cd "$intro_root" && ls -1 valgrind-*/README 2>/dev/null || true`
 if echo "$local_versions" | grep -Eq '^valgrind-[[:digit:]]+(\.[[:digit:]]+){0,2}/README$'; then
   local_versions=`echo "$local_versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,2}'`
   versions=`echo -e ${versions:+"$versions"'\n'}"$local_versions"`

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-set -e
+intro_root=`(cd \`dirname "$0"\`; cd ..; pwd)`
+grep -Fq c6f45da9-000c-41fb-876d-f4d7f1381b4b "$intro_root/openmpi/latest.sh"
 
-intro_root_dir=`(cd \`dirname "$0"\`; cd ..; pwd)`
-grep -Fq c6f45da9-000c-41fb-876d-f4d7f1381b4b "$intro_root_dir/openmpi/latest.sh"
+set -e
 
 urls=('http://www.open-mpi.org/software/')
 timeout=30
@@ -24,7 +24,7 @@ if echo "$versions" | grep -Eq 'openmpi-[[:digit:]]+(\.[[:digit:]]+){0,2}\.tar\.
   versions=`echo "$versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,2}'`
 fi
 
-local_versions=`cd "$intro_root_dir" && ls -1 openmpi-*/README 2>/dev/null || true`
+local_versions=`cd "$intro_root" && ls -1 openmpi-*/README 2>/dev/null || true`
 if echo "$local_versions" | grep -Eq '^openmpi-[[:digit:]]+(\.[[:digit:]]+){0,2}/README$'; then
   local_versions=`echo "$local_versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,2}'`
   versions=`echo -e ${versions:+"$versions"'\n'}"$local_versions"`

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-set -e
+intro_root=`(cd \`dirname "$0"\`; cd ..; pwd)`
+grep -Fq 2586f6f7-d8c6-4d9d-8186-d038833f24dc "$intro_root/ppl/latest.sh"
 
-intro_root_dir=`(cd \`dirname "$0"\`; cd ..; pwd)`
-grep -Fq 2586f6f7-d8c6-4d9d-8186-d038833f24dc "$intro_root_dir/ppl/latest.sh"
+set -e
 
 urls=('http://bugseng.com/products/ppl/download/ftp/releases/')
 timeout=30
@@ -23,7 +23,7 @@ if echo "$versions" | grep -Eq '>[[:digit:]]+(\.[[:digit:]]+){0,2}/'; then
   versions=`echo "$versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,2}'`
 fi
 
-local_versions=`cd "$intro_root_dir" && ls -1 ppl-*/README 2>/dev/null || true`
+local_versions=`cd "$intro_root" && ls -1 ppl-*/README 2>/dev/null || true`
 if echo "$local_versions" | grep -Eq '^ppl-[[:digit:]]+(\.[[:digit:]]+){0,2}/README$'; then
   local_versions=`echo "$local_versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,2}'`
   versions=`echo -e ${versions:+"$versions"'\n'}"$local_versions"`

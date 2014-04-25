@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-set -e
+intro_root=`(cd \`dirname "$0"\`; cd ..; pwd)`
+grep -Fq 709ec2f6-d8de-4dbc-a288-44f227770e20 "$intro_root/mpc/latest.sh"
 
-intro_root_dir=`(cd \`dirname "$0"\`; cd ..; pwd)`
-grep -Fq 709ec2f6-d8de-4dbc-a288-44f227770e20 "$intro_root_dir/mpc/latest.sh"
+set -e
 
 urls=('http://www.multiprecision.org/index.php?prog=mpc&page=download')
 timeout=30
@@ -24,7 +24,7 @@ if echo "$versions" | grep -Eq 'mpc-[[:digit:]]+(\.[[:digit:]]+){0,2}\.tar\.((gz
   versions=`echo "$versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,2}'`
 fi
 
-local_versions=`cd "$intro_root_dir" && ls -1 mpc-*/README 2>/dev/null || true`
+local_versions=`cd "$intro_root" && ls -1 mpc-*/README 2>/dev/null || true`
 if echo "$local_versions" | grep -Eq '^mpc-[[:digit:]]+(\.[[:digit:]]+){0,2}/README$'; then
   local_versions=`echo "$local_versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,2}'`
   versions=`echo -e ${versions:+"$versions"'\n'}"$local_versions"`

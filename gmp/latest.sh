@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-set -e
+intro_root=`(cd \`dirname "$0"\`; cd ..; pwd)`
+grep -Fq b237e33e-8de8-4a5d-9c6d-70e6b0aee38a "$intro_root/gmp/latest.sh"
 
-intro_root_dir=`(cd \`dirname "$0"\`; cd ..; pwd)`
-grep -Fq b237e33e-8de8-4a5d-9c6d-70e6b0aee38a "$intro_root_dir/gmp/latest.sh"
+set -e
 
 urls=('http://ftp.jaist.ac.jp/pub/GNU/gmp/'
       'http://ftp.tsukuba.wide.ad.jp/software/gmp/'
@@ -28,7 +28,7 @@ if echo "$versions" | grep -Eq 'gmp-[[:digit:]]+(\.[[:digit:]]+){0,2}\.tar\.((gz
   versions=`echo "$versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,2}'`
 fi
 
-local_versions=`cd "$intro_root_dir" && ls -1 gmp-*/README 2>/dev/null || true`
+local_versions=`cd "$intro_root" && ls -1 gmp-*/README 2>/dev/null || true`
 if echo "$local_versions" | grep -Eq '^gmp-[[:digit:]]+(\.[[:digit:]]+){0,2}/README$'; then
   local_versions=`echo "$local_versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,2}'`
   versions=`echo -e ${versions:+"$versions"'\n'}"$local_versions"`

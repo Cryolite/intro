@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-set -e
+intro_root=`(cd \`dirname "$0"\`; cd ..; pwd)`
+grep -Fq d82d986b-afb9-49bb-806d-d7d7c60d3853 "$intro_root/icu4c/latest.sh"
 
-intro_root_dir=`(cd \`dirname "$0"\`; cd ..; pwd)`
-grep -Fq d82d986b-afb9-49bb-806d-d7d7c60d3853 "$intro_root_dir/icu4c/latest.sh"
+set -e
 
 urls=('http://site.icu-project.org/download')
 timeout=30
@@ -24,7 +24,7 @@ if echo "$versions" | grep -F 'ICU4C' | grep -Eq '>[[:digit:]]+(\.[[:digit:]]+){
   versions=`echo "$versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,3}'`
 fi
 
-local_versions=`cd "$intro_root_dir" && ls -1 icu-*/readme.html 2>/dev/null || true`
+local_versions=`cd "$intro_root" && ls -1 icu-*/readme.html 2>/dev/null || true`
 if echo "$local_versions" | grep -Eq '^icu-[[:digit:]]+(\.[[:digit:]]+){0,3}/readme\.html$'; then
   local_versions=`echo "$local_versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,3}'`
   versions=`echo -e ${versions:+"$versions"'\n'}"$local_versions"`
