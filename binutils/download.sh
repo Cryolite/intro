@@ -9,30 +9,54 @@ set -ex
 [ $# -eq 1 ]
 
 version="$1"
-if echo "$version" | grep -Eq '^[[:digit:]]+(\.[[:digit:]]+(\.[[:digit:]]+)?)?$'; then
-  :
-else
-  exit 1
-fi
+echo "$version" | grep -Eq '^[[:digit:]]+(\.[[:digit:]]+(\.[[:digit:]]+)?)?$'
 
 [ '!' -e "$intro_root/binutils-${version}.tar.bz2.bak" ]
 if [ -e "$intro_root/binutils-${version}.tar.bz2" ]; then
-  mv "$intro_root/binutils-${version}.tar.bz2" "$intro_root/binutils-${version}.tar.bz2.bak"
+  if [ -f "$intro_root/binutils-${version}.tar.bz2" ]; then
+    mv "$intro_root/binutils-${version}.tar.bz2" "$intro_root/binutils-${version}.tar.bz2.bak"
+  else
+    rm -r "$intro_root/binutils-${version}.tar.bz2"
+  fi
 fi
+[ '!' -e "$intro_root/binutils-${version}.tar.bz2" ]
+
+timestamp=cd9de9b7-e312-49f1-b2a5-24cd4f322ed5
 
 [ '!' -e "$intro_root/binutils-${version}.bak" ]
 if [ -e "$intro_root/binutils-${version}" ]; then
-  mv "$intro_root/binutils-${version}" "$intro_root/binutils-${version}.bak"
+  if [ -f "$intro_root/binutils-${version}/$timestamp" ]; then
+    mv "$intro_root/binutils-${version}" "$intro_root/binutils-${version}.bak"
+  else
+    rm -r "$intro_root/binutils-${version}"
+  fi
 fi
+[ '!' -e "$intro_root/binutils-${version}" ]
 
 cleanup ()
 {
-  rm -f "$intro_root/binutils-${version}.tar.bz2"
-  rm -rf "$intro_root/binutils-${version}"
+  if [ -e "$intro_root/binutils-${version}.tar.bz2" ]; then
+    [ -f "$intro_root/binutils-${version}.tar.bz2" ] || {
+      echo 'warning: a logic error in rollback process, forced to proceed' >&2;
+    }
+    rm -r "$intro_root/binutils-${version}.tar.bz2"
+  fi
+  if [ -e "$intro_root/binutils-${version}" ]; then
+    [ -d "$intro_root/binutils-${version}" ] || {
+      echo 'warning: a logic error in rollback process, forced to proceed' >&2;
+    }
+    rm -r "$intro_root/binutils-${version}"
+  fi
   if [ -e "$intro_root/binutils-${version}.tar.bz2.bak" ]; then
+    [ -f "$intro_root/binutils-${version}.tar.bz2.bak" ] || {
+      echo 'warning: a logic error in rollback process, forced to proceed' >&2;
+    }
     mv "$intro_root/binutils-${version}.tar.bz2.bak" "$intro_root/binutils-${version}.tar.bz2"
   fi
   if [ -e "$intro_root/binutils-${version}.bak" ]; then
+    [ -f "$intro_root/binutils-${version}.bak/$timestamp" ] || {
+      echo 'warning: a logic error in rollback process, forced to proceed' >&2;
+    }
     mv "$intro_root/binutils-${version}.bak" "$intro_root/binutils-${version}"
   fi
 }
@@ -53,17 +77,16 @@ else
   done
   tarball="$intro_root/binutils-${version}.tar.bz2"
 fi
-
 [ -f "$intro_root/binutils-${version}.tar.bz2.bak" -o -f "$intro_root/binutils-${version}.tar.bz2" ]
 [ '!' '(' -f "$intro_root/binutils-${version}.tar.bz2.bak" -a -f "$intro_root/binutils-${version}.tar.bz2" ')' ]
 [ -f "$tarball" ]
 
-old_timestamp="$intro_root/binutils-${version}.bak/cd9de9b7-e312-49f1-b2a5-24cd4f322ed5"
+old_timestamp_path="$intro_root/binutils-${version}.bak/$timestamp"
 
 srcdir=
-if [ -e "$old_timestamp" ]; then
-  [ -f "$old_timestamp" ]
-  if [ "$tarball" -nt "$old_timestamp" ]; then
+if [ -e "$old_timestamp_path" ]; then
+  [ -f "$old_timestamp_path" ]
+  if [ "$tarball" -nt "$old_timestamp_path" ]; then
     tar -xjf "$tarball" --directory="$intro_root"
     srcdir="$intro_root/binutils-${version}"
   else
@@ -73,21 +96,20 @@ else
   tar -xjf "$tarball" --directory="$intro_root"
   srcdir="$intro_root/binutils-${version}"
 fi
-
 [ -d "$srcdir" ]
 
-timestamp="$srcdir/cd9de9b7-e312-49f1-b2a5-24cd4f322ed5"
+new_timestamp_path="$srcdir/$timestamp"
 
-if [ -e "$timestamp" ]; then
+if [ -e "$new_timestamp_path" ]; then
   [ "$srcdir" = "$intro_root/binutils-${version}.bak" ]
-  [ -f "$timestamp" ]
-  [ '!' "$tarball" -nt "$timestamp" ]
+  [ -f "$new_timestamp_path" ]
+  [ '!' "$tarball" -nt "$new_timestamp_path" ]
 else
   [ "$srcdir" = "$intro_root/binutils-${version}" ]
-  touch "$timestamp"
+  touch "$new_timestamp_path"
   find "$srcdir" -newer "$tarball" -execdir touch --reference="$tarball" '{}' '+'
-  find "$srcdir" -print0 | xargs -0 -L 1 bash -c '[ "$1" -ot "$0" ] && touch --reference="$1" "$0"; true' "$timestamp"
-  find "$srcdir" -print0 | xargs -0 -L 1 bash -c '[ "$1" -nt "$0" ] && touch --reference="$1" "$0"; true' "$timestamp"
+  find "$srcdir" -print0 | xargs -0 -L 1 bash -c '[ "$1" -ot "$0" ] && touch --reference="$1" "$0"; true' "$new_timestamp_path"
+  find "$srcdir" -print0 | xargs -0 -L 1 bash -c '[ "$1" -nt "$0" ] && touch --reference="$1" "$0"; true' "$new_timestamp_path"
 fi
 
 if [ "$tarball" = "$intro_root/binutils-${version}.tar.bz2.bak" ]; then
@@ -101,9 +123,15 @@ if [ "$srcdir" = "$intro_root/binutils-${version}.bak" ]; then
 fi
 
 if [ -e "$intro_root/binutils-${version}.tar.bz2.bak" ]; then
-  rm -f "$intro_root/binutils-${version}.tar.bz2.bak"
+  [ -f "$intro_root/binutils-${version}.tar.bz2.bak" ] || {
+    echo 'warning: a logic error in commit process, forced to proceed' >&2;
+  }
+  rm -r "$intro_root/binutils-${version}.tar.bz2.bak"
 fi
 
 if [ -e "$intro_root/binutils-${version}.bak" ]; then
-  rm -rf "$intro_root/binutils-${version}.bak"
+  [ -d "$intro_root/binutils-${version}.bak" ] || {
+    echo 'warning: a logic error in commit process, forced to proceed' >&2;
+  }
+  rm -r "$intro_root/binutils-${version}.bak"
 fi
