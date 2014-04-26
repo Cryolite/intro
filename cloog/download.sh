@@ -126,7 +126,7 @@ if [ -e "$intro_root/cloog-${version}.tar.gz.bak" ]; then
 fi
 
 if [ -e "$intro_root/cloog-${version}.bak" ]; then
-  [ -d "$intro_root/cloog-${version}.bak" ] || {
+  [ -f "$old_timestamp_path" ] || {
     echo 'warning: a logic error in commit process, forced to proceed' >&2;
   }
   rm -r "$intro_root/cloog-${version}.bak"

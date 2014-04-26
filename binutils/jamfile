@@ -50,6 +50,16 @@ alias compiler-dep : : <conditional>@compiler-dep-req ;
 explicit compiler-dep ;
 
 
+rule srcdir-timestamp-req ( properties * )
+{
+  local version = [ feature.get-values <binutils-hidden> : $(properties) ] ;
+  return "<source>$(INTRO_ROOT_DIR)/binutils-$(version)/cd9de9b7-e312-49f1-b2a5-24cd4f322ed5" ;
+}
+
+alias srcdir-timestamp : : <conditional>@srcdir-timestamp-req ;
+explicit srcdir-timestamp ;
+
+
 rule location-conditional ( properties * )
 {
   local bindir = [ get-default-bindir "$(PREFIX)" : $(properties) ] ;
@@ -58,7 +68,7 @@ rule location-conditional ( properties * )
 
 make ld.gold
   : compiler-dep
-    "$(INTRO_ROOT_DIR)/binutils-$(BINUTILS)/cd9de9b7-e312-49f1-b2a5-24cd4f322ed5"
+    srcdir-timestamp
   : @make-install
   : <conditional>@location-conditional
     $(USE_COMPILER)

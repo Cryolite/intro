@@ -159,7 +159,7 @@ rule gxx-wrapper-conditional ( properties * )
 
   local result ;
   if "$(binutils)" != "unspecified" {
-    result += "<source>$(INTRO_ROOT_DIR)/binutils-$(binutils)/cd9de9b7-e312-49f1-b2a5-24cd4f322ed5" ;
+    result += "<source>../binutils//srcdir-timestamp" ;
   }
   if "$(gmp)" != "unspecified" {
     result += "<source>../gmp//srcdir/<gmp-hidden>$(gmp)" ;
