@@ -130,7 +130,7 @@ if [ -e "$intro_root/binutils-${version}.tar.bz2.bak" ]; then
 fi
 
 if [ -e "$intro_root/binutils-${version}.bak" ]; then
-  [ -d "$intro_root/binutils-${version}.bak" ] || {
+  [ -f "$old_timestamp_path" ] || {
     echo 'warning: a logic error in commit process, forced to proceed' >&2;
   }
   rm -r "$intro_root/binutils-${version}.bak"
