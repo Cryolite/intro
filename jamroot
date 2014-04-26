@@ -29,7 +29,6 @@ local .mpfr-latest ;
 local .mpc-latest ;
 local .ppl-latest ;
 local .isl-latest ;
-local .cloog-latest ;
 local .icu4c-latest ;
 local .openmpi-latest ;
 local .boost-latest ;
@@ -143,17 +142,6 @@ local rule get-isl-latest-version ( )
     }
   }
   return "$(.isl-latest)" ;
-}
-
-local rule get-cloog-latest-version ( )
-{
-  if ! "$(.cloog-latest)" {
-    .cloog-latest = [ SHELL "\"$(INTRO_ROOT_DIR)/cloog/latest.sh\" || echo -n error" ] ;
-    if "$(.cloog-latest)" = "error" {
-      errors.error "failed to extract CLooG latest version." ;
-    }
-  }
-  return "$(.cloog-latest)" ;
 }
 
 local rule get-icu4c-latest-version ( )
@@ -298,9 +286,6 @@ ECHO isl-for-gcc... $(isl-for-gcc) ;
 local cloog-for-gcc = [ option.get "with-cloog-for-gcc" : "system" : "IMPLIED" ] ;
 if "$(cloog-for-gcc)" = "IMPLIED" {
   errors.error "`--with-cloog-for-gcc' should be specified with a value." ;
-}
-if "$(cloog-for-gcc)" = "latest" {
-  cloog-for-gcc = [ get-cloog-latest-version ] ;
 }
 if "$(cloog-for-gcc)" != "system" && ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(cloog-for-gcc)" : 1 ] {
   errors.error "an invalid value `$(cloog-for-gcc)' for `--with-cloog-for-gcc'." ;
@@ -648,12 +633,7 @@ if "$(isl)" {
 
 
 local cloog = [ option.get enable-cloog : : latest ] ;
-if $(cloog) = latest
-{
-  cloog = [ get-cloog-latest-version ] ;
-}
-if $(cloog)
-{
+if $(cloog) {
   if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(cloog)" : 1 ] {
     # Do nothing.
   }

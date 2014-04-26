@@ -174,7 +174,7 @@ rule gxx-wrapper-conditional ( properties * )
     result += "<source>../isl//srcdir/<isl-hidden>$(isl)" ;
   }
   if "$(cloog)" != "unspecified" {
-    result += "<source>../cloog//srcdir/<cloog-hidden>$(cloog)" ;
+    result += "<source>../cloog//srcdir-timestamp/<cloog-hidden>$(cloog)" ;
   }
   result += "<location>$(bindir)" ;
   return $(result) ;

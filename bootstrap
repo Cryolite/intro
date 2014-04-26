@@ -454,7 +454,7 @@ elif [ "$binutils" = trunk ]; then
 elif [ "$binutils" = system ]; then
   :
 else
-  echo "error: an invalid value \`$binutils' for \`--with-binutils'." >&2
+  echo "error: an invalid value \`$binutils' for \`--with-binutils'" >&2
   exit 1
 fi
 delegated_opts=("${delegated_opts[@]}" --with-binutils="$binutils")
@@ -467,6 +467,19 @@ delegated_opts=("${delegated_opts[@]}" --with-mpc-for-gcc="$mpc_for_gcc")
 
 delegated_opts=("${delegated_opts[@]}" --with-isl-for-gcc="$isl_for_gcc")
 
+if [ "$cloog_for_gcc" = latest ]; then
+  cloog_for_gcc=`"$intro_root/cloog/latest.sh"`
+fi
+if echo "$cloog_for_gcc" | grep -Eq '^[[:digit:]]+(\.[[:digit:]]+(\.[[:digit:]]+)?)?$'; then
+  "$intro_root/cloog/download.sh" "$cloog_for_gcc"
+elif [ "$cloog_for_gcc" = trunk ]; then
+  "$intro_root/cloog/checkout.sh"
+elif [ "$cloog_for_gcc" = system ]; then
+  :
+else
+  echo "error: an invalid value \`$cloog_for_gcc' for \`--with-cloog-for-gcc'" >&2
+  exit 1
+fi
 delegated_opts=("${delegated_opts[@]}" --with-cloog-for-gcc="$cloog_for_gcc")
 
 delegated_opts=("${delegated_opts[@]}" --enable-compilers="$compilers")
@@ -548,6 +561,17 @@ if [ -n "$isl" ]; then
 fi
 
 if [ -n "$cloog" ]; then
+  if [ "$cloog" = latest ]; then
+    cloog=`"$intro_root/cloog/latest.sh"`
+  fi
+  if echo "$cloog" | grep -Eq '^[[:digit:]]+(\.[[:digit:]]+(\.[[:digit:]]+)?)?$'; then
+    "$intro_root/cloog/download.sh" "$cloog"
+  elif [ "$cloog" = trunk ]; then
+    "$intro_root/cloog/checkout.sh"
+  else
+    echo "error: an invalid value \`$cloog' for \`--enable-cloog'" >&2
+    exit 1
+  fi
   delegated_opts=("${delegated_opts[@]}" --enable-cloog="$cloog")
 fi
 

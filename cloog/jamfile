@@ -50,135 +50,14 @@ alias compiler-dep : : <conditional>@compiler-dep-req ;
 explicit compiler-dep ;
 
 
-for local version in $(CLOOG_VERSIONS) {
-  if "$(version)" != "trunk" {
-    make "$(INTRO_ROOT_DIR)/cloog-$(version).tar.gz" : : @download ;
-    explicit "$(INTRO_ROOT_DIR)/cloog-$(version).tar.gz" ;
-  }
-}
-
-rule download ( targets * : sources * : properties * )
-{
-  HERE on $(targets) = [ path.native "$(.here)" ] ;
-  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
-  local version = [ feature.get-values <cloog-hidden> : $(properties) ] ;
-  URL on $(targets) = http://www.bastoul.net/cloog/pages/download/cloog-$(version).tar.gz ;
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
-}
-actions download
-{
-  bash -s << 'EOS'
-  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
-$(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn 2609a965-dda2-4351-837e-b59aa3d579ff '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
-  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
-  set -ex
-  rm -f '$(<)'
-  trap "rm -f '$(<)'" ERR HUP INT QUIT TERM
-  ( cd '$(<:D)' && wget -- '$(URL)' )
-  [ -f '$(<)' ]
-EOS
-}
-
-
-for local version in $(CLOOG_VERSIONS) {
-  if "$(version)" != "trunk" {
-    # Use `README' file as a target representing the completion of
-    # decompression action. It is suitable for the purpose because of the
-    # following reasons;
-    #
-    #   - The name of this file is considered stable even if the version
-    #     changes.
-    #   - This file won't be modified during the build procedure.
-    #
-    make "$(INTRO_ROOT_DIR)/cloog-$(version)/README"
-      : "$(INTRO_ROOT_DIR)/cloog-$(version).tar.gz"
-      : @expand
-      ;
-    explicit "$(INTRO_ROOT_DIR)/cloog-$(version)/README" ;
-  }
-}
-
-rule expand ( targets * : sources * : properties * )
-{
-  HERE on $(targets) = [ path.native "$(.here)" ] ;
-  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
-}
-actions expand
-{
-  bash -s << 'EOS'
-  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
-$(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn cbe1ceb0-c51f-4bcb-ab5b-eec76f282c74 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
-  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
-  set -ex
-  rm -rf '$(<:D)'
-  [ -f '$(>)' ]
-  trap "rm -rf '$(>)' '$(<:D)'" ERR HUP INT QUIT TERM
-  tar xzvf '$(>)' -C '$(INTRO_ROOT_DIR)'
-  # If the timestamp of the tarball's contents is restored, the modification
-  # time of the source directory could be older than the one of the tarball.
-  # Such behavior is not desirable because the decompression always happens.
-  # Therefore, `touch' is required.
-  touch --no-create '$(<)'
-  [ -f '$(<)' ]
-EOS
-}
-
-
-if trunk in $(CLOOG_VERSIONS) {
-  make "$(INTRO_ROOT_DIR)/cloog-trunk/README"
-    : # no source
-    : @update-trunk
-    ;
-  explicit "$(INTRO_ROOT_DIR)/cloog-trunk/README" ;
-  always "$(INTRO_ROOT_DIR)/cloog-trunk/README" ;
-}
-
-rule update-trunk ( targets * : sources * : properties * )
-{
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
-}
-actions update-trunk
-{
-  bash -s << 'EOS'
-  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
-$(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn 189848b9-2424-45d1-910b-459a00e36516 '$(INTRO_ROOT_DIR)/cloog/jamfile' | grep -Eo '^[[:digit:]]+'`
-  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+cloog/jamfile:`expr $LINENO + $LINENO_ADJ`: '
-  set -ex
-
-  if [ -f '$(<)' ]; then
-    ( cd '$(INTRO_ROOT_DIR)/cloog-trunk' && git clean -ffdx )
-  fi
-
-  trap "rm -rf '$(INTRO_ROOT_DIR)/cloog-trunk'" ERR HUP INT QUIT TERM
-
-  if [ ! -f '$(<)' ]; then
-    ( cd '$(INTRO_ROOT_DIR)' && git clone 'git://repo.or.cz/cloog.git' cloog-trunk )
-  fi
-  [ -f '$(<)' ]
-  ( cd '$(INTRO_ROOT_DIR)/cloog-trunk' && git pull --ff-only )
-  #( cd '$(INTRO_ROOT_DIR)/cloog-trunk' && ./get_submodules.sh )
-  ( cd '$(INTRO_ROOT_DIR)/cloog-trunk' && ./autogen.sh )
-  touch --no-create '$(<)'
-  [ -f '$(<)' ]
-EOS
-}
-
-
-rule srcdir-req ( properties * )
+rule srcdir-timestamp-req ( properties * )
 {
   local version = [ feature.get-values <cloog-hidden> : $(properties) ] ;
-  return "<source>$(INTRO_ROOT_DIR)/cloog-$(version)/README/$(DEFAULT_PROPERTIES)" ;
+  return "<source>$(INTRO_ROOT_DIR)/cloog-$(version)/528457b5-9e38-4c8f-ac97-fbdb3ccfdbe9" ;
 }
 
-alias srcdir : : <conditional>@srcdir-req ;
-explicit srcdir ;
+alias srcdir-timestamp : : <conditional>@srcdir-timestamp-req ;
+explicit srcdir-timestamp ;
 
 
 rule location-conditional ( properties * )
@@ -192,7 +71,7 @@ make cloog/cloog.h
   : compiler-dep
     ../gmp//install
     ../isl//install
-    srcdir
+    srcdir-timestamp
   : @make-install
   : $(USE_COMPILER)
     $(USE_MULTITARGET)
