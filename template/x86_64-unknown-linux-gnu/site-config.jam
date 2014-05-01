@@ -495,7 +495,7 @@ feature.feature std
   ;
 constant INTRO_STD_COMPILE_PROPERTIES
   : <toolset>gcc,<std>c++03:<cxxflags>-std=c++03
-    <toolset>gcc,<std>c++11:<cxxflags>-std=c++0x
+    <toolset>gcc,<std>c++11:<cxxflags>-std=c++11
     <toolset>clang,<std>c++03:<cxxflags>-std=c++03
     <toolset>clang,<std>c++11:<cxxflags>-std=c++11
     <toolset>intel,<std>c++03:<cxxflags>"-strict-ansi -fno-math-errno"
