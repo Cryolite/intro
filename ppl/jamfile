@@ -263,6 +263,9 @@ rule make-install ( targets * : sources * : properties * )
       }
     case "c++11" :
       cxxflags = "$(cxxflags) -std=gnu++11" ;
+    case "c++1y" :
+      errors.error "check if PPL really requires `-std=gnu++1y' instead of `-std=c++1y'" ;
+      cxxflags = "$(cxxflags) -std=gnu++1y" ;
     case "" :
       errors.error "the value for `<std>' is empty" ;
     case "*" :
