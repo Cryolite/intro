@@ -218,18 +218,15 @@ else {
 ECHO binutils... $(binutils) ;
 
 
-local gmp-for-gcc = [ option.get "with-gmp-for-gcc" : "latest" : "IMPLIED" ] ;
-if "$(gmp-for-gcc)" = "IMPLIED" {
+local gmp-for-gcc = [ option.get with-gmp-for-gcc : system : IMPLIED ] ;
+if "$(gmp-for-gcc)" = IMPLIED {
   errors.error "`--with-gmp-for-gcc' should be specified with a value." ;
 }
-if "$(gmp-for-gcc)" = "latest" {
-  gmp-for-gcc = [ get-gmp-latest-version ] ;
-}
 # GMP version strings might include non-digit suffixes like `6.0.0a`.
-if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)a?$" : "$(gmp-for-gcc)" : 1 ] {
+if "$(gmp-for-gcc)" != system && ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)a?$" : "$(gmp-for-gcc)" : 1 ] {
   errors.error "an invalid value `$(gmp-for-gcc)' for `--with-gmp-for-gcc'." ;
 }
-if ! "$(gmp-for-gcc)" in $(gmp-versions) {
+if "$(gmp-for-gcc)" != system && ! "$(gmp-for-gcc)" in $(gmp-versions) {
   gmp-versions += "$(gmp-for-gcc)" ;
 }
 ECHO gmp-for-gcc... $(gmp-for-gcc) ;
@@ -576,9 +573,9 @@ if "$(opencv)" {
 }
 
 
-local gmp = [ option.get "enable-gmp" : : "latest" ] ;
-if "$(gmp)" = "latest" {
-  gmp = [ get-gmp-latest-version ] ;
+local gmp = [ option.get enable-gmp : : IMPLIED ] ;
+if "$(gmp)" = IMPLIED {
+  errors.error "`--enable-gmp' should be specified with a value." ;
 }
 if "$(gmp)" {
   # GMP version strings might include non-digit suffixes like `6.0.0a`.
@@ -952,6 +949,9 @@ else {
   ECHO BINUTILS... N/A ;
 }
 
+if "$(gmp-for-gcc)" = system {
+  gmp-for-gcc = ;
+}
 if "$(gmp-for-gcc)" {
   constant GMP_FOR_GCC : "$(gmp-for-gcc)" ;
   ECHO GMP_FOR_GCC... $(GMP_FOR_GCC) ;

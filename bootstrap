@@ -485,6 +485,18 @@ else
 fi
 delegated_opts=("${delegated_opts[@]}" --with-binutils="$binutils")
 
+if [ "$gmp_for_gcc" = latest ]; then
+  gmp_for_gcc="$("$intro_root/gmp/latest.sh")"
+fi
+# GMP version strings might include non-digit suffixes like `6.0.0a`.
+if echo "$gmp_for_gcc" | grep -Eq '^[[:digit:]]+(\.[[:digit:]]+){0,2}a?$'; then
+  "$intro_root/gmp/download.sh" "$gmp_for_gcc"
+elif [ "$gmp_for_gcc" = system ]; then
+  :
+else
+  echo "error: an invalid value \`$gmp_for_gcc' of \`--with-gmp-for-gcc' option" >&2
+  exit 1
+fi
 delegated_opts=("${delegated_opts[@]}" --with-gmp-for-gcc="$gmp_for_gcc")
 
 delegated_opts=("${delegated_opts[@]}" --with-mpfr-for-gcc="$mpfr_for_gcc")
@@ -584,6 +596,16 @@ if [ -n "$opencv" ]; then
 fi
 
 if [ -n "$gmp" ]; then
+  if [ "$gmp" = latest ]; then
+    gmp="$("$intro_root/gmp/latest.sh")"
+  fi
+  # GMP version strings might include non-digit suffixes like `6.0.0a`.
+  if echo "$gmp" | grep -Eq '^[[:digit:]]+(\.[[:digit:]]+){0,2}a?$'; then
+    "$intro_root/gmp/download.sh" "$gmp"
+  else
+    echo "error: an invalid value \`$gmp' of \`--enable-gmp' option" >&2
+    exit 1
+  fi
   delegated_opts=("${delegated_opts[@]}" --enable-gmp="$gmp")
 fi
 

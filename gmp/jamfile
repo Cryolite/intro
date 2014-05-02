@@ -50,108 +50,14 @@ alias compiler-dep : : <conditional>@compiler-dep-req ;
 explicit compiler-dep ;
 
 
-for local version in $(GMP_VERSIONS) {
-  make "$(INTRO_ROOT_DIR)/gmp-$(version).tar.bz2" : : @download ;
-  explicit "$(INTRO_ROOT_DIR)/gmp-$(version).tar.bz2" ;
-}
-
-rule download ( targets * : sources * : properties * )
-{
-  HERE on $(targets) = [ path.native "$(.here)" ] ;
-  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
-  local version = [ feature.get-values <gmp-hidden> : $(properties) ] ;
-  URLS on $(targets)  = http://ftp.jaist.ac.jp/pub/GNU/gmp/gmp-$(version).tar.bz2 ;
-  URLS on $(targets) += http://ftp.tsukuba.wide.ad.jp/software/gmp/gmp-$(version).tar.bz2 ;
-  URLS on $(targets) += http://ftp.nara.wide.ad.jp/pub/GNU/gnu/gmp/gmp-$(version).tar.bz2 ;
-  URLS on $(targets) += http://www.ring.gr.jp/archives/GNU/gmp/gmp-$(version).tar.bz2 ;
-  URLS on $(targets) += ftp://ftp.gnu.org/gnu/gmp/gmp-$(version).tar.bz2 ;
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
-}
-actions download
-{
-  bash -s << 'EOS'
-  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
-$(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn 9abd0cb7-7098-466c-89a8-b0ba19085605 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
-  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
-  set -ex
-  rm -f '$(<)'
-  trap "rm -f '$(<)'" ERR HUP INT QUIT TERM
-  for url in $(URLS) ; do
-    ( cd '$(<:D)' && wget -- "$url" ) && break
-  done
-  [ -f '$(<)' ]
-EOS
-}
-
-
-for local version in $(GMP_VERSIONS) {
-  # Use `README' file as a target representing the completion of
-  # decompression action. It is suitable for the purpose because of the
-  # following reasons;
-  #
-  #   - The name of this file is considered stable even if the version
-  #     changes.
-  #   - This file won't be modified during the build procedure.
-  #
-  make "$(INTRO_ROOT_DIR)/gmp-$(version)/README"
-    : "$(INTRO_ROOT_DIR)/gmp-$(version).tar.bz2"
-    : @expand
-    ;
-  explicit "$(INTRO_ROOT_DIR)/gmp-$(version)/README" ;
-}
-
-rule expand ( targets * : sources * : properties * )
-{
-  HERE on $(targets) = [ path.native "$(.here)" ] ;
-  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
-  # Convert version numbers like `6.0.0a` into normalized ones like `6.0.0`.
-  local version = [ feature.get-values <gmp-hidden> : $(properties) ] ;
-  VERSION on $(targets) = "$(version)" ;
-  normalized-version = [ regex.match "([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)a?" : "$(version)" : 1 ] ;
-  NORMALIZED_VERSION on $(targets) = "$(normalized-version)" ;
-}
-actions expand
-{
-  bash -s << 'EOS'
-  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
-$(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn eb3fcdff-c481-4bd3-b0a0-e28a0f9ae51e '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
-  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
-  set -ex
-  rm -rf '$(<:D)'
-  [ -f '$(>)' ]
-  trap "rm -rf '$(>)' '$(<:D)'" ERR HUP INT QUIT TERM
-  tar xjvf '$(>)' -C '$(INTRO_ROOT_DIR)'
-  if [ '$(NORMALIZED_VERSION)' != '$(VERSION)' ]; then
-    # The version string of a tarball might include non-digit characters
-    # like `gmp-6.0.0a.tar.bz2` while the top directory of its contents is
-    # named `gmp-6.0.0`. In order to fit such irregular names to the name
-    # convention expected in sequel build process, the name of the top
-    # directory like `gmp-6.0.0` is renamed to one like `gmp-6.0.0a`.
-    ( cd '$(INTRO_ROOT_DIR)' && mv 'gmp-$(NORMALIZED_VERSION)' 'gmp-$(VERSION)' )
-  fi
-  # If the timestamp of the tarball's contents is restored, the modification
-  # time of the source directory could be older than the one of the tarball.
-  # Such behavior is not desirable because the decompression always happens.
-  # Therefore, `touch' is required.
-  touch --no-create '$(<)'
-  [ -f '$(<)' ]
-EOS
-}
-
-
-rule srcdir-req ( properties * )
+rule srcdir-timestamp-req ( properties * )
 {
   local version = [ feature.get-values <gmp-hidden> : $(properties) ] ;
-  return "<source>$(INTRO_ROOT_DIR)/gmp-$(version)/README/$(DEFAULT_PROPERTIES)" ;
+  return "<source>$(INTRO_ROOT_DIR)/gmp-$(version)/2bf4ddbc-6fd0-44c5-82ce-d66a6eb45809" ;
 }
 
-alias srcdir : : <conditional>@srcdir-req ;
-explicit srcdir ;
+alias srcdir-timestamp : : <conditional>@srcdir-timestamp-req ;
+explicit srcdir-timestamp ;
 
 
 rule location-conditional ( properties * )
@@ -163,7 +69,7 @@ rule location-conditional ( properties * )
 
 make gmp.h
   : compiler-dep
-    srcdir
+    srcdir-timestamp
   : @make-install
   : $(USE_COMPILER)
     $(USE_MULTITARGET)
