@@ -5,7 +5,7 @@ import modules ;
 import path ;
 import regex ;
 
-project awacs/clang-trunk : requirements <cxxflags>-std=c++0x <linkflags>-Wl,--no-allow-shlib-undefined <hardcode-dll-paths>false ;
+project awacs/clang-trunk : requirements <cxxflags>-std=c++11 <linkflags>-Wl,--no-allow-shlib-undefined <hardcode-dll-paths>false ;
 
 path-constant AWACS_CLANG_TRUNK : . ;
 

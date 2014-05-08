@@ -246,18 +246,7 @@ rule install ( targets * : sources * : properties * )
       errors.error "unknown compiler" ;
     }
   case "c++11" :
-    if [ is-gcc "$(compiler)" ] {
-      OPTIONS on $(targets) += "cxxflags='-std=c++0x'" ;
-    }
-    else if [ is-clang "$(compiler)" ] {
-      OPTIONS on $(targets) += "cxxflags='-std=c++11'" ;
-    }
-    else if [ is-icc "$(compiler)" ] {
-      OPTIONS on $(targets) += "cxxflags='-std=c++11'" ;
-    }
-    else {
-      errors.error "unknown compiler" ;
-    }
+    OPTIONS on $(targets) += "cxxflags='-std=c++11'" ;
   case "" :
     errors.error "the value for `<std>' is empty" ;
   case "*" :

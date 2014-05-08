@@ -262,13 +262,7 @@ rule make-install ( targets * : sources * : properties * )
         cxxflags = "$(cxxflags) -std=gnu++03" ;
       }
     case "c++11" :
-      if [ is-gcc "$(compiler)" ] {
-        # GCC 4.6.x does not support `-std=gnu++11'.
-        cxxflags = "$(cxxflags) -std=gnu++0x" ;
-      }
-      else {
-        cxxflags = "$(cxxflags) -std=gnu++11" ;
-      }
+      cxxflags = "$(cxxflags) -std=gnu++11" ;
     case "" :
       errors.error "the value for `<std>' is empty" ;
     case "*" :

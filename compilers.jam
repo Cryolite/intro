@@ -1656,16 +1656,7 @@ rule get-cxxflags ( properties * )
       errors.error "an internal error." ;
     }
   case "c++11" :
-    if [ is-gcc "$(compiler)" ] {
-      # GCC 4.6.x does not support `-std=c++11'.
-      result += "-std=c++0x" ;
-    }
-    else if [ is-clang "$(compiler)" ] || [ is-icc "$(compiler)" ] {
-      result += "-std=c++11" ;
-    }
-    else {
-      errors.error "an internal error." ;
-    }
+    result += "-std=c++11" ;
   case "" :
     errors.error "the value for `<std>' is empty" ;
   case "*" :
