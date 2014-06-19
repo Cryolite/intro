@@ -36,6 +36,8 @@ args=`getopt                    \
       -l 'enable-lcov::'        \
       -l 'enable-gcovr::'       \
       -l 'enable-gdb::'         \
+      -l 'with-gdb-check::'     \
+      -l 'without-gdb-check'    \
       -l 'enable-opencv::'      \
       -l 'enable-gmp::'         \
       -l 'enable-mpfr::'        \
@@ -70,6 +72,7 @@ gcc_check=yes
 lcov=
 gcovr=
 gdb=
+gdb_check=yes
 opencv=
 gmp=
 mpfr=
@@ -146,6 +149,12 @@ for arg in "${args[@]}"; do
       ;;
     --enable-gdb)
       prev_arg=--enable-gdb
+      ;;
+    --with-gdb-check)
+      prev_arg=--with-gdb-check
+      ;;
+    --without-gdb-check)
+      gdb_check=no
       ;;
     --enable-opencv)
       prev_arg=--enable-opencv
@@ -311,6 +320,23 @@ for arg in "${args[@]}"; do
       else
         gdb="$arg"
       fi
+      ;;
+    --with-gdb-check)
+      case "$arg" in
+      '')
+        gdb_check=yes
+        ;;
+      yes)
+        gdb_check=yes
+        ;;
+      no)
+        gdb_check=no
+        ;;
+      *)
+        echo "bootstrap: option \`--with-gdb-check' doesn't allow argument \`$arg'" >&2
+        exit 1
+        ;;
+      esac
       ;;
     --enable-opencv)
       if [ -z "$arg" ]; then
@@ -539,6 +565,19 @@ fi
 if [ -n "$gdb" ]; then
   delegated_opts=("${delegated_opts[@]}" --enable-gdb="$gdb")
 fi
+
+case "$gdb_check" in
+yes)
+  delegated_opts=("${delegated_opts[@]}" --with-gdb-check)
+  ;;
+no)
+  delegated_opts=("${delegated_opts[@]}" --without-gdb-check)
+  ;;
+*)
+  echo 'bootstrap: an internal error' >&2
+  exit 1
+  ;;
+esac
 
 if [ -n "$opencv" ]; then
   delegated_opts=("${delegated_opts[@]}" --enable-opencv="$opencv")
