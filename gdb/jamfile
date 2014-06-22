@@ -201,7 +201,9 @@ $(PROPERTY_DUMP_COMMANDS)
 
   ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) )
 
-  ( cd '$(OBJDIR)' && make check )
+  if [ $(GDB_CHECK) = yes ]; then
+    ( cd '$(OBJDIR)' && make check )
+  fi
 
   ( cd '$(OBJDIR)' && make install )
 

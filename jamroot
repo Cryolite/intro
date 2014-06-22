@@ -510,6 +510,56 @@ if "$(gdb)" {
 }
 
 
+local gdb-check = [ option.get "with-gdb-check" : "UNSPECIFIED" : "IMPLIED" ] ;
+switch "$(gdb-check)" {
+case "UNSPECIFIED" :
+  gdb-check = [ option.get "without-gdb-check" : "UNSPECIFIED" : "IMPLIED" ] ;
+  switch "$(gdb-check)" {
+  case "UNSPECIFIED" :
+    gdb-check = "yes" ;
+  case "IMPLIED" :
+    gdb-check = "no" ;
+  case "*" :
+    errors.error "`--without-gdb-check' cannot have any value." ;
+  }
+case "IMPLIED" :
+  gdb-check = [ option.get "without-gdb-check" : "UNSPECIFIED" : "IMPLIED" ] ;
+  switch "$(gdb-check)" {
+  case "UNSPECIFIED" :
+    gdb-check = "yes" ;
+  case "IMPLIED" :
+    errors.error "`--with-gdb-check' and `--without-gdb-check' cannot be specified simultaneously." ;
+  case "*" :
+    errors.error "`--without-gdb-check' cannot have any value." ;
+  }
+case "yes" :
+  gdb-check = [ option.get "without-gdb-check" : "UNSPECIFIED" : "IMPLIED" ] ;
+  switch "$(gdb-check)" {
+  case "UNSPECIFIED" :
+    gdb-check = "yes" ;
+  case "IMPLIED" :
+    errors.error "`--with-gdb-check' and `--without-gdb-check' cannot be specified simultaneously." ;
+  case "*" :
+    errors.error "`--without-gdb-check' cannot have any value." ;
+  }
+case "no" :
+  gdb-check = [ option.get "without-gdb-check" : "UNSPECIFIED" : "IMPLIED" ] ;
+  switch "$(gdb-check)" {
+  case "UNSPECIFIED" :
+    gdb-check = "no" ;
+  case "IMPLIED" :
+    errors.error "`--with-gdb-check' and `--without-gdb-check' cannot be specified simultaneously." ;
+  case "*" :
+    errors.error "`--without-gdb-check' cannot have any value." ;
+  }
+case "" :
+  errors.error "the value for `--with-gdb-check' is an empty string." ;
+case "*" :
+  errors.error "an invalid value `$(gdb-check)' is specified for `--with-gdb-check'." ;
+}
+ECHO gdb-check... $(gdb-check) ;
+
+
 local opencv = [ option.get "enable-opencv" : : "latest" ] ;
 if "$(opencv)" = "latest" {
   opencv = [ get-opencv-latest-version ] ;
@@ -975,6 +1025,9 @@ if "$(gcovr)" {
 else {
   ECHO "GCOVR... N/A" ;
 }
+
+constant GDB_CHECK : "$(gdb-check)" ;
+ECHO GDB_CHECK... $(GDB_CHECK) ;
 
 if $(opencv-versions) {
   constant OPENCV_VERSIONS : $(opencv-versions) ;
