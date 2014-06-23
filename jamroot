@@ -225,7 +225,8 @@ if "$(gmp-for-gcc)" = "IMPLIED" {
 if "$(gmp-for-gcc)" = "latest" {
   gmp-for-gcc = [ get-gmp-latest-version ] ;
 }
-if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(gmp-for-gcc)" : 1 ] {
+# GMP version strings might include non-digit suffixes like `6.0.0a`.
+if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)a?$" : "$(gmp-for-gcc)" : 1 ] {
   errors.error "an invalid value `$(gmp-for-gcc)' for `--with-gmp-for-gcc'." ;
 }
 if ! "$(gmp-for-gcc)" in $(gmp-versions) {
@@ -580,7 +581,8 @@ if "$(gmp)" = "latest" {
   gmp = [ get-gmp-latest-version ] ;
 }
 if "$(gmp)" {
-  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(gmp)" : 1 ] {
+  # GMP version strings might include non-digit suffixes like `6.0.0a`.
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)a?$" : "$(gmp)" : 1 ] {
     errors.error "an invalid value `$(gmp)' for `--enable-gmp'." ;
   }
   if ! "$(gmp)" in $(gmp-versions) {

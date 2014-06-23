@@ -22,19 +22,21 @@ wait
 
 versions=`cat "$tempdir"/*`
 rm -r "$tempdir"
-if echo "$versions" | grep -Eq 'gmp-[[:digit:]]+(\.[[:digit:]]+){0,2}\.tar\.((gz)|(bz2))'; then
-  versions=`echo "$versions" | grep -Eo 'gmp-[[:digit:]]+(\.[[:digit:]]+){0,2}\.tar\.((gz)|(bz2))'`
-  versions=`echo "$versions" | grep -Eo 'gmp-[[:digit:]]+(\.[[:digit:]]+){0,2}'`
-  versions=`echo "$versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,2}'`
+# GMP version strings might include non-digit suffixes like `6.0.0a`.
+if echo "$versions" | grep -Eq 'gmp-[[:digit:]]+(\.[[:digit:]]+){0,2}a?\.tar\.((gz)|(bz2))'; then
+  versions=`echo "$versions" | grep -Eo 'gmp-[[:digit:]]+(\.[[:digit:]]+){0,2}a?\.tar\.((gz)|(bz2))'`
+  versions=`echo "$versions" | grep -Eo 'gmp-[[:digit:]]+(\.[[:digit:]]+){0,2}a?'`
+  versions=`echo "$versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,2}a?'`
 fi
 
 local_versions=`cd "$intro_root" && ls -1 gmp-*/README 2>/dev/null || true`
-if echo "$local_versions" | grep -Eq '^gmp-[[:digit:]]+(\.[[:digit:]]+){0,2}/README$'; then
-  local_versions=`echo "$local_versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,2}'`
+if echo "$local_versions" | grep -Eq '^gmp-[[:digit:]]+(\.[[:digit:]]+){0,2}a?/README$'; then
+  local_versions=`echo "$local_versions" | grep -Eo '[[:digit:]]+(\.[[:digit:]]+){0,2}a?'`
   versions=`echo -e ${versions:+"$versions"'\n'}"$local_versions"`
 fi
 
 [ -n "$versions" ]
-versions=`echo "$versions" | sort -u -t . -k 1,1n -k 2,2n -k 3,3n`
-latest_version=`echo "$versions" | tail -n 1`
+versions="$(echo "$versions" | sort -t . -k 1,1n -k 2,2n -k 3,3n | uniq)"
+latest_version="$(echo "$versions" | tail -n 1)"
+echo "$latest_version" | grep -Eq '[[:digit:]]+(\.[[:digit:]]+){0,2}a?'
 echo -n $latest_version
