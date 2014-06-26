@@ -107,6 +107,11 @@ rule expand ( targets * : sources * : properties * )
   HERE on $(targets) = [ path.native "$(.here)" ] ;
   HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+  # Convert version numbers like `6.0.0a` into normalized ones like `6.0.0`.
+  local version = [ feature.get-values <gmp-hidden> : $(properties) ] ;
+  VERSION on $(targets) = "$(version)" ;
+  normalized-version = [ regex.match "([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)a?" : "$(version)" : 1 ] ;
+  NORMALIZED_VERSION on $(targets) = "$(normalized-version)" ;
 }
 actions expand
 {
@@ -121,6 +126,14 @@ $(PROPERTY_DUMP_COMMANDS)
   [ -f '$(>)' ]
   trap "rm -rf '$(>)' '$(<:D)'" ERR HUP INT QUIT TERM
   tar xjvf '$(>)' -C '$(INTRO_ROOT_DIR)'
+  if [ '$(NORMALIZED_VERSION)' != '$(VERSION)' ]; then
+    # The version string of a tarball might include non-digit characters
+    # like `gmp-6.0.0a.tar.bz2` while the top directory of its contents is
+    # named `gmp-6.0.0`. In order to fit such irregular names to the name
+    # convention expected in sequel build process, the name of the top
+    # directory like `gmp-6.0.0` is renamed to one like `gmp-6.0.0a`.
+    ( cd '$(INTRO_ROOT_DIR)' && mv 'gmp-$(NORMALIZED_VERSION)' 'gmp-$(VERSION)' )
+  fi
   # If the timestamp of the tarball's contents is restored, the modification
   # time of the source directory could be older than the one of the tarball.
   # Such behavior is not desirable because the decompression always happens.
@@ -290,7 +303,11 @@ $(PROPERTY_DUMP_COMMANDS)
   ( cd '$(OBJDIR)' && echo -n '$(CFLAGS)' > cflags )
   ( cd '$(OBJDIR)' && echo -n '$(CXXFLAGS)' > cxxflags )
 
-  ( cd '$(OBJDIR)' && '$(SRCDIR)/configure' $(OPTIONS) )
+  # In some environments, LeakSanitizer refuses a bad-mannered configure
+  # test code that leaves a chunk of memory allocated but not freed.
+  # `LSAN_OPTIONS=exitcode=0` in the following line is a workaround for that
+  # case.
+  ( cd '$(OBJDIR)' && LSAN_OPTIONS=exitcode=0 '$(SRCDIR)/configure' $(OPTIONS) )
 
   # Checks the creation of `Makefile`.
   [ -f '$(OBJDIR)/Makefile' ]
