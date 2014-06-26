@@ -303,7 +303,11 @@ $(PROPERTY_DUMP_COMMANDS)
   ( cd '$(OBJDIR)' && echo -n '$(CFLAGS)' > cflags )
   ( cd '$(OBJDIR)' && echo -n '$(CXXFLAGS)' > cxxflags )
 
-  ( cd '$(OBJDIR)' && '$(SRCDIR)/configure' $(OPTIONS) )
+  # In some environments, LeakSanitizer refuses a bad-mannered configure
+  # test code that leaves a chunk of memory allocated but not freed.
+  # `LSAN_OPTIONS=exitcode=0` in the following line is a workaround for that
+  # case.
+  ( cd '$(OBJDIR)' && LSAN_OPTIONS=exitcode=0 '$(SRCDIR)/configure' $(OPTIONS) )
 
   # Checks the creation of `Makefile`.
   [ -f '$(OBJDIR)/Makefile' ]
