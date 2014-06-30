@@ -490,16 +490,19 @@ feature.extend instruction-set
   ;
 
 feature.feature std
-  : c++03 c++11
+  : c++03 c++11 c++1y
   : propagated
   ;
 constant INTRO_STD_COMPILE_PROPERTIES
   : <toolset>gcc,<std>c++03:<cxxflags>-std=c++03
     <toolset>gcc,<std>c++11:<cxxflags>-std=c++11
+    <toolset>gcc,<std>c++1y:<cxxflags>-std=c++1y
     <toolset>clang,<std>c++03:<cxxflags>-std=c++03
     <toolset>clang,<std>c++11:<cxxflags>-std=c++11
+    <toolset>clang,<std>c++1y:<cxxflags>-std=c++1y
     <toolset>intel,<std>c++03:<cxxflags>"-strict-ansi -fno-math-errno"
     <toolset>intel,<std>c++11:<cxxflags>-std=c++11
+    <toolset>intel,<std>c++1y:<cxxflags>-std=c++1y
   ;
 
 feature.feature lto

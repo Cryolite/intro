@@ -586,6 +586,8 @@ rule get-full-prefix ( prefix : properties * )
     result = "$(result)/c++03" ;
   case "c++11" :
     result = "$(result)/c++11" ;
+  case "c++1y" :
+    result = "$(result)/c++1y" ;
   case "" :
     errors.error "the value for `<std>' is empty" ;
   case "*" :
@@ -1657,6 +1659,8 @@ rule get-cxxflags ( properties * )
     }
   case "c++11" :
     result += "-std=c++11" ;
+  case "c++1y" :
+    result += "-std=c++1y" ;
   case "" :
     errors.error "the value for `<std>' is empty" ;
   case "*" :

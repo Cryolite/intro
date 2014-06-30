@@ -247,6 +247,8 @@ rule install ( targets * : sources * : properties * )
     }
   case "c++11" :
     OPTIONS on $(targets) += "cxxflags='-std=c++11'" ;
+  case "c++1y" :
+    OPTIONS on $(targets) += "cxxflags='-std=c++1y'" ;
   case "" :
     errors.error "the value for `<std>' is empty" ;
   case "*" :

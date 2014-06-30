@@ -480,6 +480,9 @@ rule make-install ( targets * : sources * : properties * )
       # Do nothing.
     case "c++11" :
       OPTIONS on $(targets) += "--enable-cxx11" ;
+    case "c++1y" :
+      errors.error "check if `--enable-cxx1y' option is available" ;
+      OPTIONS on $(targets) += "--enable-cxx11" ;
     case "" :
       errors.error "the value of `<std>' is empty" ;
     case "*" :

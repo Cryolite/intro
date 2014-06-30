@@ -9,14 +9,14 @@ echo '<tr>' >> "$prefix/summary.html"
 echo '  <th rowspan="9">Configuration</th>' >> "$prefix/summary.html"
 echo '  <th>Variant</th>' >> "$prefix/summary.html"
 for variant in debug release profile; do
-  echo "  <td colspan=\"256\">$variant</td>" >> "$prefix/summary.html"
+  echo "  <td colspan=\"384\">$variant</td>" >> "$prefix/summary.html"
 done
 echo '</tr>' >> "$prefix/summary.html"
 echo '<tr>' >> "$prefix/summary.html"
 echo '  <th>Link</th>' >> "$prefix/summary.html"
 for i in `seq 1 3`; do
   for link in shared static; do
-    echo "  <td colspan=\"128\">$link</td>" >> "$prefix/summary.html"
+    echo "  <td colspan=\"192\">$link</td>" >> "$prefix/summary.html"
   done
 done
 echo '</tr>' >> "$prefix/summary.html"
@@ -24,7 +24,7 @@ echo '<tr>' >> "$prefix/summary.html"
 echo '  <th>Threading</th>' >> "$prefix/summary.html"
 for i in `seq 1 6`; do
   for threading in multi single; do
-    echo "  <td colspan=\"64\">$threading</td>" >> "$prefix/summary.html"
+    echo "  <td colspan=\"96\">$threading</td>" >> "$prefix/summary.html"
   done
 done
 echo '</tr>' >> "$prefix/summary.html"
@@ -32,7 +32,7 @@ echo '<tr>' >> "$prefix/summary.html"
 echo '  <th>Address Model</th>' >> "$prefix/summary.html"
 for i in `seq 1 12`; do
   for address_model in 64 32; do
-    echo "  <td colspan=\"32\">$address_model</td>" >> "$prefix/summary.html"
+    echo "  <td colspan=\"48\">$address_model</td>" >> "$prefix/summary.html"
   done
 done
 echo '</tr>' >> "$prefix/summary.html"
@@ -40,21 +40,21 @@ echo '<tr>' >> "$prefix/summary.html"
 echo '  <th>Instruction Set</th>' >> "$prefix/summary.html"
 for i in `seq 1 24`; do
   for instruction_set in unspecified native; do
-    echo "  <td colspan=\"16\">$instruction_set</td>" >> "$prefix/summary.html"
+    echo "  <td colspan=\"24\">$instruction_set</td>" >> "$prefix/summary.html"
   done
 done
 echo '</tr>' >> "$prefix/summary.html"
 echo '<tr>' >> "$prefix/summary.html"
 echo '  <th>Language Standard</th>' >> "$prefix/summary.html"
 for i in `seq 1 48`; do
-  for std in c++03 c++11; do
+  for std in c++03 c++11 c++1y; do
     echo "  <td colspan=\"8\">$std</td>" >> "$prefix/summary.html"
   done
 done
 echo '</tr>' >> "$prefix/summary.html"
 echo '<tr>' >> "$prefix/summary.html"
 echo '  <th>Link-Time Optimization</th>' >> "$prefix/summary.html"
-for i in `seq 1 96`; do
+for i in `seq 1 144`; do
   for lto in off on; do
     echo "  <td colspan=\"4\">$lto</td>" >> "$prefix/summary.html"
   done
@@ -62,7 +62,7 @@ done
 echo '</tr>' >> "$prefix/summary.html"
 echo '<tr>' >> "$prefix/summary.html"
 echo '  <th>Memory-Checking Instrumentation</th>' >> "$prefix/summary.html"
-for i in `seq 1 192`; do
+for i in `seq 1 288`; do
   for memory_checker in off on; do
     echo "  <td colspan=\"2\">$memory_checker</td>" >> "$prefix/summary.html"
   done
@@ -70,7 +70,7 @@ done
 echo '</tr>' >> "$prefix/summary.html"
 echo '<tr>' >> "$prefix/summary.html"
 echo '  <th>libstdc++ Debug Mode</th>' >> "$prefix/summary.html"
-for i in `seq 1 384`; do
+for i in `seq 1 576`; do
   for libstdcxx_debug_mode in off on; do
     echo "  <td>$libstdcxx_debug_mode</td>" >> "$prefix/summary.html"
   done
@@ -214,7 +214,7 @@ for lib in binutils gmp mpfr mpc isl cloog ppl icu4c openmpi clang         \
       for threading in multi single; do
         for address_model in 64 32; do
 	  for instruction_set in unspecified native; do
-	    for std in c++03 c++11; do
+	    for std in c++03 c++11 c++1y; do
 	      for lto in off on; do
 	        for memory_checker in off on; do
 		  for libstdcxx_debug_mode in off on; do
