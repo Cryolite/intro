@@ -162,7 +162,7 @@ rule gxx-wrapper-conditional ( properties * )
     result += "<source>../binutils//srcdir-timestamp" ;
   }
   if "$(gmp)" != "unspecified" {
-    result += "<source>../gmp//srcdir/<gmp-hidden>$(gmp)" ;
+    result += "<source>../gmp//srcdir-timestamp/<gmp-hidden>$(gmp)" ;
   }
   if "$(mpfr)" != "unspecified" {
     result += "<source>../mpfr//srcdir/<mpfr-hidden>$(mpfr)" ;
