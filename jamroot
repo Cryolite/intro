@@ -22,7 +22,6 @@ import "$(INTRO_ROOT_DIR)/compilers"
 
 local .lcov-latest ;
 local .gcovr-latest ;
-local .gdb-latest ;
 local .opencv-latest ;
 local .gmp-latest ;
 local .mpfr-latest ;
@@ -65,17 +64,6 @@ local rule get-gcovr-latest-version ( )
     }
   }
   return "$(.gcovr-latest)" ;
-}
-
-local rule get-gdb-latest-version ( )
-{
-  if ! "$(.gdb-latest)" {
-    .gdb-latest = [ SHELL "'$(INTRO_ROOT_DIR)/gdb/latest.sh' || echo -n error" ] ;
-    if "$(.gdb-latest)" = "error" {
-      errors.error "failed to extract GDB latest version." ;
-    }
-  }
-  return "$(.gdb-latest)" ;
 }
 
 local rule get-opencv-latest-version ( )
@@ -496,13 +484,14 @@ else {
 }
 
 
-local gdb = [ option.get enable-gdb : : latest ] ;
-if "$(gdb)" = latest {
-  gdb = [ get-gdb-latest-version ] ;
+local gdb = [ option.get enable-gdb : : IMPLIED ] ;
+if "$(gdb)" = IMPLIED {
+  errors.error "`--enable-gdb' should be specified with a value" ;
 }
 if "$(gdb)" {
-  if ! [ regex.match "^([0-9]+\\.[0-9]+(\\.[0-9]+)?)$" : "$(gdb)" : 1 ] {
-    errors.error "an invalid value `$(gdb)' for `--enable-gdb'." ;
+  # GDB version strings might include non-digit suffixes like `7.3a`.
+  if ! [ regex.match "^([0-9]+\\.[0-9]+(\\.[0-9]+)?)a?$" : "$(gdb)" : 1 ] {
+    errors.error "an invalid value `$(gdb)' for `--enable-gdb'" ;
   }
   ECHO gdb... $(gdb) ;
 }

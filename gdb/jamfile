@@ -48,56 +48,14 @@ alias compiler-dep : : <conditional>@compiler-dep-req ;
 explicit compiler-dep ;
 
 
-rule expand-location-conditional ( properties * )
+rule srcdir-timestamp-req ( properties * )
 {
   local version = [ feature.get-values <gdb-hidden> : $(properties) ] ;
-  return "<location>$(INTRO_ROOT_DIR)/gdb-$(version)" ;
+  return "<source>$(INTRO_ROOT_DIR)/gdb-$(version)/f4f591f6-9a1d-4ac3-ae2f-ba6463d79680" ;
 }
 
-make README : : @expand : <conditional>@expand-location-conditional ;
-explicit README ;
-
-rule expand ( targets * : sources * : properties * )
-{
-  HERE on $(targets) = [ path.native "$(.here)" ] ;
-  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
-  local version = [ feature.get-values <gdb-hidden> : $(properties) ] ;
-  VERSION on $(targets) = "$(version)" ;
-  URLS on $(targets)  = http://ftp.jaist.ac.jp/pub/GNU/gdb/gdb-$(version).tar.bz2 ;
-  URLS on $(targets) += http://ftp.nara.wide.ad.jp/pub/GNU/gnu/gdb/gdb-$(version).tar.bz2 ;
-  URLS on $(targets) += http://www.ring.gr.jp/archives/GNU/gdb/gdb-$(version).tar.bz2 ;
-  URLS on $(targets) += ftp://ftp.gnu.org/gnu/gdb/gdb-$(version).tar.bz2 ;
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
-}
-actions expand
-{
-  bash -s << 'EOS'
-  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
-$(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn b7ba40a6-bc5b-4d1c-8fb4-96babf537dbd '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
-  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
-  set -ex
-  rm -rf '$(INTRO_ROOT_DIR)/gdb-$(VERSION)'
-  tmpdir=`mktemp -d`
-  trap "rm -rf '$(INTRO_ROOT_DIR)/gdb-$(VERSION)'; rm -r '$tmpdir'" ERR HUP INT QUIT TERM
-  for url in $(URLS) ; do
-    ( cd "$tmpdir" && wget -- "$url" ) && break
-  done
-  tar xjvf "$tmpdir"'/gdb-$(VERSION).tar.bz2' -C '$(INTRO_ROOT_DIR)'
-  rm -r "$tmpdir"
-EOS
-}
-
-
-rule srcdir-req ( properties * )
-{
-  local version = [ feature.get-values <gdb-hidden> : $(properties) ] ;
-  return "<source>README/$(DEFAULT_PROPERTIES)" ;
-}
-
-alias srcdir : : <conditional>@srcdir-req ;
-explicit srcdir ;
+alias srcdir-timestamp : : <conditional>@srcdir-timestamp-req ;
+explicit srcdir-timestamp ;
 
 
 rule location-conditional ( properties * )
@@ -108,7 +66,7 @@ rule location-conditional ( properties * )
 
 make gdb
   : compiler-dep
-    srcdir
+    srcdir-timestamp
   : @make-install
   : $(USE_COMPILER)
     $(USE_MULTITARGET)
