@@ -575,7 +575,17 @@ if [ -n "$gcovr" ]; then
 fi
 
 if [ -n "$gdb" ]; then
-  delegated_opts=("${delegated_opts[@]}" --enable-gdb="$gdb")
+    if [ "$gdb" = latest ]; then
+        gdb="$("$intro_root/gdb/latest.sh")"
+    fi
+    # GDB version strings might include non-digit suffixes like `7.3a`.
+    if echo "$gdb" | grep -Eq '^[[:digit:]]+(\.[[:digit:]]+){1,2}a?$'; then
+        "$intro_root/gdb/download.sh" "$gdb"
+    else
+        echo "error: an invalid value \`$gdb' for \`--enable-gdb'" >&2
+        exit 1
+    fi
+    delegated_opts=("${delegated_opts[@]}" --enable-gdb="$gdb")
 fi
 
 case "$gdb_check" in

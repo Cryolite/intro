@@ -8,6 +8,8 @@
 /binutils-*/
 /lcov-*/
 /gcovr-*/
+/gdb-*.tar.gz
+/gdb-*.tar.bz2
 /gdb-*/
 /opencv-*.tar.gz
 /opencv-*.tar.bz2
