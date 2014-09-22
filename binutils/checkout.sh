@@ -3,7 +3,7 @@
 PS4='+binutils/checkout.sh:$LINENO: '
 set -ex
 
-intro_root="`(cd "\`dirname "$0"\`"; cd ..; pwd)`"
+intro_root="$(cd "$(dirname "$0")"; cd ..; pwd)"
 grep -Fq 5f91cd3a-6dac-42fe-bfbb-fe637ee880a4 "$intro_root/binutils/checkout.sh"
 
 [ $# -eq 0 ]
