@@ -82,7 +82,12 @@ rule .init-gcc-release-aliases ( )
 
 rule .init-gcc-snapshot-aliases-impl ( major )
 {
-  return [ SHELL "echo -n \"$(.gcc-versions:J= )\" | grep -Eo \"$(major)(\\.0-RC)?-[[:digit:]]{8}\" | grep -Eo \"[[:digit:]]{8}\" | sort --numeric-sort | tail --lines=1 | tr --delete '\\n'" ] ;
+  return [ SHELL "{ echo -n \"$(.gcc-versions:J= )\"                                            || echo -n error; } \\
+                    | { grep -Eo \"($(major)-[[:digit:]]{8})|($(major)\\.0-RC-[[:digit:]]{8})\" || echo -n error; } \\
+                    | { grep -Eo \"[[:digit:]]{8}\"                                             || echo -n error; } \\
+                    | { sort --numeric-sort                                                     || echo -n error; } \\
+                    | { tail --lines=1                                                          || echo -n error; } \\
+                    | { tr --delete '\\n'                                                       || echo -n error; }" ] ;
 }
 
 rule .init-gcc-snapshot-aliases ( )
@@ -93,18 +98,18 @@ rule .init-gcc-snapshot-aliases ( )
     }
 
     local gcc-snapshot-major
-      = [ SHELL "{ echo -n \"$(.gcc-versions:J= )\"                                      || echo -n error; } \\
-                   | { grep -Eo \"[[:digit:]]+\\.[[:digit:]]+(\\.0-RC)?-[[:digit:]]{8}\" || echo -n error; } \\
-                   | { grep -Eo \"^[[:digit:]]+\\.[[:digit:]]+\"                         || echo -n error; } \\
-                   | { sort -u -t '.' -k 1,1n -k 2,2n                                    || echo -n error; } \\
-                   | { tail --lines=1                                                    || echo -n error; } \\
-                   | { tr --delete '\\n'                                                 || echo -n error; }" ] ;
+      = [ SHELL "{ echo -n \"$(.gcc-versions:J= )\"                                                                                     || echo -n error; } \\
+                   | { grep -Eo \"([[:digit:]]+(\\.[[:digit:]]+)?-[[:digit:]]{8})|([[:digit:]]+\\.[[:digit:]]+\\.0-RC-[[:digit:]]{8})\" || echo -n error; } \\
+                   | { grep -Eo \"^[[:digit:]]+(\\.[[:digit:]]+)?\"                                                                     || echo -n error; } \\
+                   | { sort -u -t '.' -k 1,1n -k 2,2n                                                                                   || echo -n error; } \\
+                   | { tail --lines=1                                                                                                   || echo -n error; } \\
+                   | { tr --delete '\\n'                                                                                                || echo -n error; }" ] ;
     local gcc-snapshot-date = [ .init-gcc-snapshot-aliases-impl $(gcc-snapshot-major) ] ;
     .gcc-snapshot-version
-      = [ SHELL "{ echo -n \"$(.gcc-versions:J= )\"                                      || echo -n error; } \\
-                   | { grep -Eo \"$(gcc-snapshot-major)(\\.0-RC)?-$(gcc-snapshot-date)\" || echo -n error; } \\
-                   | { tail --lines=1                                                    || echo -n error; } \\
-                   | { tr --delete '\\n'                                                 || echo -n error; }" ] ;
+      = [ SHELL "{ echo -n \"$(.gcc-versions:J= )\"                                                                                  || echo -n error; } \\
+                   | { grep -Eo \"($(gcc-snapshot-major)-$(gcc-snapshot-date))|($(gcc-snapshot-major)\\.0-RC-$(gcc-snapshot-date))\" || echo -n error; } \\
+                   | { tail --lines=1                                                                                                || echo -n error; } \\
+                   | { tr --delete '\\n'                                                                                             || echo -n error; }" ] ;
     if "$(.gcc-snapshot-version)" = "error" {
       errors.error "failed to extract GCC snapshot versions." ;
     }
