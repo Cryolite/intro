@@ -34,7 +34,7 @@
 /cloog-*/
 /gcc-*.tar.bz2
 /gcc-*.tar.bz2.sig
-/gcc-*.*/
+/gcc-*/
 /icu4c-*.tgz
 /icu-*/
 /openmpi-*.tar.gz
