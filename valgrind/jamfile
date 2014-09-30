@@ -298,9 +298,8 @@ $(PROPERTY_DUMP_COMMANDS)
   cp -rnT '$(SRCDIR)' '$(OBJDIR)'
 
   [ -x '$(OBJDIR)/configure' ]
-  [ -x '$(OBJDIR)/config.sub' ]
-  [ `'$(OBJDIR)/config.sub' $(BUILD_TRIPLET)` = $(BUILD_TRIPLET) ]
-  [ `'$(OBJDIR)/config.sub' $(HOST_TRIPLET)` = $(HOST_TRIPLET) ]
+  [ "`/bin/sh '$(OBJDIR)/config.sub' '$(BUILD_TRIPLET)'`" = '$(BUILD_TRIPLET)' ]
+  [ "`/bin/sh '$(OBJDIR)/config.sub' '$(HOST_TRIPLET)'`" = '$(HOST_TRIPLET)' ]
 
   ( cd '$(OBJDIR)' && ./configure $(OPTIONS) )
 
