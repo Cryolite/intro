@@ -698,7 +698,7 @@ if [ ! -d "$prefix/boost/$boost_latest" ]; then
   boost_tag=`echo $boost_latest | sed -e 's/\./_/g'`
   mkdir -p "$prefix/boost"
   pushd "$prefix/boost"
-  wget -q --no-clobber -- "http://downloads.sourceforge.net/project/boost/boost/$boost_latest/boost_${boost_tag}.tar.bz2"
+  wget -q -t 3 --no-clobber -- "http://downloads.sourceforge.net/project/boost/boost/$boost_latest/boost_${boost_tag}.tar.bz2"
   tar xjvf boost_${boost_tag}.tar.bz2
   rm boost_${boost_tag}.tar.bz2
   mv boost_$boost_tag $boost_latest

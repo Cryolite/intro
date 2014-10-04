@@ -126,16 +126,16 @@ $(PROPERTY_DUMP_COMMANDS)
   cleanup
   trap cleanup ERR HUP INT QUIT TERM
 
-  ( cd '$(<:D)' && wget -- '$(LLVM_SRC_URL)' )
+  ( cd '$(<:D)' && wget -q -t 3 --no-clobber -- '$(LLVM_SRC_URL)' )
   [ -f '$(INTRO_ROOT_DIR)/llvm-$(VERSION).src.tar.gz' ]
 
-  ( cd '$(<:D)' && wget -- '$(CLANG_SRC_URL)' )
+  ( cd '$(<:D)' && wget -q -t 3 --no-clobber -- '$(CLANG_SRC_URL)' )
   [ -f '$(INTRO_ROOT_DIR)/cfe-$(VERSION).src.tar.gz' ]
 
-  #( cd '$(<:D)' && wget -- '$(CLANG_TOOLS_EXTRA_SRC_URL)' )
+  #( cd '$(<:D)' && wget -q -t 3 --no-clobber -- '$(CLANG_TOOLS_EXTRA_SRC_URL)' )
   #[ -f '$(INTRO_ROOT_DIR)/clang-tools-extra-$(VERSION).src.tar.gz' ]
 
-  ( cd '$(<:D)' && wget -- '$(COMPILER_RT_SRC_URL)' )
+  ( cd '$(<:D)' && wget -q -t 3 --no-clobber -- '$(COMPILER_RT_SRC_URL)' )
   [ -f '$(INTRO_ROOT_DIR)/compiler-rt-$(VERSION).src.tar.gz' ]
 
   [ -f '$(<)' ]

@@ -189,7 +189,7 @@ done
 
 if [ '!' -f "$tarball_path" ]; then
   for url in "${urls[@]}"; do
-    ( cd "$tmpdir_path" && wget -q --no-clobber -- "$url" ) && break
+    ( cd "$tmpdir_path" && wget -q -t 3 --no-clobber -- "$url" ) && break
   done
   if [ "$tarball_basename_tmp" != "$tarball_basename" ]; then
     [ -f "$tmpdir_path/$tarball_basename_tmp" ]

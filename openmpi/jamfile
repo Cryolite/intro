@@ -71,7 +71,7 @@ $(PROPERTY_DUMP_COMMANDS)
   set -ex
   rm -f '$(<)'
   trap "rm -f '$(<)'" ERR HUP INT QUIT TERM
-  ( cd '$(<:D)' && wget -- '$(URL)' )
+  ( cd '$(<:D)' && wget -q -t 3 --no-clobber -- '$(URL)' )
   [ -f '$(<)' ]
 EOS
 }

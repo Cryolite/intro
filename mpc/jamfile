@@ -77,7 +77,7 @@ $(PROPERTY_DUMP_COMMANDS)
   rm -f '$(<)'
   trap "rm -f '$(<)'" ERR HUP INT QUIT TERM
   for url in $(URLS) ; do
-    ( cd '$(<:D)' && wget -- "$url" ) && break
+    ( cd '$(<:D)' && wget -q -t 3 --no-clobber -- "$url" ) && break
   done
   [ -f '$(<)' ]
 EOS
