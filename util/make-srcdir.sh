@@ -8,12 +8,12 @@ grep -Fq c2f75877-d9e0-4b69-84e1-fc6c19fc679d "$intro_root/util/make-srcdir.sh"
 
 # Test if `optget' is an enhanced version or an old version.
 if getopt --test 2>&1 | grep -Fq -- '--'; then
-  echo "util/make-srcdir.sh: requires an enhanced version of \`getopt'" >&2
+  echo "util/make-srcdir.sh: error: requires an enhanced version of \`getopt'" >&2
   exit 1
 fi
 getopt --test || status=$?
 if [ $status -ne 4 ]; then
-  echo "util/make-srcdir.sh: requires an enhanced version of \`getopt'" >&2
+  echo "util/make-srcdir.sh: error: requires an enhanced version of \`getopt'" >&2
   exit 1
 fi
 
@@ -42,7 +42,7 @@ for arg in "${args[@]}"; do
       ;;
     --tarball)
       if [ -n "$tarball_path" ]; then
-        echo "util/make-srcdir.sh: error: duplicate \`--tarball' option" >&2
+        echo "util/make-srcdir.sh: error: duplicate \`--tarball' options" >&2
         exit 1
       fi
       prev_arg=--tarball
