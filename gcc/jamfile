@@ -101,6 +101,20 @@ rule expand ( targets * : sources * : properties * )
 {
   HERE on $(targets) = [ path.native "$(.here)" ] ;
   HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
+
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
+  if [ is-gcc "$(compiler)" ] {
+    # Do nothing.
+  }
+  else if [ is-clang "$(compiler)" ] || [ is-icc "$(compiler)" ] {
+    compiler = [ get-backend-gcc "$(compiler)" ] ;
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+  local version = [ get-frontend-version "$(compiler)" ] ;
+  VERSION on $(targets) = "$(version)" ;
+
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions expand
@@ -116,6 +130,9 @@ $(PROPERTY_DUMP_COMMANDS)
   [ -f '$(>)' ]
   trap "rm -rf '$(>)' '$(<:D)'" ERR HUP INT QUIT TERM
   tar xjvf '$(>)' -C '$(INTRO_ROOT_DIR)'
+  if [ -f '$(INTRO_ROOT_DIR)/gcc/$(VERSION).patch' ]; then
+    ( cd '$(<:D)' && patch -F 0 -p0 < '$(INTRO_ROOT_DIR)/gcc/$(VERSION).patch' )
+  fi
   # If the timestamp of the tarball's contents is restored, the modification
   # time of the source directory could be older than the one of the tarball.
   # Such behavior is not desirable because the decompression always happens.
