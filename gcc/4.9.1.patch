@@ -1,0 +1,12 @@
+--- libstdc++-v3/libsupc++/eh_ptr.cc	2014-04-01 03:16:14.000000000 +0900
++++ libstdc++-v3/libsupc++/eh_ptr.cc	2014-10-05 21:35:09.342815104 +0900
+@@ -245,6 +245,9 @@
+   __GXX_INIT_DEPENDENT_EXCEPTION_CLASS(dep->unwindHeader.exception_class);
+   dep->unwindHeader.exception_cleanup = __gxx_dependent_exception_cleanup;
+ 
++  __cxa_eh_globals *globals = __cxa_get_globals ();
++  globals->uncaughtExceptions += 1;
++
+ #ifdef _GLIBCXX_SJLJ_EXCEPTIONS
+   _Unwind_SjLj_RaiseException (&dep->unwindHeader);
+ #else
