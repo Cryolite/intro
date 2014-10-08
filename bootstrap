@@ -567,7 +567,16 @@ no)
 esac
 
 if [ -n "$lcov" ]; then
-  delegated_opts=("${delegated_opts[@]}" --enable-lcov="$lcov")
+    if [ "$lcov" = latest ]; then
+        lcov="$("$intro_root/lcov/latest.sh")"
+    fi
+    if echo "$lcov" | grep -Eq '^[[:digit:]]+\.[[:digit:]]+$'; then
+        "$intro_root/lcov/download.sh" "$lcov"
+    else
+        echo "error: an invalid value \`$lcov' for \`--enable-lcov'" >&2
+        exit 1
+    fi
+    delegated_opts=("${delegated_opts[@]}" --enable-lcov="$lcov")
 fi
 
 if [ -n "$gcovr" ]; then

@@ -20,7 +20,6 @@ import "$(INTRO_ROOT_DIR)/compilers"
 "$(INTRO_ROOT_DIR)/compilers.init" "$(INTRO_ROOT_DIR)" ;
 
 
-local .lcov-latest ;
 local .gcovr-latest ;
 local .opencv-latest ;
 local .gmp-latest ;
@@ -42,17 +41,6 @@ local rule get-boost-latest-version ( )
     }
   }
   return "$(.boost-latest)" ;
-}
-
-local rule get-lcov-latest-version ( )
-{
-  if ! "$(.lcov-latest)" {
-    .lcov-latest = [ SHELL "'$(INTRO_ROOT_DIR)/lcov/latest.sh' || echo -n error" ] ;
-    if "$(.lcov-latest)" = error {
-      errors.error "failed to extract LCOV latest version." ;
-    }
-  }
-  return "$(.lcov-latest)" ;
 }
 
 local rule get-gcovr-latest-version ( )
@@ -454,13 +442,13 @@ case "*" :
 ECHO gcc-check... $(gcc-check) ;
 
 
-local lcov = [ option.get "enable-lcov" : : "latest" ] ;
-if "$(lcov)" = latest {
-  lcov = [ get-lcov-latest-version ] ;
+local lcov = [ option.get enable-lcov : : IMPLIED ] ;
+if "$(lcov)" = IMPLIED {
+  errors.error "`--enable-lcov' should be specified with a value" ;
 }
 if "$(lcov)" {
-  if ! [ regex.match "^([0-9]+(\\.[0-9]+)?)$" : "$(lcov)" : 1 ] {
-    errors.error "an invalid value `$(lcov)' for `--enable-lcov'." ;
+  if ! [ regex.match "^([0-9]+\\.[0-9]+)$" : "$(lcov)" : 1 ] {
+    errors.error "an invalid value `$(lcov)' for `--enable-lcov'" ;
   }
   ECHO "lcov... $(lcov)" ;
 }
