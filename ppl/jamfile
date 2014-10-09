@@ -16,6 +16,9 @@ import "$(INTRO_ROOT_DIR)/compilers"
     get-cflags
     get-cxx
     get-cxxflags
+    get-ar
+    get-ranlib
+    get-nm
     get-environment-commands
     get-property-dump-commands
   ;
@@ -223,8 +226,10 @@ rule make-install ( targets * : sources * : properties * )
   ##OPTIONS on $(targets) += "--with-gmp-lib='$(full-prefix-native)/lib'" ;
 
   local cc = [ get-cc "$(PREFIX)" : $(properties) ] ;
-  local cc-native = [ path.native "$(cc)" ] ;
-  OPTIONS on $(targets) += "--with-cc='$(cc-native)'" ;
+  if "$(cc)" {
+    local cc-native = [ path.native "$(cc)" ] ;
+    OPTIONS on $(targets) += "--with-cc='$(cc-native)'" ;
+  }
 
   local compiler = [ feature.get-values <compiler> : $(properties) ] ;
   local lto = [ feature.get-values <lto> : $(properties) ] ;
@@ -243,8 +248,10 @@ rule make-install ( targets * : sources * : properties * )
   }
 
   local cxx = [ get-cxx "$(PREFIX)" : $(properties) ] ;
-  local cxx-native = [ path.native "$(cxx)" ] ;
-  OPTIONS on $(targets) += "--with-cxx='$(cxx-native)'" ;
+  if "$(cxx)" {
+    local cxx-native = [ path.native "$(cxx)" ] ;
+    OPTIONS on $(targets) += "--with-cxx='$(cxx-native)'" ;
+  }
 
   # C++ compiler options are `-pg -DPPL_PROFILING=1 -g -O2 -frounding-math CXXFLAGS -W -Wall'.
   # `-pg -DPPL_PROFILING=1' is added iff `--enable-profiling' is specified.
@@ -278,6 +285,24 @@ rule make-install ( targets * : sources * : properties * )
     cxxflags = "$(cxxflags) -frounding-math" ;
     CXXFLAGS on $(targets) = "$(cxxflags)" ;
     OPTIONS on $(targets) += "CXXFLAGS='@$(objdir-native)/cxxflags'" ;
+  }
+
+  local ar = [ get-ar "$(PREFIX)" : $(properties) ] ;
+  if "$(ar)" {
+    local ar-native = [ path.native "$(ar)" ] ;
+    OPTIONS on $(targets) += "AR='$(ar-native)'" ;
+  }
+
+  local ranlib = [ get-ranlib "$(PREFIX)" : $(properties) ] ;
+  if "$(ranlib)" {
+    local ranlib-native = [ path.native "$(ranlib)" ] ;
+    OPTIONS on $(targets) += "RANLIB='$(ranlib-native)'" ;
+  }
+
+  local nm = [ get-nm "$(PREFIX)" : $(properties) ] ;
+  if "$(nm)" {
+    local nm-native = [ path.native "$(nm)" ] ;
+    OPTIONS on $(targets) += "NM='$(nm-native)'" ;
   }
 
   local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
