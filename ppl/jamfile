@@ -110,7 +110,7 @@ $(PROPERTY_DUMP_COMMANDS)
   rm -rf '$(<:D)'
   [ -f '$(>)' ]
   trap "rm -rf '$(>)' '$(<:D)'" ERR HUP INT QUIT TERM
-  tar xjvf '$(>)' -C '$(INTRO_ROOT_DIR)'
+  tar xjf '$(>)' -C '$(INTRO_ROOT_DIR)'
   # If the timestamp of the tarball's contents is restored, the modification
   # time of the source directory could be older than the one of the tarball.
   # Such behavior is not desirable because the decompression always happens.

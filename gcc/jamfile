@@ -129,7 +129,7 @@ $(PROPERTY_DUMP_COMMANDS)
   rm -rf '$(<:D)'
   [ -f '$(>)' ]
   trap "rm -rf '$(>)' '$(<:D)'" ERR HUP INT QUIT TERM
-  tar xjvf '$(>)' -C '$(INTRO_ROOT_DIR)'
+  tar xjf '$(>)' -C '$(INTRO_ROOT_DIR)'
   if [ -f '$(INTRO_ROOT_DIR)/gcc/$(VERSION).patch' ]; then
     ( cd '$(<:D)' && patch -F 0 -p0 < '$(INTRO_ROOT_DIR)/gcc/$(VERSION).patch' )
   fi

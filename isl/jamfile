@@ -82,7 +82,7 @@ $(PROPERTY_DUMP_COMMANDS)
   rm -rf '$(<:D)'
   trap "rm -rf '$(<:D)'" ERR HUP INT QUIT TERM
   [ -f '$(INTRO_ROOT_DIR)/isl-trunk/ChangeLog' ]
-  ( cd '$(INTRO_ROOT_DIR)/isl-trunk' && git archive --prefix='isl-$(VERSION)/' 'isl-$(VERSION)' | tar -xv -C '$(INTRO_ROOT_DIR)' )
+  ( cd '$(INTRO_ROOT_DIR)/isl-trunk' && git archive --prefix='isl-$(VERSION)/' 'isl-$(VERSION)' | tar -x -C '$(INTRO_ROOT_DIR)' )
   ( cd '$(INTRO_ROOT_DIR)/isl-$(VERSION)' && ./autogen.sh )
   [ -f '$(<)' ]
 EOS
