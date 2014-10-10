@@ -658,7 +658,10 @@ if "$(isl)" {
 }
 
 
-local cloog = [ option.get enable-cloog : : latest ] ;
+local cloog = [ option.get enable-cloog : : IMPLIED ] ;
+if "$(cloog)" = IMPLIED {
+  errors.error "`--enable-cloog' should be specified with a value" ;
+}
 if $(cloog) {
   if [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(cloog)" : 1 ] {
     # Do nothing.
