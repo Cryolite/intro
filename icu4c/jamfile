@@ -118,7 +118,7 @@ $(PROPERTY_DUMP_COMMANDS)
   rm -rf '$(INTRO_ROOT_DIR)/icu'
   [ -f '$(>)' ]
   trap "rm -rf '$(>)' '$(INTRO_ROOT_DIR)/icu' '$(<:D)'" ERR HUP INT QUIT TERM
-  tar xzvf '$(>)' -C '$(INTRO_ROOT_DIR)'
+  tar xzf '$(>)' -C '$(INTRO_ROOT_DIR)'
   [ -d '$(INTRO_ROOT_DIR)/icu' ]
   mv -n '$(INTRO_ROOT_DIR)/icu' '$(<:D)'
   # If the timestamp of the tarball's contents is restored, the modification

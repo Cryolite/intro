@@ -203,25 +203,25 @@ $(PROPERTY_DUMP_COMMANDS)
   }
   trap cleanup ERR HUP INT QUIT TERM
 
-  tar xzvf '$(INTRO_ROOT_DIR)/llvm-$(VERSION).src.tar.gz' -C '$(INTRO_ROOT_DIR)'
+  tar xzf '$(INTRO_ROOT_DIR)/llvm-$(VERSION).src.tar.gz' -C '$(INTRO_ROOT_DIR)'
   [ -d '$(INTRO_ROOT_DIR)/llvm-$(VERSION).src' ]
   ( cd '$(INTRO_ROOT_DIR)' && mv -nT 'llvm-$(VERSION).src' 'llvm-$(VERSION)' )
   [ -d '$(INTRO_ROOT_DIR)/llvm-$(VERSION)' ]
   [ ! -e '$(INTRO_ROOT_DIR)/llvm-$(VERSION).src' ]
 
-  tar xzvf '$(INTRO_ROOT_DIR)/cfe-$(VERSION).src.tar.gz' -C '$(INTRO_ROOT_DIR)'
+  tar xzf '$(INTRO_ROOT_DIR)/cfe-$(VERSION).src.tar.gz' -C '$(INTRO_ROOT_DIR)'
   [ -d '$(INTRO_ROOT_DIR)/cfe-$(VERSION).src' ]
   ( cd '$(INTRO_ROOT_DIR)' && mv -nT 'cfe-$(VERSION).src' 'llvm-$(VERSION)/tools/clang' )
   [ -d '$(INTRO_ROOT_DIR)/llvm-$(VERSION)/tools/clang' ]
   [ ! -e '$(INTRO_ROOT_DIR)/cfe-$(VERSION).src' ]
 
-  #tar xzvf '$(INTRO_ROOT_DIR)/clang-tools-extra-$(VERSION).src.tar.gz' -C '$(INTRO_ROOT_DIR)'
+  #tar xzf '$(INTRO_ROOT_DIR)/clang-tools-extra-$(VERSION).src.tar.gz' -C '$(INTRO_ROOT_DIR)'
   #[ -d '$(INTRO_ROOT_DIR)/clang-tools-extra-$(VERSION).src' ]
   #( cd '$(INTRO_ROOT_DIR)' && mv -nT 'clang-tools-extra-$(VERSION).src' 'llvm-$(VERSION)/tools/clang/tools/extra' )
   #[ -d '$(INTRO_ROOT_DIR)/llvm-$(VERSION)/tools/clang/tools/extra' ]
   #[ ! -e '$(INTRO_ROOT_DIR)/clang-tools-extra-$(VERSION).src' ]
 
-  tar xzvf '$(INTRO_ROOT_DIR)/compiler-rt-$(VERSION).src.tar.gz' -C '$(INTRO_ROOT_DIR)'
+  tar xzf '$(INTRO_ROOT_DIR)/compiler-rt-$(VERSION).src.tar.gz' -C '$(INTRO_ROOT_DIR)'
   [ -d '$(INTRO_ROOT_DIR)/compiler-rt-$(VERSION).src' ]
   ( cd '$(INTRO_ROOT_DIR)' && mv -nT 'compiler-rt-$(VERSION).src' 'llvm-$(VERSION)/projects/compiler-rt' )
   [ -d '$(INTRO_ROOT_DIR)/llvm-$(VERSION)/projects/compiler-rt' ]

@@ -708,7 +708,7 @@ if [ ! -d "$prefix/boost/$boost_latest" ]; then
   mkdir -p "$prefix/boost"
   pushd "$prefix/boost"
   wget -q -t 3 --no-clobber -- "http://downloads.sourceforge.net/project/boost/boost/$boost_latest/boost_${boost_tag}.tar.bz2"
-  tar xjvf boost_${boost_tag}.tar.bz2
+  tar xjf boost_${boost_tag}.tar.bz2
   rm boost_${boost_tag}.tar.bz2
   mv boost_$boost_tag $boost_latest
   if [ -f "$intro_root/boost/$boost_latest.patch" ]; then
