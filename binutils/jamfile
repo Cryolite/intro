@@ -18,6 +18,9 @@ import "$(INTRO_ROOT_DIR)/compilers"
     get-cflags
     get-cxx
     get-cxxflags
+    get-ar
+    get-ranlib
+    get-nm
     get-environment-commands
     get-property-dump-commands
   ;
@@ -88,7 +91,8 @@ rule make-install ( targets * : sources * : properties * )
   SRCDIR on $(targets) = [ path.native "$(srcdir)" ] ;
 
   local objdir = "$(INTRO_ROOT_DIR)/objdir" ;
-  OBJDIR on $(targets) = [ path.native "$(objdir)" ] ;
+  local objdir-native = [ path.native "$(objdir)" ] ;
+  OBJDIR on $(targets) = "$(objdir-native)" ;
 
   OPTIONS on $(targets) = ;
 
@@ -141,18 +145,76 @@ rule make-install ( targets * : sources * : properties * )
   OPTIONS on $(targets) += "--enable-plugins" ;
 
   local cc = [ get-cc "$(PREFIX)" : $(properties) ] ;
-  local cc-native = [ path.native "$(cc)" ] ;
-  OPTIONS on $(targets) += "CC='$(cc-native)'" ;
+  if "$(cc)" {
+    local cc-native = [ path.native "$(cc)" ] ;
+    OPTIONS on $(targets) += "CC='$(cc-native)'" ;
+  }
 
   local cflags = [ get-cflags $(properties) ] ;
-  OPTIONS on $(targets) += "CFLAGS='$(cflags)'" ;
+  if "$(cflags)" {
+    CFLAGS on $(targets) = "$(cflags)" ;
+    OPTIONS on $(targets) += "CFLAGS='@$(objdir-native)/cflags'" ;
+  }
 
   local cxx = [ get-cxx "$(PREFIX)" : $(properties) ] ;
-  local cxx-native = [ path.native "$(cxx)" ] ;
-  OPTIONS on $(targets) += "CXX='$(cxx-native)'" ;
+  if "$(cxx)" {
+    local cxx-native = [ path.native "$(cxx)" ] ;
+    OPTIONS on $(targets) += "CXX='$(cxx-native)'" ;
+  }
 
   local cxxflags = [ get-cxxflags $(properties) ] ;
-  OPTIONS on $(targets) += "CXXFLAGS='$(cxxflags)'" ;
+  if "$(cxxflags)" {
+    CXXFLAGS on $(targets) = "$(cxxflags)" ;
+    OPTIONS on $(targets) += "CXXFLAGS='@$(objdir-native)/cxxflags'" ;
+  }
+
+  local ar = [ get-ar "$(PREFIX)" : $(properties) ] ;
+  if "$(ar)" {
+    local ar-native = [ path.native "$(ar)" ] ;
+    OPTIONS on $(targets) += "AR='$(ar-native)'" ;
+  }
+
+  local ranlib = [ get-ranlib "$(PREFIX)" : $(properties) ] ;
+  if "$(ranlib)" {
+    local ranlib-native = [ path.native "$(ranlib)" ] ;
+    OPTIONS on $(targets) += "RANLIB='$(ranlib-native)'" ;
+  }
+
+  local nm = [ get-nm "$(PREFIX)" : $(properties) ] ;
+  if "$(nm)" {
+    local nm-native = [ path.native "$(nm)" ] ;
+    OPTIONS on $(targets) += "NM='$(nm-native)'" ;
+  }
+
+  local cc-for-target = [ get-cc "$(PREFIX)" : $(properties) ] ;
+  if "$(cc-for-target)" {
+    local cc-for-target-native = [ path.native "$(cc-for-target)" ] ;
+    OPTIONS on $(targets) += "CC_FOR_TARGET='$(cc-for-target-native)'" ;
+  }
+
+  local cxx-for-target = [ get-cxx "$(PREFIX)" : $(properties) ] ;
+  if "$(cxx-for-target)" {
+    local cxx-for-target-native = [ path.native "$(cxx-for-target)" ] ;
+    OPTIONS on $(targets) += "CXX_FOR_TARGET='$(cxx-for-target-native)'" ;
+  }
+
+  local ar-for-target = [ get-ar "$(PREFIX)" : $(properties) ] ;
+  if "$(ar-for-target)" {
+    local ar-for-target-native = [ path.native "$(ar-for-target)" ] ;
+    OPTIONS on $(targets) += "AR_FOR_TARGET='$(ar-for-target-native)'" ;
+  }
+
+  local ranlib-for-target = [ get-ranlib "$(PREFIX)" : $(properties) ] ;
+  if "$(ranlib-for-target)" {
+    local ranlib-for-target-native = [ path.native "$(ranlib-for-target)" ] ;
+    OPTIONS on $(targets) += "RANLIB_FOR_TARGET='$(ranlib-for-target-native)'" ;
+  }
+
+  local nm-for-target = [ get-nm "$(PREFIX)" : $(properties) ] ;
+  if "$(nm-for-target)" {
+    local nm-for-target-native = [ path.native "$(nm-for-target)" ] ;
+    OPTIONS on $(targets) += "NM_FOR_TARGET='$(nm-for-target-native)'" ;
+  }
 
   local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
   ENVIRONMENT_COMMANDS on $(targets) = $(environment-commands) ;
@@ -188,6 +250,9 @@ $(PROPERTY_DUMP_COMMANDS)
   [ `'$(SRCDIR)/config.sub' $(BUILD_TRIPLET)` = $(BUILD_TRIPLET) ]
   [ `'$(SRCDIR)/config.sub' $(HOST_TRIPLET)` = $(HOST_TRIPLET) ]
   [ `'$(SRCDIR)/config.sub' $(TARGET_TRIPLET)` = $(TARGET_TRIPLET) ]
+
+  ( cd '$(OBJDIR)' && echo -n '$(CFLAGS)' > cflags )
+  ( cd '$(OBJDIR)' && echo -n '$(CXXFLAGS)' > cxxflags )
 
   ( cd '$(OBJDIR)' && '$(SRCDIR)/configure' $(OPTIONS) )
 

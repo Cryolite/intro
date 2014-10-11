@@ -1688,6 +1688,102 @@ rule get-cxxflags ( properties * )
   return "$(result:J= )" ;
 }
 
+rule get-ar ( prefix : properties * : gcc-for-clang ? )
+{
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
+  if ! [ is-valid "$(compiler)" ] {
+    errors.error "an internal error." ;
+  }
+  local prefix-leaf = [ get-prefix-leaf $(properties) ] ;
+  local compiler-prefix = "$(prefix)/$(prefix-leaf)" ;
+  local result ;
+  if [ is-gcc "$(compiler)" ] {
+    local version = [ get-frontend-version "$(compiler)" ] ;
+    if [ SHELL "/usr/bin/env echo -e '$(version)\\n4.8' | sort -V | head -n 1 | tr -d '\\n'" ] = "$(version)" {
+      # GCC older than 4.8.x. `gcc-ar` is not provided.
+      # Do nothing.
+    }
+    else {
+      # GCC newer than or equal to 4.8.x. `gcc-ar` is provided.
+      result = "$(compiler-prefix)/bin/gcc-ar" ;
+    }
+  }
+  else if [ is-clang "$(compiler)" ] {
+    # Do nothing.
+  }
+  else if [ is-icc "$(compiler)" ] {
+    # Do nothing.
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+  return "$(result)" ;
+}
+
+rule get-ranlib ( prefix : properties * : gcc-for-clang ? )
+{
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
+  if ! [ is-valid "$(compiler)" ] {
+    errors.error "an internal error." ;
+  }
+  local prefix-leaf = [ get-prefix-leaf $(properties) ] ;
+  local compiler-prefix = "$(prefix)/$(prefix-leaf)" ;
+  local result ;
+  if [ is-gcc "$(compiler)" ] {
+    local version = [ get-frontend-version "$(compiler)" ] ;
+    if [ SHELL "/usr/bin/env echo -e '$(version)\\n4.8' | sort -V | head -n 1 | tr -d '\\n'" ] = "$(version)" {
+      # GCC older than 4.8.x. `gcc-ranlib` is not provided.
+      # Do nothing.
+    }
+    else {
+      # GCC newer than or equal to 4.8.x. `gcc-ranlib` is provided.
+      result = "$(compiler-prefix)/bin/gcc-ranlib" ;
+    }
+  }
+  else if [ is-clang "$(compiler)" ] {
+    # Do nothing.
+  }
+  else if [ is-icc "$(compiler)" ] {
+    # Do nothing.
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+  return "$(result)" ;
+}
+
+rule get-nm ( prefix : properties * : gcc-for-clang ? )
+{
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
+  if ! [ is-valid "$(compiler)" ] {
+    errors.error "an internal error." ;
+  }
+  local prefix-leaf = [ get-prefix-leaf $(properties) ] ;
+  local compiler-prefix = "$(prefix)/$(prefix-leaf)" ;
+  local result ;
+  if [ is-gcc "$(compiler)" ] {
+    local version = [ get-frontend-version "$(compiler)" ] ;
+    if [ SHELL "/usr/bin/env echo -e '$(version)\\n4.8' | sort -V | head -n 1 | tr -d '\\n'" ] = "$(version)" {
+      # GCC older than 4.8.x. `gcc-nm` is not provided.
+      # Do nothing.
+    }
+    else {
+      # GCC newer than or equal to 4.8.x. `gcc-nm` is provided.
+      result = "$(compiler-prefix)/bin/gcc-nm" ;
+    }
+  }
+  else if [ is-clang "$(compiler)" ] {
+    # Do nothing.
+  }
+  else if [ is-icc "$(compiler)" ] {
+    # Do nothing.
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+  return "$(result)" ;
+}
+
 rule get-environment-commands ( prefix : properties * )
 {
   local commands ;
