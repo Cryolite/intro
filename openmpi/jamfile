@@ -201,8 +201,7 @@ rule make-install ( targets * : sources * : properties * )
     errors.error "an internal error" ;
   }
 
-  OPTIONS on $(targets) += "--disable-mpi-f77" ;
-  OPTIONS on $(targets) += "--disable-mpi-f90" ;
+  OPTIONS on $(targets) += "--disable-mpi-fortran" ;
   OPTIONS on $(targets) += "--disable-mpi-cxx" ;
 
   local link = [ feature.get-values <link> : $(properties) ] ;
