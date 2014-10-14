@@ -53,6 +53,7 @@ args=`getopt                    \
       -l 'without-boost-check'  \
       -l 'enable-clang::'       \
       -l 'enable-valgrind::'    \
+      -l 'enable-cradle::'      \
       -l 'concurrency:'         \
       -o 'an' -- "$@"`
 eval "args=($args)"
@@ -87,6 +88,7 @@ boost=
 boost_check=yes
 clang=
 valgrind=
+cradle=
 concurrency=1
 declare -a delegated_opts
 declare -a delegated_args
@@ -200,6 +202,9 @@ for arg in "${args[@]}"; do
       ;;
     --enable-valgrind)
       prev_arg=--enable-valgrind
+      ;;
+    --enable-cradle)
+      prev_arg=--enable-cradle
       ;;
     --concurrency)
       prev_arg=--concurrency
@@ -450,6 +455,13 @@ for arg in "${args[@]}"; do
         valgrind="$arg"
       fi
       ;;
+    --enable-cradle)
+      if [ -z "$arg" ]; then
+        cradle=trunk
+      else
+        cradle="$arg"
+      fi
+      ;;
     --concurrency)
       if echo "$arg" | grep -Eq '[[:digit:]]+'; then
         concurrency=$arg
@@ -694,6 +706,16 @@ fi
 
 if [ -n "$valgrind" ]; then
   delegated_opts=("${delegated_opts[@]}" --enable-valgrind="$valgrind")
+fi
+
+if [ -n "$cradle" ]; then
+  if [ "$cradle" = trunk ]; then
+    "$intro_root/cradle/checkout.sh"
+  else
+    echo "error: an invalid value \`$cradle' for \`--enable-cradle'" >&2
+    exit 1
+  fi
+  delegated_opts=("${delegated_opts[@]}" --enable-cradle="$cradle")
 fi
 
 if [ -n "$concurrency" ]; then
