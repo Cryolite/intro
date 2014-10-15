@@ -49,6 +49,7 @@
 /llvm-*/
 /valgrind-*.tar.bz2
 /valgrind-*/
+/cradle-*/
 /objdir/
 /objdir_*/
 *.log

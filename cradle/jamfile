@@ -1,0 +1,184 @@
+project intro/cradle ;
+
+import alias ;
+import errors ;
+import feature ;
+import make ;
+import path ;
+import regex ;
+import "$(INTRO_ROOT_DIR)/compilers"
+  : is-gcc
+    is-clang
+    is-icc
+    get-compiler-prefix
+    get-full-prefix
+    get-environment-commands
+    get-property-dump-commands
+  ;
+
+.here = [ regex.match "Jamfile<(.*)>" : "$(__name__)" : 1 ] ;
+.here = [ path.make "$(.here)" ] ;
+.here-relative = [ path.relative "$(.here)" "$(INTRO_ROOT_DIR)" ] ;
+
+
+rule compiler-dep-req ( properties * )
+{
+  local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
+  local result ;
+  if [ is-gcc "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
+  }
+  else if [ is-clang "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
+    result += "<source>../clang//install" ;
+  }
+  else if [ is-icc "$(compiler)" ] {
+    result += "<source>../gcc//install" ;
+    result += "<source>../icc//install" ;
+  }
+  else {
+    errors.error "an internal error." ;
+  }
+  return $(result) ;
+}
+
+alias compiler-dep : : <conditional>@compiler-dep-req ;
+explicit compiler-dep ;
+
+
+rule srcdir-timestamp-file-req ( properties * )
+{
+  local version = [ feature.get-values <cradle-hidden> : $(properties) ] ;
+  return "<source>$(INTRO_ROOT_DIR)/cradle-$(version)/ec4b02af-dcb1-45fe-9f8f-00930cb82c14" ;
+}
+
+alias srcdir-timestamp-file : : <conditional>@srcdir-timestamp-file-req ;
+explicit srcdir-timestamp-file ;
+
+
+rule cradle-check-conditional ( properties * )
+{
+  local result ;
+
+  # Cradle requires Boost.Exception library that is built only as static libraries.
+  local link = [ feature.get-values <link> : $(properties) ] ;
+  switch "$(link)" {
+  case "shared" :
+    result += "<source>../boost//install/<link>shared" ;
+    result += "<source>../boost//install/<link>static" ;
+  case "static" :
+    result += "<source>../boost//install" ;
+  case "*" :
+    errors.error "<link>$(link): unknown property" ;
+  }
+
+  local full-prefix = [ get-full-prefix "$(PREFIX)" : $(properties) ] ;
+  result += "<location>$(full-prefix)" ;
+  return "$(result)" ;
+}
+
+make cradle.check
+  : compiler-dep
+    ../icu4c//install
+    srcdir-timestamp-file
+  : @make-install
+  : $(USE_COMPILER)
+    $(USE_MULTITARGET)
+    $(USE_ICU4C)
+    $(USE_BOOST)
+    $(USE_CRADLE)
+    <conditional>@cradle-check-conditional
+  ;
+explicit cradle.check ;
+
+rule make-install ( targets * : sources * : properties * )
+{
+  HERE on $(targets) = [ path.native "$(.here)" ] ;
+  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
+
+  # Sets the path to the source directory.
+  local version = [ feature.get-values <cradle> : $(properties) ] ;
+  local srcdir = "$(INTRO_ROOT_DIR)/cradle-$(version)" ;
+  SRCDIR on $(targets) = [ path.native "$(srcdir)" ] ;
+
+  OPTIONS on $(targets) = ;
+
+  local compiler = [ feature.get-values <compiler> : $(properties) ] ;
+  local compiler-prefix = [ get-compiler-prefix "$(PREFIX)" : $(properties) ] ;
+  if [ is-gcc "$(compiler)" ] {
+    OPTIONS on $(targets) += "toolset=`'$(INTRO_ROOT_DIR)/boost/toolset.sh' '$(compiler-prefix)/bin/g++-wrapper'`" ;
+  }
+  else if [ is-clang "$(compiler)" ] {
+    OPTIONS on $(targets) += "toolset=`'$(INTRO_ROOT_DIR)/boost/toolset.sh' '$(compiler-prefix)/bin/clang++-wrapper'`" ;
+  }
+  else if [ is-icc "$(compiler)" ] {
+    OPTIONS on $(targets) += "toolset=`'$(INTRO_ROOT_DIR)/boost/toolset.sh' '$(compiler-prefix)/bin/icpc-wrapper'`" ;
+  }
+  else {
+    errors.error "an internal error" ;
+  }
+
+  local variant = [ feature.get-values <variant> : $(properties) ] ;
+  OPTIONS on $(targets) += "variant=$(variant)" ;
+
+  local link = [ feature.get-values <link> : $(properties) ] ;
+  OPTIONS on $(targets) += "link=$(link)" ;
+
+  OPTIONS on $(targets) += "runtime-link=shared" ;
+
+  local threading = [ feature.get-values <threading> : $(properties) ] ;
+  OPTIONS on $(targets) += "threading=$(threading)" ;
+
+  local address-model = [ feature.get-values <address-model> : $(properties) ] ;
+  OPTIONS on $(targets) += "address-model=$(address-model)" ;
+
+  local instruction-set = [ feature.get-values <instruction-set> : $(properties) ] ;
+  OPTIONS on $(targets) += "instruction-set=$(instruction-set)" ;
+
+  local std = [ feature.get-values <std> : $(properties) ] ;
+  OPTIONS on $(targets) += "std=$(std)" ;
+
+  local lto = [ feature.get-values <lto> : $(properties) ] ;
+  OPTIONS on $(targets) += "lto=$(lto)" ;
+
+  local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
+  OPTIONS on $(targets) += "memory-checker=$(memory-checker)" ;
+
+  local libstdcxx-debug-mode = [ feature.get-values <libstdc++-debug-mode> : $(properties) ] ;
+  OPTIONS on $(targets) += "libstdc++-debug-mode=$(libstdcxx-debug-mode)" ;
+
+  local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;
+  ENVIRONMENT_COMMANDS on $(targets) = "$(environment-commands)" ;
+
+  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
+}
+actions make-install
+{
+  bash -s << 'EOS'
+  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
+$(ENVIRONMENT_COMMANDS)
+$(PROPERTY_DUMP_COMMANDS)
+  LINENO_ADJ=`grep -Fn ee400a38-ed93-4340-af91-fc3a4bf18363 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
+  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
+  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
+  set -ex
+
+  (cd '$(SRCDIR)' && rm -rf bin)
+
+  cleanup ()
+  {
+    (cd '$(SRCDIR)' && rm -rf bin)
+  }
+  trap cleanup ERR HUP INT QUIT TERM
+
+  (cd '$(SRCDIR)/test' && "$(PREFIX)/bin/bjam" -d+2 -j$(CONCURRENCY) --with-intro $(OPTIONS) cradle-checking=on,off cradle-xunit-log-format=xml)
+
+  (cd '$(SRCDIR)' && rm -rf bin)
+
+  touch '$(<)'
+EOS
+}
+
+
+alias install : cradle.check ;
+explicit install ;

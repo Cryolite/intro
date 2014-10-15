@@ -855,6 +855,21 @@ else {
 }
 
 
+local cradle = [ option.get enable-cradle : : IMPLIED ] ;
+if "$(cradle)" = IMPLIED {
+  errors.error "`--enable-cradle' should be specified with a value" ;
+}
+if "$(cradle)" {
+  if "$(cradle)" != trunk {
+    errors.error "an invalid value `$(cradle)' for `--enable-cradle'" ;
+  }
+  ECHO "cradle... $(cradle)" ;
+}
+else {
+  ECHO "cradle... N/A" ;
+}
+
+
 local concurrency = [ option.get "concurrency" : "1" : "IMPLIED" ] ;
 if "$(concurrency)" = "IMPLIED" {
   errors.error "ERROR: No value is specified for `--concurrency' option." ;
@@ -1101,6 +1116,14 @@ if "$(valgrind)" {
 }
 else {
   ECHO VALGRIND... N/A ;
+}
+
+if "$(cradle)" {
+  constant CRADLE : "$(cradle)" ;
+  ECHO CRADLE... $(cradle) ;
+}
+else {
+  ECHO CRADLE... N/A ;
 }
 
 constant CONCURRENCY : "$(concurrency)" ;
@@ -1363,6 +1386,16 @@ feature valgrind-hidden : [ feature.values <valgrind> ] : propagated incidental 
   constant USE_VALGRIND : $(use-valgrind) ;
 }
 
+feature cradle        : unspecified $(cradle)       :                       ;
+feature cradle-hidden : [ feature.values <cradle> ] : propagated incidental ;
+{
+  local use-cradle ;
+  for local val in [ feature.values <cradle> ] {
+    use-cradle += <cradle-hidden>$(val):<cradle>$(val) ;
+  }
+  constant USE_CRADLE : $(use-cradle) ;
+}
+
 local default-bits = [ get-default-bits ] ;
 
 local default-host-os = [ feature.get-values "<host-os>" : [ feature.defaults "<host-os>" ] ] ;
@@ -1414,6 +1447,9 @@ for local enabled-compiler in $(enabled-compilers) {
   if "$(valgrind)" {
     srcs += "valgrind//install" ;
   }
+  if "$(cradle)" {
+    srcs += "cradle//install" ;
+  }
 
   if [ is-gcc "$(enabled-compiler)" ] {
     if "$(clang)" {
@@ -1447,6 +1483,7 @@ for local enabled-compiler in $(enabled-compilers) {
         <mpi-backend-hidden>$(mpi-backend)
         <clang-hidden>$(clang)
         <valgrind-hidden>$(valgrind)
+        <cradle-hidden>$(cradle)
       ;
     }
     else {
@@ -1478,6 +1515,7 @@ for local enabled-compiler in $(enabled-compilers) {
             <boost-hidden>$(boost)
             <clang-hidden>$(clang)
             <valgrind-hidden>$(valgrind)
+            <cradle-hidden>$(cradle)
           ;
       }
     }
@@ -1511,6 +1549,7 @@ for local enabled-compiler in $(enabled-compilers) {
         <mpi-backend-hidden>$(mpi-backend)
         <boost-hidden>$(boost)
         <valgrind-hidden>$(valgrind)
+        <cradle-hidden>$(cradle)
       ;
   }
   else if [ is-icc "$(enabled-compiler)" ] {
@@ -1546,6 +1585,7 @@ for local enabled-compiler in $(enabled-compilers) {
         <boost-hidden>$(boost)
         <clang-hidden>$(clang)
         <valgrind-hidden>$(valgrind)
+        <cradle-hidden>$(cradle)
       ;
   }
   else {
