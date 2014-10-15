@@ -56,16 +56,30 @@ alias srcdir-timestamp-file : : <conditional>@srcdir-timestamp-file-req ;
 explicit srcdir-timestamp-file ;
 
 
-rule location-conditional ( properties * )
+rule cradle-check-conditional ( properties * )
 {
+  local result ;
+
+  # Cradle requires Boost.Exception library that is built only as static libraries.
+  local link = [ feature.get-values <link> : $(properties) ] ;
+  switch "$(link)" {
+  case "shared" :
+    result += "<source>../boost//install/<link>shared" ;
+    result += "<source>../boost//install/<link>static" ;
+  case "static" :
+    result += "<source>../boost//install" ;
+  case "*" :
+    errors.error "<link>$(link): unknown property" ;
+  }
+
   local full-prefix = [ get-full-prefix "$(PREFIX)" : $(properties) ] ;
-  return "<location>$(full-prefix)" ;
+  result += "<location>$(full-prefix)" ;
+  return "$(result)" ;
 }
 
 make cradle.check
   : compiler-dep
     ../icu4c//install
-    ../boost//install
     srcdir-timestamp-file
   : @make-install
   : $(USE_COMPILER)
@@ -73,7 +87,7 @@ make cradle.check
     $(USE_ICU4C)
     $(USE_BOOST)
     $(USE_CRADLE)
-    <conditional>@location-conditional
+    <conditional>@cradle-check-conditional
   ;
 explicit cradle.check ;
 
