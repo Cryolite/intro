@@ -48,14 +48,14 @@ rule download ( targets * : sources * : properties * )
   }
   local version = [ get-frontend-version "$(compiler)" ] ;
   if [ is-gcc-release "$(compiler)" ] {
-    URLS on $(targets)  = "'http://core.ring.gr.jp/pub/lang/egcs/releases/gcc-$(version)/gcc-$(version).tar.bz2'" ;
-    URLS on $(targets) += "'http://ftp.dti.ad.jp/pub/lang/gcc/releases/gcc-$(version)/gcc-$(version).tar.bz2'" ;
+    URLS on $(targets)  = "'http://ftp.kddilabs.jp/gnusoftware/gcc.gnu.org/gcc/releases/gcc-$(version)/gcc-$(version).tar.bz2'" ;
     URLS on $(targets) += "'http://ftp.tsukuba.wide.ad.jp/software/gcc/releases/gcc-$(version)/gcc-$(version).tar.bz2'" ;
+    URLS on $(targets) += "'http://core.ring.gr.jp/pub/lang/egcs/releases/gcc-$(version)/gcc-$(version).tar.bz2'" ;
   }
   else if [ is-gcc-snapshot "$(compiler)" ] {
-    URLS on $(targets)  = "'http://core.ring.gr.jp/pub/lang/egcs/snapshots/$(version)/gcc-$(version).tar.bz2'" ;
-    URLS on $(targets) += "'http://ftp.dti.ad.jp/pub/lang/gcc/snapshots/$(version)/gcc-$(version).tar.bz2'" ;
+    URLS on $(targets)  = "'http://ftp.kddilabs.jp/gnusoftware/gcc.gnu.org/gcc/snapshots/$(version)/gcc-$(version).tar.bz2'" ;
     URLS on $(targets) += "'http://ftp.tsukuba.wide.ad.jp/software/gcc/snapshots/$(version)/gcc-$(version).tar.bz2'" ;
+    URLS on $(targets) += "'http://core.ring.gr.jp/pub/lang/egcs/snapshots/$(version)/gcc-$(version).tar.bz2'" ;
   }
   else {
     errors.error "an internal error." ;
