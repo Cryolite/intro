@@ -2,7 +2,7 @@
 
 set -e
 
-intro_root="$(cd "$(dirname "$0")"; pwd)"
+intro_root="$(cd "$(dirname "$0")"; cd ..; pwd)"
 grep -Fq c20aed5f-b2d1-4ea8-af24-37acb51a17ec "$intro_root/gcc/versions.sh"
 
 urls=(http://{ftp.kddilabs.jp/gnusoftware/gcc.gnu.org/gcc,ftp.tsukuba.wide.ad.jp/software/gcc,core.ring.gr.jp/pub/lang/egcs}/{releases,snapshots}/)
