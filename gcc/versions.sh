@@ -2,10 +2,10 @@
 
 set -e
 
-intro_root="$(cd "$(dirname "$0")"; pwd)"
-grep -Fq c20aed5f-b2d1-4ea8-af24-37acb51a17ec "$intro_root/gcc-release-versions.sh"
+intro_root="$(cd "$(dirname "$0")"; cd ..; pwd)"
+grep -Fq c20aed5f-b2d1-4ea8-af24-37acb51a17ec "$intro_root/gcc/versions.sh"
 
-urls=(http://{core.ring.gr.jp/pub/lang/egcs,ftp.dti.ad.jp/pub/lang/gcc,ftp.tsukuba.wide.ad.jp/software/gcc}/{releases,snapshots}/)
+urls=(http://{ftp.kddilabs.jp/gnusoftware/gcc.gnu.org/gcc,ftp.tsukuba.wide.ad.jp/software/gcc,core.ring.gr.jp/pub/lang/egcs}/{releases,snapshots}/)
 timeout=30
 
 tempdir="$(mktemp -d)"
