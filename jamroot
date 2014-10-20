@@ -20,7 +20,6 @@ import "$(INTRO_ROOT_DIR)/compilers"
 "$(INTRO_ROOT_DIR)/compilers.init" "$(INTRO_ROOT_DIR)" ;
 
 
-local .gcovr-latest ;
 local .opencv-latest ;
 local .gmp-latest ;
 local .mpfr-latest ;
@@ -41,17 +40,6 @@ local rule get-boost-latest-version ( )
     }
   }
   return "$(.boost-latest)" ;
-}
-
-local rule get-gcovr-latest-version ( )
-{
-  if ! "$(.gcovr-latest)" {
-    .gcovr-latest = [ SHELL "'$(INTRO_ROOT_DIR)/gcovr/latest.sh' || echo -n error" ] ;
-    if "$(.gcovr-latest)" = error {
-      errors.error "failed to extract gcovr latest version." ;
-    }
-  }
-  return "$(.gcovr-latest)" ;
 }
 
 local rule get-opencv-latest-version ( )
@@ -457,13 +445,13 @@ else {
 }
 
 
-local gcovr = [ option.get "enable-gcovr" : : "latest" ] ;
-if "$(gcovr)" = latest {
-  gcovr = [ get-gcovr-latest-version ] ;
+local gcovr = [ option.get enable-gcovr : : IMPLIED ] ;
+if "$(gcovr)" = IMPLIED {
+  errors.error "`--enable-gcovr' should be specified with a value" ;
 }
 if "$(gcovr)" {
-  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)$" : "$(gcovr)" : 1 ] {
-    errors.error "an invalid value `$(gcovr)' for `--enable-gcovr'." ;
+  if ! [ regex.match "^([0-9]+\\.[0-9]+)$" : "$(gcovr)" : 1 ] {
+    errors.error "an invalid value `$(gcovr)' for `--enable-gcovr'" ;
   }
   ECHO "gcovr... $(gcovr)" ;
 }

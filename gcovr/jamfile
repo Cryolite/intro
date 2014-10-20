@@ -42,45 +42,14 @@ alias compiler-dep : : <conditional>@compiler-dep-req ;
 explicit compiler-dep ;
 
 
-make "$(INTRO_ROOT_DIR)/gcovr-$(GCOVR)/README.txt" : : @export ;
-explicit "$(INTRO_ROOT_DIR)/gcovr-$(GCOVR)/README.txt" ;
-
-rule export ( targets * : sources * : properties * )
-{
-  HERE on $(targets) = [ path.native "$(.here)" ] ;
-  HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
-  local version = [ feature.get-values <gcovr-hidden> : $(properties) ] ;
-  VERSION on $(targets) = "$(version)" ;
-  PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
-}
-actions export
-{
-  bash -s << 'EOS'
-  exec >> '$(STDOUT_)' 2>> '$(STDERR_)'
-$(PROPERTY_DUMP_COMMANDS)
-  LINENO_ADJ=`grep -Fn c7201563-8030-48ca-af11-da32a10345d6 '$(HERE)/jamfile' | grep -Eo '^[[:digit:]]+'`
-  LINENO_ADJ=`expr $LINENO_ADJ - $LINENO + 1`
-  PS4='+$(HERE_RELATIVE)/jamfile:`expr $LINENO + $LINENO_ADJ`: '
-  set -ex
-  rm -r '$(<:D)'
-  trap "rm -r '$(<:D)'" ERR HUP INT QUIT TERM
-  # `gcovr` script includes `$Date$` keyword, and `svn export` will replace
-  # it with local time. However, in some locales (e.g. `ja_JP.UTF-8`) it
-  # makes trouble because of non-ASCII characters.
-  ( cd '$(INTRO_ROOT_DIR)' && LANG=C LC_ALL=C LC_TIME=C svn export --non-interactive --trust-server-cert 'https://software.sandia.gov/svn/public/fast/gcovr/tags/$(VERSION)' 'gcovr-$(VERSION)' )
-  [ -f '$(<)' ]
-EOS
-}
-
-
-rule srcdir-req ( properties * )
+rule srcdir-timestamp-file-req ( properties * )
 {
   local version = [ feature.get-values <gcovr-hidden> : $(properties) ] ;
-  return "<source>$(INTRO_ROOT_DIR)/gcovr-$(version)/README.txt/$(DEFAULT_PROPERTIES)" ;
+  return "<source>$(INTRO_ROOT_DIR)/gcovr-$(version)/fb301e39-8f74-4e35-8428-9b3b48a324bc" ;
 }
 
-alias srcdir : : <conditional>@srcdir-req ;
-explicit srcdir ;
+alias srcdir-timestamp-file : : <conditional>@srcdir-timestamp-file-req ;
+explicit srcdir-timestamp-file ;
 
 
 rule location-conditional ( properties * )
@@ -91,7 +60,7 @@ rule location-conditional ( properties * )
 
 make gcovr
   : compiler-dep
-    srcdir
+    srcdir-timestamp-file
   : @make-install
   : $(USE_COMPILER)
     $(USE_GCOVR)
