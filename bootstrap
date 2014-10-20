@@ -592,7 +592,16 @@ if [ -n "$lcov" ]; then
 fi
 
 if [ -n "$gcovr" ]; then
-  delegated_opts=("${delegated_opts[@]}" --enable-gcovr="$gcovr")
+    if [ "$gcovr" = latest ]; then
+        gcovr="$("$intro_root/gcovr/latest.sh")"
+    fi
+    if echo "$gcovr" | grep -Eq '^[[:digit:]]+\.[[:digit:]]+$'; then
+        "$intro_root/gcovr/download.sh" "$gcovr"
+    else
+        echo "error: an invalid value \`$gcovr' for \`--enable-gcovr'" >&2
+        exit 1
+    fi
+    delegated_opts=("${delegated_opts[@]}" --enable-gcovr="$gcovr")
 fi
 
 if [ -n "$gdb" ]; then
