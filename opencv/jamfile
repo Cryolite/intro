@@ -15,9 +15,9 @@ import "$(INTRO_ROOT_DIR)/compilers"
     get-cflags
     get-cxx
     get-cxxflags
-    get-ar
-    get-ranlib
-    get-nm
+    get-ar-command-substitution
+    get-ranlib-command-substitution
+    get-nm-command-substitution
     get-environment-commands
     get-property-dump-commands
   ;
@@ -230,22 +230,19 @@ rule make-install ( targets * : sources * : properties * )
     OPTIONS on $(targets) += "-D CMAKE_CXX_FLAGS='@$(objdir-native)/cxxflags'" ;
   }
 
-  local ar = [ get-ar "$(PREFIX)" : $(properties) ] ;
-  if "$(ar)" {
-    local ar-native = [ path.native "$(ar)" ] ;
-    OPTIONS on $(targets) += "AR='$(ar-native)'" ;
+  local ar-command-substitution = [ get-ar-command-substitution "$(PREFIX)" : $(properties) ] ;
+  if "$(ar-command-substitution)" {
+    OPTIONS on $(targets) += "AR=\"$(ar-command-substitution)\"" ;
   }
 
-  local ranlib = [ get-ranlib "$(PREFIX)" : $(properties) ] ;
-  if "$(ranlib)" {
-    local ranlib-native = [ path.native "$(ranlib)" ] ;
-    OPTIONS on $(targets) += "RANLIB='$(ranlib-native)'" ;
+  local ranlib-command-substitution = [ get-ranlib-command-substitution "$(PREFIX)" : $(properties) ] ;
+  if "$(ranlib-command-substitution)" {
+    OPTIONS on $(targets) += "RANLIB=\"$(ranlib-command-substitution)\"" ;
   }
 
-  local nm = [ get-nm "$(PREFIX)" : $(properties) ] ;
-  if "$(nm)" {
-    local nm-native = [ path.native "$(nm)" ] ;
-    OPTIONS on $(targets) += "NM='$(nm-native)'" ;
+  local nm-command-substitution = [ get-nm-command-substitution "$(PREFIX)" : $(properties) ] ;
+  if "$(nm-command-substitution)" {
+    OPTIONS on $(targets) += "NM=\"$(nm-command-substitution)\"" ;
   }
 
   local environment-commands = [ get-environment-commands "$(PREFIX)" : $(properties) ] ;

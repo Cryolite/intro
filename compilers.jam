@@ -1688,7 +1688,7 @@ rule get-cxxflags ( properties * )
   return "$(result:J= )" ;
 }
 
-rule get-ar ( prefix : properties * : gcc-for-clang ? )
+rule get-ar-command-substitution ( prefix : properties * : gcc-for-clang ? )
 {
   local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
   if ! [ is-valid "$(compiler)" ] {
@@ -1705,7 +1705,7 @@ rule get-ar ( prefix : properties * : gcc-for-clang ? )
     }
     else {
       # GCC newer than or equal to 4.8.x. `gcc-ar` is provided.
-      result = "$(compiler-prefix)/bin/gcc-ar" ;
+      result = "`if '$(compiler-prefix)/bin/gcc-ar' -h | grep -Eq 'supported targets:.*[[:space:]]plugin([[:space:]]|$)'; then echo '$(compiler-prefix)/bin/gcc-ar'; else which ar; fi`" ;
     }
   }
   else if [ is-clang "$(compiler)" ] {
@@ -1720,7 +1720,7 @@ rule get-ar ( prefix : properties * : gcc-for-clang ? )
   return "$(result)" ;
 }
 
-rule get-ranlib ( prefix : properties * : gcc-for-clang ? )
+rule get-ranlib-command-substitution ( prefix : properties * : gcc-for-clang ? )
 {
   local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
   if ! [ is-valid "$(compiler)" ] {
@@ -1737,7 +1737,7 @@ rule get-ranlib ( prefix : properties * : gcc-for-clang ? )
     }
     else {
       # GCC newer than or equal to 4.8.x. `gcc-ranlib` is provided.
-      result = "$(compiler-prefix)/bin/gcc-ranlib" ;
+      result = "`if '$(compiler-prefix)/bin/gcc-ranlib' -h | grep -Eq 'supported targets:.*[[:space:]]plugin([[:space:]]|$)'; then echo '$(compiler-prefix)/bin/gcc-ranlib'; else which ranlib; fi`" ;
     }
   }
   else if [ is-clang "$(compiler)" ] {
@@ -1752,7 +1752,7 @@ rule get-ranlib ( prefix : properties * : gcc-for-clang ? )
   return "$(result)" ;
 }
 
-rule get-nm ( prefix : properties * : gcc-for-clang ? )
+rule get-nm-command-substitution ( prefix : properties * : gcc-for-clang ? )
 {
   local compiler = [ feature.get-values <compiler-hidden> : $(properties) ] ;
   if ! [ is-valid "$(compiler)" ] {
@@ -1769,7 +1769,7 @@ rule get-nm ( prefix : properties * : gcc-for-clang ? )
     }
     else {
       # GCC newer than or equal to 4.8.x. `gcc-nm` is provided.
-      result = "$(compiler-prefix)/bin/gcc-nm" ;
+      result = "`if '$(compiler-prefix)/bin/gcc-nm' -h | grep -Eq 'supported targets:.*[[:space:]]plugin([[:space:]]|$)'; then echo '$(compiler-prefix)/bin/gcc-nm'; else which nm; fi`" ;
     }
   }
   else if [ is-clang "$(compiler)" ] {
