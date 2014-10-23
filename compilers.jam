@@ -1742,11 +1742,10 @@ rule get-ranlib-command-substitution ( prefix : properties * : gcc-for-clang ? )
     }
     else {
       #  GCC newer than or equal to 4.8.x. `gcc-ranlib` is provided.
-      #  `gcc-ranlib -h` prints the message "sorry - this program has been
-      # built without plugin support" to the standard error output if the
-      # underlying `ranlib` has not been built with plugin support. The
-      # redirection `2>/dev/null` in the following suppresses the annoying
-      # message.
+      #  `gcc-ranlib -h` prints the message " '--plugin': No such file" to
+      # the standard error output if the underlying `ranlib` has not been
+      # built with plugin support. The redirection `2>/dev/null` in the
+      # following suppresses the annoying message.
       result = "`if '$(compiler-prefix)/bin/gcc-ranlib' -h 2>/dev/null | grep -Eq 'supported targets:.*[[:space:]]plugin([[:space:]]|$)'; then echo '$(compiler-prefix)/bin/gcc-ranlib'; else which ranlib; fi`" ;
     }
   }
