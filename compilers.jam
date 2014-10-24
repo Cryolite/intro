@@ -1704,8 +1704,13 @@ rule get-ar-command-substitution ( prefix : properties * : gcc-for-clang ? )
       # Do nothing.
     }
     else {
-      # GCC newer than or equal to 4.8.x. `gcc-ar` is provided.
-      result = "`if '$(compiler-prefix)/bin/gcc-ar' -h | grep -Eq 'supported targets:.*[[:space:]]plugin([[:space:]]|$)'; then echo '$(compiler-prefix)/bin/gcc-ar'; else which ar; fi`" ;
+      #  GCC newer than or equal to 4.8.x. `gcc-ar` is provided.
+      #  `gcc-ar -h` prints the message "sorry - this program has been built
+      # without plugin support" to the standard error output if the
+      # underlying `ar` has not been built with plugin support. The
+      # redirection `2>/dev/null` in the following suppresses the annoying
+      # message.
+      result = "`if '$(compiler-prefix)/bin/gcc-ar' -h 2>/dev/null | grep -Eq 'supported targets:.*[[:space:]]plugin([[:space:]]|$)'; then echo '$(compiler-prefix)/bin/gcc-ar'; else which ar; fi`" ;
     }
   }
   else if [ is-clang "$(compiler)" ] {
@@ -1736,8 +1741,12 @@ rule get-ranlib-command-substitution ( prefix : properties * : gcc-for-clang ? )
       # Do nothing.
     }
     else {
-      # GCC newer than or equal to 4.8.x. `gcc-ranlib` is provided.
-      result = "`if '$(compiler-prefix)/bin/gcc-ranlib' -h | grep -Eq 'supported targets:.*[[:space:]]plugin([[:space:]]|$)'; then echo '$(compiler-prefix)/bin/gcc-ranlib'; else which ranlib; fi`" ;
+      #  GCC newer than or equal to 4.8.x. `gcc-ranlib` is provided.
+      #  `gcc-ranlib -h` prints the message " '--plugin': No such file" to
+      # the standard error output if the underlying `ranlib` has not been
+      # built with plugin support. The redirection `2>/dev/null` in the
+      # following suppresses the annoying message.
+      result = "`if '$(compiler-prefix)/bin/gcc-ranlib' -h 2>/dev/null | grep -Eq 'supported targets:.*[[:space:]]plugin([[:space:]]|$)'; then echo '$(compiler-prefix)/bin/gcc-ranlib'; else which ranlib; fi`" ;
     }
   }
   else if [ is-clang "$(compiler)" ] {
@@ -1768,8 +1777,13 @@ rule get-nm-command-substitution ( prefix : properties * : gcc-for-clang ? )
       # Do nothing.
     }
     else {
-      # GCC newer than or equal to 4.8.x. `gcc-nm` is provided.
-      result = "`if '$(compiler-prefix)/bin/gcc-nm' -h | grep -Eq 'supported targets:.*[[:space:]]plugin([[:space:]]|$)'; then echo '$(compiler-prefix)/bin/gcc-nm'; else which nm; fi`" ;
+      #  GCC newer than or equal to 4.8.x. `gcc-nm` is provided.
+      #  `gcc-nm -h` prints the message "sorry - this program has been built
+      # without plugin support" to the standard error output if the
+      # underlying `nm` has not been built with plugin support. The
+      # redirection `2>/dev/null` in the following suppresses the annoying
+      # message.
+      result = "`if '$(compiler-prefix)/bin/gcc-nm' -h 2>/dev/null | grep -Eq 'supported targets:.*[[:space:]]plugin([[:space:]]|$)'; then echo '$(compiler-prefix)/bin/gcc-nm'; else which nm; fi`" ;
     }
   }
   else if [ is-clang "$(compiler)" ] {
