@@ -53,8 +53,8 @@ explicit compiler-dep ;
 
 
 for local version in $(OPENCV_VERSIONS) {
-  make "$(INTRO_ROOT_DIR)/opencv-$(version).tar.gz" : : @download ;
-  explicit "$(INTRO_ROOT_DIR)/opencv-$(version).tar.gz" ;
+  make "$(INTRO_ROOT_DIR)/opencv-$(version).zip" : : @download ;
+  explicit "$(INTRO_ROOT_DIR)/opencv-$(version).zip" ;
 }
 
 rule download ( targets * : sources * : properties * )
@@ -62,7 +62,7 @@ rule download ( targets * : sources * : properties * )
   HERE on $(targets) = [ path.native "$(.here)" ] ;
   HERE_RELATIVE on $(targets) = [ path.native "$(.here-relative)" ] ;
   local version = [ feature.get-values <opencv-hidden> : $(properties) ] ;
-  URLS on $(targets)  = http://downloads.sourceforge.net/project/opencvlibrary/opencv-unix/$(version)/opencv-$(version).tar.gz ;
+  URLS on $(targets)  = http://downloads.sourceforge.net/project/opencvlibrary/opencv-unix/$(version)/opencv-$(version).zip ;
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
 actions download
@@ -85,7 +85,7 @@ EOS
 
 
 for local version in $(OPENCV_VERSIONS) {
-  # Use `README' file as a target representing the completion of
+  # Use `README.md' file as a target representing the completion of
   # decompression action. It is suitable for the purpose because of the
   # following reasons;
   #
@@ -93,11 +93,11 @@ for local version in $(OPENCV_VERSIONS) {
   #     changes.
   #   - This file won't be modified during the build procedure.
   #
-  make "$(INTRO_ROOT_DIR)/opencv-$(version)/README"
-    : "$(INTRO_ROOT_DIR)/opencv-$(version).tar.gz"
+  make "$(INTRO_ROOT_DIR)/opencv-$(version)/README.md"
+    : "$(INTRO_ROOT_DIR)/opencv-$(version).zip"
     : @expand
     ;
-  explicit "$(INTRO_ROOT_DIR)/opencv-$(version)/README" ;
+  explicit "$(INTRO_ROOT_DIR)/opencv-$(version)/README.md" ;
 }
 
 rule expand ( targets * : sources * : properties * )
@@ -118,7 +118,7 @@ $(PROPERTY_DUMP_COMMANDS)
   rm -rf '$(<:D)'
   [ -f '$(>)' ]
   trap "rm -rf '$(>)' '$(<:D)'" ERR HUP INT QUIT TERM
-  tar xzf '$(>)' -C '$(INTRO_ROOT_DIR)'
+  (cd '$(INTRO_ROOT_DIR)' && unzip -q '$(>)')
   # If the timestamp of the tarball's contents is restored, the modification
   # time of the source directory could be older than the one of the tarball.
   # Such behavior is not desirable because the decompression always happens.
@@ -132,7 +132,7 @@ EOS
 rule srcdir-req ( properties * )
 {
   local version = [ feature.get-values <opencv-hidden> : $(properties) ] ;
-  return "<source>$(INTRO_ROOT_DIR)/opencv-$(version)/README/$(DEFAULT_PROPERTIES)" ;
+  return "<source>$(INTRO_ROOT_DIR)/opencv-$(version)/README.md/$(DEFAULT_PROPERTIES)" ;
 }
 
 alias srcdir : : <conditional>@srcdir-req ;
