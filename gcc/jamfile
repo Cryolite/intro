@@ -131,7 +131,24 @@ $(PROPERTY_DUMP_COMMANDS)
   trap "rm -rf '$(>)' '$(<:D)'" ERR HUP INT QUIT TERM
   tar xjf '$(>)' -C '$(INTRO_ROOT_DIR)'
   if [ -f '$(INTRO_ROOT_DIR)/gcc/$(VERSION).patch' ]; then
-    ( cd '$(<:D)' && patch -F 0 -p0 < '$(INTRO_ROOT_DIR)/gcc/$(VERSION).patch' )
+    (cd '$(<:D)' && patch -F 0 -p0 <'$(INTRO_ROOT_DIR)/gcc/$(VERSION).patch')
+  else
+    tmp="`cd '$(INTRO_ROOT_DIR)/gcc' && ls -1 *.patch`"
+    tmp="`echo "$tmp" | grep -Eo '[[:digit:]]+\.[[:digit:]]+\.[[:digit:]]+'`"
+    patch_versions="`echo -en '$(VERSION)'\\\\n"$tmp" | sort -V`"
+    tmp="`echo "$patch_versions" | grep -Fn '$(VERSION)'`"
+    echo "$tmp" | grep -Eq '^[[:digit:]]+:$(VERSION)'
+    tmp="`echo "$tmp" | tail -n 1 | grep -Eo '^[[:digit:]]+'`"
+    if [ "$tmp" -gt 1 ]; then
+      tmp=`expr "$tmp" - 1`
+      tmp="`echo "$patch_versions" | tail -n +$tmp`"
+      echo "$tmp" | grep -Fn '$(VERSION)' | grep -Eq '^2:'
+      latest_patch_version="`echo "$tmp" | head -n 1`"
+      (cd '$(<:D)' && patch -F 0 -p0 <'$(INTRO_ROOT_DIR)'/gcc/"$latest_patch_version".patch)
+      unset latest_patch_version
+    fi
+    unset patch_versions
+    unset tmp
   fi
   # If the timestamp of the tarball's contents is restored, the modification
   # time of the source directory could be older than the one of the tarball.
