@@ -17,44 +17,46 @@ fi
 PS4='+$0:$LINENO: '
 set -ex
 
-args=`getopt                    \
-      -n 'bootstrap'            \
-      -l 'prefix:'              \
-      -l 'with-binutils:'       \
-      -l 'with-gmp-for-gcc:'    \
-      -l 'with-mpfr-for-gcc:'   \
-      -l 'with-mpc-for-gcc:'    \
-      -l 'with-isl-for-gcc:'    \
-      -l 'with-cloog-for-gcc:'  \
-      -l 'enable-compilers:'    \
-      -l 'enable-multitarget::' \
-      -l 'disable-multitarget'  \
-      -l 'with-gold::'          \
-      -l 'without-gold'         \
-      -l 'with-gcc-check::'     \
-      -l 'without-gcc-check'    \
-      -l 'enable-lcov::'        \
-      -l 'enable-gcovr::'       \
-      -l 'enable-gdb::'         \
-      -l 'with-gdb-check::'     \
-      -l 'without-gdb-check'    \
-      -l 'enable-opencv::'      \
-      -l 'enable-gmp::'         \
-      -l 'enable-mpfr::'        \
-      -l 'enable-mpc::'         \
-      -l 'enable-isl::'         \
-      -l 'enable-cloog::'       \
-      -l 'enable-ppl::'         \
-      -l 'enable-icu4c::'       \
-      -l 'enable-openmpi::'     \
-      -l 'with-mpi-backend:'    \
-      -l 'enable-boost::'       \
-      -l 'with-boost-check::'   \
-      -l 'without-boost-check'  \
-      -l 'enable-clang::'       \
-      -l 'enable-valgrind::'    \
-      -l 'enable-cradle::'      \
-      -l 'concurrency:'         \
+args=`getopt                       \
+      -n bootstrap                 \
+      -l prefix:                   \
+      -l with-binutils:            \
+      -l with-gmp-for-gcc:         \
+      -l with-mpfr-for-gcc:        \
+      -l with-mpc-for-gcc:         \
+      -l with-isl-for-gcc:         \
+      -l with-cloog-for-gcc:       \
+      -l enable-compilers:         \
+      -l enable-multitarget::      \
+      -l disable-multitarget       \
+      -l with-gold::               \
+      -l without-gold              \
+      -l with-gcc-check::          \
+      -l without-gcc-check         \
+      -l enable-lcov::             \
+      -l enable-gcovr::            \
+      -l enable-gdb::              \
+      -l with-gdb-check::          \
+      -l without-gdb-check         \
+      -l enable-opencv::           \
+      -l enable-gmp::              \
+      -l enable-mpfr::             \
+      -l enable-mpc::              \
+      -l enable-isl::              \
+      -l enable-cloog::            \
+      -l enable-ppl::              \
+      -l enable-icu4c::            \
+      -l enable-openmpi::          \
+      -l with-mpi-backend:         \
+      -l enable-boost::            \
+      -l with-boost-check::        \
+      -l without-boost-check       \
+      -l enable-clang::            \
+      -l enable-valgrind::         \
+      -l enable-valgrind-regtest:: \
+      -l disable-valgrind-regtest  \
+      -l enable-cradle::           \
+      -l concurrency:              \
       -o 'an' -- "$@"`
 eval "args=($args)"
 
@@ -88,6 +90,7 @@ boost=
 boost_check=yes
 clang=
 valgrind=
+valgrind_regtest=
 cradle=
 concurrency=1
 declare -a delegated_opts
@@ -202,6 +205,12 @@ for arg in "${args[@]}"; do
       ;;
     --enable-valgrind)
       prev_arg=--enable-valgrind
+      ;;
+    --enable-valgrind-regtest)
+      prev_arg=--enable-valgrind-regtest
+      ;;
+    --disable-valgrind-regtest)
+      valgrind_regtest=no
       ;;
     --enable-cradle)
       prev_arg=--enable-cradle
@@ -454,6 +463,23 @@ for arg in "${args[@]}"; do
       else
         valgrind="$arg"
       fi
+      ;;
+    --enable-valgrind-regtest)
+      case "$arg" in
+      '')
+        valgrind_regtest=yes
+        ;;
+      yes)
+        valgrind_regtest=yes
+        ;;
+      no)
+        valgrind_regtest=no
+        ;;
+      *)
+        echo "bootstrap: option \`--enable-valgrind-regtest' doesn't allow argument \`$arg'" >&2
+        exit 1
+        ;;
+      esac
       ;;
     --enable-cradle)
       if [ -z "$arg" ]; then
@@ -716,6 +742,30 @@ fi
 if [ -n "$valgrind" ]; then
   delegated_opts=("${delegated_opts[@]}" --enable-valgrind="$valgrind")
 fi
+
+if [ -z "$valgrind_regtest" ]; then
+  if [ -n "$valgrind" ]; then
+    valgrind_regtest=yes
+  else
+    valgrind_regtest=no
+  fi
+fi
+case "$valgrind_regtest" in
+yes)
+  [ -z "$valgrind" ] && {
+    echo "bootstrap: \`--enable-valgrind-regtest' without \`--enable-valgrind'" >&2
+    exit 1
+  }
+  delegated_opts=("${delegated_opts[@]}" --enable-valgrind-regtest)
+  ;;
+no)
+  delegated_opts=("${delegated_opts[@]}" --disable-valgrind-regtest)
+  ;;
+*)
+  echo 'bootstrap: an internal error' >&2
+  exit 1
+  ;;
+esac
 
 if [ -n "$cradle" ]; then
   if [ "$cradle" = trunk ]; then

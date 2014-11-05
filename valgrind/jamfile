@@ -334,8 +334,10 @@ $(PROPERTY_DUMP_COMMANDS)
 
   ( cd '$(OBJDIR)' && make install )
 
-  # Some tests might deadlock with GCC 4.8. Forces the deadlocked tests to be killed by `ulimit'.
-  ( cd '$(OBJDIR)' && ulimit -S -t 60 && ulimit -S -m 2097152 && make --jobs=$(CONCURRENCY) regtest ) || true
+  if [ $(VALGRIND_REGTEST) = yes ]; then
+    # Some tests might deadlock with GCC 4.8. Forces the deadlocked tests to be killed by `ulimit'.
+    ( cd '$(OBJDIR)' && ulimit -S -t 60 && ulimit -S -m 2097152 && make --jobs=$(CONCURRENCY) regtest )
+  fi
 
   # Cleans up `objdir`.
   rm -r '$(OBJDIR)'
