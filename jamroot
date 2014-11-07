@@ -874,11 +874,14 @@ for local arg in [ modules.peek : ARGV ] {
   else if "$(arg)" = --enable-valgrind-regtest=yes {
     valgrind-regtest = yes ;
   }
+  else if "$(arg)" = --enable-valgrind-regtest=ignore-errors {
+    valgrind-regtest = ignore-errors ;
+  }
   else if "$(arg)" = --enable-valgrind-regtest=no {
     valgrind-regtest = no ;
   }
   else if [ regex.match "^--enable-valgrind-regtest=(.+)" : "$(arg)" : 1 ] {
-    errors.error "option `--enable-valgrind-regtest' doesn't allow an argument other than `yes' or `no'" ;
+    errors.error "option `--enable-valgrind-regtest' doesn't allow an argument other than `yes', `ignore-errors' or `no'" ;
   }
   else if "$(arg)" = --disable-valgrind-regtest {
     valgrind-regtest = no ;
@@ -898,7 +901,7 @@ if ! "$(valgrind-regtest)" {
     valgrind-regtest = no ;
   }
 }
-if ! "$(valgrind)" && "$(valgrind-regtest)" = yes {
+if ! "$(valgrind)" && "$(valgrind-regtest)" != no {
   errors.error "`--enable-valgrind-regtest' without `--enable-valgrind'" ;
 }
 ECHO valgrind-regtest... $(valgrind-regtest) ;

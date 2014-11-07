@@ -472,6 +472,9 @@ for arg in "${args[@]}"; do
       yes)
         valgrind_regtest=yes
         ;;
+      ignore-errors)
+        valgrind_regtest=ignore-errors
+        ;;
       no)
         valgrind_regtest=no
         ;;
@@ -757,6 +760,13 @@ yes)
     exit 1
   }
   delegated_opts=("${delegated_opts[@]}" --enable-valgrind-regtest)
+  ;;
+ignore-errors)
+  [ -z "$valgrind" ] && {
+    echo "bootstrap: \`--enable-valgrind-regtest' without \`--enable-valgrind'" >&2
+    exit 1
+  }
+  delegated_opts=("${delegated_opts[@]}" --enable-valgrind-regtest=ignore-errors)
   ;;
 no)
   delegated_opts=("${delegated_opts[@]}" --disable-valgrind-regtest)
