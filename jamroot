@@ -822,8 +822,28 @@ else {
 }
 
 
-local valgrind = [ option.get "enable-valgrind" : : "latest" ] ;
-if "$(valgrind)" = "latest" {
+local valgrind ;
+for local arg in [ modules.peek : ARGV ] {
+  if "$(arg)" = --enable-valgrind {
+    valgrind = latest ;
+  }
+  else if "$(arg)" = --enable-valgrind= {
+    errors.error "option `--enable-valgrind' doesn't allow empty argument" ;
+  }
+  else if [ regex.match "^--enable-valgrind=(.+)" : "$(arg)" : 1 ] {
+    valgrind = [ regex.match "^--enable-valgrind=(.+)" : "$(arg)" : 1 ] ;
+  }
+  else if "$(arg)" = --disable-valgrind {
+    valgrind = ;
+  }
+  else if [ regex.match "(^--disable-valgrind=.*)" : "$(arg)" : 1 ] {
+    errors.error "option `--disable-valgrind' doesn't allow an argument" ;
+  }
+  else {
+    # Do nothing.
+  }
+}
+if "$(valgrind)" = latest {
   valgrind = [ get-valgrind-latest-version ] ;
 }
 if "$(valgrind)" {
@@ -834,13 +854,57 @@ if "$(valgrind)" {
     # Do nothing.
   }
   else {
-    errors.error "an invalid value `$(valgrind)' for `--enable-valgrind'." ;
+    errors.error "option `--enable-valgrind' doesn't allow argument `$(valgrind)'" ;
   }
   ECHO valgrind... $(valgrind) ;
 }
 else {
   ECHO valgrind... N/A ;
 }
+
+
+local valgrind-regtest ;
+for local arg in [ modules.peek : ARGV ] {
+  if "$(arg)" = --enable-valgrind-regtest {
+    valgrind-regtest = yes ;
+  }
+  else if "$(arg)" = --enable-valgrind-regtest= {
+    errors.error "option `--enable-valgrind-regtest' doesn't allow empty argument" ;
+  }
+  else if "$(arg)" = --enable-valgrind-regtest=yes {
+    valgrind-regtest = yes ;
+  }
+  else if "$(arg)" = --enable-valgrind-regtest=ignore-errors {
+    valgrind-regtest = ignore-errors ;
+  }
+  else if "$(arg)" = --enable-valgrind-regtest=no {
+    valgrind-regtest = no ;
+  }
+  else if [ regex.match "^--enable-valgrind-regtest=(.+)" : "$(arg)" : 1 ] {
+    errors.error "option `--enable-valgrind-regtest' doesn't allow an argument other than `yes', `ignore-errors' or `no'" ;
+  }
+  else if "$(arg)" = --disable-valgrind-regtest {
+    valgrind-regtest = no ;
+  }
+  else if [ regex.match "(^--disable-valgrind-regtest=.*)" : "$(arg)" : 1 ] {
+    errors.error "option `--disable-valgrind-regtest' doesn't allow an argument" ;
+  }
+  else {
+    # Do nothing.
+  }
+}
+if ! "$(valgrind-regtest)" {
+  if "$(valgrind)" {
+    valgrind-regtest = yes ;
+  }
+  else {
+    valgrind-regtest = no ;
+  }
+}
+if ! "$(valgrind)" && "$(valgrind-regtest)" != no {
+  errors.error "`--enable-valgrind-regtest' without `--enable-valgrind'" ;
+}
+ECHO valgrind-regtest... $(valgrind-regtest) ;
 
 
 local cradle = [ option.get enable-cradle : : IMPLIED ] ;
@@ -1105,6 +1169,9 @@ if "$(valgrind)" {
 else {
   ECHO VALGRIND... N/A ;
 }
+
+constant VALGRIND_REGTEST : "$(valgrind-regtest)" ;
+ECHO VALGRIND_REGTEST... $(VALGRIND_REGTEST) ;
 
 if "$(cradle)" {
   constant CRADLE : "$(cradle)" ;

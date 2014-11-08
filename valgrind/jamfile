@@ -73,7 +73,7 @@ $(PROPERTY_DUMP_COMMANDS)
   set -ex
   rm -f '$(<)'
   trap "rm -f '$(<)'" ERR HUP INT QUIT TERM
-  ( cd '$(<:D)' && wget -q -t 3 --no-clobber -- '$(URL)' )
+  (cd '$(<:D)' && wget -q -t 3 --no-clobber -- '$(URL)')
   [ -f '$(<)' ]
 EOS
 }
@@ -323,19 +323,32 @@ $(PROPERTY_DUMP_COMMANDS)
   [ "`/bin/sh '$(OBJDIR)/config.sub' '$(BUILD_TRIPLET)'`" = '$(BUILD_TRIPLET)' ]
   [ "`/bin/sh '$(OBJDIR)/config.sub' '$(HOST_TRIPLET)'`" = '$(HOST_TRIPLET)' ]
 
-  ( cd '$(OBJDIR)' && ./configure $(OPTIONS) )
+  (cd '$(OBJDIR)' && ./configure $(OPTIONS:J= ))
 
   # Checks the creation of `Makefile`.
   [ -f '$(OBJDIR)/Makefile' ]
 
-  ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) )
+  (cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY))
 
-  ( cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) check )
+  (cd '$(OBJDIR)' && make --jobs=$(CONCURRENCY) check)
 
-  ( cd '$(OBJDIR)' && make install )
+  (cd '$(OBJDIR)' && make install)
 
-  # Some tests might deadlock with GCC 4.8. Forces the deadlocked tests to be killed by `ulimit'.
-  ( cd '$(OBJDIR)' && ulimit -S -t 60 && ulimit -S -m 2097152 && make --jobs=$(CONCURRENCY) regtest ) || true
+  if [ $(VALGRIND_REGTEST) = yes -o $(VALGRIND_REGTEST) = ignore-errors ]; then
+    # Some tests might deadlock with GCC 4.8. Forces the deadlocked tests to be killed by `ulimit'.
+    case $(VALGRIND_REGTEST) in
+    yes)
+      (cd '$(OBJDIR)' && ulimit -S -t 60 && ulimit -S -m 2097152 && make --jobs=$(CONCURRENCY) regtest)
+      ;;
+    ignore-errors)
+      (cd '$(OBJDIR)' && ulimit -S -t 60 && ulimit -S -m 2097152 && make --jobs=$(CONCURRENCY) regtest || true)
+      ;;
+    *)
+      echo "valgrind/jamfile: an internal error" >&2
+      exit 1
+      ;;
+    esac
+  fi
 
   # Cleans up `objdir`.
   rm -r '$(OBJDIR)'
