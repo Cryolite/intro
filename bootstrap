@@ -722,7 +722,24 @@ if [ -n "$mpi_backend" ]; then
 fi
 
 if [ -n "$boost" ]; then
-  delegated_opts=("${delegated_opts[@]}" --enable-boost="$boost")
+    if [ '!' -d "$prefix/boost/$boost" ]; then
+        boost_tag=`echo $boost | sed -e 's/\./_/g'`
+        mkdir -p "$prefix/boost"
+        pushd "$prefix/boost"
+        wget -q -t 3 --no-clobber -- "http://downloads.sourceforge.net/project/boost/boost/$boost/boost_$boost_tag.tar.bz2"
+        tar xjf boost_$boost_tag.tar.bz2
+        rm boost_$boost_tag.tar.bz2
+        mv boost_$boost_tag $boost
+        if [ -f "$intro_root/boost/$boost.patch" ]; then
+            (cd "$boost" && patch -F 0 -p1 <"$intro_root/boost/$boost.patch")
+        fi
+        popd
+    fi
+    if [ '!' -x "$prefix/boost/$boost/b2" ]; then
+        (cd "$prefix/boost/$boost" && ./bootstrap.sh)
+    fi
+    [ -x "$prefix/boost/$boost/b2" ]
+    delegated_opts=("${delegated_opts[@]}" --enable-boost="$boost")
 fi
 
 case "$boost_check" in
@@ -794,33 +811,26 @@ fi
 
 boost_latest=`"$intro_root/boost/latest.sh"`
 
-if [ ! -d "$prefix/boost/$boost_latest" ]; then
-  boost_tag=`echo $boost_latest | sed -e 's/\./_/g'`
-  mkdir -p "$prefix/boost"
-  pushd "$prefix/boost"
-  wget -q -t 3 --no-clobber -- "http://downloads.sourceforge.net/project/boost/boost/$boost_latest/boost_${boost_tag}.tar.bz2"
-  tar xjf boost_${boost_tag}.tar.bz2
-  rm boost_${boost_tag}.tar.bz2
-  mv boost_$boost_tag $boost_latest
-  if [ -f "$intro_root/boost/$boost_latest.patch" ]; then
-    pushd "$boost_latest"
-    patch -p1 <"$intro_root/boost/$boost_latest.patch"
+if [ '!' -d "$prefix/boost/$boost_latest" ]; then
+    boost_latest_tag=`echo $boost_latest | sed -e 's/\./_/g'`
+    mkdir -p "$prefix/boost"
+    pushd "$prefix/boost"
+    wget -q -t 3 --no-clobber -- "http://downloads.sourceforge.net/project/boost/boost/$boost_latest/boost_$boost_latest_tag.tar.bz2"
+    tar xjf boost_$boost_latest_tag.tar.bz2
+    rm boost_$boost_latest_tag.tar.bz2
+    mv boost_$boost_latest_tag $boost_latest
+    if [ -f "$intro_root/boost/$boost_latest.patch" ]; then
+        (cd "$boost_latest" && patch -F 0 -p1 <"$intro_root/boost/$boost_latest.patch")
+    fi
+    ln -sfT $boost_latest latest
     popd
-  fi
-  ln -sfT $boost_latest latest
-  popd
-  if [ -x "$prefix/bin/bjam" ]; then
-    rm "$prefix/bin/bjam"
-  fi
+fi
+if [ '!' -x "$prefix/boost/$boost_latest/b2" ]; then
+    (cd "$prefix/boost/$boost_latest" && ./bootstrap.sh)
 fi
 
-if [ ! -x "$prefix/bin/bjam" ]; then
-  pushd "$prefix/boost/latest"
-  ./bootstrap.sh
-  mkdir -p "$prefix/bin"
-  cp bjam "$prefix/bin"
-  popd
-fi
+mkdir -p "$prefix/bin"
+cp -f "$prefix/boost/latest/bjam" "$prefix/bin"
 
 cp "$intro_root/template/x86_64-unknown-linux-gnu/site-config.jam" "$HOME"
 sed -i "s@^local prefix = \"\$(home)/local\" ;@local prefix = \"$prefix\" ;@" "$HOME/site-config.jam"
