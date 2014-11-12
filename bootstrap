@@ -38,7 +38,6 @@ args=`getopt                       \
       -l enable-gdb::              \
       -l with-gdb-check::          \
       -l without-gdb-check         \
-      -l enable-opencv::           \
       -l enable-gmp::              \
       -l enable-mpfr::             \
       -l enable-mpc::              \
@@ -52,6 +51,8 @@ args=`getopt                       \
       -l with-boost-check::        \
       -l without-boost-check       \
       -l enable-clang::            \
+      -l enable-opencv::           \
+      -l disable-opencv            \
       -l enable-valgrind::         \
       -l enable-valgrind-regtest:: \
       -l disable-valgrind-regtest  \
@@ -76,7 +77,6 @@ lcov=
 gcovr=
 gdb=
 gdb_check=yes
-opencv=
 gmp=
 mpfr=
 mpc=
@@ -89,6 +89,7 @@ mpi_backend=
 boost=
 boost_check=yes
 clang=
+opencv=
 valgrind=
 valgrind_regtest=
 cradle=
@@ -161,9 +162,6 @@ for arg in "${args[@]}"; do
     --without-gdb-check)
       gdb_check=no
       ;;
-    --enable-opencv)
-      prev_arg=--enable-opencv
-      ;;
     --enable-gmp)
       prev_arg=--enable-gmp
       ;;
@@ -202,6 +200,12 @@ for arg in "${args[@]}"; do
       ;;
     --enable-clang)
       prev_arg=--enable-clang
+      ;;
+    --enable-opencv)
+      prev_arg=--enable-opencv
+      ;;
+    --disable-opencv)
+      opencv=
       ;;
     --enable-valgrind)
       prev_arg=--enable-valgrind
@@ -660,10 +664,6 @@ no)
   ;;
 esac
 
-if [ -n "$opencv" ]; then
-  delegated_opts=("${delegated_opts[@]}" --enable-opencv="$opencv")
-fi
-
 if [ -n "$gmp" ]; then
   if [ "$gmp" = latest ]; then
     gmp="$("$intro_root/gmp/latest.sh")"
@@ -759,6 +759,22 @@ if [ -n "$clang" ]; then
   delegated_opts=("${delegated_opts[@]}" --enable-clang="$clang")
 fi
 
+if [ -n "$cradle" ]; then
+  if [ "$cradle" = trunk ]; then
+    "$intro_root/cradle/checkout.sh"
+  else
+    echo "error: an invalid value \`$cradle' for \`--enable-cradle'" >&2
+    exit 1
+  fi
+  delegated_opts=("${delegated_opts[@]}" --enable-cradle="$cradle")
+fi
+
+if [ -n "$opencv" ]; then
+    delegated_opts=("${delegated_opts[@]}" --enable-opencv="$opencv")
+else
+    delegated_opts=("${delegated_opts[@]}" --disable-opencv)
+fi
+
 if [ -n "$valgrind" ]; then
   delegated_opts=("${delegated_opts[@]}" --enable-valgrind="$valgrind")
 fi
@@ -793,16 +809,6 @@ no)
   exit 1
   ;;
 esac
-
-if [ -n "$cradle" ]; then
-  if [ "$cradle" = trunk ]; then
-    "$intro_root/cradle/checkout.sh"
-  else
-    echo "error: an invalid value \`$cradle' for \`--enable-cradle'" >&2
-    exit 1
-  fi
-  delegated_opts=("${delegated_opts[@]}" --enable-cradle="$cradle")
-fi
 
 if [ -n "$concurrency" ]; then
   delegated_opts=("${delegated_opts[@]}" --concurrency=$concurrency)
