@@ -523,21 +523,6 @@ case "*" :
 ECHO gdb-check... $(gdb-check) ;
 
 
-local opencv = [ option.get "enable-opencv" : : "latest" ] ;
-if "$(opencv)" = "latest" {
-  opencv = [ get-opencv-latest-version ] ;
-}
-if "$(opencv)" {
-  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)?)$" : "$(opencv)" : 1 ] {
-    errors.error "an invalid value `$(opencv)' for `--enable-opencv'." ;
-  }
-  if ! "$(opencv)" in $(opencv-versions) {
-    opencv-versions += "$(opencv)" ;
-  }
-  ECHO opencv... $(opencv) ;
-}
-
-
 local gmp = [ option.get enable-gmp : : IMPLIED ] ;
 if "$(gmp)" = IMPLIED {
   errors.error "`--enable-gmp' should be specified with a value." ;
@@ -819,6 +804,44 @@ if "$(clang)" {
 }
 else {
   ECHO clang... N/A ;
+}
+
+
+local opencv ;
+for local arg in [ modules.peek : ARGV ] {
+  if "$(arg)" = --enable-opencv {
+    opencv = latest ;
+  }
+  else if "$(arg)" = --enable-opencv= {
+    errors.error "option `--enable-opencv' doesn't allow empty argument" ;
+  }
+  else if [ regex.match "^--enable-opencv=(.+)" : "$(arg)" : 1 ] {
+    opencv = [ regex.match "^--enable-opencv=(.+)" : "$(arg)" : 1 ] ;
+  }
+  else if "$(arg)" = --disable-opencv {
+    opencv = ;
+  }
+  else if [ regex.match "(^--disable-opencv=.*)" : "$(arg)" : 1 ] {
+    errors.error "option `--disable-opencv' doesn't allow an argument" ;
+  }
+  else {
+    # Do nothing.
+  }
+}
+if "$(opencv)" = latest {
+  opencv = [ get-opencv-latest-version ] ;
+}
+if "$(opencv)" {
+  if ! [ regex.match "^([0-9]+(\\.[0-9]+(\\.[0-9]+(\\.[0-9]+)?)?)?)$" : "$(opencv)" : 1 ] {
+    errors.error "option `--enable-opencv' doesn't allow argument `$(opencv)'" ;
+  }
+  if ! "$(opencv)" in $(opencv-versions) {
+    opencv-versions += "$(opencv)" ;
+  }
+  ECHO opencv... $(opencv) ;
+}
+else {
+  ECHO opencv... N/A ;
 }
 
 
