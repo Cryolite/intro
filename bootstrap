@@ -721,7 +721,12 @@ if [ -n "$mpi_backend" ]; then
   delegated_opts=("${delegated_opts[@]}" --with-mpi-backend="$mpi_backend")
 fi
 
+boost_latest="$("$intro_root/boost/latest.sh")"
+
 if [ -n "$boost" ]; then
+    if [ "$boost" = latest ]; then
+        boost="$boost_latest"
+    fi
     if [ '!' -d "$prefix/boost/$boost" ]; then
         boost_tag=`echo $boost | sed -e 's/\./_/g'`
         mkdir -p "$prefix/boost"
@@ -809,8 +814,6 @@ if [ -n "$concurrency" ]; then
 fi
 
 
-boost_latest=`"$intro_root/boost/latest.sh"`
-
 if [ '!' -d "$prefix/boost/$boost_latest" ]; then
     boost_latest_tag=`echo $boost_latest | sed -e 's/\./_/g'`
     mkdir -p "$prefix/boost"
@@ -822,9 +825,9 @@ if [ '!' -d "$prefix/boost/$boost_latest" ]; then
     if [ -f "$intro_root/boost/$boost_latest.patch" ]; then
         (cd "$boost_latest" && patch -F 0 -p1 <"$intro_root/boost/$boost_latest.patch")
     fi
-    ln -sfT $boost_latest latest
     popd
 fi
+(cd "$prefix/boost" && ln -sfT "$boost_latest" latest)
 if [ '!' -x "$prefix/boost/$boost_latest/b2" ]; then
     (cd "$prefix/boost/$boost_latest" && ./bootstrap.sh)
 fi
