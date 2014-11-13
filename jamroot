@@ -380,52 +380,36 @@ case "*" :
 ECHO with-gold... $(with-gold) ;
 
 
-local gcc-check = [ option.get "with-gcc-check" : "UNSPECIFIED" : "IMPLIED" ] ;
-switch "$(gcc-check)" {
-case "UNSPECIFIED" :
-  gcc-check = [ option.get "without-gcc-check" : "UNSPECIFIED" : "IMPLIED" ] ;
-  switch "$(gcc-check)" {
-  case "UNSPECIFIED" :
-    gcc-check = "yes" ;
-  case "IMPLIED" :
-    gcc-check = "no" ;
-  case "*" :
-    errors.error "`--without-gcc-check' cannot have any value." ;
+local gcc-check ;
+for local arg in [ modules.peek : ARGV ] {
+  if "$(arg)" = --enable-gcc-check {
+    gcc-check = yes ;
   }
-case "IMPLIED" :
-  gcc-check = [ option.get "without-gcc-check" : "UNSPECIFIED" : "IMPLIED" ] ;
-  switch "$(gcc-check)" {
-  case "UNSPECIFIED" :
-    gcc-check = "yes" ;
-  case "IMPLIED" :
-    errors.error "`--with-gcc-check' and `--without-gcc-check' cannot be specified simultaneously." ;
-  case "*" :
-    errors.error "`--without-gcc-check' cannot have any value." ;
+  else if "$(arg)" = --enable-gcc-check= {
+    errors.error "option `--enable-gcc-check' doesn't allow empty argument" ;
   }
-case "yes" :
-  gcc-check = [ option.get "without-gcc-check" : "UNSPECIFIED" : "IMPLIED" ] ;
-  switch "$(gcc-check)" {
-  case "UNSPECIFIED" :
-    gcc-check = "yes" ;
-  case "IMPLIED" :
-    errors.error "`--with-gcc-check' and `--without-gcc-check' cannot be specified simultaneously." ;
-  case "*" :
-    errors.error "`--without-gcc-check' cannot have any value." ;
+  else if "$(arg)" = --enable-gcc-check=yes {
+    gcc-check = yes ;
   }
-case "no" :
-  gcc-check = [ option.get "without-gcc-check" : "UNSPECIFIED" : "IMPLIED" ] ;
-  switch "$(gcc-check)" {
-  case "UNSPECIFIED" :
-    gcc-check = "no" ;
-  case "IMPLIED" :
-    errors.error "`--with-gcc-check' and `--without-gcc-check' cannot be specified simultaneously." ;
-  case "*" :
-    errors.error "`--without-gcc-check' cannot have any value." ;
+  else if "$(arg)" = --enable-gcc-check=no {
+    gcc-check = no ;
   }
-case "" :
-  errors.error "the value for `--with-gcc-check' is an empty string." ;
-case "*" :
-  errors.error "an invalid value `$(gcc-check)' is specified for `--with-gcc-check'." ;
+  else if [ regex.match "^--enable-gcc-check=(.+)" : "$(arg)" : 1 ] {
+    local v = [ regex.match "^--enable-gcc-check=(.+)" : "$(arg)" : 1 ] ;
+    errors.error "option `--enable-gcc-check' doesn't allow argument `$(v)'" ;
+  }
+  else if "$(arg)" = --disable-gcc-check {
+    gcc-check = no ;
+  }
+  else if [ regex.match "(^--disable-gcc-check=.*)" : "$(arg)" : 1 ] {
+    errors.error "option `--disable-gcc-check' doesn't allow an argument" ;
+  }
+  else {
+    # Do nothing.
+  }
+}
+if ! "$(gcc-check)" {
+  gcc-check = yes ;
 }
 ECHO gcc-check... $(gcc-check) ;
 
