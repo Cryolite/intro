@@ -31,8 +31,8 @@ args=`getopt                       \
       -l disable-multitarget       \
       -l with-gold::               \
       -l without-gold              \
-      -l with-gcc-check::          \
-      -l without-gcc-check         \
+      -l enable-gcc-check::        \
+      -l disable-gcc-check         \
       -l enable-lcov::             \
       -l enable-gcovr::            \
       -l enable-gdb::              \
@@ -72,7 +72,7 @@ cloog_for_gcc=system
 compilers=
 multitarget=no
 gold=no
-gcc_check=yes
+gcc_check=
 lcov=
 gcovr=
 gdb=
@@ -141,10 +141,10 @@ for arg in "${args[@]}"; do
     --without-gold)
       gold=no
       ;;
-    --with-gcc-check)
-      prev_arg=--with-gcc-check
+    --enable-gcc-check)
+      prev_arg=--enable-gcc-check
       ;;
-    --without-gcc-check)
+    --disable-gcc-check)
       gcc_check=no
       ;;
     --enable-lcov)
@@ -297,7 +297,7 @@ for arg in "${args[@]}"; do
       echo "bootstrap: an internal error" >&2
       exit 1
       ;;
-    --with-gcc-check)
+    --enable-gcc-check)
       case "$arg" in
       '')
         gcc_check=yes
@@ -309,12 +309,12 @@ for arg in "${args[@]}"; do
         gcc_check=no
         ;;
       *)
-        echo "bootstrap: option \`--with-gcc-check' doesn't allow argument \`$arg'" >&2
+        echo "bootstrap: option \`--enable-gcc-check' doesn't allow argument \`$arg'" >&2
         exit 1
         ;;
       esac
       ;;
-    --without-gcc-check)
+    --disable-gcc-check)
       echo "bootstrap: an internal error" >&2
       exit 1
       ;;
@@ -598,17 +598,20 @@ no)
   ;;
 esac
 
+if [ -z "$gcc_check" ]; then
+    gcc_check=yes
+fi
 case "$gcc_check" in
 yes)
-  delegated_opts=("${delegated_opts[@]}" --with-gcc-check)
-  ;;
+    delegated_opts=("${delegated_opts[@]}" --enable-gcc-check)
+    ;;
 no)
-  delegated_opts=("${delegated_opts[@]}" --without-gcc-check)
-  ;;
+    delegated_opts=("${delegated_opts[@]}" --disable-gcc-check)
+    ;;
 *)
-  echo "bootstrap: an internal error" >&2
-  exit 1
-  ;;
+    echo "bootstrap: an internal error" >&2
+    exit 1
+    ;;
 esac
 
 if [ -n "$lcov" ]; then
