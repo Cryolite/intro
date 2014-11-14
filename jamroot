@@ -444,9 +444,26 @@ else {
 }
 
 
-local gdb = [ option.get enable-gdb : : IMPLIED ] ;
-if "$(gdb)" = IMPLIED {
-  errors.error "`--enable-gdb' should be specified with a value" ;
+local gdb ;
+for local arg in [ modules.peek : ARGV ] {
+  if "$(arg)" = --enable-gdb {
+    errors.error "option `--enable-gdb' requires an argument" ;
+  }
+  else if "$(arg)" = --enable-gdb= {
+    errors.error "option `--enable-gdb' doesn't allow empty argument" ;
+  }
+  else if [ regex.match "^--enable-gdb=(.+)" : "$(arg)" : 1 ] {
+    gdb = [ regex.match "^--enable-gdb=(.+)" : "$(arg)" : 1 ] ;
+  }
+  else if "$(arg)" = --disable-gdb {
+    gdb = ;
+  }
+  else if [ regex.match "(^--disable-gdb=.*)" : "$(arg)" : 1 ] {
+    errors.error "option `--disable-gdb' doesn't allow an argument" ;
+  }
+  else {
+    # Do nothing.
+  }
 }
 if "$(gdb)" {
   # GDB version strings might include non-digit suffixes like `7.3a`.
@@ -455,56 +472,56 @@ if "$(gdb)" {
   }
   ECHO gdb... $(gdb) ;
 }
-
-
-local gdb-check = [ option.get "with-gdb-check" : "UNSPECIFIED" : "IMPLIED" ] ;
-switch "$(gdb-check)" {
-case "UNSPECIFIED" :
-  gdb-check = [ option.get "without-gdb-check" : "UNSPECIFIED" : "IMPLIED" ] ;
-  switch "$(gdb-check)" {
-  case "UNSPECIFIED" :
-    gdb-check = "yes" ;
-  case "IMPLIED" :
-    gdb-check = "no" ;
-  case "*" :
-    errors.error "`--without-gdb-check' cannot have any value." ;
-  }
-case "IMPLIED" :
-  gdb-check = [ option.get "without-gdb-check" : "UNSPECIFIED" : "IMPLIED" ] ;
-  switch "$(gdb-check)" {
-  case "UNSPECIFIED" :
-    gdb-check = "yes" ;
-  case "IMPLIED" :
-    errors.error "`--with-gdb-check' and `--without-gdb-check' cannot be specified simultaneously." ;
-  case "*" :
-    errors.error "`--without-gdb-check' cannot have any value." ;
-  }
-case "yes" :
-  gdb-check = [ option.get "without-gdb-check" : "UNSPECIFIED" : "IMPLIED" ] ;
-  switch "$(gdb-check)" {
-  case "UNSPECIFIED" :
-    gdb-check = "yes" ;
-  case "IMPLIED" :
-    errors.error "`--with-gdb-check' and `--without-gdb-check' cannot be specified simultaneously." ;
-  case "*" :
-    errors.error "`--without-gdb-check' cannot have any value." ;
-  }
-case "no" :
-  gdb-check = [ option.get "without-gdb-check" : "UNSPECIFIED" : "IMPLIED" ] ;
-  switch "$(gdb-check)" {
-  case "UNSPECIFIED" :
-    gdb-check = "no" ;
-  case "IMPLIED" :
-    errors.error "`--with-gdb-check' and `--without-gdb-check' cannot be specified simultaneously." ;
-  case "*" :
-    errors.error "`--without-gdb-check' cannot have any value." ;
-  }
-case "" :
-  errors.error "the value for `--with-gdb-check' is an empty string." ;
-case "*" :
-  errors.error "an invalid value `$(gdb-check)' is specified for `--with-gdb-check'." ;
+else {
+  ECHO gdb... N/A ;
 }
-ECHO gdb-check... $(gdb-check) ;
+
+
+local gdb-check ;
+for local arg in [ modules.peek : ARGV ] {
+  if "$(arg)" = --enable-gdb-check {
+    gdb-check = yes ;
+  }
+  else if "$(arg)" = --enable-gdb-check= {
+    errors.error "option `--enable-gdb-check' doesn't allow empty argument" ;
+  }
+  else if "$(arg)" = --enable-gdb-check=yes {
+    gdb-check = yes ;
+  }
+  else if "$(arg)" = --enable-gdb-check=no {
+    gdb-check = no ;
+  }
+  else if [ regex.match "^--enable-gdb-check=(.+)" : "$(arg)" : 1 ] {
+    local v = [ regex.match "^--enable-gdb-check=(.+)" : "$(arg)" : 1 ] ;
+    errors.error "option `--enable-gdb-check' doesn't allow argument `$(v)'" ;
+  }
+  else if "$(arg)" = --disable-gdb-check {
+    gdb-check = no ;
+  }
+  else if [ regex.match "(^--disable-gdb-check=.*)" : "$(arg)" : 1 ] {
+    errors.error "option `--disable-gdb-check' doesn't allow an argument" ;
+  }
+  else {
+    # Do nothing.
+  }
+}
+if "$(gdb)" {
+  gdb-check ?= yes ;
+  ECHO gdb-check... $(gdb-check) ;
+}
+else {
+  switch "$(gdb-check)" {
+  case yes :
+    errors.error "`--enable-gdb-check' without `--enable-gdb'" ;
+  case no :
+    errors.error "`--disable-gdb-check' without `--enable-gdb'" ;
+  case "" :
+    gdb-check = no ;
+    ECHO gdb-check... N/A ;
+  case * :
+    errors.error "an internal error" ;
+  }
+}
 
 
 local gmp = [ option.get enable-gmp : : IMPLIED ] ;
