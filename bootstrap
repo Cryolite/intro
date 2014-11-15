@@ -36,8 +36,9 @@ args=`getopt                       \
       -l enable-lcov::             \
       -l enable-gcovr::            \
       -l enable-gdb::              \
-      -l with-gdb-check::          \
-      -l without-gdb-check         \
+      -l disable-gdb               \
+      -l enable-gdb-check::        \
+      -l disable-gdb-check         \
       -l enable-gmp::              \
       -l enable-mpfr::             \
       -l enable-mpc::              \
@@ -76,7 +77,7 @@ gcc_check=
 lcov=
 gcovr=
 gdb=
-gdb_check=yes
+gdb_check=
 gmp=
 mpfr=
 mpc=
@@ -156,10 +157,13 @@ for arg in "${args[@]}"; do
     --enable-gdb)
       prev_arg=--enable-gdb
       ;;
-    --with-gdb-check)
-      prev_arg=--with-gdb-check
+    --disable-gdb)
+      gdb=
       ;;
-    --without-gdb-check)
+    --enable-gdb-check)
+      prev_arg=--enable-gdb-check
+      ;;
+    --disable-gdb-check)
       gdb_check=no
       ;;
     --enable-gmp)
@@ -339,7 +343,11 @@ for arg in "${args[@]}"; do
         gdb="$arg"
       fi
       ;;
-    --with-gdb-check)
+    --disable-gdb)
+      echo "bootstrap: an internal error" >&2
+      exit 1
+      ;;
+    --enable-gdb-check)
       case "$arg" in
       '')
         gdb_check=yes
@@ -351,10 +359,14 @@ for arg in "${args[@]}"; do
         gdb_check=no
         ;;
       *)
-        echo "bootstrap: option \`--with-gdb-check' doesn't allow argument \`$arg'" >&2
+        echo "bootstrap: option \`--enable-gdb-check' doesn't allow argument \`$arg'" >&2
         exit 1
         ;;
       esac
+      ;;
+    --disable-gdb-check)
+      echo "bootstrap: an internal error" >&2
+      exit 1
       ;;
     --enable-opencv)
       if [ -z "$arg" ]; then
@@ -654,18 +666,41 @@ if [ -n "$gdb" ]; then
     delegated_opts=("${delegated_opts[@]}" --enable-gdb="$gdb")
 fi
 
-case "$gdb_check" in
-yes)
-  delegated_opts=("${delegated_opts[@]}" --with-gdb-check)
-  ;;
-no)
-  delegated_opts=("${delegated_opts[@]}" --without-gdb-check)
-  ;;
-*)
-  echo 'bootstrap: an internal error' >&2
-  exit 1
-  ;;
-esac
+if [ -n "$gdb" ]; then
+    case "$gdb_check" in
+    yes)
+        delegated_opts=("${delegated_opts[@]}" --enable-gdb-check)
+        ;;
+    no)
+        delegated_opts=("${delegated_opts[@]}" --disable-gdb-check)
+        ;;
+    '')
+        # Do nothing.
+        ;;
+    *)
+        echo 'bootstrap: an internal error' >&2
+        exit 1
+        ;;
+    esac
+else
+    case "$gdb_check" in
+    yes)
+        echo "bootstrap: \`--enable-gdb-check' without \`--enable-gdb'" >&2
+        exit 1
+        ;;
+    no)
+        echo "bootstrap: \`--disable-gdb-check' without \`--enable-gdb'" >&2
+        exit 1
+        ;;
+    '')
+        # Do nothing.
+        ;;
+    *)
+        echo 'bootstrap: an internal error' >&2
+        exit 1
+        ;;
+    esac
+fi
 
 if [ -n "$gmp" ]; then
   if [ "$gmp" = latest ]; then
