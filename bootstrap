@@ -44,6 +44,7 @@ args=`getopt                       \
       -l enable-mpc::              \
       -l enable-isl::              \
       -l enable-cloog::            \
+      -l disable-cloog             \
       -l enable-ppl::              \
       -l enable-icu4c::            \
       -l enable-openmpi::          \
@@ -180,6 +181,9 @@ for arg in "${args[@]}"; do
       ;;
     --enable-cloog)
       prev_arg=--enable-cloog
+      ;;
+    --disable-cloog)
+      cloog=
       ;;
     --enable-ppl)
       prev_arg=--enable-ppl
@@ -741,6 +745,8 @@ if [ -n "$cloog" ]; then
     exit 1
   fi
   delegated_opts=("${delegated_opts[@]}" --enable-cloog="$cloog")
+else
+  delegated_opts=("${delegated_opts[@]}" --disable-cloog)
 fi
 
 if [ -n "$ppl" ]; then
