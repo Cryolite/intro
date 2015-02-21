@@ -4,12 +4,14 @@ import alias ;
 import errors ;
 import feature ;
 import make ;
+import numbers ;
 import path ;
 import regex ;
 import "$(INTRO_ROOT_DIR)/compilers"
   : is-gcc
     is-clang
     is-icc
+    get-frontend-version
     get-full-prefix
     get-triplets
     get-cc
@@ -284,6 +286,21 @@ rule make-install ( targets * : sources * : properties * )
     }
     CXXFLAGS on $(targets) = "$(cxxflags)" ;
     OPTIONS on $(targets) += "CXXFLAGS='@$(objdir-native)/cxxflags'" ;
+  }
+
+  if [ is-gcc "$(compiler)" ] {
+    local gcc_version = [ get-frontend-version "$(compiler)" ] ;
+    local gcc_version_major = [ regex.match "^([0-9]+)" : "$(gcc_version)" : 1 ] ;
+    if [ numbers.less "$(gcc_version_major)" 5 ] {
+      # Do nothing.
+    }
+    else {
+      local memory-checker = [ feature.get-values <memory-checker> : $(properties) ] ;
+      if "$(link)" = static && "$(memory-checker)" = "on" {
+        # A workaround for GCC 5 or above.
+        OPTIONS on $(targets) += "LIBS='-ldl'" ;
+      }
+    }
   }
 
   local ar-command-substitution = [ get-ar-command-substitution "$(PREFIX)" : $(properties) ] ;
