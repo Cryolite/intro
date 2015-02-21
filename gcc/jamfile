@@ -4,6 +4,7 @@ import alias ;
 import errors ;
 import feature ;
 import make ;
+import numbers ;
 import path ;
 import regex ;
 import "$(INTRO_ROOT_DIR)/compilers"
@@ -421,7 +422,10 @@ rule make-install ( targets * : sources * : properties * )
 
   OPTIONS on $(targets) += "--enable-libstdcxx-debug" ;
 
-  OPTIONS on $(targets) += "--enable-symvers=gnu-versioned-namespace" ;
+  local version_major = [ regex.match "^([0-9]+)" : "$(version)" : 1 ] ;
+  if [ numbers.less "$(version_major)" 5 ] {
+    OPTIONS on $(targets) += "--enable-symvers=gnu-versioned-namespace" ;
+  }
 
   PROPERTY_DUMP_COMMANDS on $(targets) = [ get-property-dump-commands $(properties) ] ;
 }
